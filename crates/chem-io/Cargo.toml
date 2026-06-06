@@ -1,0 +1,11 @@
+[package]
+name    = "chem-io"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+chematic  = { workspace = true }
+quick-xml = { workspace = true }
+serde     = { workspace = true }
+resvg     = { workspace = true }
+image     = { version = "0.25", default-features = false, features = ["jpeg"] }

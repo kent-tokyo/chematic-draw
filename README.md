@@ -1,0 +1,223 @@
+# chematic-draw
+
+An open-source chemical structure editor written in **Pure Rust**.  
+Aims to be a complete, lightweight drop-in replacement for ChemDraw, ChemDoodle, Ketcher, FreeChemDraw, and ChemSketch.
+
+---
+
+## Feature comparison
+
+Legend: `Yes` = Full support · `Partial` = Limited / partial · `No` = Not supported · `(online)` = Requires internet · `(commercial)` = Paid
+
+### Licensing and platform
+
+| | chematic-draw | ChemDraw | ChemDoodle | Ketcher | FreeChemDraw | ChemSketch |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| **License** | MIT / Apache 2.0 | Commercial | Free + paid desktop | Apache 2.0 | Proprietary free | Free (non-commercial) |
+| **Open source** | Yes | No | No | Yes | No | No |
+| **Cost** | Free | ~$1,500+/yr | Free / $15 one-time | Free | Free (limited) | Free |
+| **Windows** | Yes | Yes | Yes | Web only | Yes | Yes |
+| **macOS** | Yes | Yes | Yes | Web only | Yes | No |
+| **Linux** | Yes | No | Web only | Web only | No | No |
+| **Native desktop app** | Yes | Yes | Yes | No | Yes | Yes |
+| **No C/C++ dependencies** | Yes | No | No | No | No | No |
+| **Embeddable in web apps** | No | No | Yes | Yes | No | No |
+| **Programmable API** | Partial | Yes | Yes | Yes | No | No |
+| **WASM / browser build** | No | No | Yes | Yes | No | No |
+| **Command-line / batch** | No | Partial | No | Partial | No | No |
+
+### File format support
+
+| | chematic-draw | ChemDraw | ChemDoodle | Ketcher | FreeChemDraw | ChemSketch |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| **MOL V2000** | Yes | Yes | Yes | Yes | Yes | Yes |
+| **SDF (multi-molecule, with coords)** | Yes | Yes | Yes | Yes | Yes | Yes |
+| **MOL V3000** | Yes | Yes | Yes | Yes | No | No |
+| **SMILES** | Yes | Yes | Yes | Yes | Yes | Yes |
+| **Canonical SMILES** | Yes | Yes | Yes | Yes | Partial | No |
+| **Reaction SMILES** | Yes | Yes | Yes | Yes | No | No |
+| **CDXML (ChemDraw XML)** | Partial (read only) | Yes (native) | Partial (import) | No | Partial | No |
+| **CML** | Yes | Partial | Yes | Yes | No | No |
+| **RXN (MDL reaction)** | No | Yes | Partial | Yes | No | No |
+| **XYZ (3D coordinates)** | Yes | Partial | No | No | No | No |
+| **PDB** | Partial | Yes | Partial | No | No | No |
+| **InChI / InChIKey** | No | Yes | Yes | Yes | No | No |
+| **SVG export** | Yes | Yes | Yes | Yes | No | No |
+| **PNG export** | Yes | Yes | Yes | Yes | Yes | Yes |
+| **PDF export** | No | Yes | Yes | No | No | Yes |
+| **Clipboard paste (SMILES/MOL)** | Yes (Ctrl+V) | Yes | Yes | Yes | Partial | Partial |
+| **Copy as image** | No | Yes | Yes | Yes | No | Yes |
+
+### Chemistry features
+
+| | chematic-draw | ChemDraw | ChemDoodle | Ketcher | FreeChemDraw | ChemSketch |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| **2D structure editor** | Yes | Yes | Yes | Yes | Yes | Yes |
+| **Reaction mechanism arrows** | Yes | Yes | Yes | Yes | Partial | Partial |
+| **Electron curly arrows** | Yes | Yes | Yes | No | No | No |
+| **3D viewer** | Yes | Yes (Chem3D) | Yes (WebGL) | No | No | Partial |
+| **3D coordinate generation** | Yes | Yes | Yes | No | No | No |
+| **Molecular weight / formula** | Yes | Yes | Yes | Yes | Partial | Yes |
+| **logP (Crippen)** | Yes | Yes | Yes | No | No | No |
+| **TPSA** | Yes | Yes | Yes | No | No | No |
+| **Lipinski / drug-likeness** | Yes | Yes | Partial | No | No | No |
+| **QED score** | Yes | Partial | No | No | No | No |
+| **IUPAC name (offline)** | No | Yes | Partial | No | No | No |
+| **IUPAC name (online)** | Yes (online, PubChem) | Yes | Yes | Partial | No | No |
+| **Name-to-structure** | No | Yes | Yes | No | No | Partial |
+| **SMARTS substructure search** | Yes | Yes | Yes | Yes | No | No |
+| **Fingerprints (Morgan, ECFP)** | Yes | Yes | Yes | Partial | No | No |
+| **Tautomer enumeration** | Yes | Yes | Partial | No | No | No |
+| **Stereochemistry (R/S, E/Z)** | Partial | Yes | Yes | Yes | Partial | Partial |
+| **Isotope labeling** | Partial | Yes | Yes | Yes | No | Partial |
+| **Formal charge / radicals** | Yes | Yes | Yes | Yes | Partial | Yes |
+| **Atom mapping (reactions)** | No | Yes | Yes | Yes | No | No |
+| **Abbreviated groups (Ph, Ac...)** | No | Yes | Yes | Yes | No | Partial |
+| **Built-in template library** | No | Yes | Yes | Yes | Partial | Partial |
+| **Polymer / S-group notation** | No | Yes | Partial | Partial | No | No |
+| **Markush structures** | No | Yes | No | Partial | No | No |
+| **NMR / spectra prediction** | No | Yes (add-on) | No | No | No | Partial |
+| **Undo / Redo** | No (planned) | Yes | Yes | Yes | Partial | Yes |
+| **Structure validation** | No | Yes | Yes | Yes | No | No |
+| **Fully offline** | Yes (note 1) | Yes | Partial (note 2) | Partial (note 2) | Yes | Yes |
+
+> Note 1: All features except IUPAC name lookup work offline.  
+> Note 2: Web-based tools require a browser; some features require a server connection.
+
+### UI and UX
+
+| | chematic-draw | ChemDraw | ChemDoodle | Ketcher | FreeChemDraw | ChemSketch |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| **Dark mode** | Yes | No | No | No | No | No |
+| **Japanese UI** | Yes | Yes | No | No | No | No |
+| **Multi-language support** | Yes (EN/JA) | Yes | No | Partial | No | No |
+| **Platform CJK font (Hiragino)** | Yes | Yes | No | No | No | No |
+| **Zoom / pan canvas** | Yes | Yes | Yes | Yes | Partial | Yes |
+| **ChemDraw-compatible shortcuts** | Yes | Yes (native) | Partial | No | Partial | No |
+| **Startup time** | Fast | Slow | Slow | Fast (web) | Very slow | Slow |
+| **Memory footprint** | Low | High | Medium | Low | Medium | Medium |
+| **Installer size** | Small | Large | Medium | None (web) | Large | Medium |
+
+---
+
+## Features
+
+| Feature | Status |
+|---------|--------|
+| 2D molecular structure drawing (atoms, bonds, rings) | Yes |
+| CPK element colours (C/N/O/S/P/halogens) | Yes |
+| Bond types: single, double, triple, aromatic, wedge, dash | Yes |
+| Dark mode / Light mode (runtime switch) | Yes |
+| Multi-language UI (English / Japanese) | Yes |
+| Clipboard paste — SMILES & MOL V2000 (Ctrl+V) | Yes |
+| Export as SMILES, MOL, SVG, PNG | Yes |
+| IUPAC name lookup (PubChem API, requires internet) | Yes |
+| Molecular weight, logP, TPSA, QED calculation | Yes |
+| Reaction mechanism canvas (arrows, curly arrows) | Yes |
+| 3D molecular viewer (ball-and-stick, orthographic) | Yes |
+| ChemDraw XML (CDXML) read/write | Partial |
+| Chemical Markup Language (CML) read/write | Yes |
+
+---
+
+## Keyboard shortcuts
+
+| Key | Action |
+|-----|--------|
+| `Esc` | Select tool |
+| `C / N / O / S` | Switch to atom tool |
+| `Ctrl+V` | Paste SMILES or MOL from clipboard |
+| `Del` | Delete selected atom |
+| `Ctrl+A` | Select all |
+| `Ctrl+Z` | Undo *(planned)* |
+| Scroll | Zoom in/out |
+| Middle-drag | Pan canvas |
+
+---
+
+## Building
+
+```sh
+# Prerequisites: Rust stable toolchain
+cargo build --release
+cargo run
+```
+
+No C/C++ dependencies. Compiles on Windows, macOS, and Linux.
+
+---
+
+## Architecture
+
+```
+chematic-draw/         — binary entry point (eframe)
+crates/
+  chem-ui/             — egui UI components
+    app.rs             — ChemDrawApp (eframe::App)
+    canvas.rs          — 2D molecular canvas
+    bridge.rs          — CanvasMolecule <-> chematic::Molecule
+    fonts.rs           — platform CJK font loading (Hiragino / Noto / YuGothic)
+    toolbar.rs         — tool palette
+    inspector.rs       — property panel (MW, SMILES, IUPAC)
+    iupac.rs           — PubChem API background fetch
+    paste.rs           — clipboard SMILES/MOL paste
+    export.rs          — SVG/SMILES/MOL export
+    reaction.rs        — reaction mechanism canvas
+    viewer3d.rs        — 3D ball-and-stick viewer
+    theme.rs           — Dark/Light design tokens + CPK colours
+    i18n.rs            — EN/JA localisation
+  chem-io/             — file format I/O
+    cdxml.rs           — ChemDraw XML
+    cml.rs             — Chemical Markup Language
+    export_png.rs      — SVG -> PNG (resvg)
+i18n/
+  en.toml              — English strings
+  ja.toml              — Japanese strings
+```
+
+---
+
+## Chemistry engine
+
+All chemistry is handled by the [`chematic`](https://crates.io/crates/chematic) crate — a pure-Rust RDKit alternative with zero C/C++ FFI.
+
+| Sub-crate | Used for |
+|-----------|---------|
+| `chematic-smiles` | SMILES parse / write / canonical |
+| `chematic-mol` | MOL V2000 / SDF read / write |
+| `chematic-depict` | 2D coordinate generation |
+| `chematic-chem` | MW, logP, TPSA, QED, Lipinski, tautomers |
+| `chematic-3d` | 3D coordinate generation |
+| `chematic-rxn` | Reaction SMILES |
+| `chematic-fp` | Fingerprints (Morgan, ECFP) |
+| `chematic-smarts` | SMARTS pattern matching |
+
+---
+
+## Network dependency: IUPAC name lookup
+
+The **IUPAC name** feature queries the
+[PubChem REST API](https://pubchem.ncbi.nlm.nih.gov/docs/pug-rest):
+
+```
+GET https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/{smiles}/property/IUPACName/JSON
+```
+
+- **Internet access is required** for this feature.
+- The result is cached in memory for the session.
+- When offline, the Inspector shows an error instead of blocking the UI.
+- No API key is required. PubChem is a free public service provided by the NCBI / NIH.
+- Data returned from PubChem is subject to its [terms of use](https://www.ncbi.nlm.nih.gov/home/about/policies/).
+
+All other features (drawing, export, 3D, SMILES/MOL paste) work fully **offline**.
+
+---
+
+## License
+
+Licensed under either of:
+
+- Apache License, Version 2.0
+- MIT License
+
+at your option.

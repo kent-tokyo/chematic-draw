@@ -1,0 +1,17 @@
+pub mod ai_chat;
+pub mod app;
+pub mod bridge;
+pub mod fonts;
+pub mod canvas;
+pub mod export;
+pub mod i18n;
+pub mod inspector;
+pub mod iupac;
+pub mod menu;
+pub mod paste;
+pub mod reaction;
+pub mod settings;
+pub mod templates;
+pub mod theme;
+pub mod toolbar;
+pub mod viewer3d;

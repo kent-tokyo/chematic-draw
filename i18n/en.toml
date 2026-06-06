@@ -1,0 +1,87 @@
+[menu.file]
+new   = "New"
+open  = "Open…"
+save  = "Save…"
+quit  = "Quit"
+
+[menu]
+file     = "File"
+edit     = "Edit"
+view     = "View"
+language = "Language"
+help     = "Help"
+
+[menu.edit]
+undo        = "Undo"
+redo        = "Redo"
+select_all  = "Select All"
+clear       = "Clear"
+clean       = "Clean Structure"
+flip_h      = "Flip Horizontal"
+flip_v      = "Flip Vertical"
+rotate_90   = "Rotate 90°"
+
+[menu.view]
+dark  = "Dark mode"
+light = "Light mode"
+
+[menu.help]
+about = "About chematic-draw"
+
+[inspector]
+title         = "Inspector"
+molecule      = "Molecule"
+atom          = "Atom"
+bond          = "Bond"
+formula       = "Formula"
+atoms         = "Atoms"
+bonds         = "Bonds"
+mw            = "MW"
+element       = "Element"
+charge        = "Charge"
+atom_map      = "Atom Map"
+position      = "Position"
+bond_order    = "Order"
+stereo        = "Stereo"
+copy_smiles   = "Copy SMILES"
+fetch_iupac   = "Fetch IUPAC name"
+iupac_loading = "Fetching…"
+properties    = "Properties"
+rot_bonds     = "Rot. bonds"
+smarts_search = "SMARTS Search"
+smarts_find   = "Find"
+
+[menu.file]
+export = "Export"
+
+[menu.edit]
+paste_smiles = "Paste SMILES / MOL"
+
+[menu.view]
+"3d" = "3D Viewer"
+
+[toolbar]
+Selection = "Selection"
+Atoms     = "Atoms"
+Bonds     = "Bonds"
+Rings     = "Rings"
+Reaction  = "Reaction"
+
+[menu.view]
+ai_chat  = "AI Chat"
+settings = "Settings…"
+
+[ai]
+title       = "AI Chat"
+placeholder = "Ask AI to draw a molecule…"
+send        = "Send"
+clear       = "Clear"
+thinking    = "Thinking…"
+no_key      = "API key not set — open View > Settings"
+replace     = "↺ Replace"
+append      = "＋ Add"
+
+[settings]
+title   = "Settings"
+api_key = "Anthropic API Key"
+model   = "Model"
