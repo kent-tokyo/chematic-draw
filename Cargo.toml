@@ -1,9 +1,9 @@
 [workspace]
-members = [".", "crates/chem-ui", "crates/chem-io"]
+members = [".", "crates/chem-ui", "crates/chem-io", "crates/chem-wasm"]
 resolver = "2"
 
 [workspace.dependencies]
-chematic   = { version = "0.1.23", features = ["full"] }
+chematic   = { version = "0.1.32", features = ["full"] }
 egui       = "0.34"
 eframe     = { version = "0.34", features = ["default_fonts", "persistence"] }
 serde      = { version = "1", features = ["derive"] }

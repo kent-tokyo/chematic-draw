@@ -18,7 +18,7 @@ Primary users: **chemists, pharmacists, and students**.
 | **ChemDraw-compatible feel** | Shortcuts and tool layout should let ChemDraw users switch without relearning. |
 | **Lightweight and fast** | Pure Rust implementation — no lag even with molecules exceeding 1000 atoms. |
 | **File format fidelity** | MOL/SDF/CDXML/CML must round-trip without loss to coexist with other tools. |
-| **OS conventions** | Menus, shortcuts, and dialogs follow platform standards (macOS, Windows, Linux). |
+| **Platform-native feel** | macOS / Windows / Linux それぞれで「そのOSらしい」最高のデザインを追求する。共通化を優先して各OSのUXを犠牲にしない。詳細は SPEC.md §S19。 |
 | **Discoverable** | Every function reachable by keyboard. Tooltips teach shortcuts. Command Palette surfaces everything. |
 | **Educating** | Status bar shows context-sensitive usage tips. Tooltips always display the keyboard shortcut. |
 
@@ -30,13 +30,18 @@ Primary users: **chemists, pharmacists, and students**.
 
 | Role | Light mode | Dark mode | Meaning |
 |------|-----------|-----------|---------|
-| **Accent** | `#0078D4` | `#60CDFF` | Selection, emphasis |
-| **Success** | `#107C10` | `#6CCB5F` | Save complete, validation OK |
-| **Warning** | `#C19C00` | `#FCE100` | Deprecated operation, caution |
-| **Error** | `#C42B1C` | `#FF99A4` | Invalid SMILES, format error |
-| **Canvas BG** | `#FFFFFF` | `#1E1E1E` | Drawing canvas background |
-| **Panel BG** | `#F3F3F3` | `#282828` | Toolbar, inspector background |
-| **Separator** | `#D0D0D0` | `#444444` | Panel dividers |
+| **Accent** | `#2F6FE8` | `#4D8DFF` | Selection, emphasis |
+| **Success** | `#1F8F5F` | `#58C97A` | Save complete, validation OK |
+| **Warning** | `#B77810` | `#E9B949` | Deprecated operation, caution |
+| **Error** | `#C73A3A` | `#F26D6D` | Invalid SMILES, format error |
+| **Canvas BG** | `#FBFCFE` | `#F8F9FB` | Drawing canvas background |
+| **Panel BG** | `#F3F5F8` | `#242830` | Top bars and window panels |
+| **Activity Bar BG** | `#23272E` | `#181B20` | Far-left navigation strip |
+| **Sidebar BG** | `#F3F5F8` | `#21252C` | Tools / inspector / templates / chat panel |
+| **Sidebar Title** | `#1D2430` | `#D8DEEA` | Sidebar labels and tool text |
+| **Sidebar Hover** | `#E4E9F1` | `#313742` | Hovered sidebar rows / tiles |
+| **Status Bar BG** | `#23272E` | `#21252C` | Bottom status strip |
+| **Separator** | `#798393` | `#8F98A8` | Secondary text and dividers |
 
 ### 1.2 CPK Element Colors (canvas)
 
@@ -56,10 +61,10 @@ Retrieved from `chematic::depict::atom_color_rgb(atomic_number)`. C and H are th
 ### 1.3 Color Rules
 
 - **Carbon atoms** render as a small dot by default. An enlarged ring appears only on hover or selection.
-- Bond line color is Light: `#1A1A1A`, Dark: `#E0E0E0`. Element colors do not override bond color.
+- Bond line color is `#161B22` in both themes. The "Dark" theme uses dark application chrome with a light drawing canvas, not an inverted chemistry canvas.
 - Text on background must meet WCAG AA (contrast ratio >= 4.5:1).
-- Snap indicators use `#20C0A0` (teal) — distinct from atom colors and accent, visible on both themes.
-- Ring fusion hover highlight uses `#C42B1C` (error red) for bond pre-selection feedback.
+- Snap indicators use teal (`#199B8C` light / `#21B8A5` dark) — distinct from atom colors and accent, visible on both themes.
+- Ring fusion hover highlight uses error red (`#C73A3A` light / `#E85662` dark) for bond pre-selection feedback.
 
 ---
 
@@ -99,36 +104,38 @@ Retrieved from `chematic::depict::atom_color_rgb(atomic_number)`. C and H are th
 ### 3.1 Main Window Structure
 
 ```
-+-----------------------------------------------------+
-| Menu bar: File | Edit | View | Language | Help       |  <- 24 px
-+-----------------------------------------------------+
-| Mode tabs: [Structure] [Reaction] [3D]               |  <- 28 px
-+-----------------------------------------------------+
-| Tool Controls Bar (context-sensitive tool options)   |  <- 24 px
-+------+------------------------------------+----------+
-|      |                                    |          |
-| Tool |             Canvas                 | Inspector|
-| bar  |   (molecular drawing canvas)       | (240 px, |
-|(56px)|   zoom / pan / grid                | resizable)|
-|      |                                    |          |
-+------+------------------------------------+----------+
-| Status bar: Tool | Selection info | ... | Zoom%      |  <- 22 px
-+-----------------------------------------------------+
++------------------------------------------------------------+
+| Menu bar: File | Edit | View | Language | Help              | <- hover opens menus
++------------------------------------------------------------+
+| Mode buttons: [Structure] [Reaction] [3D]                  | <- 38 px
++------------------------------------------------------------+
+| Tool Controls Bar (context-sensitive tool options)          | <- 30 px
++------+----------------------+------------------------------+
+| Act. | Sidebar              |                              |
+| bar  | Tools / Inspector /  |            Canvas            |
+| 48px | Templates / Chat /   |  molecular drawing surface   |
+|      | Settings             |  zoom / pan / grid           |
+|      | 180-480 px           |                              |
++------+----------------------+------------------------------+
+| Status bar: Tool | Selection info | Message | Zoom%          | <- 22 px
++------------------------------------------------------------+
 ```
 
 | Region | Width / Height | Contents |
 |--------|---------------|---------|
-| Toolbar | 56 px fixed | Select, atoms, bonds, rings, eraser, R-group (flyout groups) |
-| Tool Controls Bar | 24 px fixed | Context-sensitive options for the active tool |
+| Activity Bar | 48 px fixed | Tools, Inspector, Templates, Chat, Settings navigation |
+| Sidebar | 180-480 px (default 260 px, user-resizable) | Selected activity panel |
+| Tools Sidebar | 44 x 38 px tiles | Select, atoms, bonds, rings, reaction tools, eraser, R-group |
+| Tool Controls Bar | 30 px fixed | Context-sensitive options for the active tool |
 | Canvas | Variable | Molecular drawing, grid, zoom/pan |
-| Inspector | 180–400 px (default 240 px, user-resizable) | Atom/bond properties, formula, SMARTS search |
+| Inspector | Sidebar panel | Atom/bond properties, formula, SMARTS search |
 | Status bar | 22 px fixed | Tool name, selection state, zoom percentage |
 
 ### 3.2 Grid and Spacing
 
 - Base unit: **4 px**
 - Element spacing: 4 / 8 / 16 / 24 / 32 px only
-- Border radius: buttons 4 px, panels 8 px
+- Border radius: small controls 6-8 px, panels 8 px
 
 ### 3.3 Canvas-Specific
 
@@ -159,16 +166,22 @@ Retrieved from `chematic::depict::atom_color_rgb(atomic_number)`. C and H are th
 
 ```rust
 // Light mode
-pub const ACCENT_LIGHT:     Color32 = Color32::from_rgb(0x00, 0x78, 0xD4);
-pub const CANVAS_BG_LIGHT:  Color32 = Color32::from_rgb(0xFF, 0xFF, 0xFF);
+pub const ACCENT_LIGHT:       Color32 = Color32::from_rgb(0x2F, 0x6F, 0xE8);
+pub const CANVAS_BG_LIGHT:    Color32 = Color32::from_rgb(0xFB, 0xFC, 0xFE);
+pub const ACTIVITY_BG_LIGHT:  Color32 = Color32::from_rgb(0x23, 0x27, 0x2E);
+pub const SIDEBAR_BG_LIGHT:   Color32 = Color32::from_rgb(0xF3, 0xF5, 0xF8);
 
-// Dark mode
-pub const ACCENT_DARK:      Color32 = Color32::from_rgb(0x60, 0xCD, 0xFF);
-pub const CANVAS_BG_DARK:   Color32 = Color32::from_rgb(0x1E, 0x1E, 0x1E);
+// Dark mode: dark chrome, light chemistry canvas
+pub const ACCENT_DARK:        Color32 = Color32::from_rgb(0x4D, 0x8D, 0xFF);
+pub const CANVAS_BG_DARK:     Color32 = Color32::from_rgb(0xF8, 0xF9, 0xFB);
+pub const ACTIVITY_BG_DARK:   Color32 = Color32::from_rgb(0x18, 0x1B, 0x20);
+pub const SIDEBAR_BG_DARK:    Color32 = Color32::from_rgb(0x21, 0x25, 0x2C);
 
 // Snap / feedback
-pub const SNAP_INDICATOR:   Color32 = Color32::from_rgb(0x20, 0xC0, 0xA0); // teal, both themes
-pub const RING_FUSE_HOVER:  Color32 = Color32::from_rgb(0xC4, 0x2B, 0x1C); // red highlight
+pub const SNAP_INDICATOR_LIGHT:  Color32 = Color32::from_rgb(0x19, 0x9B, 0x8C);
+pub const SNAP_INDICATOR_DARK:   Color32 = Color32::from_rgb(0x21, 0xB8, 0xA5);
+pub const RING_FUSE_LIGHT:       Color32 = Color32::from_rgb(0xC7, 0x3A, 0x3A);
+pub const RING_FUSE_DARK:        Color32 = Color32::from_rgb(0xE8, 0x56, 0x62);
 
 // Spacing (4 px grid)
 pub const SPACING_XS: f32 = 4.0;
@@ -177,7 +190,13 @@ pub const SPACING_MD: f32 = 16.0;
 pub const SPACING_LG: f32 = 24.0;
 
 // Layout
-pub const TOOLBAR_WIDTH:           f32 = 56.0;
+pub const ACTIVITY_BAR_WIDTH:      f32 = 48.0;
+pub const SIDEBAR_WIDTH_DEFAULT:   f32 = 260.0;
+pub const SIDEBAR_WIDTH_MIN:       f32 = 180.0;
+pub const SIDEBAR_WIDTH_MAX:       f32 = 480.0;
+pub const TOOL_TILE_WIDTH:         f32 = 44.0;
+pub const TOOL_TILE_HEIGHT:        f32 = 38.0;
+pub const TOOLBAR_WIDTH:           f32 = 64.0; // legacy vertical toolbar fallback
 pub const TOOL_CONTROLS_HEIGHT:    f32 = 24.0;
 pub const INSPECTOR_WIDTH_DEFAULT: f32 = 240.0;
 pub const INSPECTOR_WIDTH_MIN:     f32 = 180.0;

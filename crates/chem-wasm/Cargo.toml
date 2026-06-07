@@ -1,0 +1,22 @@
+[package]
+name = "chem-wasm"
+version = "0.1.0"
+edition = "2021"
+description = "chematic → WASM bridge for Electron renderer"
+license = "MIT OR Apache-2.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+chematic = { version = "0.1.23", features = ["full"] }
+wasm-bindgen = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde-wasm-bindgen = "0.6"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2", features = ["js"] }
+
+[profile.release]
+opt-level = 3
+lto = true

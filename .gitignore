@@ -41,6 +41,7 @@ secrets.json
 .claude/scheduled_tasks.lock
 CLAUDE.md
 AGENTS.md
+DESIGN.md
 
 # =============================================================================
 # Editor — VS Code

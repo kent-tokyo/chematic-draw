@@ -28,15 +28,31 @@ impl Inspector {
         let selected_bonds: Vec<usize> =
             mol.bonds.iter().filter(|b| b.selected).map(|b| b.id).collect();
 
-        ui.add_space(SPACING_SM);
-        ui.heading(i18n.t("inspector.title"));
+        // Inspector header — compact macOS style
+        ui.add_space(8.0);
+        ui.horizontal(|ui| {
+            ui.label(
+                egui::RichText::new(i18n.t("inspector.title").to_uppercase())
+                    .size(13.0)
+                    .strong()
+                    .color(tokens.sidebar_title)
+            );
+        });
+        ui.add_space(6.0);
         ui.separator();
+        ui.add_space(6.0);
 
         // ── Molecule summary ──
         if selected_atoms.is_empty() && selected_bonds.is_empty() {
-            ui.add_space(SPACING_SM);
-            ui.label(egui::RichText::new(i18n.t("inspector.molecule")).strong().color(tokens.accent));
-            ui.add_space(SPACING_SM);
+            ui.add_space(4.0);
+            // Section label — small caps style
+            ui.label(
+                egui::RichText::new(i18n.t("inspector.molecule").to_uppercase())
+                    .size(10.0)
+                    .strong()
+                    .color(tokens.sidebar_title.gamma_multiply(0.62))
+            );
+            ui.add_space(4.0);
 
             let chem_mol_opt = canvas_to_chem(mol);
 
@@ -46,9 +62,11 @@ impl Inspector {
                     if f.is_empty() { "—".to_string() } else { f }
                 })
                 .unwrap_or_else(|| molecule_formula(mol));
-            ui.label(format!("{}: {}", i18n.t("inspector.formula"), formula));
-            ui.label(format!("{}: {}", i18n.t("inspector.atoms"), mol.atoms.len()));
-            ui.label(format!("{}: {}", i18n.t("inspector.bonds"), mol.bonds.len()));
+
+            // Property rows — compact 2-column layout
+            Self::prop_row(ui, tokens, i18n.t("inspector.formula"), &formula);
+            Self::prop_row(ui, tokens, i18n.t("inspector.atoms"), &mol.atoms.len().to_string());
+            Self::prop_row(ui, tokens, i18n.t("inspector.bonds"), &mol.bonds.len().to_string());
 
             if let Some(ref chem_mol) = chem_mol_opt {
                 // Valence validation
@@ -62,14 +80,14 @@ impl Inspector {
                 }
 
                 let mw = chematic::chem::molecular_weight(chem_mol);
-                ui.label(format!("{}: {:.3} g/mol", i18n.t("inspector.mw"), mw));
+                Self::prop_row(ui, tokens, i18n.t("inspector.mw"), &format!("{:.3} g/mol", mw));
 
                 // Physicochemical properties (collapsed by default)
                 ui.add_space(SPACING_SM);
                 egui::CollapsingHeader::new(
                     egui::RichText::new(i18n.t("inspector.properties"))
                         .small()
-                        .color(tokens.separator)
+                        .color(tokens.sidebar_title.gamma_multiply(0.66))
                 )
                 .default_open(false)
                 .show(ui, |ui| {
@@ -91,14 +109,14 @@ impl Inspector {
 
             // SMILES — editable on click (§5)
             let current_smiles = canvas_to_canonical_smiles(mol);
-            ui.label(egui::RichText::new("SMILES").small().color(tokens.separator));
+            ui.label(egui::RichText::new("SMILES").small().color(tokens.sidebar_title.gamma_multiply(0.66)));
             if let Some(ref mut buf) = smiles_edit {
                 // Editing mode
                 let border_color = if *smiles_edit_error { tokens.error } else { tokens.accent };
                 let resp = ui.add(
                     egui::TextEdit::singleline(buf)
                         .desired_width(f32::INFINITY)
-                        .text_color(if *smiles_edit_error { tokens.error } else { tokens.bond })
+                        .text_color(if *smiles_edit_error { tokens.error } else { tokens.sidebar_title })
                 );
                 if *smiles_edit_error {
                     ui.colored_label(tokens.error, "Invalid SMILES");
@@ -154,7 +172,7 @@ impl Inspector {
             ui.add_space(SPACING_SM);
 
             // IUPAC name (offline, via chematic::iupac)
-            ui.label(egui::RichText::new("IUPAC").small().color(tokens.separator));
+            ui.label(egui::RichText::new("IUPAC").small().color(tokens.sidebar_title.gamma_multiply(0.66)));
             match &iupac.status {
                 crate::iupac::IupacStatus::Idle => {
                     if ui.button(i18n.t("inspector.fetch_iupac")).clicked() {
@@ -173,7 +191,7 @@ impl Inspector {
                     }
                 }
                 crate::iupac::IupacStatus::NotSupported => {
-                    ui.colored_label(tokens.separator, "— (structure not supported)");
+                    ui.colored_label(tokens.sidebar_title.gamma_multiply(0.60), "— (structure not supported)");
                     if ui.small_button("↺").clicked() { iupac.reset(); }
                 }
                 crate::iupac::IupacStatus::Error(e) => {
@@ -184,9 +202,10 @@ impl Inspector {
             }
 
             // ── SMARTS search ──
-            ui.add_space(SPACING_SM);
+            ui.add_space(8.0);
             ui.separator();
-            ui.label(egui::RichText::new(i18n.t("inspector.smarts_search")).small().color(tokens.separator));
+            ui.add_space(6.0);
+            ui.label(egui::RichText::new(i18n.t("inspector.smarts_search")).small().color(tokens.sidebar_title.gamma_multiply(0.66)));
             ui.horizontal(|ui| {
                 ui.add(egui::TextEdit::singleline(smarts_buf)
                     .hint_text("e.g. c1ccccc1")
@@ -200,9 +219,16 @@ impl Inspector {
         // ── Atom editor ──
         if selected_atoms.len() == 1 {
             let atom_id = selected_atoms[0];
-            ui.add_space(SPACING_SM);
-            ui.label(egui::RichText::new(i18n.t("inspector.atom")).strong().color(tokens.accent));
-            ui.add_space(SPACING_SM);
+            ui.add_space(8.0);
+            ui.separator();
+            ui.add_space(6.0);
+            ui.label(
+                egui::RichText::new(i18n.t("inspector.atom").to_uppercase())
+                    .size(10.0)
+                    .strong()
+                    .color(tokens.sidebar_title.gamma_multiply(0.62))
+            );
+            ui.add_space(4.0);
 
             if let Some(atom) = mol.atoms.iter_mut().find(|a| a.id == atom_id) {
                 ui.horizontal(|ui| {
@@ -248,7 +274,9 @@ impl Inspector {
                     let max_x = mol.atoms.iter().filter(|a| a.selected).map(|a| a.pos.x).fold(f32::MIN, f32::max);
                     for a in mol.atoms.iter_mut().filter(|a| a.selected) { a.pos.x = max_x; }
                 }
+                ui.add_space(2.0);
                 ui.separator();
+                ui.add_space(2.0);
                 if ui.small_button("⊤T").on_hover_text("Align Top").clicked() {
                     let min_y = mol.atoms.iter().filter(|a| a.selected).map(|a| a.pos.y).fold(f32::MAX, f32::min);
                     for a in mol.atoms.iter_mut().filter(|a| a.selected) { a.pos.y = min_y; }
@@ -269,7 +297,7 @@ impl Inspector {
         if selected_bonds.len() == 1 {
             let bond_id = selected_bonds[0];
             ui.add_space(SPACING_SM);
-            ui.label(egui::RichText::new(i18n.t("inspector.bond")).strong().color(tokens.accent));
+            ui.label(egui::RichText::new(i18n.t("inspector.bond")).strong().color(tokens.sidebar_title));
             ui.add_space(SPACING_SM);
 
             if let Some(bond) = mol.bonds.iter_mut().find(|b| b.id == bond_id) {
@@ -298,6 +326,26 @@ impl Inspector {
         }
 
         result
+    }
+
+    /// Compact 2-column property row: label (dim) + value.
+    fn prop_row(ui: &mut Ui, tokens: &Tokens, label: &str, value: &str) {
+        ui.horizontal(|ui| {
+            ui.label(
+                egui::RichText::new(label)
+                    .size(12.0)
+                    .color(tokens.sidebar_title.gamma_multiply(0.62))
+            );
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.add_space(4.0);  // Right padding before value
+                ui.label(
+                    egui::RichText::new(value)
+                        .size(12.0)
+                        .color(tokens.sidebar_title)
+                );
+            });
+        });
+        ui.add_space(2.0);  // Vertical padding between rows
     }
 }
 

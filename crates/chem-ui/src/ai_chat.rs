@@ -210,7 +210,7 @@ impl AiChatPanel {
                     apply_result = Some(ApplyMode::Append(smiles.clone()));
                     state.pending_smiles = None;
                 }
-                if ui.small_button("✕").clicked() {
+                if ui.small_button("X").clicked() {
                     state.pending_smiles = None;
                 }
             });
@@ -246,7 +246,7 @@ impl AiChatPanel {
                 input.request_focus();
             }
 
-            if ui.small_button("🗑").on_hover_text("Clear chat history").clicked() {
+            if ui.small_button("Clear").on_hover_text("Clear chat history").clicked() {
                 state.clear();
             }
         });

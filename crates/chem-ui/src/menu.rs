@@ -61,6 +61,15 @@ impl Default for MenuActions {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TopMenu {
+    File,
+    Edit,
+    View,
+    Language,
+    Help,
+}
+
 pub struct MenuBar;
 
 #[allow(deprecated)]
@@ -72,6 +81,7 @@ impl MenuBar {
         theme: &mut Theme,
         i18n: &mut I18n,
         actions: &mut MenuActions,
+        active_menu: &mut Option<TopMenu>,
     ) {
         // Global Ctrl+V paste
         let paste_triggered = ctx.input(|i| {
@@ -89,7 +99,7 @@ impl MenuBar {
             egui::MenuBar::new().ui(ui, |ui| {
                 // ── File ──
                 let file_label = i18n.t("menu.file").to_owned();
-                ui.menu_button(file_label, |ui| {
+                Self::hover_menu(ui, active_menu, TopMenu::File, file_label, |ui| {
                     if ui.button(format!("{} (Ctrl+N)", i18n.t("menu.file.new"))).clicked() {
                         actions.request_new = true;
                         ui.close();
@@ -203,7 +213,7 @@ impl MenuBar {
 
                 // ── Edit ──
                 let edit_label = i18n.t("menu.edit").to_owned();
-                ui.menu_button(edit_label, |ui| {
+                Self::hover_menu(ui, active_menu, TopMenu::Edit, edit_label, |ui| {
                     if ui.button(format!("{} (Ctrl+Z)", i18n.t("menu.edit.undo"))).clicked() {
                         actions.request_undo = true;
                         ui.close();
@@ -252,7 +262,7 @@ impl MenuBar {
 
                 // ── View ──
                 let view_label = i18n.t("menu.view").to_owned();
-                ui.menu_button(view_label, |ui| {
+                Self::hover_menu(ui, active_menu, TopMenu::View, view_label, |ui| {
                     if ui.button(i18n.t("menu.view.dark")).clicked() {
                         *theme = Theme::Dark;
                         apply_theme(ctx, *theme);
@@ -299,7 +309,7 @@ impl MenuBar {
 
                 // ── Language ──
                 let lang_label = i18n.t("menu.language").to_owned();
-                ui.menu_button(lang_label, |ui| {
+                Self::hover_menu(ui, active_menu, TopMenu::Language, lang_label, |ui| {
                     if ui.button("English").clicked() {
                         i18n.set_language(Language::En);
                         ui.close();
@@ -312,7 +322,7 @@ impl MenuBar {
 
                 // ── Help ──
                 let help_label = i18n.t("menu.help").to_owned();
-                ui.menu_button(help_label, |ui| {
+                Self::hover_menu(ui, active_menu, TopMenu::Help, help_label, |ui| {
                     if ui.button(i18n.t("menu.help.about")).clicked() {
                         actions.request_about = true;
                         ui.close();
@@ -333,6 +343,42 @@ impl MenuBar {
                     }
                 });
         }
+    }
+
+    fn hover_menu<R>(
+        ui: &mut egui::Ui,
+        active_menu: &mut Option<TopMenu>,
+        menu: TopMenu,
+        label: String,
+        add_contents: impl FnOnce(&mut egui::Ui) -> R,
+    ) -> Option<egui::InnerResponse<R>> {
+        let response = ui.add(egui::Button::new(label).frame(false));
+        if response.hovered() || response.clicked() {
+            *active_menu = Some(menu);
+            ui.ctx().request_repaint();
+        }
+
+        let is_open = *active_menu == Some(menu);
+        let popup = egui::Popup::from_response(&response)
+            .id(response.id.with("hover_menu"))
+            .open(is_open)
+            .kind(egui::PopupKind::Menu)
+            .layout(egui::Layout::top_down_justified(egui::Align::Min))
+            .show(add_contents);
+
+        let popup_hovered = popup
+            .as_ref()
+            .is_some_and(|inner| inner.response.hovered());
+        let popup_requested_close = popup
+            .as_ref()
+            .is_some_and(|inner| inner.response.should_close());
+        let close_on_escape = ui.input(|i| i.key_pressed(egui::Key::Escape));
+        let clicked_outside = response.clicked_elsewhere() && !popup_hovered;
+        if is_open && (popup_requested_close || close_on_escape || clicked_outside) {
+            *active_menu = None;
+        }
+
+        popup
     }
 }
 

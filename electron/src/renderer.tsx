@@ -1,0 +1,154 @@
+import React, { useEffect, useState } from 'react';
+import ReactDOM from 'react-dom/client';
+import './index.css';
+import { MoleculeCanvas } from './renderer/components/canvas/MoleculeCanvas';
+import { useUIStore } from './renderer/store/uiStore';
+import { useMoleculeStore } from './renderer/store/moleculeStore';
+import { useCanvasStore } from './renderer/store/canvasStore';
+import { Tool } from './renderer/store/types';
+import * as wasmBridge from './renderer/wasm/wasmBridge';
+
+function App() {
+  const [wasmLoaded, setWasmLoaded] = useState(false);
+  const theme = useUIStore((s) => s.theme);
+  const setTheme = useUIStore((s) => s.setTheme);
+  const activeTool = useCanvasStore((s) => s.activeTool);
+  const setTool = useCanvasStore((s) => s.setTool);
+  const zoom = useCanvasStore((s) => s.zoom);
+  const molecule = useMoleculeStore((s) => s.molecule);
+  const setMolecule = useMoleculeStore((s) => s.setMolecule);
+
+  // Initialize WASM
+  useEffect(() => {
+    wasmBridge.initWasm()
+      .then(() => setWasmLoaded(true))
+      .catch(console.error);
+  }, []);
+
+  // Load sample molecule on mount
+  useEffect(() => {
+    if (!wasmLoaded) return;
+    // Try to load benzene
+    try {
+      const result = wasmBridge.parseMolecule('c1ccccc1');
+      setMolecule(result);
+    } catch (err) {
+      console.error('Failed to load sample:', err);
+    }
+  }, [wasmLoaded]);
+
+  const toolButtons: Array<{ tool: Tool; label: string; key: string }> = [
+    { tool: Tool.Select, label: 'Select', key: 'ESC' },
+    { tool: Tool.Atom_C, label: 'C', key: 'C' },
+    { tool: Tool.Atom_N, label: 'N', key: 'N' },
+    { tool: Tool.Atom_O, label: 'O', key: 'O' },
+    { tool: Tool.Atom_S, label: 'S', key: 'S' },
+    { tool: Tool.Atom_P, label: 'P', key: 'P' },
+    { tool: Tool.Bond_Single, label: '─', key: '1' },
+    { tool: Tool.Bond_Double, label: '═', key: '2' },
+    { tool: Tool.Bond_Triple, label: '≡', key: '3' },
+    { tool: Tool.Bond_Aromatic, label: '◯', key: '4' },
+    { tool: Tool.Eraser, label: '✕', key: 'DEL' },
+  ];
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        backgroundColor: theme === 'dark' ? '#1e1e1e' : '#ffffff',
+        color: theme === 'dark' ? '#ffffff' : '#000000',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+      }}
+    >
+      {/* Top Bar */}
+      <div
+        style={{
+          display: 'flex',
+          gap: '4px',
+          padding: '12px',
+          borderBottom: `1px solid ${theme === 'dark' ? '#3a3a3a' : '#e0e0e0'}`,
+          backgroundColor: theme === 'dark' ? '#252525' : '#f5f5f5',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+        }}
+      >
+        {toolButtons.map((btn) => (
+          <button
+            key={btn.tool}
+            onClick={() => setTool(btn.tool)}
+            title={`${btn.label} [${btn.key}]`}
+            style={{
+              padding: '6px 10px',
+              fontSize: '12px',
+              backgroundColor: activeTool === btn.tool ? '#4d8dff' : 'transparent',
+              color: 'inherit',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              minWidth: '32px',
+            }}
+          >
+            {btn.label}
+          </button>
+        ))}
+
+        <div style={{ flex: 1 }} />
+
+        <button
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          style={{
+            padding: '6px 12px',
+            backgroundColor: 'transparent',
+            color: 'inherit',
+            border: `1px solid ${theme === 'dark' ? '#555555' : '#cccccc'}`,
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontSize: '16px',
+          }}
+          title="Toggle theme"
+        >
+          {theme === 'dark' ? '☀️' : '🌙'}
+        </button>
+
+        <div style={{ fontSize: '12px', opacity: 0.7, marginLeft: '12px', whiteSpace: 'nowrap' }}>
+          {molecule.atoms.length}a • {molecule.bonds.length}b • {zoom.toFixed(0)}%
+        </div>
+
+        {!wasmLoaded && (
+          <span style={{ color: '#ff6b6b', marginLeft: '12px', fontSize: '12px' }}>⚠️ WASM Loading...</span>
+        )}
+      </div>
+
+      {/* Canvas Area */}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        <MoleculeCanvas />
+      </div>
+
+      {/* Status Bar */}
+      <div
+        style={{
+          height: '22px',
+          padding: '4px 12px',
+          borderTop: `1px solid ${theme === 'dark' ? '#3a3a3a' : '#e0e0e0'}`,
+          backgroundColor: theme === 'dark' ? '#252525' : '#f5f5f5',
+          fontSize: '11px',
+          display: 'flex',
+          alignItems: 'center',
+          opacity: 0.7,
+          gap: '16px',
+        }}
+      >
+        <span>Tool: {activeTool.replace('_', ' ')}</span>
+        <span>Zoom: {(zoom * 100).toFixed(0)}%</span>
+        <span style={{ marginLeft: 'auto' }}>
+          Ctrl+Z: Undo • Ctrl+Shift+Z: Redo • +/−: Zoom • Del: Delete
+        </span>
+      </div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root')!);
+root.render(<App />);

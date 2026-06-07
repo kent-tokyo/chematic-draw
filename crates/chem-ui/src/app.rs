@@ -13,8 +13,8 @@ use crate::paste::parse_any;
 use crate::reaction::{ReactionScheme, ReactionCanvas};
 use crate::settings::SettingsPanel;
 use crate::templates::TemplatePanel;
-use crate::theme::{apply as apply_theme, Tokens, Theme, INSPECTOR_WIDTH, TOOLBAR_WIDTH, TOOL_CONTROLS_HEIGHT};
-use crate::toolbar::{Tool, Toolbar};
+use crate::theme::{alpha, apply as apply_theme, Tokens, Theme, INSPECTOR_WIDTH, TOOL_CONTROLS_HEIGHT};
+use crate::toolbar::{ActivityPanel, Tool};
 use crate::viewer3d::{Viewer3d, Viewer3dState};
 
 /// Which editing mode is active.
@@ -40,6 +40,8 @@ pub struct ChemDrawApp {
     pub lang:          Language,
     pub mode:          EditorMode,
     pub reaction:      ReactionScheme,
+    /// 3D viewer — not persisted: always starts closed
+    #[serde(skip)]
     pub show_3d:       bool,
     pub viewer3d_state: Viewer3dState,
     #[serde(skip)]
@@ -76,6 +78,9 @@ pub struct ChemDrawApp {
     /// menu_bar_active: any menu is currently open (for hover-to-switch).
     #[serde(skip)]
     pub menu_bar_active: bool,
+    /// Top menu currently opened by hover.
+    #[serde(skip)]
+    pub active_top_menu: Option<crate::menu::TopMenu>,
     /// Saved tool before Space-hold pan (restored on Space release).
     #[serde(skip)]
     pub pan_tool_saved: Option<Tool>,
@@ -83,6 +88,12 @@ pub struct ChemDrawApp {
     pub show_inspector: bool,
     /// Inspector panel width (persisted).
     pub inspector_width: f32,
+    /// Activity bar panel selection (Tools/Inspector/Templates/Chat).
+    pub activity_panel: ActivityPanel,
+    /// Whether sidebar is open (persisted).
+    pub sidebar_open: bool,
+    /// Sidebar width in pixels (persisted, default 260.0).
+    pub sidebar_width: f32,
     /// Zoom percentage edit buffer (ephemeral).
     #[serde(skip)]
     pub zoom_edit: Option<String>,
@@ -137,6 +148,7 @@ impl Default for ChemDrawApp {
             show_about:          false,
             status_msg:          None,
             menu_bar_active:     false,
+            active_top_menu:     None,
             api_key:             String::new(),
             ai_model:            "claude-haiku-4-5-20251001".to_string(),
             show_chat:           false,
@@ -146,6 +158,9 @@ impl Default for ChemDrawApp {
             pan_tool_saved:      None,
             show_inspector:      true,
             inspector_width:     INSPECTOR_WIDTH,
+            activity_panel:      ActivityPanel::Tools,
+            sidebar_open:        true,
+            sidebar_width:       260.0,
             zoom_edit:           None,
             smiles_edit:         None,
             smiles_edit_error:   false,
@@ -514,7 +529,15 @@ impl eframe::App for ChemDrawApp {
         });
 
         // ── Menu bar ──
-        MenuBar::show(ctx, &mut self.molecule, &self.reaction, &mut self.theme, &mut i18n, &mut actions);
+        MenuBar::show(
+            ctx,
+            &mut self.molecule,
+            &self.reaction,
+            &mut self.theme,
+            &mut i18n,
+            &mut actions,
+            &mut self.active_top_menu,
+        );
 
         // ── Dispatch menu actions ──
         if actions.request_undo  {
@@ -672,29 +695,61 @@ impl eframe::App for ChemDrawApp {
         // ── Mode tab bar (hidden in Focus Mode §20) ──
         if !self.focus_mode {
         #[allow(deprecated)]
-        egui::Panel::top("mode_tabs").show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                ui.selectable_value(&mut self.mode, EditorMode::Structure, "Structure");
-                ui.selectable_value(&mut self.mode, EditorMode::Reaction, "Reaction");
-                if ui.selectable_label(self.show_3d, "3D").clicked() {
-                    self.show_3d = !self.show_3d;
-                }
+        egui::Panel::top("mode_tabs")
+            .exact_height(38.0)
+            .frame(egui::Frame::NONE
+                .fill(tokens.panel_bg)
+                .inner_margin(egui::Margin::symmetric(10, 6)))
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    ui.add_space(2.0);
+                    for (label, mode) in [
+                        ("Structure", EditorMode::Structure),
+                        ("Reaction",  EditorMode::Reaction),
+                    ] {
+                        let active = self.mode == mode;
+                        let text = egui::RichText::new(label).size(13.0).strong();
+                        let resp = ui.add(
+                            egui::Button::new(text)
+                                .selected(active)
+                                .fill(if active {
+                                    alpha(tokens.accent, 48)
+                                } else {
+                                    alpha(tokens.sidebar_hover, 110)
+                                })
+                        );
+                        if resp.clicked() { self.mode = mode; }
+                        ui.add_space(4.0);
+                    }
+                    // 3D toggle
+                    let text_3d = egui::RichText::new("3D").size(13.0).strong();
+                    if ui.add(
+                        egui::Button::new(text_3d)
+                            .selected(self.show_3d)
+                            .fill(if self.show_3d {
+                                alpha(tokens.accent, 48)
+                            } else {
+                                alpha(tokens.sidebar_hover, 110)
+                            })
+                    ).clicked() {
+                        self.show_3d = !self.show_3d;
+                    }
+                });
             });
-        });
         } // end !focus_mode
 
         // ── Tool Controls Bar (hidden in Focus Mode) ──
         if !self.focus_mode {
         #[allow(deprecated)]
         egui::Panel::top("tool_controls")
-            .exact_height(TOOL_CONTROLS_HEIGHT)
-            .frame(egui::Frame::NONE.fill(tokens.panel_bg).inner_margin(egui::Margin::symmetric(4, 2)))
+            .exact_height(TOOL_CONTROLS_HEIGHT + 6.0)
+            .frame(egui::Frame::NONE.fill(tokens.panel_bg).inner_margin(egui::Margin::symmetric(10, 4)))
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
                     match self.active_tool {
                         Tool::Single | Tool::Double | Tool::Triple | Tool::Aromatic
                         | Tool::WedgeUp | Tool::WedgeDown => {
-                            ui.label(egui::RichText::new("Order:").small().color(tokens.separator));
+                            ui.label(egui::RichText::new("Order").small().color(tokens.sidebar_title.gamma_multiply(0.66)));
                             let orders = [("1", Tool::Single), ("2", Tool::Double), ("3", Tool::Triple), ("A", Tool::Aromatic)];
                             for (label, t) in orders {
                                 if ui.selectable_label(self.active_tool == t, label).clicked() {
@@ -702,14 +757,14 @@ impl eframe::App for ChemDrawApp {
                                 }
                             }
                             ui.separator();
-                            ui.label(egui::RichText::new("Stereo:").small().color(tokens.separator));
+                            ui.label(egui::RichText::new("Stereo").small().color(tokens.sidebar_title.gamma_multiply(0.66)));
                             if ui.selectable_label(self.active_tool == Tool::WedgeUp, "▲Up").clicked() { self.active_tool = Tool::WedgeUp; }
                             if ui.selectable_label(self.active_tool == Tool::WedgeDown, "▽Dn").clicked() { self.active_tool = Tool::WedgeDown; }
                         }
                         Tool::Carbon | Tool::Nitrogen | Tool::Oxygen | Tool::Sulfur
                         | Tool::Phosphorus | Tool::Fluorine | Tool::Chlorine
                         | Tool::Bromine | Tool::Iodine | Tool::Hydrogen | Tool::Rgroup => {
-                            ui.label(egui::RichText::new("Element:").small().color(tokens.separator));
+                            ui.label(egui::RichText::new("Element").small().color(tokens.sidebar_title.gamma_multiply(0.66)));
                             ui.label(egui::RichText::new(self.active_tool.label()).small());
                         }
                         Tool::Select => {
@@ -731,40 +786,114 @@ impl eframe::App for ChemDrawApp {
             });
         } // end !focus_mode (tool controls)
 
-        // ── Left toolbar (hidden in Focus Mode) ──
+        // ── Activity Bar (left, 48px) ──
         if !self.focus_mode {
         #[allow(deprecated)]
-        egui::Panel::left("toolbar")
-            .exact_size(TOOLBAR_WIDTH)
+        egui::Panel::left("activity_bar")
+            .exact_width(48.0)
             .resizable(false)
+            .frame(egui::Frame::NONE.fill(tokens.activity_bar_bg))
             .show(ctx, |ui| {
-                Toolbar::show(ui, &mut self.active_tool, &tokens, &i18n);
-            });
-        } // end !focus_mode (toolbar)
-
-        // ── Right inspector (hidden in Focus Mode) ──
-        if self.show_inspector && !self.focus_mode {
-            let inspector_w = self.inspector_width;
-            #[allow(deprecated)]
-            let panel_resp = egui::Panel::right("inspector")
-                .min_width(crate::theme::INSPECTOR_WIDTH_MIN)
-                .max_width(crate::theme::INSPECTOR_WIDTH_MAX)
-                .default_width(inspector_w)
-                .resizable(true)
-                .show(ctx, |ui| {
-                    let parse_result = Inspector::show(
-                    ui, &mut self.molecule, &mut self.iupac, &tokens, &i18n,
-                    &mut self.smarts_buf,
-                    &mut self.smiles_edit, &mut self.smiles_edit_error,
-                );
-                if let Some(new_mol) = parse_result {
-                    push_undo(&mut self.undo_stack, &mut self.redo_stack, &self.molecule);
-                    self.molecule = new_mol;
+                if crate::toolbar::ActivityBar::show(
+                    ui, &mut self.activity_panel, &mut self.sidebar_open, &tokens
+                ) {
+                    self.show_settings = true;
                 }
+            });
+        } // end !focus_mode (activity bar)
+
+        // ── Sidebar (left, 260px, conditional) ──
+        if self.sidebar_open && !self.focus_mode {
+            #[allow(deprecated)]
+            let panel_resp = egui::Panel::left("sidebar")
+                .min_width(180.0)
+                .max_width(480.0)
+                .default_width(self.sidebar_width)
+                .resizable(true)
+                .frame(egui::Frame::NONE.fill(tokens.sidebar_bg))
+                .show(ctx, |ui| {
+                    self.sidebar_width = ui.available_width();
+                    match self.activity_panel {
+                        ActivityPanel::Tools => {
+                            crate::toolbar::ToolsSidebar::show(ui, &mut self.active_tool, &tokens, &i18n);
+                        }
+                        ActivityPanel::Inspector => {
+                            let parse_result = Inspector::show(
+                                ui, &mut self.molecule, &mut self.iupac, &tokens, &i18n,
+                                &mut self.smarts_buf,
+                                &mut self.smiles_edit, &mut self.smiles_edit_error,
+                            );
+                            if let Some(new_mol) = parse_result {
+                                push_undo(&mut self.undo_stack, &mut self.redo_stack, &self.molecule);
+                                self.molecule = new_mol;
+                            }
+                        }
+                        ActivityPanel::Templates => {
+                            let mut insert: Option<crate::canvas::CanvasMolecule> = None;
+                            TemplatePanel::show(ui, &tokens, &mut insert);
+                            if let Some(mut new_mol) = insert {
+                                let cx = self.canvas_rect.center();
+                                for a in &mut new_mol.atoms { a.pos += cx.to_vec2(); }
+                                push_undo(&mut self.undo_stack, &mut self.redo_stack, &self.molecule);
+                                for a in new_mol.atoms { self.molecule.atoms.push(a); }
+                                for b in new_mol.bonds { self.molecule.bonds.push(b); }
+                            }
+                        }
+                        ActivityPanel::Chat => {
+                            let current_smiles = canvas_to_canonical_smiles(&self.molecule);
+                            if let Some(apply_result) = AiChatPanel::show(
+                                ui,
+                                &mut self.ai_chat,
+                                &self.api_key,
+                                &self.ai_model,
+                                current_smiles.as_deref(),
+                                &tokens,
+                            ) {
+                                // Handle AI result (draw, replace, etc.)
+                                let center = self.canvas_rect.center();
+                                let smiles = match &apply_result {
+                                    ApplyMode::Replace(s) | ApplyMode::Append(s) => s.clone(),
+                                };
+                                if let Ok(new_mol) = parse_any(&smiles, center) {
+                                    push_undo(&mut self.undo_stack, &mut self.redo_stack, &self.molecule);
+                                    match apply_result {
+                                        ApplyMode::Replace(_) => {
+                                            self.molecule = new_mol;
+                                        }
+                                        ApplyMode::Append(_) => {
+                                            let offset = self.molecule.next_id();
+                                            for mut a in new_mol.atoms {
+                                                a.id += offset;
+                                                self.molecule.atoms.push(a);
+                                            }
+                                            for mut b in new_mol.bonds {
+                                                b.id   += offset;
+                                                b.from += offset;
+                                                b.to   += offset;
+                                                self.molecule.bonds.push(b);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        ActivityPanel::Settings => {
+                            // Settings panel in sidebar
+                            ui.label(
+                                egui::RichText::new("SETTINGS")
+                                    .size(11.0)
+                                    .strong()
+                                    .color(tokens.sidebar_title),
+                            );
+                            ui.add_space(8.0);
+                            SettingsPanel::show(ui, &mut self.api_key, &mut self.ai_model,
+                                               &mut self.settings_show_key, &tokens);
+                        }
+                    }
                 });
             // Save resized width
-            self.inspector_width = panel_resp.response.rect.width().clamp(
-                crate::theme::INSPECTOR_WIDTH_MIN, crate::theme::INSPECTOR_WIDTH_MAX
+            self.sidebar_width = panel_resp.response.rect.width().clamp(
+                180.0, 480.0
             );
         }
 
@@ -1188,12 +1317,13 @@ impl eframe::App for ChemDrawApp {
                 });
         }
 
-        // ── Status bar ──
+        // ── Status bar — VS Code style (#007ACC blue background) ──
         #[allow(deprecated)]
         egui::Panel::bottom("statusbar")
             .exact_height(22.0)
-            .frame(egui::Frame::NONE.fill(tokens.panel_bg).inner_margin(egui::Margin::symmetric(8, 3)))
+            .frame(egui::Frame::NONE.fill(tokens.status_bar_bg).inner_margin(egui::Margin::symmetric(8, 3)))
             .show(ctx, |ui| {
+                ui.visuals_mut().override_text_color = Some(tokens.status_bar_fg);
                 let now = ctx.input(|i| i.time);
                 ui.horizontal(|ui| {
                     // Current tool
@@ -1211,7 +1341,7 @@ impl eframe::App for ChemDrawApp {
                         format!("Tool: {} {}{}",
                             self.active_tool.label(), sc, tip)
                     };
-                    ui.label(egui::RichText::new(tool_display).small().color(tokens.separator));
+                    ui.label(egui::RichText::new(tool_display).small().color(tokens.status_bar_fg));
                     ui.separator();
 
                     // Center: bond drag info OR snap status OR selection info OR molecule info
@@ -1272,7 +1402,7 @@ impl eframe::App for ChemDrawApp {
         // ── Central panel (Structure or Reaction) ──
         #[allow(deprecated)]
         CentralPanel::default()
-            .frame(egui::Frame::NONE.fill(tokens.canvas_bg))
+            .frame(egui::Frame::NONE.fill(tokens.canvas_bg).inner_margin(egui::Margin::symmetric(8, 0)))
             .show(ctx, |ui| {
                 self.canvas_rect = ui.available_rect_before_wrap();
                 match self.mode {

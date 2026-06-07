@@ -883,12 +883,56 @@ impl MoleculeCanvas {
             Tool::Pan => { /* handled above */ }
 
             _ => {
-                // Atom tools — respond to click AND drag (BUG-02/03 fix)
+                // Atom tools:
+                //   - drag on existing atom  → move (like Select)
+                //   - click on existing atom → change element
+                //   - click on empty space   → place atom
                 if let Some(pointer) = pointer_opt {
                     let world = state.screen_to_world(pointer);
-                    let fired = resp.clicked_by(egui::PointerButton::Primary)
-                        || resp.drag_stopped_by(egui::PointerButton::Primary);
-                    if fired {
+
+                    // ── Drag-to-move: grab existing atom ──
+                    if resp.drag_started_by(egui::PointerButton::Primary) {
+                        if let Some(id) = mol.atom_at(world, ATOM_RADIUS * 2.0) {
+                            push_undo(undo, redo, mol);
+                            if !mol.atoms.iter().any(|a| a.id == id && a.selected) {
+                                mol.deselect_all();
+                                if let Some(a) = mol.atoms.iter_mut().find(|a| a.id == id) {
+                                    a.selected = true;
+                                }
+                            }
+                            state.dragging_atom = Some(id);
+                            state.drag_start_screen = Some(pointer);
+                            state.drag_confirmed = false;
+                        }
+                    }
+
+                    if resp.dragged_by(egui::PointerButton::Primary) {
+                        if state.dragging_atom.is_some() {
+                            // 4px threshold before confirming move
+                            if !state.drag_confirmed {
+                                if let Some(start) = state.drag_start_screen {
+                                    if (pointer - start).length() > DRAG_THRESHOLD_PX {
+                                        state.drag_confirmed = true;
+                                    }
+                                }
+                            }
+                            if state.drag_confirmed {
+                                let delta = resp.drag_delta() / state.zoom;
+                                for a in mol.atoms.iter_mut().filter(|a| a.selected) {
+                                    a.pos += delta;
+                                }
+                            }
+                        }
+                    }
+
+                    if resp.drag_stopped_by(egui::PointerButton::Primary) {
+                        state.dragging_atom = None;
+                        state.drag_start_screen = None;
+                        state.drag_confirmed = false;
+                    }
+
+                    // ── Click only: place or change element ──
+                    if resp.clicked_by(egui::PointerButton::Primary) {
                         if let Some(element) = tool_element(active_tool) {
                             push_undo(undo, redo, mol);
                             if let Some(id) = mol.atom_at(world, ATOM_RADIUS * 2.0) {
@@ -900,6 +944,8 @@ impl MoleculeCanvas {
                             }
                         }
                     }
+                } else {
+                    state.dragging_atom = None;
                 }
             }
         }
