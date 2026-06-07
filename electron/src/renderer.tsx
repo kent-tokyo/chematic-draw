@@ -27,11 +27,31 @@ function App() {
   const clear = useMoleculeStore((s) => s.clear);
   const setStatus = useUIStore((s) => s.setStatus);
 
-  // Initialize WASM
+  // Initialize WASM and hydrate settings
   useEffect(() => {
-    wasmBridge.initWasm()
-      .then(() => setWasmLoaded(true))
-      .catch(console.error);
+    const init = async () => {
+      await wasmBridge.initWasm();
+      setWasmLoaded(true);
+
+      // Hydrate settings from IPC
+      if (typeof window !== 'undefined' && (window as any).electronAPI) {
+        const api = (window as any).electronAPI;
+        try {
+          const savedTheme = await api.loadSettings('theme');
+          if (savedTheme.success && savedTheme.value) {
+            setTheme(savedTheme.value);
+          }
+          const savedSidebarWidth = await api.loadSettings('sidebarWidth');
+          if (savedSidebarWidth.success && savedSidebarWidth.value) {
+            useCanvasStore.setState({ zoom: 1 }); // Reset canvas state
+            useUIStore.setState({ sidebarWidth: savedSidebarWidth.value });
+          }
+        } catch (err) {
+          console.error('Failed to hydrate settings:', err);
+        }
+      }
+    };
+    init();
   }, []);
 
   // Load sample molecule on mount
@@ -45,6 +65,28 @@ function App() {
       console.error('Failed to load sample:', err);
     }
   }, [wasmLoaded]);
+
+  // Auto-save settings
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).electronAPI) {
+      const api = (window as any).electronAPI;
+      const timeout = setTimeout(() => {
+        api.saveSettings('theme', theme);
+      }, 500);
+      return () => clearTimeout(timeout);
+    }
+  }, [theme]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).electronAPI) {
+      const api = (window as any).electronAPI;
+      const timeout = setTimeout(() => {
+        const sidebarState = useUIStore.getState();
+        api.saveSettings('sidebarWidth', sidebarState.sidebarOpen ? sidebarState.sidebarWidth : 0);
+      }, 500);
+      return () => clearTimeout(timeout);
+    }
+  }, [sidebarOpen]);
 
   // Menu event handlers
   useEffect(() => {

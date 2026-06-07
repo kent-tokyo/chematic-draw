@@ -33,6 +33,12 @@ export function TemplatesPanel() {
     }
   };
 
+  const handleDragStart = (e: React.DragEvent, smiles: string, name: string) => {
+    e.dataTransfer!.effectAllowed = 'copy';
+    e.dataTransfer!.setData('application/x-template-smiles', smiles);
+    e.dataTransfer!.setData('application/x-template-name', name);
+  };
+
   const bgColor = theme === 'dark' ? '#2f3a47' : '#ffffff';
   const textColor = theme === 'dark' ? '#d8deea' : '#1d2430';
   const borderColor = theme === 'dark' ? '#3a4a57' : '#e0e0e0';
@@ -43,14 +49,16 @@ export function TemplatesPanel() {
       {TEMPLATES.map((template) => (
         <button
           key={template.name}
+          draggable
           onClick={() => handleInsertTemplate(template.smiles, template.name)}
+          onDragStart={(e) => handleDragStart(e, template.smiles, template.name)}
           style={{
             padding: '12px',
             border: `1px solid ${borderColor}`,
             borderRadius: '4px',
             backgroundColor: bgColor,
             color: textColor,
-            cursor: 'pointer',
+            cursor: 'grab',
             fontSize: '11px',
             fontWeight: '500',
             transition: 'background-color 0.2s',
@@ -58,7 +66,7 @@ export function TemplatesPanel() {
           onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hoverBg)}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = bgColor)}
         >
-          {template.name}
+          {template.name} 👆
         </button>
       ))}
     </div>

@@ -7,6 +7,8 @@ import { useCanvasInteraction } from '../../hooks/useCanvasInteraction';
 import { useContextMenu } from '../../hooks/useContextMenu';
 import { CanvasRenderer } from './CanvasRenderer';
 import { Tool } from '../../store/types';
+import { mergeTemplateIntoMolecule } from '../../lib/templateMerge';
+import * as wasmBridge from '../../wasm/wasmBridge';
 
 export function MoleculeCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -92,6 +94,56 @@ export function MoleculeCanvas() {
     return 'crosshair';
   };
 
+  const screenToWorld = useCanvasStore((s) => s.screenToWorld);
+  const setMolecule = useMoleculeStore((s) => s.setMolecule);
+  const pushUndo = useMoleculeStore((s) => s.pushUndo);
+  const setStatus = useUIStore((s) => s.setStatus);
+
+  const handleDragOver = (e: React.DragEvent<HTMLCanvasElement>) => {
+    if (e.dataTransfer.types.includes('application/x-template-smiles')) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    const smiles = e.dataTransfer.getData('application/x-template-smiles');
+    const name = e.dataTransfer.getData('application/x-template-name');
+
+    if (!smiles) return;
+
+    try {
+      // Get drop coordinates
+      const rect = canvasRef.current!.getBoundingClientRect();
+      const screenX = e.clientX - rect.left;
+      const screenY = e.clientY - rect.top;
+      const worldPos = screenToWorld(screenX, screenY);
+
+      // Parse template
+      const templateMol = wasmBridge.parseMolecule(smiles);
+
+      // Calculate centroid
+      const centroid = {
+        x: templateMol.atoms.reduce((sum, a) => sum + a.x, 0) / (templateMol.atoms.length || 1),
+        y: templateMol.atoms.reduce((sum, a) => sum + a.y, 0) / (templateMol.atoms.length || 1),
+      };
+
+      // Merge into molecule
+      const offset = {
+        x: worldPos.x - centroid.x,
+        y: worldPos.y - centroid.y,
+      };
+
+      pushUndo();
+      const merged = mergeTemplateIntoMolecule(molecule, templateMol, offset.x, offset.y);
+      setMolecule(merged);
+      setStatus(`Inserted ${name}`);
+    } catch (err) {
+      setStatus(`Failed to insert template: ${(err as Error).message}`);
+    }
+  };
+
   return (
     <canvas
       ref={canvasRef}
@@ -105,6 +157,8 @@ export function MoleculeCanvas() {
       onMouseMove={interactionHandlers.onMouseMove}
       onMouseUp={interactionHandlers.onMouseUp}
       onContextMenu={handleContextMenu}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
     />
   );
 }

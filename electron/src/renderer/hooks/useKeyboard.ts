@@ -3,6 +3,8 @@ import { useCanvasStore } from '../store/canvasStore';
 import { useMoleculeStore } from '../store/moleculeStore';
 import { useUIStore } from '../store/uiStore';
 import { Tool } from '../store/types';
+import * as clipboard from '../lib/clipboard';
+import * as wasmBridge from '../wasm/wasmBridge';
 
 export function useKeyboard() {
   const setTool = useCanvasStore((s) => s.setTool);
@@ -19,11 +21,63 @@ export function useKeyboard() {
   const setFocusMode = useUIStore((s) => s.setFocusMode);
   const focusMode = useUIStore((s) => s.focusMode);
   const showModal = useUIStore((s) => s.showModal);
+  const molecule = useMoleculeStore((s) => s.molecule);
+  const setMolecule = useMoleculeStore((s) => s.setMolecule);
+  const setStatus = useUIStore((s) => s.setStatus);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Allow copy/paste in inputs
+      const isInput = (e.target as any).tagName === 'INPUT';
+      const ctrl = e.ctrlKey || e.metaKey;
+
+      // Copy (Ctrl+C / Cmd+C)
+      if (ctrl && e.key === 'c') {
+        if (!isInput) {
+          e.preventDefault();
+          clipboard.copyMoleculeSmiles(molecule)
+            .then(() => setStatus('Copied SMILES'))
+            .catch(() => setStatus('Copy failed'));
+        }
+        return;
+      }
+
+      // Paste (Ctrl+V / Cmd+V)
+      if (ctrl && e.key === 'v') {
+        if (!isInput) {
+          e.preventDefault();
+          clipboard.pasteFromClipboard()
+            .then((content) => {
+              const mol = wasmBridge.parseMolecule(content);
+              pushUndo();
+              setMolecule(mol);
+              setStatus('Pasted structure');
+            })
+            .catch(() => setStatus('Paste failed: invalid format'));
+        }
+        return;
+      }
+
+      // Clean Layout (Ctrl+L / Cmd+L)
+      if (ctrl && e.key === 'l') {
+        e.preventDefault();
+        pushUndo();
+        const cleaned = wasmBridge.cleanLayout(molecule);
+        setMolecule(cleaned);
+        setStatus('Layout cleaned');
+        return;
+      }
+
+      // Export (Ctrl+E / Cmd+E)
+      if (ctrl && e.key === 'e') {
+        e.preventDefault();
+        // Trigger export via menu event (would need IPC bridge)
+        setStatus('Use File > Export menu');
+        return;
+      }
+
       // Ignore if typing in an input
-      if ((e.target as any).tagName === 'INPUT') return;
+      if (isInput) return;
 
       const ctrl = e.ctrlKey || e.metaKey;
 
