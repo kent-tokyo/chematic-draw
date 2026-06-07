@@ -538,3 +538,37 @@ fn chem_bond_order(order: chematic::core::BondOrder) -> (u8, u8) {
         BondOrder::Aromatic => (4, 0),
     }
 }
+
+/// Validate molecule: check for basic errors
+#[wasm_bindgen]
+pub fn validate_molecule(mol_json: &JsValue) -> Result<JsValue, JsValue> {
+    let mol: MoleculeDto = serde_wasm_bindgen::from_value(mol_json.clone())
+        .map_err(|e| JsValue::from_str(&format!("JSON decode failed: {e}")))?;
+
+    let mut errors = vec![];
+    let mut warnings = vec![];
+
+    // Check for isolated atoms
+    if mol.atoms.len() > 0 && mol.bonds.is_empty() && mol.atoms.len() > 1 {
+        warnings.push("Disconnected atoms detected");
+    }
+
+    // Check for invalid bonds
+    for bond in &mol.bonds {
+        if !mol.atoms.iter().any(|a| a.id == bond.from) {
+            errors.push(format!("Bond from atom {} not found", bond.from));
+        }
+        if !mol.atoms.iter().any(|a| a.id == bond.to) {
+            errors.push(format!("Bond to atom {} not found", bond.to));
+        }
+    }
+
+    let result = serde_json::json!({
+        "valid": errors.is_empty(),
+        "errors": errors,
+        "warnings": warnings
+    });
+
+    serde_wasm_bindgen::to_value(&result)
+        .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
+}

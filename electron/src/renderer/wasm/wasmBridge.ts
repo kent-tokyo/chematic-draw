@@ -105,3 +105,10 @@ export function detectLayoutCrossings(mol: MoleculeDto): number {
 export function invertStereocenter(mol: MoleculeDto, atomId: number): MoleculeDto {
   return wasmModule.invert_stereocenter(mol, atomId) as MoleculeDto;
 }
+
+/**
+ * Validate molecule for errors and warnings.
+ */
+export function validateMolecule(mol: MoleculeDto): { valid: boolean; errors: string[]; warnings: string[] } {
+  return wasmModule.validate_molecule(mol);
+}

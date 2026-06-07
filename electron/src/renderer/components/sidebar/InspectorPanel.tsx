@@ -1,15 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
 import { ElementPicker } from '../inspector/ElementPicker';
 import { AtomDto, BondDto } from '../../store/types';
+import * as wasmBridge from '../../wasm/wasmBridge';
 
 export function InspectorPanel() {
   const theme = useUIStore((s) => s.theme);
   const selectedAtom = useUIStore((s) => s.selectedAtomForInspector);
   const selectedBond = useUIStore((s) => s.selectedBondForInspector);
+  const molecule = useMoleculeStore((s) => s.molecule);
   const updateAtom = useMoleculeStore((s) => s.updateAtom);
   const updateBond = useMoleculeStore((s) => s.updateBond);
+  const [smartsPattern, setSmartsPattern] = useState('');
+  const [smartsMatches, setSmartsMatches] = useState<number[]>([]);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+
+  // Validate molecule
+  useEffect(() => {
+    try {
+      const result = wasmBridge.validateMolecule(molecule);
+      setValidationErrors(result.errors);
+    } catch (err) {
+      setValidationErrors(['Validation error']);
+    }
+  }, [molecule]);
+
+  // SMARTS search
+  const handleSmartsSearch = () => {
+    if (!smartsPattern.trim()) {
+      setSmartsMatches([]);
+      return;
+    }
+    try {
+      const matches = wasmBridge.smarts(molecule, smartsPattern);
+      setSmartsMatches(matches);
+    } catch (err) {
+      setSmartsMatches([]);
+    }
+  };
 
   const textColor = theme === 'dark' ? '#d8deea' : '#1d2430';
   const inputBg = theme === 'dark' ? '#2f3a47' : '#ffffff';
@@ -28,10 +57,79 @@ export function InspectorPanel() {
     }
   };
 
+  // Validation section
+  const ValidationSection = () => (
+    <div style={{ padding: '12px', backgroundColor: bgColor, borderRadius: '4px', border: `1px solid ${labelColor}` }}>
+      <div style={{ fontSize: '11px', fontWeight: 'bold', color: textColor, marginBottom: '8px' }}>
+        ⚠️ Validation
+      </div>
+      {validationErrors.length === 0 ? (
+        <div style={{ fontSize: '10px', color: '#58c97a' }}>✓ No errors</div>
+      ) : (
+        <div style={{ fontSize: '10px', color: '#f26d6d' }}>
+          {validationErrors.map((err, i) => (
+            <div key={i}>{err}</div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  // SMARTS search section
+  const SmartsSection = () => (
+    <div style={{ padding: '12px', backgroundColor: bgColor, borderRadius: '4px', border: `1px solid ${labelColor}` }}>
+      <div style={{ fontSize: '11px', fontWeight: 'bold', color: textColor, marginBottom: '8px' }}>
+        🔍 SMARTS Search
+      </div>
+      <input
+        type="text"
+        placeholder="e.g., [#6]1:[#6]:[#6]:[#6]:[#6]:[#6]:1"
+        value={smartsPattern}
+        onChange={(e) => setSmartsPattern(e.target.value)}
+        onKeyPress={(e) => e.key === 'Enter' && handleSmartsSearch()}
+        style={{
+          width: '100%',
+          padding: '6px',
+          border: `1px solid ${labelColor}`,
+          borderRadius: '3px',
+          backgroundColor: theme === 'dark' ? '#1e2530' : '#f9f9f9',
+          color: textColor,
+          fontSize: '10px',
+          boxSizing: 'border-box',
+        }}
+      />
+      <button
+        onClick={handleSmartsSearch}
+        style={{
+          marginTop: '6px',
+          width: '100%',
+          padding: '6px',
+          backgroundColor: '#4d8dff',
+          color: 'white',
+          border: 'none',
+          borderRadius: '3px',
+          fontSize: '10px',
+          cursor: 'pointer',
+        }}
+      >
+        Search
+      </button>
+      {smartsMatches.length > 0 && (
+        <div style={{ marginTop: '6px', fontSize: '10px', color: textColor }}>
+          Found {smartsMatches.length} atoms matching
+        </div>
+      )}
+    </div>
+  );
+
   if (!selectedAtom && !selectedBond) {
     return (
-      <div style={{ color: labelColor, fontSize: '12px', textAlign: 'center', padding: '20px 0' }}>
-        Select an atom or bond to inspect
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ color: labelColor, fontSize: '12px', textAlign: 'center', padding: '20px 0' }}>
+          Select an atom or bond to inspect
+        </div>
+        <ValidationSection />
+        <SmartsSection />
       </div>
     );
   }
@@ -167,6 +265,13 @@ export function InspectorPanel() {
             <br />
             <strong>From:</strong> {selectedBond.from} <strong>To:</strong> {selectedBond.to}
           </div>
+        </>
+      )}
+
+      {!selectedAtom && !selectedBond && (
+        <>
+          <ValidationSection />
+          <SmartsSection />
         </>
       )}
     </div>
