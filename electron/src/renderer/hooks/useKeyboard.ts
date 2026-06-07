@@ -18,6 +18,7 @@ export function useKeyboard() {
   const getSelectedBonds = useMoleculeStore((s) => s.getSelectedBonds);
   const setFocusMode = useUIStore((s) => s.setFocusMode);
   const focusMode = useUIStore((s) => s.focusMode);
+  const showModal = useUIStore((s) => s.showModal);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -59,6 +60,13 @@ export function useKeyboard() {
       if (ctrl && e.shiftKey && e.key === 'f') {
         e.preventDefault();
         setFocusMode(!focusMode);
+        return;
+      }
+
+      // Help: Show Shortcuts
+      if ((ctrl && e.key === '?') || e.key === 'F1') {
+        e.preventDefault();
+        showModal('shortcuts');
         return;
       }
 

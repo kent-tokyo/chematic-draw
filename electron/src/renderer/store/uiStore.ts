@@ -14,6 +14,9 @@ interface UIStoreState extends UIState {
   // Context menu
   contextMenu: { visible: boolean; x: number; y: number; atomId?: number; bondId?: number } | null;
 
+  // Modals
+  showShortcutsModal: boolean;
+
   // Actions
   setTheme: (theme: 'dark' | 'light') => void;
   setLanguage: (lang: 'en' | 'ja') => void;
@@ -27,6 +30,8 @@ interface UIStoreState extends UIState {
   clearStatus: () => void;
   showContextMenu: (x: number, y: number, atomId?: number, bondId?: number) => void;
   hideContextMenu: () => void;
+  showModal: (type: 'shortcuts' | 'export') => void;
+  hideModal: (type: 'shortcuts' | 'export') => void;
 }
 
 export const useUIStore = create<UIStoreState>((set) => ({
@@ -42,6 +47,7 @@ export const useUIStore = create<UIStoreState>((set) => ({
   selectedAtomForInspector: null,
   selectedBondForInspector: null,
   contextMenu: null,
+  showShortcutsModal: false,
 
   setTheme: (theme) => set({ theme }),
 
@@ -83,5 +89,13 @@ export const useUIStore = create<UIStoreState>((set) => ({
 
   hideContextMenu: () => {
     set({ contextMenu: null });
+  },
+
+  showModal: (type) => {
+    if (type === 'shortcuts') set({ showShortcutsModal: true });
+  },
+
+  hideModal: (type) => {
+    if (type === 'shortcuts') set({ showShortcutsModal: false });
   },
 }));

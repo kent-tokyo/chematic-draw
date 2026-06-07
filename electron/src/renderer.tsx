@@ -4,6 +4,7 @@ import './index.css';
 import { MoleculeCanvas } from './renderer/components/canvas/MoleculeCanvas';
 import { Sidebar } from './renderer/components/sidebar/Sidebar';
 import { ContextMenu } from './renderer/components/menu/ContextMenu';
+import { ShortcutsModal } from './renderer/components/modals/ShortcutsModal';
 import { useUIStore } from './renderer/store/uiStore';
 import { useMoleculeStore } from './renderer/store/moleculeStore';
 import { useCanvasStore } from './renderer/store/canvasStore';
@@ -146,6 +147,7 @@ function App() {
       }}
     >
       <ContextMenu />
+      <ShortcutsModal />
       {/* Top Bar */}
       <div
         style={{

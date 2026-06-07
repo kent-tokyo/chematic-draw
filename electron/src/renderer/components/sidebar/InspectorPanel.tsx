@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
+import { ElementPicker } from '../inspector/ElementPicker';
 import { AtomDto, BondDto } from '../../store/types';
 
 export function InspectorPanel() {
@@ -41,46 +42,37 @@ export function InspectorPanel() {
         <>
           <div>
             <label style={{ fontSize: '11px', color: labelColor }}>Element</label>
-            <input
-              type="text"
-              value={selectedAtom.element}
-              onChange={(e) => handleAtomUpdate('element', e.target.value)}
-              style={{
-                width: '100%',
-                padding: '6px',
-                border: `1px solid ${inputBorder}`,
-                borderRadius: '3px',
-                backgroundColor: inputBg,
-                color: textColor,
-                fontSize: '11px',
-                boxSizing: 'border-box',
-              }}
-              maxLength={2}
+            <ElementPicker
+              currentElement={selectedAtom.element}
+              onSelect={(el) => handleAtomUpdate('element', el)}
+              theme={theme}
             />
           </div>
 
           <div>
-            <label style={{ fontSize: '11px', color: labelColor }}>Charge</label>
-            <select
-              value={selectedAtom.charge ?? 0}
-              onChange={(e) => handleAtomUpdate('charge', parseInt(e.target.value))}
-              style={{
-                width: '100%',
-                padding: '6px',
-                border: `1px solid ${inputBorder}`,
-                borderRadius: '3px',
-                backgroundColor: inputBg,
-                color: textColor,
-                fontSize: '11px',
-                boxSizing: 'border-box',
-              }}
-            >
+            <label style={{ fontSize: '11px', color: labelColor, display: 'block', marginBottom: '6px' }}>
+              Charge
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '4px' }}>
               {[-2, -1, 0, 1, 2].map((ch) => (
-                <option key={ch} value={ch}>
+                <button
+                  key={ch}
+                  onClick={() => handleAtomUpdate('charge', ch)}
+                  style={{
+                    padding: '6px',
+                    border: `1px solid ${inputBorder}`,
+                    borderRadius: '3px',
+                    backgroundColor: (selectedAtom.charge ?? 0) === ch ? '#4d8dff' : inputBg,
+                    color: (selectedAtom.charge ?? 0) === ch ? 'white' : textColor,
+                    fontSize: '11px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                  }}
+                >
                   {ch > 0 ? `+${ch}` : ch}
-                </option>
+                </button>
               ))}
-            </select>
+            </div>
           </div>
 
           <div>

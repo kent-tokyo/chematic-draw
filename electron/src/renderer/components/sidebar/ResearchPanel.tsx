@@ -14,12 +14,15 @@ interface Properties {
 
 export function ResearchPanel() {
   const theme = useUIStore((s) => s.theme);
+  const activeSidebarPanel = useUIStore((s) => s.activeSidebarPanel);
   const molecule = useMoleculeStore((s) => s.molecule);
+  const molKey = `${molecule.atoms.length}:${molecule.bonds.length}`;
   const [properties, setProperties] = useState<Properties | null>(null);
   const [iupacName, setIupacName] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (activeSidebarPanel !== 'research') return;
     setLoading(true);
     try {
       const props = wasmBridge.getProperties(molecule);
@@ -34,7 +37,7 @@ export function ResearchPanel() {
       setProperties(null);
     }
     setLoading(false);
-  }, [molecule]);
+  }, [molKey, activeSidebarPanel]);
 
   const textColor = theme === 'dark' ? '#d8deea' : '#1d2430';
   const labelColor = theme === 'dark' ? '#a0a8b8' : '#555555';

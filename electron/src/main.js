@@ -1,5 +1,5 @@
-import { app, BrowserWindow, Menu, dialog, ipcMain } from 'electron';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { app, BrowserWindow, Menu, dialog, ipcMain, clipboard } from 'electron';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 
@@ -9,6 +9,24 @@ if (started) {
 }
 
 let mainWindow;
+const SETTINGS_PATH = path.join(app.getPath('userData'), 'settings.json');
+
+// Helper functions for settings persistence
+const loadSettings = () => {
+  if (!existsSync(SETTINGS_PATH)) return {};
+  try {
+    return JSON.parse(readFileSync(SETTINGS_PATH, 'utf-8'));
+  } catch (err) {
+    console.error('Failed to load settings:', err);
+    return {};
+  }
+};
+
+const saveSettings = (data) => {
+  const dir = path.dirname(SETTINGS_PATH);
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  writeFileSync(SETTINGS_PATH, JSON.stringify(data, null, 2), 'utf-8');
+};
 
 const createWindow = () => {
   // Create the browser window.
@@ -203,6 +221,61 @@ ipcMain.handle('file:write', async (event, filePath, content) => {
   try {
     writeFileSync(filePath, content, 'utf-8');
     return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+// IPC Handlers for Clipboard
+ipcMain.handle('clipboard:write', async (event, format, content) => {
+  try {
+    clipboard.writeText(content);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('clipboard:read', async (event) => {
+  try {
+    const text = clipboard.readText();
+    return { success: true, content: text };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+// IPC Handlers for Settings Persistence
+ipcMain.handle('settings:save', async (event, key, value) => {
+  try {
+    const settings = loadSettings();
+    settings[key] = value;
+    saveSettings(settings);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('settings:load', async (event, key) => {
+  try {
+    const settings = loadSettings();
+    return { success: true, value: settings[key] };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+// IPC Handler for Recent Files
+ipcMain.handle('recent-file:add', async (event, filePath) => {
+  try {
+    const settings = loadSettings();
+    let recentFiles = settings.recentFiles || [];
+    // Remove duplicate, add to front, keep last 10
+    recentFiles = [filePath, ...recentFiles.filter(f => f !== filePath)].slice(0, 10);
+    settings.recentFiles = recentFiles;
+    saveSettings(settings);
+    return { success: true, recentFiles };
   } catch (err) {
     return { success: false, error: err.message };
   }

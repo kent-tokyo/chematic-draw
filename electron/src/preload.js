@@ -21,4 +21,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // File operations (renderer → main)
   fileSaveDialog: (defaultPath) => ipcRenderer.invoke('file:save-dialog', defaultPath),
   fileWrite: (filePath, content) => ipcRenderer.invoke('file:write', filePath, content),
+
+  // Clipboard operations (renderer → main)
+  copyToClipboard: (format, content) => ipcRenderer.invoke('clipboard:write', format, content),
+  pasteFromClipboard: () => ipcRenderer.invoke('clipboard:read'),
+
+  // Settings persistence (renderer → main)
+  saveSettings: (key, value) => ipcRenderer.invoke('settings:save', key, value),
+  loadSettings: (key) => ipcRenderer.invoke('settings:load', key),
+  recordRecentFile: (filePath) => ipcRenderer.invoke('recent-file:add', filePath),
 });
