@@ -18,11 +18,14 @@ export function MoleculeCanvas() {
   const molecule = useMoleculeStore((s) => s.molecule);
   const offset = useCanvasStore((s) => s.offset);
   const zoom = useCanvasStore((s) => s.zoom);
-  const selectedAtomIds = useMoleculeStore((s) =>
-    s.molecule.atoms.filter((a) => 'selected' in a && (a as any).selected).map((a) => a.id)
+
+  const selectedAtomIds = useMemo(() =>
+    molecule.atoms.filter((a) => 'selected' in a && (a as any).selected).map((a) => a.id),
+    [molecule]
   );
-  const selectedBondIds = useMoleculeStore((s) =>
-    s.molecule.bonds.filter((b) => 'selected' in b && (b as any).selected).map((b) => b.id)
+  const selectedBondIds = useMemo(() =>
+    molecule.bonds.filter((b) => 'selected' in b && (b as any).selected).map((b) => b.id),
+    [molecule]
   );
   const canvasState = useMemo(() => ({ offset, zoom }), [offset, zoom]);
   const hoverAtomId = useCanvasStore((s) => s.hoverAtomId);
