@@ -133,25 +133,33 @@ export function InspectorPanel() {
           </div>
 
           <div>
-            <label style={{ fontSize: '11px', color: labelColor }}>Stereo</label>
-            <select
-              value={selectedBond.stereo ?? 0}
-              onChange={(e) => handleBondUpdate('stereo', parseInt(e.target.value))}
-              style={{
-                width: '100%',
-                padding: '6px',
-                border: `1px solid ${inputBorder}`,
-                borderRadius: '3px',
-                backgroundColor: inputBg,
-                color: textColor,
-                fontSize: '11px',
-                boxSizing: 'border-box',
-              }}
-            >
-              <option value={0}>None</option>
-              <option value={1}>Wedge Up</option>
-              <option value={6}>Dash Down</option>
-            </select>
+            <label style={{ fontSize: '11px', color: labelColor, display: 'block', marginBottom: '6px' }}>
+              Stereo
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
+              {[
+                { label: 'None', value: 0 },
+                { label: '⌟ Wedge', value: 1 },
+                { label: '⌞ Dash', value: 6 },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => handleBondUpdate('stereo', opt.value)}
+                  style={{
+                    padding: '6px',
+                    border: `1px solid ${inputBorder}`,
+                    borderRadius: '3px',
+                    backgroundColor: (selectedBond.stereo ?? 0) === opt.value ? '#4d8dff' : inputBg,
+                    color: (selectedBond.stereo ?? 0) === opt.value ? 'white' : textColor,
+                    fontSize: '11px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div style={{ fontSize: '10px', color: labelColor, padding: '8px', backgroundColor: theme === 'dark' ? '#2f3a47' : '#f3f5f8', borderRadius: '3px' }}>

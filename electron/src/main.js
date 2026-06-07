@@ -118,6 +118,11 @@ const createMenu = () => {
           ],
         },
         { type: 'separator' },
+        {
+          label: 'Recent Files',
+          submenu: [],
+        },
+        { type: 'separator' },
         ...(isMac ? [{ role: 'close' }] : [{ role: 'quit' }]),
       ],
     },
@@ -275,11 +280,49 @@ ipcMain.handle('recent-file:add', async (event, filePath) => {
     recentFiles = [filePath, ...recentFiles.filter(f => f !== filePath)].slice(0, 10);
     settings.recentFiles = recentFiles;
     saveSettings(settings);
+    updateFileMenu(recentFiles);
     return { success: true, recentFiles };
   } catch (err) {
     return { success: false, error: err.message };
   }
 });
+
+// Helper to rebuild File menu with recent files
+const updateFileMenu = (recentFiles) => {
+  const fileMenu = Menu.getApplicationMenu()?.items.find(item => item.label === 'File');
+  if (!fileMenu) return;
+
+  // Find "Recent Files" submenu position
+  const recentIdx = fileMenu.submenu?.items.findIndex(item => item.label === 'Recent Files');
+  if (recentIdx === undefined || recentIdx < 0) return;
+
+  // Build recent files submenu
+  const recentSubmenu = recentFiles.map((filePath, idx) => ({
+    label: `${idx + 1}. ${path.basename(filePath)}`,
+    accelerator: `Ctrl+${idx + 1}`,
+    click: async () => {
+      try {
+        const content = readFileSync(filePath, 'utf-8');
+        mainWindow.webContents.send('menu:open-file', { path: filePath, content });
+      } catch (err) {
+        dialog.showErrorDialog(mainWindow, 'Error', `Failed to open: ${err.message}`);
+      }
+    },
+  }));
+
+  if (recentSubmenu.length > 0) {
+    recentSubmenu.push({ type: 'separator' });
+  }
+  recentSubmenu.push({ label: 'Clear Recent Files', click: () => {
+    const settings = loadSettings();
+    settings.recentFiles = [];
+    saveSettings(settings);
+    updateFileMenu([]);
+  }});
+
+  fileMenu.submenu.items[recentIdx].submenu = recentSubmenu;
+  Menu.setApplicationMenu(Menu.buildFromTemplate(Menu.getApplicationMenu().items));
+};
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
