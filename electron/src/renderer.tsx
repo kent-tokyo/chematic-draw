@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import { MoleculeCanvas } from './renderer/components/canvas/MoleculeCanvas';
+import { Sidebar } from './renderer/components/sidebar/Sidebar';
+import { ContextMenu } from './renderer/components/menu/ContextMenu';
 import { useUIStore } from './renderer/store/uiStore';
 import { useMoleculeStore } from './renderer/store/moleculeStore';
 import { useCanvasStore } from './renderer/store/canvasStore';
@@ -10,13 +12,19 @@ import * as wasmBridge from './renderer/wasm/wasmBridge';
 
 function App() {
   const [wasmLoaded, setWasmLoaded] = useState(false);
+  const [filePath, setFilePath] = useState<string | null>(null);
   const theme = useUIStore((s) => s.theme);
   const setTheme = useUIStore((s) => s.setTheme);
+  const sidebarOpen = useUIStore((s) => s.sidebarOpen);
+  const setSidebarOpen = useUIStore((s) => s.setSidebarOpen);
   const activeTool = useCanvasStore((s) => s.activeTool);
   const setTool = useCanvasStore((s) => s.setTool);
+  const setZoom = useCanvasStore((s) => s.setZoom);
   const zoom = useCanvasStore((s) => s.zoom);
   const molecule = useMoleculeStore((s) => s.molecule);
   const setMolecule = useMoleculeStore((s) => s.setMolecule);
+  const clear = useMoleculeStore((s) => s.clear);
+  const setStatus = useUIStore((s) => s.setStatus);
 
   // Initialize WASM
   useEffect(() => {
@@ -36,6 +44,81 @@ function App() {
       console.error('Failed to load sample:', err);
     }
   }, [wasmLoaded]);
+
+  // Menu event handlers
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).electronAPI) {
+      const api = (window as any).electronAPI;
+
+      api.onMenuNew(() => {
+        clear();
+        setFilePath(null);
+        setStatus('New molecule');
+      });
+
+      api.onMenuOpenFile((data: { path: string; content: string }) => {
+        try {
+          const mol = wasmBridge.parseMolecule(data.content);
+          setMolecule(mol);
+          setFilePath(data.path);
+          setStatus(`Opened: ${data.path}`);
+        } catch (err) {
+          setStatus(`Failed to open file: ${(err as Error).message}`);
+        }
+      });
+
+      api.onMenuSave(async () => {
+        if (filePath) {
+          const content = wasmBridge.toMolV2000(molecule);
+          const result = await api.fileWrite(filePath, content);
+          if (result.success) {
+            setStatus('Saved');
+          } else {
+            setStatus(`Save failed: ${result.error}`);
+          }
+        } else {
+          api.onMenuSaveAs?.();
+        }
+      });
+
+      api.onMenuSaveAs(async () => {
+        const result = await api.fileSaveDialog('untitled.mol');
+        if (!result.canceled && result.filePath) {
+          const content = wasmBridge.toMolV2000(molecule);
+          const writeResult = await api.fileWrite(result.filePath, content);
+          if (writeResult.success) {
+            setFilePath(result.filePath);
+            setStatus(`Saved: ${result.filePath}`);
+          } else {
+            setStatus(`Save failed: ${writeResult.error}`);
+          }
+        }
+      });
+
+      api.onMenuExportSvg(async () => {
+        const result = await api.fileSaveDialog('untitled.svg');
+        if (!result.canceled && result.filePath) {
+          const content = wasmBridge.toSvg(molecule);
+          const writeResult = await api.fileWrite(result.filePath, content);
+          if (writeResult.success) {
+            setStatus(`Exported: ${result.filePath}`);
+          } else {
+            setStatus(`Export failed: ${writeResult.error}`);
+          }
+        }
+      });
+
+      api.onMenuZoomIn(() => setZoom(zoom * 1.2));
+      api.onMenuZoomOut(() => setZoom(zoom / 1.2));
+      api.onMenuZoomReset(() => setZoom(1));
+      api.onMenuToggleSidebar(() => setSidebarOpen(!sidebarOpen));
+      api.onMenuToggleTheme(() => setTheme(theme === 'dark' ? 'light' : 'dark'));
+
+      return () => {
+        // Cleanup: no need to unsubscribe from ipcRenderer in this version
+      };
+    }
+  }, [molecule, filePath, theme, zoom, sidebarOpen]);
 
   const toolButtons: Array<{ tool: Tool; label: string; key: string }> = [
     { tool: Tool.Select, label: 'Select', key: 'ESC' },
@@ -62,6 +145,7 @@ function App() {
         fontFamily: 'system-ui, -apple-system, sans-serif',
       }}
     >
+      <ContextMenu />
       {/* Top Bar */}
       <div
         style={{
@@ -121,9 +205,10 @@ function App() {
         )}
       </div>
 
-      {/* Canvas Area */}
+      {/* Canvas Area with Sidebar */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         <MoleculeCanvas />
+        <Sidebar />
       </div>
 
       {/* Status Bar */}

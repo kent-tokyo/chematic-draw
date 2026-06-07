@@ -4,6 +4,7 @@ import { useCanvasStore } from '../../store/canvasStore';
 import { useUIStore } from '../../store/uiStore';
 import { useKeyboard } from '../../hooks/useKeyboard';
 import { useCanvasInteraction } from '../../hooks/useCanvasInteraction';
+import { useContextMenu } from '../../hooks/useContextMenu';
 import { CanvasRenderer } from './CanvasRenderer';
 import { Tool } from '../../store/types';
 
@@ -14,6 +15,7 @@ export function MoleculeCanvas() {
   // Hooks
   useKeyboard();
   const interactionHandlers = useCanvasInteraction();
+  const { handleContextMenu } = useContextMenu();
 
   const molecule = useMoleculeStore((s) => s.molecule);
   const offset = useCanvasStore((s) => s.offset);
@@ -102,7 +104,7 @@ export function MoleculeCanvas() {
       onMouseDown={interactionHandlers.onMouseDown}
       onMouseMove={interactionHandlers.onMouseMove}
       onMouseUp={interactionHandlers.onMouseUp}
-      onContextMenu={interactionHandlers.onContextMenu}
+      onContextMenu={handleContextMenu}
     />
   );
 }

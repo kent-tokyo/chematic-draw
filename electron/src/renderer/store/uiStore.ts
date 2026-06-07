@@ -1,19 +1,32 @@
 import { create } from 'zustand';
-import { UIState } from './types';
+import { UIState, AtomDto, BondDto } from './types';
 
 interface UIStoreState extends UIState {
   // Status bar
   statusMessage: string;
   statusExpiry: number; // timestamp
 
+  // Sidebar
+  activeSidebarPanel: 'inspector' | 'templates' | 'chat' | 'research';
+  selectedAtomForInspector: AtomDto | null;
+  selectedBondForInspector: BondDto | null;
+
+  // Context menu
+  contextMenu: { visible: boolean; x: number; y: number; atomId?: number; bondId?: number } | null;
+
   // Actions
   setTheme: (theme: 'dark' | 'light') => void;
   setLanguage: (lang: 'en' | 'ja') => void;
   setSidebarOpen: (open: boolean) => void;
   setSidebarWidth: (width: number) => void;
+  setActiveSidebarPanel: (panel: 'inspector' | 'templates' | 'chat' | 'research') => void;
+  setSelectedAtomForInspector: (atom: AtomDto | null) => void;
+  setSelectedBondForInspector: (bond: BondDto | null) => void;
   setFocusMode: (enabled: boolean) => void;
   setStatus: (message: string, durationMs?: number) => void;
   clearStatus: () => void;
+  showContextMenu: (x: number, y: number, atomId?: number, bondId?: number) => void;
+  hideContextMenu: () => void;
 }
 
 export const useUIStore = create<UIStoreState>((set) => ({
@@ -25,6 +38,10 @@ export const useUIStore = create<UIStoreState>((set) => ({
   focusMode: false,
   statusMessage: '',
   statusExpiry: 0,
+  activeSidebarPanel: 'inspector',
+  selectedAtomForInspector: null,
+  selectedBondForInspector: null,
+  contextMenu: null,
 
   setTheme: (theme) => set({ theme }),
 
@@ -36,6 +53,12 @@ export const useUIStore = create<UIStoreState>((set) => ({
     const clamped = Math.max(180, Math.min(480, width));
     set({ sidebarWidth: clamped });
   },
+
+  setActiveSidebarPanel: (panel) => set({ activeSidebarPanel: panel }),
+
+  setSelectedAtomForInspector: (atom) => set({ selectedAtomForInspector: atom }),
+
+  setSelectedBondForInspector: (bond) => set({ selectedBondForInspector: bond }),
 
   setFocusMode: (enabled) => set({ focusMode: enabled }),
 
@@ -52,5 +75,13 @@ export const useUIStore = create<UIStoreState>((set) => ({
       statusMessage: '',
       statusExpiry: 0,
     });
+  },
+
+  showContextMenu: (x, y, atomId, bondId) => {
+    set({ contextMenu: { visible: true, x, y, atomId, bondId } });
+  },
+
+  hideContextMenu: () => {
+    set({ contextMenu: null });
   },
 }));
