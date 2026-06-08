@@ -23,11 +23,11 @@ export function MoleculeCanvas() {
 
   const selectedAtomIds = useMemo(() =>
     molecule.atoms.filter((a) => 'selected' in a && (a as any).selected).map((a) => a.id),
-    [molecule.atoms]
+    [molecule.atoms.length, molecule]
   );
   const selectedBondIds = useMemo(() =>
     molecule.bonds.filter((b) => 'selected' in b && (b as any).selected).map((b) => b.id),
-    [molecule.bonds]
+    [molecule.bonds.length, molecule]
   );
 
   const hoverAtomId = useCanvasStore((s) => s.hoverAtomId);
