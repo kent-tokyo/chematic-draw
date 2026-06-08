@@ -17,6 +17,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onMenuToggleSidebar: (callback) => ipcRenderer.on('menu:toggle-sidebar', callback),
   onMenuToggleTheme: (callback) => ipcRenderer.on('menu:toggle-theme', callback),
   onMenuShortcuts: (callback) => ipcRenderer.on('menu:shortcuts', callback),
+  onMenuUndoTimeline: (callback) => ipcRenderer.on('menu:undo-timeline', callback),
+  onMenuBatchProcess: (callback) => ipcRenderer.on('menu:batch-process', callback),
+  onMenuToolStereoisomers: (callback) => ipcRenderer.on('menu:tool-stereoisomers', callback),
+  onMenuToolLipinski: (callback) => ipcRenderer.on('menu:tool-lipinski', callback),
+  onMenuToolProperties: (callback) => ipcRenderer.on('menu:tool-properties', callback),
+  onMenuToolMechanism: (callback) => ipcRenderer.on('menu:tool-mechanism', callback),
+  onMenuToolDatabase: (callback) => ipcRenderer.on('menu:tool-database', callback),
 
   // File operations (renderer → main)
   fileSaveDialog: (defaultPath) => ipcRenderer.invoke('file:save-dialog', defaultPath),

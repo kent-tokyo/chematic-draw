@@ -40,6 +40,7 @@ export function InspectorPanel() {
     }
   };
 
+  const bgColor = theme === 'dark' ? '#1e2530' : '#f9f9f9';
   const textColor = theme === 'dark' ? '#d8deea' : '#1d2430';
   const inputBg = theme === 'dark' ? '#2f3a47' : '#ffffff';
   const inputBorder = theme === 'dark' ? '#3a4a57' : '#d0d0d0';
@@ -79,7 +80,7 @@ export function InspectorPanel() {
   const SmartsSection = () => (
     <div style={{ padding: '12px', backgroundColor: bgColor, borderRadius: '4px', border: `1px solid ${labelColor}` }}>
       <div style={{ fontSize: '11px', fontWeight: 'bold', color: textColor, marginBottom: '8px' }}>
-        🔍 SMARTS Search
+        SMARTS Search
       </div>
       <input
         type="text"

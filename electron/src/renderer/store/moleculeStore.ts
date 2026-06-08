@@ -1,9 +1,13 @@
 import { create } from 'zustand';
 import { MoleculeDto, AtomDto, BondDto } from './types';
+import { ReactionScheme } from '../lib/reactions';
 
 interface MoleculeStore {
   // Current molecule
   molecule: MoleculeDto;
+
+  // Reaction scheme (Phase 5)
+  reactionScheme: ReactionScheme;
 
   // Undo/redo history
   undoStack: MoleculeDto[];
@@ -14,6 +18,7 @@ interface MoleculeStore {
 
   // Actions
   setMolecule: (mol: MoleculeDto) => void;
+  setReactionScheme: (scheme: ReactionScheme) => void;
   pushUndo: () => void;
   undo: () => void;
   redo: () => void;
@@ -46,6 +51,7 @@ const UNDO_LIMIT = 64;
 
 export const useMoleculeStore = create<MoleculeStore>((set, get) => ({
   molecule: emptyMolecule,
+  reactionScheme: { steps: [] },
   undoStack: [],
   redoStack: [],
   properties: null,
@@ -55,6 +61,10 @@ export const useMoleculeStore = create<MoleculeStore>((set, get) => ({
       molecule: mol,
       redoStack: [],
     }));
+  },
+
+  setReactionScheme: (scheme) => {
+    set({ reactionScheme: scheme });
   },
 
   pushUndo: () => {
@@ -183,27 +193,22 @@ export const useMoleculeStore = create<MoleculeStore>((set, get) => ({
 
   selectAtom: (id, additive) => {
     set((state) => {
-      const selected = new Set(
-        state.molecule.atoms.filter((a) => a.id !== id).length > 0
-          ? state.molecule.atoms
-              .filter((a) => a.id !== id && state.molecule.atoms.some((x) => x.id === a.id))
-              .map((a) => a.id)
-          : []
+      const prevSelected = new Set(
+        state.molecule.atoms.filter((a) => 'selected' in a && (a as any).selected).map((a) => a.id)
       );
       if (additive) {
-        if (selected.has(id)) selected.delete(id);
-        else selected.add(id);
+        if (prevSelected.has(id)) prevSelected.delete(id);
+        else prevSelected.add(id);
       } else {
-        selected.clear();
-        selected.add(id);
+        prevSelected.clear();
+        prevSelected.add(id);
       }
-
       return {
         molecule: {
           ...state.molecule,
           atoms: state.molecule.atoms.map((a) => ({
             ...a,
-            selected: selected.has(a.id),
+            selected: prevSelected.has(a.id),
           })),
         },
       };
@@ -212,27 +217,22 @@ export const useMoleculeStore = create<MoleculeStore>((set, get) => ({
 
   selectBond: (id, additive) => {
     set((state) => {
-      const selected = new Set(
-        state.molecule.bonds.filter((b) => b.id !== id).length > 0
-          ? state.molecule.bonds
-              .filter((b) => b.id !== id && state.molecule.bonds.some((x) => x.id === b.id))
-              .map((b) => b.id)
-          : []
+      const prevSelected = new Set(
+        state.molecule.bonds.filter((b) => 'selected' in b && (b as any).selected).map((b) => b.id)
       );
       if (additive) {
-        if (selected.has(id)) selected.delete(id);
-        else selected.add(id);
+        if (prevSelected.has(id)) prevSelected.delete(id);
+        else prevSelected.add(id);
       } else {
-        selected.clear();
-        selected.add(id);
+        prevSelected.clear();
+        prevSelected.add(id);
       }
-
       return {
         molecule: {
           ...state.molecule,
           bonds: state.molecule.bonds.map((b) => ({
             ...b,
-            selected: selected.has(b.id),
+            selected: prevSelected.has(b.id),
           })),
         },
       };

@@ -25,10 +25,6 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
 
   const molecule = useMoleculeStore((s) => s.molecule);
   const activeTool = useCanvasStore((s) => s.activeTool);
-  const offset = useCanvasStore((s) => s.offset);
-  const zoom = useCanvasStore((s) => s.zoom);
-  const canvasState = useMemo(() => ({ offset, zoom }), [offset, zoom]);
-  const screenToWorld = useCanvasStore((s) => s.screenToWorld);
   const setHoverAtom = useCanvasStore((s) => s.setHoverAtom);
   const setHoverBond = useCanvasStore((s) => s.setHoverBond);
   const setBondDrag = useCanvasStore((s) => s.setBondDrag);
@@ -46,6 +42,8 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
 
   const onMouseDown = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const { offset, zoom, screenToWorld } = useCanvasStore.getState();
+      const canvasState = { offset, zoom };
       const rect = (e.target as HTMLCanvasElement).getBoundingClientRect();
       const screenX = e.clientX - rect.left;
       const screenY = e.clientY - rect.top;
@@ -100,14 +98,16 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
         }
       }
     },
-    [molecule, activeTool, canvasState, screenToWorld, selectAtom, deselectAll, removeAtom, removeBond, updateAtom, addAtom, pushUndo]
+    [molecule, activeTool, selectAtom, deselectAll, removeAtom, removeBond, updateAtom, addAtom, pushUndo]
   );
 
   const onMouseMove = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const { offset, zoom, screenToWorld } = useCanvasStore.getState();
       const rect = (e.target as HTMLCanvasElement).getBoundingClientRect();
       const screenX = e.clientX - rect.left;
       const screenY = e.clientY - rect.top;
+      const canvasState = { offset, zoom };
 
       // Update hover state
       setHoverAtom(hitTestAtom(molecule, screenX, screenY, canvasState));
@@ -135,14 +135,16 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
         setBondDrag(dragStateRef.current.bondFrom, { x: screenX, y: screenY });
       }
     },
-    [molecule, activeTool, canvasState, screenToWorld, setHoverAtom, setHoverBond, pan, updateAtom, setBondDrag]
+    [molecule, activeTool, setHoverAtom, setHoverBond, pan, updateAtom, setBondDrag]
   );
 
   const onMouseUp = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const { offset, zoom } = useCanvasStore.getState();
       const rect = (e.target as HTMLCanvasElement).getBoundingClientRect();
       const screenX = e.clientX - rect.left;
       const screenY = e.clientY - rect.top;
+      const canvasState = { offset, zoom };
 
       if (dragStateRef.current.type === 'bond-drag' && dragStateRef.current.bondFrom) {
         const targetAtomId = hitTestAtom(molecule, screenX, screenY, canvasState);
@@ -157,7 +159,7 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
 
       dragStateRef.current = { type: 'none', startX: 0, startY: 0 };
     },
-    [molecule, activeTool, canvasState, screenToWorld, addBond, setBondDrag]
+    [molecule, activeTool, addBond, setBondDrag]
   );
 
   const onContextMenu = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {

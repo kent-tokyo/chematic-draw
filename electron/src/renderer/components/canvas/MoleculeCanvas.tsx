@@ -20,23 +20,20 @@ export function MoleculeCanvas() {
   const { handleContextMenu } = useContextMenu();
 
   const molecule = useMoleculeStore((s) => s.molecule);
-  const offset = useCanvasStore((s) => s.offset);
-  const zoom = useCanvasStore((s) => s.zoom);
 
   const selectedAtomIds = useMemo(() =>
     molecule.atoms.filter((a) => 'selected' in a && (a as any).selected).map((a) => a.id),
-    [molecule]
+    [molecule.atoms]
   );
   const selectedBondIds = useMemo(() =>
     molecule.bonds.filter((b) => 'selected' in b && (b as any).selected).map((b) => b.id),
-    [molecule]
+    [molecule.bonds]
   );
-  const canvasState = useMemo(() => ({ offset, zoom }), [offset, zoom]);
+
   const hoverAtomId = useCanvasStore((s) => s.hoverAtomId);
   const hoverBondId = useCanvasStore((s) => s.hoverBondId);
   const activeTool = useCanvasStore((s) => s.activeTool);
   const theme = useUIStore((s) => s.theme);
-  const setZoom = useCanvasStore((s) => s.setZoom);
   const bondDragPos = useCanvasStore((s) => s.bondDragPos);
   const bondDragFrom = useCanvasStore((s) => s.bondDragFrom);
 
@@ -66,7 +63,9 @@ export function MoleculeCanvas() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    const { offset, zoom } = useCanvasStore.getState();
     const renderer = new CanvasRenderer(ctx, canvas.width, canvas.height);
+    const canvasState = { offset, zoom };
 
     renderer.clear(theme);
     renderer.drawGrid(canvasState, theme);
@@ -79,13 +78,15 @@ export function MoleculeCanvas() {
       bondDragFrom,
       bondDragPos,
     });
-  }, [molecule, canvasState, theme, hoverAtomId, hoverBondId, selectedAtomIds, selectedBondIds, bondDragPos, bondDragFrom]);
+  }, [molecule, theme, hoverAtomId, hoverBondId, selectedAtomIds, selectedBondIds, bondDragPos, bondDragFrom]);
 
   // Handle zoom
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    setZoom(canvasState.zoom * delta);
+    const { zoom } = useCanvasStore.getState();
+    const { setZoom } = useCanvasStore.getState();
+    setZoom(zoom * delta);
   };
 
   const getCursor = () => {
@@ -94,7 +95,6 @@ export function MoleculeCanvas() {
     return 'crosshair';
   };
 
-  const screenToWorld = useCanvasStore((s) => s.screenToWorld);
   const setMolecule = useMoleculeStore((s) => s.setMolecule);
   const pushUndo = useMoleculeStore((s) => s.pushUndo);
   const setStatus = useUIStore((s) => s.setStatus);
@@ -111,11 +111,12 @@ export function MoleculeCanvas() {
     const smiles = e.dataTransfer.getData('application/x-template-smiles');
     const name = e.dataTransfer.getData('application/x-template-name');
 
-    if (!smiles) return;
+    if (!smiles || !canvasRef.current) return;
 
     try {
       // Get drop coordinates
-      const rect = canvasRef.current!.getBoundingClientRect();
+      const { screenToWorld } = useCanvasStore.getState();
+      const rect = canvasRef.current.getBoundingClientRect();
       const screenX = e.clientX - rect.left;
       const screenY = e.clientY - rect.top;
       const worldPos = screenToWorld(screenX, screenY);

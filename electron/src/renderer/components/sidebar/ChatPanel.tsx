@@ -26,7 +26,7 @@ export function ChatPanel() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '8px' }}>
       <div style={{ fontSize: '10px', color: labelColor }}>
-        💬 AI-powered molecular analysis (future feature)
+        AI-powered molecular analysis (future feature)
       </div>
 
       {/* Message List */}

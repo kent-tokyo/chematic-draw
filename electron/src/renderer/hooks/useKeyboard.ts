@@ -79,8 +79,6 @@ export function useKeyboard() {
       // Ignore if typing in an input
       if (isInput) return;
 
-      const ctrl = e.ctrlKey || e.metaKey;
-
       // Undo/Redo
       if (ctrl && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();

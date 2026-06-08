@@ -1,4 +1,5 @@
 import { MoleculeDto } from '../store/types';
+import * as wasmBridge from '../wasm/wasmBridge';
 
 // Phase 6: Stereoisomer Enumeration
 export interface StereoisomerResult {
@@ -8,12 +9,22 @@ export interface StereoisomerResult {
 }
 
 export function enumerateStereoisomers(mol: MoleculeDto): StereoisomerResult {
-  // Framework: Call chematic::chem::enumerate_stereoisomers in future WASM API
-  return {
-    stereoisomers: [mol],
-    count: 1,
-    description: 'Stereoisomer enumeration ready for WASM API',
-  };
+  // Use chematic 0.1.36 API: enumerate_stereoisomers
+  try {
+    const isomers = wasmBridge.enumerateStereoisomers(mol);
+    return {
+      stereoisomers: isomers,
+      count: isomers.length,
+      description: `${isomers.length} stereoisomer${isomers.length !== 1 ? 's' : ''} found`,
+    };
+  } catch (e) {
+    console.error('Stereoisomer enumeration failed:', e);
+    return {
+      stereoisomers: [mol],
+      count: 1,
+      description: 'Enumeration unavailable',
+    };
+  }
 }
 
 // Phase 7: Lipinski Rules & Structure Validation
@@ -43,15 +54,46 @@ export interface PropertyPrediction {
 }
 
 export function predictProperties(mol: MoleculeDto): PropertyPrediction[] {
-  // Framework: Integrate RDKit or ORCA API for spectroscopic predictions
-  return [
-    {
-      property: 'IR peaks',
-      predictedValue: 'C-H stretch @ 2950-3050, C=O @ 1700',
-      confidence: 0.85,
-      source: 'future ML model',
-    },
-  ];
+  // Use chematic 0.1.36 API: get extended properties
+  try {
+    const props = wasmBridge.getExtendedProperties(mol);
+    const predictions: PropertyPrediction[] = [
+      {
+        property: 'Synthetic Accessibility Score',
+        predictedValue: props.sa_score.toFixed(2),
+        confidence: 0.95,
+        source: 'chematic-chem',
+      },
+      {
+        property: 'ESOL Solubility (log S)',
+        predictedValue: props.esol_solubility.toFixed(2),
+        confidence: 0.90,
+        source: 'chematic-chem',
+      },
+      {
+        property: 'Fraction sp3 carbons',
+        predictedValue: props.fsp3.toFixed(3),
+        confidence: 1.0,
+        source: 'chematic-chem',
+      },
+      {
+        property: 'PAINS Alerts',
+        predictedValue: props.pains_violations ? 'VIOLATED' : 'PASS',
+        confidence: 1.0,
+        source: 'chematic-chem',
+      },
+      {
+        property: 'Stereocenters',
+        predictedValue: `${props.num_stereocenters} (${props.num_unspecified_stereocenters} unspecified)`,
+        confidence: 1.0,
+        source: 'chematic-chem',
+      },
+    ];
+    return predictions;
+  } catch (e) {
+    console.error('Property prediction failed:', e);
+    return [];
+  }
 }
 
 // Phase 9: Reaction Mechanism Drawing

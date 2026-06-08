@@ -519,6 +519,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "block-buffer"
+version = "0.10.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3078c7629b62d3f0439517fa394996acacc5cbc91c5a20d8c658e77abd503a71"
+dependencies = [
+ "generic-array",
+]
+
+[[package]]
 name = "block2"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -712,15 +721,16 @@ dependencies = [
 
 [[package]]
 name = "chematic"
-version = "0.1.32"
+version = "0.1.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4acbcbce448eae68b1f9cb9949c8a7ff5d8676e0f5a13f8a6281546f03e1db04"
+checksum = "e6ffa3d7f75c2ea34fa276cf2898e7d4c36682f77c7138e6a798f42f480ae851"
 dependencies = [
  "chematic-3d",
  "chematic-chem",
  "chematic-core",
  "chematic-depict",
  "chematic-fp",
+ "chematic-inchi",
  "chematic-iupac",
  "chematic-mol",
  "chematic-perception",
@@ -731,9 +741,9 @@ dependencies = [
 
 [[package]]
 name = "chematic-3d"
-version = "0.1.32"
+version = "0.1.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4892a48c74aba0388f4a9297ae75d8788ada08b2a41db3e7922d9de9db3dd27b"
+checksum = "7dcf1454a1c4dfe7ed5c4a33fa78cd2937089bcd1d767511a6a7a305b3169dee"
 dependencies = [
  "chematic-chem",
  "chematic-core",
@@ -744,9 +754,9 @@ dependencies = [
 
 [[package]]
 name = "chematic-chem"
-version = "0.1.32"
+version = "0.1.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "37892355550a145a043f84e8fec2d15b39e20f28e49e7c5bf694d6ff4acfed68"
+checksum = "c55a39904b6958911767d4299ff884478055d24f1e3979cb9e1f3dbbca7f935a"
 dependencies = [
  "chematic-core",
  "chematic-fp",
@@ -759,15 +769,15 @@ dependencies = [
 
 [[package]]
 name = "chematic-core"
-version = "0.1.32"
+version = "0.1.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "46c06c10657fa74843638f3cfbb99b89fb261f6ef4de4ee355773cc9b0d1aaa3"
+checksum = "f163a3df60d697bb09d6c2857883301df221d2f44f5e6725acc93960839f4fb5"
 
 [[package]]
 name = "chematic-depict"
-version = "0.1.32"
+version = "0.1.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2935cceb85536958d66933c2a70dd730c2361184f0ad403f425041987d1efd68"
+checksum = "e4ebff4e688246552746321df3f1f172aee5156c89f6f4f2d05cf6252020bed3"
 dependencies = [
  "chematic-core",
  "chematic-perception",
@@ -787,9 +797,9 @@ dependencies = [
 
 [[package]]
 name = "chematic-ff"
-version = "0.1.32"
+version = "0.1.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6719e0b392df99622580e0aa274be17d8c5aae661fb4442d0b826bb9abf65422"
+checksum = "7743c44c0372099a32bf12fe95f647c0f927ff3149f57643c334593daa31b2cd"
 dependencies = [
  "chematic-core",
  "chematic-perception",
@@ -797,9 +807,9 @@ dependencies = [
 
 [[package]]
 name = "chematic-fp"
-version = "0.1.32"
+version = "0.1.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "350f565015710241013b977bde4010a622078d733c40871fbaa72bac4b530f3e"
+checksum = "3d49f8dc81b7b12e97566f6ae535a69d165548c315934bce8409f96151796d19"
 dependencies = [
  "chematic-core",
  "chematic-perception",
@@ -807,10 +817,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "chematic-iupac"
-version = "0.1.32"
+name = "chematic-inchi"
+version = "0.1.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "521bec858dfa263f380551fe6ca785a99fc2800208eb86bf0ec637cf98128277"
+checksum = "fbfd1c4b31e253dc5ffb4510e3ad61f2c809475883eaf4de41a2d79b50ad6cbd"
+dependencies = [
+ "chematic-chem",
+ "chematic-core",
+ "chematic-smiles",
+ "sha2",
+]
+
+[[package]]
+name = "chematic-iupac"
+version = "0.1.36"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "98daa67b7f99f7592fec776edcf78770704943e9414f84cd7841048cf0f59292"
 dependencies = [
  "chematic-core",
  "chematic-perception",
@@ -818,9 +840,9 @@ dependencies = [
 
 [[package]]
 name = "chematic-mol"
-version = "0.1.32"
+version = "0.1.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ebeebfb63d470e1860fd1a0b7e21dc521ab38606cd362b70ed69ae7d982c656"
+checksum = "3241c4e7d0ac2a23524ec234105ada7a331a6dcf48abed3255beec6c0dadae1f"
 dependencies = [
  "chematic-core",
  "chematic-rxn",
@@ -828,18 +850,18 @@ dependencies = [
 
 [[package]]
 name = "chematic-perception"
-version = "0.1.32"
+version = "0.1.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "db483fcd6ed5fd8b1c1a0e435b7cca9a1b87c00280f5a3bb99c0a3f6f55626e6"
+checksum = "8d50bb869f31631ae74dcb60e4d5eb701679b090203ce06b44515c9689a2c191"
 dependencies = [
  "chematic-core",
 ]
 
 [[package]]
 name = "chematic-rxn"
-version = "0.1.32"
+version = "0.1.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5309d13481c2052a90b160c4fcdb0982d6569d3206f1a1dc15e38716e9efa030"
+checksum = "f141d98731aa32cf9fcbfbc0aba0a27d530c3a2243575246c50ab6e10a39e162"
 dependencies = [
  "chematic-core",
  "chematic-smarts",
@@ -848,9 +870,9 @@ dependencies = [
 
 [[package]]
 name = "chematic-smarts"
-version = "0.1.32"
+version = "0.1.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5229717c0a2ceb341cae7e0267eb1bdb2b6114c723eb9b853c713c625b6d7f5"
+checksum = "c3ebb7f3876b4d040a9e94f053e3bac6f9c7a6cd898ab23c0680a6f5a6ebf21a"
 dependencies = [
  "chematic-core",
  "chematic-perception",
@@ -858,9 +880,9 @@ dependencies = [
 
 [[package]]
 name = "chematic-smiles"
-version = "0.1.32"
+version = "0.1.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d6f0abbb30312deb227d515b330284514a12686b03ecc41376bc58266155b87"
+checksum = "064b55496abf595b16a269f341ae236edc405ee990f743d82cef4830ec783106"
 dependencies = [
  "chematic-core",
 ]
@@ -988,6 +1010,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cpufeatures"
+version = "0.2.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "59ed5838eebb26a2bb2e58f6d5b5316989ae9d08bab10e0e6d103e656d1b0280"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "crc32fast"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1009,6 +1040,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "460fbee9c2c2f33933d720630a6a0bac33ba7053db5344fac858d4b8952d77d5"
 
 [[package]]
+name = "crypto-common"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "78c8292055d1c1df0cce5d180393dc8cce0abec0a7102adb6c7b1eef6016d60a"
+dependencies = [
+ "generic-array",
+ "typenum",
+]
+
+[[package]]
 name = "cursor-icon"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1019,6 +1060,16 @@ name = "data-url"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be1e0bca6c3637f992fc1cc7cbc52a78c1ef6db076dbf1059c4323d6a2048376"
+
+[[package]]
+name = "digest"
+version = "0.10.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292"
+dependencies = [
+ "block-buffer",
+ "crypto-common",
+]
 
 [[package]]
 name = "dispatch"
@@ -1573,6 +1624,16 @@ dependencies = [
  "memchr",
  "pin-project-lite",
  "slab",
+]
+
+[[package]]
+name = "generic-array"
+version = "0.14.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "85649ca51fd72272d7821adaf274ad91c288277713d9c18820d8499a7ff69e9a"
+dependencies = [
+ "typenum",
+ "version_check",
 ]
 
 [[package]]
@@ -3728,6 +3789,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "sha2"
+version = "0.10.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283"
+dependencies = [
+ "cfg-if",
+ "cpufeatures",
+ "digest",
+]
+
+[[package]]
 name = "shlex"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4360,6 +4432,12 @@ name = "typeid"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bc7d623258602320d5c55d1bc22793b57daff0ec7efc270ea7d55ce1d5f5471c"
+
+[[package]]
+name = "typenum"
+version = "1.20.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b6f5e870be6c3b371b77fe0ee0bafb859fa4964b4404c27de1d380043c4dda20"
 
 [[package]]
 name = "uds_windows"

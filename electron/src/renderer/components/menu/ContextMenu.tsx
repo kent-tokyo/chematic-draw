@@ -52,12 +52,12 @@ export function ContextMenu() {
 
   if (selectedAtom) {
     menuItems.push(
-      { label: '✏️ Set Element', action: () => console.log('Element picker') },
-      { label: '⚡ Set Charge +', action: () => console.log('Charge +') },
-      { label: '⚡ Set Charge −', action: () => console.log('Charge -') },
+      { label: 'Set Element', action: () => console.log('Element picker') },
+      { label: 'Charge +1', action: () => console.log('Charge +') },
+      { label: 'Charge -1', action: () => console.log('Charge -') },
       { label: '', action: () => {} }, // separator
       {
-        label: '🗑 Delete Atom',
+        label: 'Delete Atom',
         action: () => {
           pushUndo();
           removeAtom(selectedAtom.id);
@@ -67,16 +67,16 @@ export function ContextMenu() {
     );
   } else if (selectedBond) {
     menuItems.push(
-      { label: '─ Single Bond', action: () => { pushUndo(); updateBond(selectedBond.id, { order: 1 }); } },
-      { label: '═ Double Bond', action: () => { pushUndo(); updateBond(selectedBond.id, { order: 2 }); } },
-      { label: '≡ Triple Bond', action: () => { pushUndo(); updateBond(selectedBond.id, { order: 3 }); } },
-      { label: '◯ Aromatic', action: () => { pushUndo(); updateBond(selectedBond.id, { order: 4 }); } },
+      { label: 'Single Bond', action: () => { pushUndo(); updateBond(selectedBond.id, { order: 1 }); } },
+      { label: 'Double Bond', action: () => { pushUndo(); updateBond(selectedBond.id, { order: 2 }); } },
+      { label: 'Triple Bond', action: () => { pushUndo(); updateBond(selectedBond.id, { order: 3 }); } },
+      { label: 'Aromatic Bond', action: () => { pushUndo(); updateBond(selectedBond.id, { order: 4 }); } },
       { label: '', action: () => {} }, // separator
-      { label: '⌟ Wedge Up', action: () => { pushUndo(); updateBond(selectedBond.id, { stereo: 1 }); } },
-      { label: '⌞ Dash Down', action: () => { pushUndo(); updateBond(selectedBond.id, { stereo: 6 }); } },
+      { label: 'Wedge Up', action: () => { pushUndo(); updateBond(selectedBond.id, { stereo: 1 }); } },
+      { label: 'Dash Down', action: () => { pushUndo(); updateBond(selectedBond.id, { stereo: 6 }); } },
       { label: '', action: () => {} }, // separator
       {
-        label: '🗑 Delete Bond',
+        label: 'Delete Bond',
         action: () => {
           pushUndo();
           removeBond(selectedBond.id);
@@ -86,8 +86,8 @@ export function ContextMenu() {
     );
   } else {
     menuItems.push(
-      { label: '🧹 Clean Layout', action: () => { pushUndo(); setMolecule(wasmBridge.cleanLayout(molecule)); } },
-      { label: '✨ Standardize', action: () => { pushUndo(); setMolecule(wasmBridge.standardizeMolecule(molecule)); } }
+      { label: 'Clean Layout', action: () => { pushUndo(); setMolecule(wasmBridge.cleanLayout(molecule)); } },
+      { label: 'Standardize', action: () => { pushUndo(); setMolecule(wasmBridge.standardizeMolecule(molecule)); } }
     );
   }
 

@@ -35,14 +35,16 @@ export async function processBatch(molecules: MoleculeDto[], task: BatchTask): P
         processed = mol;
       } else if (task.operation === 'filter') {
         const props = wasmBridge.getProperties(mol);
-        if (task.filterOptions?.minMW && props.mw < task.filterOptions.minMW) {
+        const passes =
+          (!task.filterOptions?.minMW || props.mw >= task.filterOptions.minMW) &&
+          (!task.filterOptions?.maxMW || props.mw <= task.filterOptions.maxMW) &&
+          (!task.filterOptions?.minLogP || props.logp >= task.filterOptions.minLogP) &&
+          (!task.filterOptions?.maxLogP || props.logp <= task.filterOptions.maxLogP);
+        if (!passes) {
           results.failed++;
           continue;
         }
-        if (task.filterOptions?.maxMW && props.mw > task.filterOptions.maxMW) {
-          results.failed++;
-          continue;
-        }
+        processed = mol;
       } else if (task.operation === 'properties') {
         const props = wasmBridge.getProperties(mol);
         processed = {

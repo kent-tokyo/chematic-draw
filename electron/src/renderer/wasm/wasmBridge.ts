@@ -112,3 +112,69 @@ export function invertStereocenter(mol: MoleculeDto, atomId: number): MoleculeDt
 export function validateMolecule(mol: MoleculeDto): { valid: boolean; errors: string[]; warnings: string[] } {
   return wasmModule.validate_molecule(mol);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// New APIs (chematic 0.1.36+)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Enumerate all stereoisomers of a molecule.
+ */
+export function enumerateStereoisomers(mol: MoleculeDto): MoleculeDto[] {
+  const result = wasmModule.enumerate_stereoisomers(mol);
+  return result as MoleculeDto[];
+}
+
+/**
+ * Convert molecule to InChI string.
+ * (Placeholder: actual InChI generation requires additional setup)
+ */
+export function molToInchi(mol: MoleculeDto): string {
+  return wasmModule.mol_to_inchi(mol);
+}
+
+/**
+ * Convert InChI string to InChIKey.
+ * (Placeholder: actual implementation pending)
+ */
+export function inchiToInchikey(inchi: string): string {
+  return wasmModule.inchi_to_inchikey(inchi);
+}
+
+/**
+ * Get extended properties: sa_score, esol, fsp3, pains, stereocenters.
+ */
+export interface ExtendedPropertiesDto {
+  sa_score: number;
+  esol_solubility: number;
+  fsp3: number;
+  pains_violations: boolean;
+  num_stereocenters: number;
+  num_unspecified_stereocenters: number;
+}
+
+export function getExtendedProperties(mol: MoleculeDto): ExtendedPropertiesDto {
+  return wasmModule.get_extended_properties(mol) as ExtendedPropertiesDto;
+}
+
+/**
+ * Get ECFP4 fingerprint.
+ */
+export function getFingerprint(mol: MoleculeDto): string {
+  return wasmModule.get_fingerprint(mol);
+}
+
+/**
+ * Calculate Tanimoto similarity between two fingerprints.
+ */
+export function tanimotoSimilarity(fpA: string, fpB: string): number {
+  return wasmModule.tanimoto_similarity(fpA, fpB);
+}
+
+/**
+ * Identify functional groups in a molecule.
+ */
+export function identifyFunctionalGroups(mol: MoleculeDto): string[] {
+  const result = wasmModule.identify_functional_groups_wasm(mol);
+  return result as string[];
+}

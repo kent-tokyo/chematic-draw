@@ -7,7 +7,7 @@ interface UIStoreState extends UIState {
   statusExpiry: number; // timestamp
 
   // Sidebar
-  activeSidebarPanel: 'inspector' | 'templates' | 'chat' | 'research';
+  activeSidebarPanel: 'inspector' | 'templates' | 'chat' | 'research' | 'reactions' | 'batch-results' | 'stereoisomers' | 'lipinski' | 'properties' | 'mechanism' | 'database';
   selectedAtomForInspector: AtomDto | null;
   selectedBondForInspector: BondDto | null;
 
@@ -16,13 +16,18 @@ interface UIStoreState extends UIState {
 
   // Modals
   showShortcutsModal: boolean;
+  showUndoModal: boolean;
+  showBatchDialog: boolean;
+
+  // Batch results history
+  batchResults: Array<{ operation: string; processed: number; failed: number; errors: string[]; timestamp: number }>;
 
   // Actions
   setTheme: (theme: 'dark' | 'light') => void;
   setLanguage: (lang: 'en' | 'ja') => void;
   setSidebarOpen: (open: boolean) => void;
   setSidebarWidth: (width: number) => void;
-  setActiveSidebarPanel: (panel: 'inspector' | 'templates' | 'chat' | 'research') => void;
+  setActiveSidebarPanel: (panel: 'inspector' | 'templates' | 'chat' | 'research' | 'reactions' | 'batch-results' | 'stereoisomers' | 'lipinski' | 'properties' | 'mechanism' | 'database') => void;
   setSelectedAtomForInspector: (atom: AtomDto | null) => void;
   setSelectedBondForInspector: (bond: BondDto | null) => void;
   setFocusMode: (enabled: boolean) => void;
@@ -30,8 +35,9 @@ interface UIStoreState extends UIState {
   clearStatus: () => void;
   showContextMenu: (x: number, y: number, atomId?: number, bondId?: number) => void;
   hideContextMenu: () => void;
-  showModal: (type: 'shortcuts' | 'export') => void;
-  hideModal: (type: 'shortcuts' | 'export') => void;
+  showModal: (type: 'shortcuts' | 'export' | 'undo' | 'batch') => void;
+  hideModal: (type: 'shortcuts' | 'export' | 'undo' | 'batch') => void;
+  addBatchResult: (operation: string, processed: number, failed: number, errors: string[]) => void;
 }
 
 export const useUIStore = create<UIStoreState>((set) => ({
@@ -48,6 +54,9 @@ export const useUIStore = create<UIStoreState>((set) => ({
   selectedBondForInspector: null,
   contextMenu: null,
   showShortcutsModal: false,
+  showUndoModal: false,
+  showBatchDialog: false,
+  batchResults: [],
 
   setTheme: (theme) => set({ theme }),
 
@@ -93,9 +102,22 @@ export const useUIStore = create<UIStoreState>((set) => ({
 
   showModal: (type) => {
     if (type === 'shortcuts') set({ showShortcutsModal: true });
+    if (type === 'undo') set({ showUndoModal: true });
+    if (type === 'batch') set({ showBatchDialog: true });
   },
 
   hideModal: (type) => {
     if (type === 'shortcuts') set({ showShortcutsModal: false });
+    if (type === 'undo') set({ showUndoModal: false });
+    if (type === 'batch') set({ showBatchDialog: false });
+  },
+
+  addBatchResult: (operation, processed, failed, errors) => {
+    set((state) => ({
+      batchResults: [
+        ...state.batchResults,
+        { operation, processed, failed, errors, timestamp: Date.now() },
+      ].slice(-10), // Keep last 10 results
+    }));
   },
 }));

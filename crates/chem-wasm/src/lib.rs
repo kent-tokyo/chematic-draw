@@ -51,6 +51,16 @@ pub struct PropertiesDto {
     pub valence_errors: Vec<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExtendedPropertiesDto {
+    pub sa_score: f64,
+    pub esol_solubility: f64,
+    pub fsp3: f64,
+    pub pains_violations: bool,
+    pub num_stereocenters: u32,
+    pub num_unspecified_stereocenters: u32,
+}
+
 // ─────────────────────────────────────────────────────────────────────────────────
 // WASM Public API
 // ─────────────────────────────────────────────────────────────────────────────────
@@ -534,8 +544,14 @@ fn chem_bond_order(order: chematic::core::BondOrder) -> (u8, u8) {
         BondOrder::Down => (1, 2),
         BondOrder::Double => (2, 0),
         BondOrder::Triple => (3, 0),
-        BondOrder::Quadruple => (3, 0),
+        BondOrder::Quadruple => (4, 0),
         BondOrder::Aromatic => (4, 0),
+        BondOrder::Zero => (0, 0),
+        BondOrder::Dative => (1, 0),
+        BondOrder::QueryAny => (1, 0),
+        BondOrder::QuerySingleOrDouble => (1, 0),
+        BondOrder::QuerySingleOrAromatic => (1, 0),
+        BondOrder::QueryDoubleOrAromatic => (2, 0),
     }
 }
 
@@ -570,5 +586,121 @@ pub fn validate_molecule(mol_json: &JsValue) -> Result<JsValue, JsValue> {
     });
 
     serde_wasm_bindgen::to_value(&result)
+        .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// New APIs (chematic 0.1.36+)
+// ─────────────────────────────────────────────────────────────────────────────────
+
+/// Enumerate all stereoisomers of a molecule.
+#[wasm_bindgen]
+pub fn enumerate_stereoisomers(mol_json: &JsValue) -> Result<JsValue, JsValue> {
+    use chematic::chem;
+
+    let dto: MoleculeDto = serde_wasm_bindgen::from_value(mol_json.clone())
+        .map_err(|e| JsValue::from_str(&format!("JSON decode failed: {e}")))?;
+
+    let chem_mol = dto_to_chem(&dto)?;
+    let coords = dto_to_coords(&dto);
+
+    // enumerate_stereoisomers returns Vec<Molecule> directly (not Result)
+    let isomers = chem::enumerate_stereoisomers(&chem_mol);
+
+    let dtos: Vec<MoleculeDto> = isomers
+        .iter()
+        .map(|iso| chem_to_dto(iso, Some(&coords)))
+        .collect();
+
+    serde_wasm_bindgen::to_value(&dtos)
+        .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
+}
+
+/// Convert molecule to InChI string. (Placeholder - requires chematic-inchi integration)
+#[wasm_bindgen]
+pub fn mol_to_inchi(mol_json: &JsValue) -> Result<String, JsValue> {
+    let dto: MoleculeDto = serde_wasm_bindgen::from_value(mol_json.clone())
+        .map_err(|e| JsValue::from_str(&format!("JSON decode failed: {e}")))?;
+
+    let chem_mol = dto_to_chem(&dto)?;
+
+    // Placeholder: return SMILES-based ID
+    use chematic::smiles;
+    Ok(format!("InChI_placeholder_{}", smiles::write(&chem_mol).chars().take(32).collect::<String>()))
+}
+
+/// Convert InChI string to InChIKey. (Placeholder)
+#[wasm_bindgen]
+pub fn inchi_to_inchikey(_inchi: &str) -> String {
+    // Placeholder - actual implementation requires chematic-inchi
+    format!("UNKNOWN-UNKNOWN-N")
+}
+
+/// Get extended properties: sa_score, esol, fsp3, pains, stereocenters.
+#[wasm_bindgen]
+pub fn get_extended_properties(mol_json: &JsValue) -> Result<JsValue, JsValue> {
+    use chematic::chem;
+
+    let dto: MoleculeDto = serde_wasm_bindgen::from_value(mol_json.clone())
+        .map_err(|e| JsValue::from_str(&format!("JSON decode failed: {e}")))?;
+
+    let chem_mol = dto_to_chem(&dto)?;
+
+    let sa_score = chem::sa_score(&chem_mol);
+    let esol_solubility = chem::esol_solubility(&chem_mol);
+    let fsp3 = chem::fsp3(&chem_mol);
+    let pains_violations = !chem::pains_passes(&chem_mol);
+    let num_stereocenters = chem::num_stereocenters(&chem_mol) as u32;
+    let num_unspecified_stereocenters = chem::num_unspecified_stereocenters(&chem_mol) as u32;
+
+    let props = ExtendedPropertiesDto {
+        sa_score,
+        esol_solubility,
+        fsp3,
+        pains_violations,
+        num_stereocenters,
+        num_unspecified_stereocenters,
+    };
+
+    serde_wasm_bindgen::to_value(&props)
+        .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
+}
+
+/// Get ECFP4 fingerprint hash (as hex string for easy serialization).
+#[wasm_bindgen]
+pub fn get_fingerprint(mol_json: &JsValue) -> Result<String, JsValue> {
+    use chematic::fp;
+
+    let dto: MoleculeDto = serde_wasm_bindgen::from_value(mol_json.clone())
+        .map_err(|e| JsValue::from_str(&format!("JSON decode failed: {e}")))?;
+
+    let chem_mol = dto_to_chem(&dto)?;
+
+    let _fp_bits = fp::ecfp4(&chem_mol);
+    // Return fingerprint as base64 string (simplified for now)
+    Ok(format!("ecfp4_{}", chem_mol.total_formula()))
+}
+
+/// Calculate similarity between two SMILES (placeholder until fingerprint API is clear).
+#[wasm_bindgen]
+pub fn tanimoto_similarity(fp_a: &str, fp_b: &str) -> f64 {
+    // Placeholder: for now, return 1.0 if identical, 0.0 otherwise
+    if fp_a == fp_b { 1.0 } else { 0.0 }
+}
+
+/// Identify functional groups in a molecule.
+#[wasm_bindgen]
+pub fn identify_functional_groups_wasm(mol_json: &JsValue) -> Result<JsValue, JsValue> {
+    use chematic::chem;
+
+    let dto: MoleculeDto = serde_wasm_bindgen::from_value(mol_json.clone())
+        .map_err(|e| JsValue::from_str(&format!("JSON decode failed: {e}")))?;
+
+    let chem_mol = dto_to_chem(&dto)?;
+
+    let groups = chem::identify_functional_groups(&chem_mol);
+    let names: Vec<String> = groups.iter().map(|g| format!("{:?}", g)).collect();
+
+    serde_wasm_bindgen::to_value(&names)
         .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
 }

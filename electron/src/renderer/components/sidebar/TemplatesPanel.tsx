@@ -95,9 +95,6 @@ export function TemplatesPanel() {
     t.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const bgColor = theme === 'dark' ? '#2f3a47' : '#ffffff';
-  const textColor = theme === 'dark' ? '#d8deea' : '#1d2430';
-  const borderColor = theme === 'dark' ? '#3a4a57' : '#e0e0e0';
   const inputBg = theme === 'dark' ? '#1e2530' : '#f9f9f9';
 
   return (
@@ -138,7 +135,7 @@ export function TemplatesPanel() {
           onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hoverBg)}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = bgColor)}
         >
-          {template.name} 👆
+          {template.name}
         </button>
         ))}
       </div>

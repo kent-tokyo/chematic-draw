@@ -5,7 +5,10 @@ import { MoleculeCanvas } from './renderer/components/canvas/MoleculeCanvas';
 import { Sidebar } from './renderer/components/sidebar/Sidebar';
 import { ContextMenu } from './renderer/components/menu/ContextMenu';
 import { ShortcutsModal } from './renderer/components/modals/ShortcutsModal';
+import { UndoTimelineModal } from './renderer/components/modals/UndoTimeline';
+import { BatchProcessDialog, BatchConfig } from './renderer/components/modals/BatchProcessDialog';
 import { useUIStore } from './renderer/store/uiStore';
+import * as batchLib from './renderer/lib/batch';
 import { useMoleculeStore } from './renderer/store/moleculeStore';
 import { useCanvasStore } from './renderer/store/canvasStore';
 import { Tool } from './renderer/store/types';
@@ -26,6 +29,10 @@ function App() {
   const setMolecule = useMoleculeStore((s) => s.setMolecule);
   const clear = useMoleculeStore((s) => s.clear);
   const setStatus = useUIStore((s) => s.setStatus);
+  const showModal = useUIStore((s) => s.showModal);
+  const hideModal = useUIStore((s) => s.hideModal);
+  const showBatchDialog = useUIStore((s) => s.showBatchDialog);
+  const addBatchResult = useUIStore((s) => s.addBatchResult);
 
   // Initialize WASM and hydrate settings
   useEffect(() => {
@@ -156,12 +163,89 @@ function App() {
       api.onMenuZoomReset(() => setZoom(1));
       api.onMenuToggleSidebar(() => setSidebarOpen(!sidebarOpen));
       api.onMenuToggleTheme(() => setTheme(theme === 'dark' ? 'light' : 'dark'));
+      api.onMenuBatchProcess?.(() => showModal('batch'));
+      api.onMenuUndoTimeline?.(() => showModal('undo'));
+
+      // Phase 6-10 Tools menu handlers
+      api.onMenuToolStereoisomers?.(() => {
+        useUIStore.getState().setActiveSidebarPanel('stereoisomers');
+        setSidebarOpen(true);
+      });
+      api.onMenuToolLipinski?.(() => {
+        useUIStore.getState().setActiveSidebarPanel('lipinski');
+        setSidebarOpen(true);
+      });
+      api.onMenuToolProperties?.(() => {
+        useUIStore.getState().setActiveSidebarPanel('properties');
+        setSidebarOpen(true);
+      });
+      api.onMenuToolMechanism?.(() => {
+        useUIStore.getState().setActiveSidebarPanel('mechanism');
+        setSidebarOpen(true);
+      });
+      api.onMenuToolDatabase?.(() => {
+        useUIStore.getState().setActiveSidebarPanel('database');
+        setSidebarOpen(true);
+      });
 
       return () => {
         // Cleanup: no need to unsubscribe from ipcRenderer in this version
       };
     }
   }, [molecule, filePath, theme, zoom, sidebarOpen]);
+
+  // Keyboard shortcuts for Phase 3-5
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const cmdKey = isMac ? e.metaKey : e.ctrlKey;
+
+      // Cmd+Ctrl+Z / Ctrl+Alt+Z: Undo Timeline
+      if (cmdKey && (isMac ? e.ctrlKey : e.altKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        showModal('undo');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showModal]);
+
+  const handleBatchProcess = async (config: BatchConfig) => {
+    try {
+      setStatus(`Batch processing: ${config.operation}...`);
+
+      const task: batchLib.BatchTask = {
+        operation: config.operation,
+        inputFormat: config.inputFormat,
+        outputFormat: config.outputFormat,
+        filterOptions: config.operation === 'filter' ? {
+          minMW: config.filterMinMW,
+          maxMW: config.filterMaxMW,
+        } : undefined,
+      };
+
+      const result = await batchLib.processBatch([molecule], task);
+
+      addBatchResult(config.operation, result.processed, result.failed, result.errors);
+
+      if (result.molecules.length > 0) {
+        setMolecule(result.molecules[0]);
+        setStatus(`Batch processing complete: ${result.processed} processed, ${result.failed} failed`);
+      } else {
+        setStatus('No molecules matched the filter criteria');
+      }
+
+      if (result.errors.length > 0) {
+        console.error('Batch processing errors:', result.errors);
+      }
+    } catch (err) {
+      setStatus(`Batch processing failed: ${(err as Error).message}`);
+      console.error('Batch error:', err);
+      addBatchResult(config.operation, 0, 1, [(err as Error).message]);
+    }
+    hideModal('batch');
+  };
 
   const toolButtons: Array<{ tool: Tool; label: string; key: string }> = [
     { tool: Tool.Select, label: 'Select', key: 'ESC' },
@@ -190,6 +274,8 @@ function App() {
     >
       <ContextMenu />
       <ShortcutsModal />
+      <UndoTimelineModal />
+      {showBatchDialog && <BatchProcessDialog onProcess={handleBatchProcess} onCancel={() => hideModal('batch')} />}
       {/* Top Bar */}
       <div
         style={{

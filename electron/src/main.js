@@ -133,6 +133,11 @@ const createMenu = () => {
       submenu: [
         { role: 'undo', accelerator: isMac ? 'Cmd+Z' : 'Ctrl+Z' },
         { role: 'redo', accelerator: isMac ? 'Cmd+Shift+Z' : 'Ctrl+Shift+Z' },
+        {
+          label: 'Undo Timeline',
+          accelerator: isMac ? 'Cmd+Ctrl+Z' : 'Ctrl+Alt+Z',
+          click: () => mainWindow.webContents.send('menu:undo-timeline'),
+        },
         { type: 'separator' },
         { role: 'cut', accelerator: isMac ? 'Cmd+X' : 'Ctrl+X' },
         { role: 'copy', accelerator: isMac ? 'Cmd+C' : 'Ctrl+C' },
@@ -142,6 +147,11 @@ const createMenu = () => {
           label: 'Select All',
           accelerator: isMac ? 'Cmd+A' : 'Ctrl+A',
           click: () => mainWindow.webContents.send('menu:select-all'),
+        },
+        { type: 'separator' },
+        {
+          label: 'Batch Process...',
+          click: () => mainWindow.webContents.send('menu:batch-process'),
         },
       ],
     },
@@ -178,6 +188,33 @@ const createMenu = () => {
         },
         { type: 'separator' },
         { role: 'toggleDevTools', accelerator: isMac ? 'Cmd+Alt+I' : 'Ctrl+Shift+I' },
+      ],
+    },
+
+    // Tools menu (Phases 6-10)
+    {
+      label: 'Tools',
+      submenu: [
+        {
+          label: 'Stereoisomers (Phase 6)',
+          click: () => mainWindow.webContents.send('menu:tool-stereoisomers'),
+        },
+        {
+          label: 'Lipinski Rules (Phase 7)',
+          click: () => mainWindow.webContents.send('menu:tool-lipinski'),
+        },
+        {
+          label: 'Property Prediction (Phase 8)',
+          click: () => mainWindow.webContents.send('menu:tool-properties'),
+        },
+        {
+          label: 'Reaction Mechanism (Phase 9)',
+          click: () => mainWindow.webContents.send('menu:tool-mechanism'),
+        },
+        {
+          label: 'Database Search (Phase 10)',
+          click: () => mainWindow.webContents.send('menu:tool-database'),
+        },
       ],
     },
 
