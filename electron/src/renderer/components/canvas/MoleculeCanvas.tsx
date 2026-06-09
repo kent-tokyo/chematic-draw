@@ -20,22 +20,21 @@ export function MoleculeCanvas() {
   const { handleContextMenu } = useContextMenu();
 
   const molecule = useMoleculeStore((s) => s.molecule);
-
-  const selectedAtomIds = useMemo(() =>
-    molecule.atoms.filter((a) => 'selected' in a && (a as any).selected).map((a) => a.id),
-    [molecule.atoms.length, molecule]
-  );
-  const selectedBondIds = useMemo(() =>
-    molecule.bonds.filter((b) => 'selected' in b && (b as any).selected).map((b) => b.id),
-    [molecule.bonds.length, molecule]
-  );
-
   const hoverAtomId = useCanvasStore((s) => s.hoverAtomId);
   const hoverBondId = useCanvasStore((s) => s.hoverBondId);
   const activeTool = useCanvasStore((s) => s.activeTool);
   const theme = useUIStore((s) => s.theme);
   const bondDragPos = useCanvasStore((s) => s.bondDragPos);
   const bondDragFrom = useCanvasStore((s) => s.bondDragFrom);
+
+  const selectedAtomIds = useMemo(() =>
+    molecule.atoms.filter((a) => 'selected' in a && (a as any).selected).map((a) => a.id),
+    [molecule]
+  );
+  const selectedBondIds = useMemo(() =>
+    molecule.bonds.filter((b) => 'selected' in b && (b as any).selected).map((b) => b.id),
+    [molecule]
+  );
 
   // Handle canvas resize
   useEffect(() => {
