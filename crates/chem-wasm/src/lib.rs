@@ -616,24 +616,28 @@ pub fn enumerate_stereoisomers(mol_json: &JsValue) -> Result<JsValue, JsValue> {
         .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
 }
 
-/// Convert molecule to InChI string. (Placeholder - requires chematic-inchi integration)
+/// Convert molecule to InChI string.
+/// Uses chematic_inchi::inchi() to generate standard IUPAC InChI format.
 #[wasm_bindgen]
 pub fn mol_to_inchi(mol_json: &JsValue) -> Result<String, JsValue> {
+    use chematic_inchi;
+
     let dto: MoleculeDto = serde_wasm_bindgen::from_value(mol_json.clone())
         .map_err(|e| JsValue::from_str(&format!("JSON decode failed: {e}")))?;
 
     let chem_mol = dto_to_chem(&dto)?;
 
-    // Placeholder: return SMILES-based ID
-    use chematic::smiles;
-    Ok(format!("InChI_placeholder_{}", smiles::write(&chem_mol).chars().take(32).collect::<String>()))
+    // Call chematic_inchi::inchi() to generate InChI string
+    Ok(chematic_inchi::inchi(&chem_mol))
 }
 
-/// Convert InChI string to InChIKey. (Placeholder)
+/// Convert InChI string to InChIKey.
+/// Uses chematic_inchi::inchi_key() for standard IUPAC InChIKey format.
 #[wasm_bindgen]
-pub fn inchi_to_inchikey(_inchi: &str) -> String {
-    // Placeholder - actual implementation requires chematic-inchi
-    format!("UNKNOWN-UNKNOWN-N")
+pub fn inchi_to_inchikey(inchi: &str) -> Result<String, JsValue> {
+    use chematic_inchi;
+
+    Ok(chematic_inchi::inchi_key(inchi))
 }
 
 /// Get extended properties: sa_score, esol, fsp3, pains, stereocenters.

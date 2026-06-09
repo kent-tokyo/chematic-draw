@@ -10,6 +10,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 chematic = { version = "0.1.36", features = ["full"] }
+chematic-inchi = { version = "0.1.36" }
 wasm-bindgen = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde-wasm-bindgen = "0.6"

@@ -126,15 +126,95 @@ export interface DatabaseResult {
 }
 
 export async function searchDatabase(mol: MoleculeDto, source: 'pubchem' | 'chemspider'): Promise<DatabaseResult[]> {
-  // Framework: HTTP calls to PubChem/ChemSpider API
-  // Example: fetch(`https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/substructure/smiles/${smiles}/JSON`)
-  return [
-    {
-      molId: 'example-001',
-      name: 'Example compound',
-      source: 'pubchem',
-      similarity: 0.95,
-      properties: {},
-    },
-  ];
+  try {
+    // Get InChIKey from the molecule
+    const inchi = wasmBridge.molToInchi(mol);
+    if (!inchi || inchi.startsWith('InChI_placeholder')) {
+      throw new Error('Failed to generate InChI for molecule');
+    }
+
+    const inchiKey = wasmBridge.inchiToInchikey(inchi);
+    if (!inchiKey || inchiKey.startsWith('ERROR-')) {
+      throw new Error('Failed to generate InChIKey');
+    }
+
+    if (source === 'pubchem') {
+      return await searchPubChem(inchiKey);
+    } else if (source === 'chemspider') {
+      throw new Error('ChemSpider search not yet implemented');
+    }
+
+    return [];
+  } catch (error) {
+    console.error('Database search error:', error);
+    throw error;
+  }
+}
+
+async function searchPubChem(inchiKey: string): Promise<DatabaseResult[]> {
+  const baseUrl = 'https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/inchikey';
+  const url = `${baseUrl}/${inchiKey}/JSON`;
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`PubChem API error: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    if (!data.PC_Compounds || data.PC_Compounds.length === 0) {
+      return [];
+    }
+
+    // Parse first compound result
+    const compound = data.PC_Compounds[0];
+    const cid = compound.id?.id?.cid;
+
+    if (!cid) {
+      return [];
+    }
+
+    // Fetch compound details for name and properties
+    const detailUrl = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/JSON`;
+    const detailResponse = await fetch(detailUrl);
+
+    if (!detailResponse.ok) {
+      return [{
+        molId: String(cid),
+        name: `Compound ${cid}`,
+        source: 'pubchem',
+        similarity: 1.0,
+        properties: {},
+      }];
+    }
+
+    const detailData = await detailResponse.json();
+    const detailCompound = detailData.PC_Compounds?.[0];
+
+    const properties: Record<string, any> = {};
+
+    // Extract molecular properties if available
+    if (detailCompound?.props) {
+      for (const prop of detailCompound.props) {
+        if (prop.urn?.label && prop.value) {
+          properties[prop.urn.label] = prop.value.sval || prop.value.ival || prop.value.fval;
+        }
+      }
+    }
+
+    const iupacName = properties['IUPAC Name'] || `Compound ${cid}`;
+
+    return [
+      {
+        molId: String(cid),
+        name: iupacName,
+        source: 'pubchem',
+        similarity: 1.0,
+        properties,
+      },
+    ];
+  } catch (error) {
+    console.error('PubChem API error:', error);
+    return [];
+  }
 }
