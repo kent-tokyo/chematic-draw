@@ -685,11 +685,52 @@ pub fn get_fingerprint(mol_json: &JsValue) -> Result<String, JsValue> {
     Ok(format!("ecfp4_{}", chem_mol.total_formula()))
 }
 
-/// Calculate similarity between two SMILES (placeholder until fingerprint API is clear).
+/// Calculate Tanimoto similarity between two ECFP4 fingerprints.
+///
+/// Fingerprints are expected to be in format: "ecfp4_{formula}"
+/// Simplified implementation: counts matching characters as bit intersections.
+/// True Tanimoto would require actual bitvector operations.
+///
+/// Tanimoto coefficient = |A ∩ B| / (|A| + |B| - |A ∩ B|)
 #[wasm_bindgen]
 pub fn tanimoto_similarity(fp_a: &str, fp_b: &str) -> f64 {
-    // Placeholder: for now, return 1.0 if identical, 0.0 otherwise
-    if fp_a == fp_b { 1.0 } else { 0.0 }
+    // Exact match = maximum similarity
+    if fp_a == fp_b {
+        return 1.0;
+    }
+
+    // Extract formula part from "ecfp4_{formula}" format
+    let formula_a = fp_a.strip_prefix("ecfp4_").unwrap_or(fp_a);
+    let formula_b = fp_b.strip_prefix("ecfp4_").unwrap_or(fp_b);
+
+    // Count matching characters (simplified bit intersection)
+    let mut matches = 0;
+    let mut union_size = 0;
+
+    let chars_a: std::collections::HashSet<char> = formula_a.chars().collect();
+    let chars_b: std::collections::HashSet<char> = formula_b.chars().collect();
+
+    // Count intersection (matching characters)
+    for c in &chars_a {
+        if chars_b.contains(c) {
+            matches += 1;
+        }
+    }
+
+    // Count union (unique characters in either)
+    for c in chars_a.iter().chain(chars_b.iter()) {
+        if !chars_a.contains(c) || !chars_b.contains(c) {
+            union_size += 1;
+        }
+    }
+    union_size += matches; // Add back intersection
+
+    if union_size == 0 {
+        return 1.0;
+    }
+
+    // Tanimoto: intersection / union
+    matches as f64 / union_size as f64
 }
 
 /// Identify functional groups in a molecule.

@@ -712,6 +712,7 @@ name = "chem-wasm"
 version = "0.1.0"
 dependencies = [
  "chematic",
+ "chematic-inchi",
  "getrandom 0.2.17",
  "serde",
  "serde-wasm-bindgen",
