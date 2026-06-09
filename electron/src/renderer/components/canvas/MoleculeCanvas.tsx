@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useMemo } from 'react';
+import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { useMoleculeStore } from '../../store/moleculeStore';
 import { useCanvasStore } from '../../store/canvasStore';
 import { useUIStore } from '../../store/uiStore';
@@ -8,7 +8,6 @@ import { useContextMenu } from '../../hooks/useContextMenu';
 import { CanvasRenderer } from './CanvasRenderer';
 import { Tool } from '../../store/types';
 import { mergeTemplateIntoMolecule } from '../../lib/templateMerge';
-import * as wasmBridge from '../../wasm/wasmBridge';
 
 export function MoleculeCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -19,13 +18,14 @@ export function MoleculeCanvas() {
   const interactionHandlers = useCanvasInteraction();
   const { handleContextMenu } = useContextMenu();
 
+  // Get state directly to avoid selector infinite loops
   const molecule = useMoleculeStore((s) => s.molecule);
-  const hoverAtomId = useCanvasStore((s) => s.hoverAtomId);
-  const hoverBondId = useCanvasStore((s) => s.hoverBondId);
-  const activeTool = useCanvasStore((s) => s.activeTool);
-  const theme = useUIStore((s) => s.theme);
-  const bondDragPos = useCanvasStore((s) => s.bondDragPos);
-  const bondDragFrom = useCanvasStore((s) => s.bondDragFrom);
+  const hoverAtomId = useCanvasStore.getState().hoverAtomId;
+  const hoverBondId = useCanvasStore.getState().hoverBondId;
+  const activeTool = useCanvasStore.getState().activeTool;
+  const theme = useUIStore.getState().theme;
+  const bondDragPos = useCanvasStore.getState().bondDragPos;
+  const bondDragFrom = useCanvasStore.getState().bondDragFrom;
 
   const selectedAtomIds = useMemo(() =>
     molecule.atoms.filter((a) => 'selected' in a && (a as any).selected).map((a) => a.id),
