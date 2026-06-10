@@ -203,6 +203,20 @@ export function runReactants(mol: MoleculeDto, smirks: string): MoleculeDto[] {
 }
 
 /**
+ * Maximum Common Substructure (MCS)
+ */
+
+export interface McsResultDto {
+  common_atoms: number[];
+  common_bonds: number[];
+  similarity: number;
+}
+
+export function findMcs(molA: MoleculeDto, molB: MoleculeDto): McsResultDto {
+  return wasmModule.find_mcs(molA, molB) as McsResultDto;
+}
+
+/**
  * 3D Molecular Geometry (chematic 0.1.40+)
  */
 
