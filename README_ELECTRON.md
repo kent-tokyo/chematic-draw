@@ -6,6 +6,8 @@ A modern, cross-platform chemical structure editor built with **Electron, React,
 [![Build](https://github.com/yourusername/chematic-draw/actions/workflows/build.yml/badge.svg)](https://github.com/yourusername/chematic-draw/actions/workflows/build.yml)
 [![Coverage](https://codecov.io/gh/yourusername/chematic-draw/branch/main/graph/badge.svg)](https://codecov.io/gh/yourusername/chematic-draw)
 
+**Languages:** [English](./README_ELECTRON.md) · [日本語](./README.ja.md) · [中文](./README.zh.md) · [Español](./README.es.md) · [Français](./README.fr.md)
+
 ---
 
 ## Features
