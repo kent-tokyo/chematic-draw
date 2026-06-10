@@ -2,9 +2,10 @@ import { create } from 'zustand';
 import { MechanismState, MechanismArrow } from './types';
 
 interface MechanismStoreState extends MechanismState {
-  startArrowSelection: (sourceAtomId: number) => void;
+  startArrowSelection: (sourceAtomId?: number) => void;
   completeArrowSelection: (sinkAtomId: number, type: 'forward' | 'retro' | 'resonance') => void;
   cancelArrowSelection: () => void;
+  setPendingSourceAtomId: (atomId: number | null) => void;
   setPendingSinkAtomId: (atomId: number | null) => void;
   addArrow: (arrow: MechanismArrow) => void;
   removeArrow: (arrowId: string) => void;
@@ -22,8 +23,16 @@ export const useMechanismStore = create<MechanismStoreState>((set, get) => ({
   hoverArrowId: null,
   pendingSinkAtomId: null,
 
-  startArrowSelection: (sourceAtomId) =>
-    set({ arrowSelectionMode: 'awaitingSink', pendingSourceAtomId: sourceAtomId }),
+  startArrowSelection: (sourceAtomId) => {
+    if (sourceAtomId !== undefined) {
+      set({ arrowSelectionMode: 'awaitingSink', pendingSourceAtomId: sourceAtomId });
+    } else {
+      set({ arrowSelectionMode: 'awaitingSink' });
+    }
+  },
+
+  setPendingSourceAtomId: (atomId) =>
+    set({ pendingSourceAtomId: atomId }),
 
   setPendingSinkAtomId: (atomId) =>
     set({ pendingSinkAtomId: atomId }),
@@ -44,11 +53,12 @@ export const useMechanismStore = create<MechanismStoreState>((set, get) => ({
       arrows: [...s.arrows, arrow],
       arrowSelectionMode: 'idle',
       pendingSourceAtomId: null,
+      pendingSinkAtomId: null,
     }));
   },
 
   cancelArrowSelection: () =>
-    set({ arrowSelectionMode: 'idle', pendingSourceAtomId: null }),
+    set({ arrowSelectionMode: 'idle', pendingSourceAtomId: null, pendingSinkAtomId: null }),
 
   addArrow: (arrow) =>
     set((s) => ({ arrows: [...s.arrows, arrow] })),

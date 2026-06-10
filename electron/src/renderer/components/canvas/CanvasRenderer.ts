@@ -331,10 +331,11 @@ export class CanvasRenderer {
       else if (isHover) arrowColor = colors.accent;
 
       this.ctx.strokeStyle = arrowColor;
-      this.ctx.lineWidth = 2.5;
+      this.ctx.lineWidth = 2.0;
       this.ctx.lineCap = 'round';
       this.ctx.lineJoin = 'round';
 
+      // Main arrow line
       this.ctx.beginPath();
       this.ctx.moveTo(path.startX, path.startY);
       this.ctx.quadraticCurveTo(path.controlX, path.controlY, path.endX, path.endY);

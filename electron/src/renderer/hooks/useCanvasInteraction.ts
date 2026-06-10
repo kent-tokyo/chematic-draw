@@ -66,7 +66,12 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
       if (activeSidebarPanel === 'mechanism' && arrowSelectionMode !== 'idle') {
         const atomId = hitTestAtom(molecule, screenX, screenY, canvasState);
         if (atomId !== null) {
-          if (arrowSelectionMode === 'awaitingSink') {
+          if (arrowSelectionMode === 'awaitingSink' && pendingSourceAtomId === null) {
+            // This is the source atom click
+            useMechanismStore.getState().setPendingSourceAtomId(atomId);
+            setStatus('Now click sink atom (electron sink)');
+            return;
+          } else if (arrowSelectionMode === 'awaitingSink' && pendingSourceAtomId !== null) {
             // This is the sink atom click
             if (atomId === pendingSourceAtomId) {
               setStatus('Source and sink atoms must be different');
@@ -78,7 +83,11 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
             return;
           }
         } else {
-          setStatus('Click on an atom to select it');
+          if (pendingSourceAtomId === null) {
+            setStatus('Click on an atom to select source');
+          } else {
+            setStatus('Click on an atom to select sink');
+          }
           return;
         }
       }
