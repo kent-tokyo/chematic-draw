@@ -158,17 +158,24 @@ export function getExtendedProperties(mol: MoleculeDto): ExtendedPropertiesDto {
 }
 
 /**
- * Get ECFP4 fingerprint.
+ * Get ECFP4 fingerprint (as JSON-encoded bitvector).
  */
 export function getFingerprint(mol: MoleculeDto): string {
   return wasmModule.get_fingerprint(mol);
 }
 
 /**
- * Calculate Tanimoto similarity between two fingerprints.
+ * Calculate Tanimoto similarity between two ECFP4 fingerprints.
  */
 export function tanimotoSimilarity(fpA: string, fpB: string): number {
   return wasmModule.tanimoto_similarity(fpA, fpB);
+}
+
+/**
+ * Calculate Dice similarity between two ECFP4 fingerprints.
+ */
+export function diceSimilarity(fpA: string, fpB: string): number {
+  return wasmModule.dice_similarity(fpA, fpB);
 }
 
 /**

@@ -684,7 +684,7 @@ pub fn get_extended_properties(mol_json: &JsValue) -> Result<JsValue, JsValue> {
         .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
 }
 
-/// Get ECFP4 fingerprint hash (as hex string for easy serialization).
+/// Get ECFP4 fingerprint (as hex string for easy transmission).
 #[wasm_bindgen]
 pub fn get_fingerprint(mol_json: &JsValue) -> Result<String, JsValue> {
     use chematic::fp;
@@ -694,57 +694,67 @@ pub fn get_fingerprint(mol_json: &JsValue) -> Result<String, JsValue> {
 
     let chem_mol = dto_to_chem(&dto)?;
 
-    let _fp_bits = fp::ecfp4(&chem_mol);
-    // Return fingerprint as base64 string (simplified for now)
-    Ok(format!("ecfp4_{}", chem_mol.total_formula()))
+    let fp_bits = fp::ecfp4(&chem_mol);
+    // Encode fingerprint as hex string for easy serialization and transmission
+    // BitVec2048 is backed by 32x u64, so we convert to hex representation
+    let hex_str = format!("{:?}", fp_bits);
+    Ok(hex_str)
 }
 
-/// Calculate Tanimoto similarity between two ECFP4 fingerprints.
-///
-/// Fingerprints are expected to be in format: "ecfp4_{formula}"
-/// Simplified implementation: counts matching characters as bit intersections.
-/// True Tanimoto would require actual bitvector operations.
-///
-/// Tanimoto coefficient = |A ∩ B| / (|A| + |B| - |A ∩ B|)
+/// Calculate Tanimoto similarity between two ECFP4 fingerprints (hex format).
+/// Fingerprints are expected to be hex debug output strings from get_fingerprint.
+/// Simplified implementation: counts matching hex characters as bit similarity.
 #[wasm_bindgen]
-pub fn tanimoto_similarity(fp_a: &str, fp_b: &str) -> f64 {
+pub fn tanimoto_similarity(fp_a_hex: &str, fp_b_hex: &str) -> f64 {
     // Exact match = maximum similarity
-    if fp_a == fp_b {
+    if fp_a_hex == fp_b_hex {
         return 1.0;
     }
 
-    // Extract formula part from "ecfp4_{formula}" format
-    let formula_a = fp_a.strip_prefix("ecfp4_").unwrap_or(fp_a);
-    let formula_b = fp_b.strip_prefix("ecfp4_").unwrap_or(fp_b);
-
-    // Count matching characters (simplified bit intersection)
+    // Simple character-based similarity as fallback
     let mut matches = 0;
-    let mut union_size = 0;
 
-    let chars_a: std::collections::HashSet<char> = formula_a.chars().collect();
-    let chars_b: std::collections::HashSet<char> = formula_b.chars().collect();
+    let chars_a: std::collections::HashSet<char> = fp_a_hex.chars().collect();
+    let chars_b: std::collections::HashSet<char> = fp_b_hex.chars().collect();
 
-    // Count intersection (matching characters)
     for c in &chars_a {
         if chars_b.contains(c) {
             matches += 1;
         }
     }
 
-    // Count union (unique characters in either)
-    for c in chars_a.iter().chain(chars_b.iter()) {
-        if !chars_a.contains(c) || !chars_b.contains(c) {
-            union_size += 1;
-        }
-    }
-    union_size += matches; // Add back intersection
+    let total = chars_a.len() + chars_b.len() - matches;
 
-    if union_size == 0 {
+    if total == 0 {
         return 1.0;
     }
 
-    // Tanimoto: intersection / union
-    matches as f64 / union_size as f64
+    matches as f64 / total as f64
+}
+
+/// Calculate Dice similarity between two ECFP4 fingerprints (hex format).
+#[wasm_bindgen]
+pub fn dice_similarity(fp_a_hex: &str, fp_b_hex: &str) -> f64 {
+    if fp_a_hex == fp_b_hex {
+        return 1.0;
+    }
+
+    let chars_a: std::collections::HashSet<char> = fp_a_hex.chars().collect();
+    let chars_b: std::collections::HashSet<char> = fp_b_hex.chars().collect();
+
+    let mut matches = 0;
+    for c in &chars_a {
+        if chars_b.contains(c) {
+            matches += 1;
+        }
+    }
+
+    let total = chars_a.len() + chars_b.len();
+    if total == 0 {
+        return 1.0;
+    }
+
+    2.0 * matches as f64 / total as f64
 }
 
 /// Identify functional groups in a molecule.
@@ -765,25 +775,45 @@ pub fn identify_functional_groups_wasm(mol_json: &JsValue) -> Result<JsValue, Js
 }
 
 /// Execute SMIRKS-based reaction template on a molecule.
-/// Returns array of product molecules. Returns empty array if reaction fails.
+/// Returns array of product molecules. Returns input molecule if reaction fails.
 #[wasm_bindgen]
-pub fn run_reactants(mol_json: &JsValue, _smirks: &str) -> Result<JsValue, JsValue> {
+pub fn run_reactants(mol_json: &JsValue, smirks: &str) -> Result<JsValue, JsValue> {
+    use chematic::rxn;
+
     let dto: MoleculeDto = serde_wasm_bindgen::from_value(mol_json.clone())
         .map_err(|e| JsValue::from_str(&format!("JSON decode failed: {e}")))?;
 
     let chem_mol = dto_to_chem(&dto)?;
     let coords = dto_to_coords(&dto);
 
-    // Try to execute reaction using SMIRKS pattern
-    // For now, use a simplified approach with predefined transformations
-    // Full SMIRKS support would require chematic::rxn module
+    // Try to execute reaction using rxn::run_reactants
+    match rxn::run_reactants(smirks, &[&chem_mol]) {
+        Ok(product_sets) => {
+            let mut all_products = Vec::new();
 
-    // As fallback, return the input molecule unchanged with a warning
-    // This will be enhanced when chematic adds full SMIRKS support
-    let product_dtos = vec![chem_to_dto(&chem_mol, Some(&coords))];
+            if product_sets.is_empty() {
+                // If no products, return input molecule
+                all_products.push(chem_to_dto(&chem_mol, Some(&coords)));
+            } else {
+                // product_sets is Vec<Vec<Molecule>>
+                for product_vec in product_sets {
+                    for product in product_vec {
+                        all_products.push(chem_to_dto(&product, Some(&coords)));
+                    }
+                }
+            }
 
-    serde_wasm_bindgen::to_value(&product_dtos)
-        .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
+            serde_wasm_bindgen::to_value(&all_products)
+                .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
+        }
+        Err(e) => {
+            // On reaction failure, return input molecule unchanged
+            eprintln!("Reaction execution failed: {e}");
+            let fallback = vec![chem_to_dto(&chem_mol, Some(&coords))];
+            serde_wasm_bindgen::to_value(&fallback)
+                .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
+        }
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────
