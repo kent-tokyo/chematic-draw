@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { MechanismState, MechanismArrow } from './types';
+import { MechanismState, MechanismArrow, ArrowSuggestion } from './types';
 
 interface MechanismStoreState extends MechanismState {
   startArrowSelection: (sourceAtomId?: number) => void;
@@ -12,6 +12,12 @@ interface MechanismStoreState extends MechanismState {
   updateArrow: (arrowId: string, updates: Partial<MechanismArrow>) => void;
   setSelectedArrow: (arrowId: string | null) => void;
   setHoverArrow: (arrowId: string | null) => void;
+  suggestions: ArrowSuggestion[];
+  suggestionsVisible: boolean;
+  setSuggestions: (suggestions: ArrowSuggestion[]) => void;
+  setSuggestionsVisible: (visible: boolean) => void;
+  dismissSuggestion: (index: number) => void;
+  clearSuggestions: () => void;
   clear: () => void;
 }
 
@@ -22,6 +28,8 @@ export const useMechanismStore = create<MechanismStoreState>((set, get) => ({
   pendingSourceAtomId: null,
   hoverArrowId: null,
   pendingSinkAtomId: null,
+  suggestions: [],
+  suggestionsVisible: true,
 
   startArrowSelection: (sourceAtomId) => {
     if (sourceAtomId !== undefined) {
@@ -75,6 +83,20 @@ export const useMechanismStore = create<MechanismStoreState>((set, get) => ({
 
   setHoverArrow: (arrowId) => set({ hoverArrowId: arrowId }),
 
+  setSuggestions: (suggestions) =>
+    set({ suggestions }),
+
+  setSuggestionsVisible: (visible) =>
+    set({ suggestionsVisible: visible }),
+
+  dismissSuggestion: (index) =>
+    set((s) => ({
+      suggestions: s.suggestions.filter((_, i) => i !== index),
+    })),
+
+  clearSuggestions: () =>
+    set({ suggestions: [] }),
+
   clear: () =>
     set({
       arrows: [],
@@ -83,5 +105,7 @@ export const useMechanismStore = create<MechanismStoreState>((set, get) => ({
       pendingSourceAtomId: null,
       pendingSinkAtomId: null,
       hoverArrowId: null,
+      suggestions: [],
+      suggestionsVisible: true,
     }),
 }));

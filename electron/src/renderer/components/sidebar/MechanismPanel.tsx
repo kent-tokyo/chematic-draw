@@ -3,6 +3,9 @@ import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
 import { useMechanismStore } from '../../store/mechanismStore';
 import { ArrowTypeDialog } from '../modals/ArrowTypeDialog';
+import { useElectronSuggestions } from '../../hooks/useElectronSuggestions';
+import { suggestArrowPairs } from '../../lib/electronDetection';
+import { ArrowSuggestion } from '../../store/types';
 
 export function MechanismPanel() {
   const theme = useUIStore((s) => s.theme);
@@ -13,6 +16,10 @@ export function MechanismPanel() {
   const arrowSelectionMode = useMechanismStore((s) => s.arrowSelectionMode);
   const pendingSourceAtomId = useMechanismStore((s) => s.pendingSourceAtomId);
   const pendingSinkAtomId = useMechanismStore((s) => s.pendingSinkAtomId);
+  const suggestions = useMechanismStore((s) => s.suggestions);
+  const suggestionsVisible = useMechanismStore((s) => s.suggestionsVisible);
+
+  useElectronSuggestions();
 
   const [showArrowTypeDialog, setShowArrowTypeDialog] = useState(false);
   const [selectedArrowId, setSelectedArrowIdLocal] = useState<string | null>(null);
@@ -54,6 +61,18 @@ export function MechanismPanel() {
 
   const handleLabelChange = (arrowId: string, newLabel: string) => {
     useMechanismStore.getState().updateArrow(arrowId, { label: newLabel });
+  };
+
+  const handleCreateFromSuggestion = (suggestion: ArrowSuggestion) => {
+    // Set both source and sink atoms directly
+    useMechanismStore.getState().setPendingSourceAtomId(suggestion.sourceAtomId);
+    useMechanismStore.getState().setPendingSinkAtomId(suggestion.sinkAtomId);
+    // Show arrow type dialog
+    setShowArrowTypeDialog(true);
+  };
+
+  const handleDismissSuggestion = (index: number) => {
+    useMechanismStore.getState().dismissSuggestion(index);
   };
 
   const getAtomLabel = (atomId: number) => {
@@ -124,6 +143,111 @@ export function MechanismPanel() {
           >
             CANCEL
           </button>
+        </div>
+      )}
+
+      {/* Suggested Electron Flows Section */}
+      {suggestionsVisible && suggestions.length > 0 && (
+        <div
+          style={{
+            padding: '10px',
+            backgroundColor: isDark ? '#1a3a4a' : '#e3f2fd',
+            border: `1px solid ${isDark ? '#2a5a7a' : '#90caf9'}`,
+            borderRadius: '6px',
+            marginBottom: '12px',
+          }}
+        >
+          <div
+            style={{
+              fontSize: '11px',
+              fontWeight: 'bold',
+              color: isDark ? '#90caf9' : '#1976d2',
+              marginBottom: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+          >
+            <span>💡</span> Suggested Electron Flows
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {suggestions.map((suggestion, index) => {
+              const sourceAtom = molecule.atoms.find((a) => a.id === suggestion.sourceAtomId);
+              const sinkAtom = molecule.atoms.find((a) => a.id === suggestion.sinkAtomId);
+              const confidencePercent = Math.round(suggestion.confidence * 100);
+
+              return (
+                <div
+                  key={index}
+                  style={{
+                    padding: '8px',
+                    backgroundColor: isDark ? '#2a4a5a' : '#ffffff',
+                    border: `1px solid ${isDark ? '#3a6a8a' : '#bbdefb'}`,
+                    borderRadius: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    fontSize: '10px',
+                    gap: '8px',
+                  }}
+                >
+                  <div style={{ flex: 1 }}>
+                    <span style={{ color: textColor, fontWeight: '500' }}>
+                      {sourceAtom?.element || '?'} → {sinkAtom?.element || '?'}
+                    </span>
+                    <div
+                      style={{
+                        fontSize: '9px',
+                        color: labelColor,
+                        marginTop: '2px',
+                      }}
+                    >
+                      Confidence: {confidencePercent}%
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <button
+                      onClick={() => handleCreateFromSuggestion(suggestion)}
+                      style={{
+                        padding: '3px 8px',
+                        backgroundColor: '#4CAF50',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '2px',
+                        cursor: 'pointer',
+                        fontSize: '9px',
+                        fontWeight: 'bold',
+                        whiteSpace: 'nowrap',
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.target as HTMLButtonElement).style.backgroundColor = '#45a049';
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.target as HTMLButtonElement).style.backgroundColor = '#4CAF50';
+                      }}
+                    >
+                      Create
+                    </button>
+                    <button
+                      onClick={() => handleDismissSuggestion(index)}
+                      style={{
+                        padding: '3px 6px',
+                        backgroundColor: isDark ? '#444' : '#ddd',
+                        color: textColor,
+                        border: 'none',
+                        borderRadius: '2px',
+                        cursor: 'pointer',
+                        fontSize: '9px',
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 

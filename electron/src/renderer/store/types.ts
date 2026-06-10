@@ -88,3 +88,21 @@ export interface MechanismState {
   pendingSinkAtomId: number | null;
   hoverArrowId: string | null;
 }
+
+// Electron detection types for mechanism arrow suggestions
+export interface ElectronCandidate {
+  atomId: number;
+  element: string;
+  type: 'source' | 'sink';
+  confidence: number; // 0.0-1.0
+  reason: string;     // "O⁻ (formal charge: -1)", "C⁺ (electrophilic)", etc.
+}
+
+export interface ArrowSuggestion {
+  sourceAtomId: number;
+  sinkAtomId: number;
+  sourceConfidence: number;
+  sinkConfidence: number;
+  confidence: number; // product of source and sink confidence
+  reason: string;     // "O → C"
+}
