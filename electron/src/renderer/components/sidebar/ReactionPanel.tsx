@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
 import { ReactionScheme, ReactionStep, ReactionCondition, createReactionStep, addStep, removeStep, updateConditions, executeReaction, SMIRKS_TEMPLATES } from '../../lib/reactions';
-import { useReactionSchemeStore } from '../../store/reactionSchemeStore';
+import { useReactionSchemeStore, ReactionSchemeContext } from '../../store/reactionSchemeStore';
 import { validateReactionScheme, getIntermediates, getExternalReagents } from '../../lib/reactionSchemeUtils';
+import { exportSchemeAsJSON, importSchemeFromJSON, exportSchemeAsSVG, exportSchemeAsCSV } from '../../lib/schemeExport';
 
 export function ReactionPanel() {
   const scheme = useMoleculeStore((s) => s.reactionScheme);
@@ -17,6 +18,9 @@ export function ReactionPanel() {
   const [selectedTemplate, setSelectedTemplate] = useState<string>('carboxylic_acid_to_amide');
   const [reactionError, setReactionError] = useState<string>('');
   const [status, setStatus] = useState<string>('');
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const schemeLayout = useReactionSchemeStore((s) => s.schemeLayout);
 
   // Scheme store hooks
   const schemeStoreScheme = useReactionSchemeStore((s) => s.scheme);
@@ -108,6 +112,89 @@ export function ReactionPanel() {
 
   const isDark = theme === 'dark';
 
+  // Download helper function
+  const downloadFile = (content: string, filename: string, type: string) => {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Export/Import handlers
+  const handleExportJSON = () => {
+    if (!scheme) return;
+    const json = exportSchemeAsJSON(
+      scheme,
+      useReactionSchemeStore.getState().atomMappings,
+      useReactionSchemeStore.getState().reactionClassification,
+      useReactionSchemeStore.getState().greenMetrics
+    );
+    downloadFile(json, `${scheme.title || 'scheme'}_export.json`, 'application/json');
+    setStatus('Exported as JSON');
+  };
+
+  const handleExportSVG = () => {
+    if (!scheme || !schemeLayout) return;
+    const svg = exportSchemeAsSVG(
+      scheme,
+      schemeLayout,
+      useReactionSchemeStore.getState().atomMappings
+    );
+    downloadFile(svg, `${scheme.title || 'scheme'}_diagram.svg`, 'image/svg+xml');
+    setStatus('Exported as SVG');
+  };
+
+  const handleExportCSV = () => {
+    if (!scheme) return;
+    const csv = exportSchemeAsCSV(
+      scheme,
+      useReactionSchemeStore.getState().reactionClassification,
+      useReactionSchemeStore.getState().greenMetrics
+    );
+    downloadFile(csv, `${scheme.title || 'scheme'}_report.csv`, 'text/csv');
+    setStatus('Exported as CSV');
+  };
+
+  const handleImportJSON = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const importedScheme = importSchemeFromJSON(text);
+      if (importedScheme) {
+        useReactionSchemeStore.getState().createScheme(importedScheme.title, importedScheme.description);
+        const state = useReactionSchemeStore.getState();
+        state.scheme?.steps?.forEach((step, i) => {
+          if (i < importedScheme.steps.length) {
+            state.updateStep(step.id, importedScheme.steps[i]);
+          }
+        });
+        setStatus(`Imported scheme: ${importedScheme.title}`);
+      } else {
+        setStatus('Failed to import JSON');
+      }
+    } catch (error) {
+      setStatus('Error reading file');
+    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  // Button style definition
+  const buttonStyle = {
+    width: '100%',
+    backgroundColor: isDark ? '#2a3a3a' : '#f0f0f0',
+    color: textColor,
+    border: `1px solid ${borderColor}`,
+    borderRadius: '3px',
+    cursor: 'pointer' as const,
+  };
+
   return (
     <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
       {/* Title */}
@@ -143,6 +230,76 @@ export function ReactionPanel() {
           fontFamily: 'inherit',
         }}
       />
+
+      {/* Export/Import Section */}
+      {scheme && (
+        <div style={{
+          padding: '12px',
+          backgroundColor: isDark ? '#1e2a2a' : '#f9f9f9',
+          border: `1px solid ${borderColor}`,
+          borderRadius: '6px',
+          marginBottom: '12px',
+        }}>
+          <div style={{ fontSize: '11px', fontWeight: 'bold', color: textColor, marginBottom: '8px' }}>
+            Export & Import
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <button
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              style={{
+                padding: '6px 8px',
+                backgroundColor: accentColor,
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '10px',
+                fontWeight: 'bold',
+              }}
+            >
+              ▼ Export Scheme
+            </button>
+
+            {showExportMenu && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                <button onClick={handleExportJSON} style={{ padding: '4px 6px', fontSize: '9px', ...buttonStyle }}>
+                  JSON (full data)
+                </button>
+                <button onClick={handleExportSVG} style={{ padding: '4px 6px', fontSize: '9px', ...buttonStyle }}>
+                  SVG Image
+                </button>
+                <button onClick={handleExportCSV} style={{ padding: '4px 6px', fontSize: '9px', ...buttonStyle }}>
+                  CSV Report
+                </button>
+              </div>
+            )}
+
+            <input
+              type="file"
+              accept=".json"
+              onChange={handleImportJSON}
+              ref={fileInputRef}
+              style={{ display: 'none' }}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                padding: '6px 8px',
+                backgroundColor: borderColor,
+                color: textColor,
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '10px',
+                fontWeight: 'bold',
+              }}
+            >
+              Import from JSON
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Multi-Step Scheme Navigation */}
       {schemeStoreScheme && (
