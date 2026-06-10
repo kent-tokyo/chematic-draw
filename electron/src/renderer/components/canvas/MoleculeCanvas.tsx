@@ -10,6 +10,7 @@ import { CanvasRenderer } from './CanvasRenderer';
 import { Tool } from '../../store/types';
 import { mergeTemplateIntoMolecule } from '../../lib/templateMerge';
 import { calculateArrowPath, distanceToCurve } from '../../lib/arrowGeometry';
+import { useReactionSchemeStore } from '../../store/reactionSchemeStore';
 
 export function MoleculeCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -32,6 +33,8 @@ export function MoleculeCanvas() {
   const mechanismArrows = useMechanismStore((s) => s.arrows);
   const selectedArrowId = useMechanismStore((s) => s.selectedArrowId);
   const hoverArrowId = useMechanismStore((s) => s.hoverArrowId);
+  const scheme = useReactionSchemeStore((s) => s.scheme);
+  const getCurrentStep = useReactionSchemeStore((s) => s.getCurrentStep);
 
   const selectedAtomIds = useMemo(() =>
     molecule.atoms.filter((a) => 'selected' in a && (a as any).selected).map((a) => a.id),
@@ -41,6 +44,18 @@ export function MoleculeCanvas() {
     molecule.bonds.filter((b) => 'selected' in b && (b as any).selected).map((b) => b.id),
     [molecule]
   );
+
+  // If in a reaction scheme, show current step's products; otherwise show the molecule
+  const displayMolecule = useMemo(() => {
+    if (scheme && scheme.steps.length > 0) {
+      const currentStep = getCurrentStep();
+      if (currentStep && currentStep.products.length > 0) {
+        // Show first product of current step
+        return currentStep.products[0];
+      }
+    }
+    return molecule;
+  }, [scheme, getCurrentStep, molecule]);
 
   // Handle canvas resize
   useEffect(() => {
@@ -74,7 +89,10 @@ export function MoleculeCanvas() {
 
     renderer.clear(theme);
     renderer.drawGrid(canvasState, theme);
-    renderer.drawMolecule(molecule, canvasState, {
+
+    // Use display molecule (current step's product in scheme, or main molecule)
+    const renderMol = displayMolecule || molecule;
+    renderer.drawMolecule(renderMol, canvasState, {
       theme,
       hoverAtomId,
       hoverBondId,
@@ -84,6 +102,17 @@ export function MoleculeCanvas() {
       bondDragPos,
     });
 
+    // Draw step indicator if in scheme
+    if (scheme && scheme.steps.length > 0) {
+      ctx.fillStyle = theme === 'dark' ? '#90caf9' : '#1976d2';
+      ctx.font = '12px sans-serif';
+      ctx.fillText(
+        `Step ${scheme.currentStepIndex + 1}/${scheme.steps.length} - Products`,
+        10,
+        20
+      );
+    }
+
     // Draw mechanism arrows if panel is active
     if (activeSidebarPanel === 'mechanism' && mechanismArrows.length > 0) {
       renderer.drawMechanismArrows(molecule, mechanismArrows, canvasState, {
@@ -92,7 +121,7 @@ export function MoleculeCanvas() {
         hoverArrowId,
       });
     }
-  }, [molecule, theme, hoverAtomId, hoverBondId, selectedAtomIds, selectedBondIds, bondDragPos, bondDragFrom, activeSidebarPanel, mechanismArrows, selectedArrowId, hoverArrowId]);
+  }, [displayMolecule, molecule, theme, hoverAtomId, hoverBondId, selectedAtomIds, selectedBondIds, bondDragPos, bondDragFrom, activeSidebarPanel, mechanismArrows, selectedArrowId, hoverArrowId, scheme]);
 
   // Handle zoom
   const handleWheel = (e: React.WheelEvent) => {

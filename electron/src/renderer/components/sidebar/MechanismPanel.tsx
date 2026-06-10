@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
 import { useMechanismStore } from '../../store/mechanismStore';
+import { useReactionSchemeStore } from '../../store/reactionSchemeStore';
 import { ArrowTypeDialog } from '../modals/ArrowTypeDialog';
 import { useElectronSuggestions } from '../../hooks/useElectronSuggestions';
 import { suggestArrowPairs } from '../../lib/electronDetection';
 import { ArrowSuggestion } from '../../store/types';
+import { MechanismArrow } from '../../store/types';
 
 export function MechanismPanel() {
   const theme = useUIStore((s) => s.theme);
@@ -18,6 +20,9 @@ export function MechanismPanel() {
   const pendingSinkAtomId = useMechanismStore((s) => s.pendingSinkAtomId);
   const suggestions = useMechanismStore((s) => s.suggestions);
   const suggestionsVisible = useMechanismStore((s) => s.suggestionsVisible);
+
+  const scheme = useReactionSchemeStore((s) => s.scheme);
+  const updateCurrentStepArrows = useReactionSchemeStore((s) => s.updateCurrentStepArrows);
 
   useElectronSuggestions();
 
@@ -82,7 +87,22 @@ export function MechanismPanel() {
 
   const handleArrowTypeSelected = (type: 'forward' | 'retro' | 'resonance') => {
     if (pendingSinkAtomId !== null && pendingSourceAtomId !== null) {
-      useMechanismStore.getState().completeArrowSelection(pendingSinkAtomId, type);
+      const newArrow: MechanismArrow = {
+        id: `arrow-${Date.now()}`,
+        sourceAtomId: pendingSourceAtomId,
+        sinkAtomId: pendingSinkAtomId,
+        type,
+        stepId: scheme?.steps[scheme.currentStepIndex]?.id || '',
+      };
+
+      // Save to current step if in scheme, otherwise to global store
+      if (scheme && scheme.steps.length > 0) {
+        const currentArrows = scheme.steps[scheme.currentStepIndex].arrows;
+        updateCurrentStepArrows([...currentArrows, newArrow]);
+      } else {
+        useMechanismStore.getState().completeArrowSelection(pendingSinkAtomId, type);
+      }
+
       setShowArrowTypeDialog(false);
       useMechanismStore.getState().setPendingSinkAtomId(null);
       setStatus(`Arrow added (${type})`);
@@ -106,7 +126,15 @@ export function MechanismPanel() {
       }}
     >
       <div style={{ fontSize: '12px', color: labelColor }}>
-        Draw electron flow arrows showing reaction mechanisms.
+        {scheme && scheme.steps.length > 0 ? (
+          <div style={{ fontSize: '12px', color: labelColor, marginBottom: '8px' }}>
+            Drawing mechanism arrows for Step {scheme.currentStepIndex + 1} of {scheme.steps.length}
+          </div>
+        ) : (
+          <div style={{ fontSize: '12px', color: labelColor }}>
+            Draw electron flow arrows showing reaction mechanisms.
+          </div>
+        )}
       </div>
 
       {/* Selection Status */}
@@ -266,6 +294,12 @@ export function MechanismPanel() {
           overflowY: 'auto',
         }}
       >
+        {/* Arrows for current step */}
+        {mechanismArrows.length > 0 && (
+          <div style={{ fontSize: '10px', color: labelColor, marginBottom: '4px', fontWeight: 'bold' }}>
+            {scheme ? `Step ${scheme.currentStepIndex + 1} Arrows:` : 'Mechanism Arrows:'}
+          </div>
+        )}
         {mechanismArrows.length === 0 ? (
           <div
             style={{

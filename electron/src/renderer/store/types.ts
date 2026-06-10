@@ -106,3 +106,13 @@ export interface ArrowSuggestion {
   confidence: number; // product of source and sink confidence
   reason: string;     // "O → C"
 }
+
+// Reaction scheme context for managing reaction sequences
+export interface ReactionSchemeContext {
+  id: string;
+  title: string;
+  description?: string;
+  steps: MechanismStep[];           // Array of reaction steps
+  currentStepIndex: number;         // 0-based index of current step
+  viewMode: 'step' | 'scheme';      // Single step or full scheme view
+}

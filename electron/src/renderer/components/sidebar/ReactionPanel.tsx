@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
 import { ReactionScheme, ReactionStep, ReactionCondition, createReactionStep, addStep, removeStep, updateConditions, executeReaction, SMIRKS_TEMPLATES } from '../../lib/reactions';
+import { useReactionSchemeStore } from '../../store/reactionSchemeStore';
+import { validateReactionScheme, getIntermediates, getExternalReagents } from '../../lib/reactionSchemeUtils';
 
 export function ReactionPanel() {
   const scheme = useMoleculeStore((s) => s.reactionScheme);
@@ -14,6 +16,15 @@ export function ReactionPanel() {
   const [smirlksInput, setSmirlksInput] = useState<string>('');
   const [selectedTemplate, setSelectedTemplate] = useState<string>('carboxylic_acid_to_amide');
   const [reactionError, setReactionError] = useState<string>('');
+  const [status, setStatus] = useState<string>('');
+
+  // Scheme store hooks
+  const schemeStoreScheme = useReactionSchemeStore((s) => s.scheme);
+  const getCurrentStep = useReactionSchemeStore((s) => s.getCurrentStep);
+  const nextStep = useReactionSchemeStore((s) => s.nextStep);
+  const previousStep = useReactionSchemeStore((s) => s.previousStep);
+  const canGoNext = useReactionSchemeStore((s) => s.canGoNext);
+  const canGoPrevious = useReactionSchemeStore((s) => s.canGoPrevious);
 
   const bgColor = theme === 'dark' ? '#2f3a47' : '#ffffff';
   const borderColor = theme === 'dark' ? '#3a4a57' : '#e0e0e0';
@@ -76,6 +87,11 @@ export function ReactionPanel() {
     setSmirlksInput('');
   };
 
+  const handleCreateNewScheme = () => {
+    useReactionSchemeStore.getState().createScheme('New Mechanism', 'Multi-step reaction');
+    setStatus('✓ New reaction scheme created');
+  };
+
   return (
     <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
       {/* Title */}
@@ -111,6 +127,102 @@ export function ReactionPanel() {
           fontFamily: 'inherit',
         }}
       />
+
+      {/* Multi-Step Scheme Navigation */}
+      {schemeStoreScheme && (
+        <div style={{
+          padding: '12px',
+          backgroundColor: theme === 'dark' ? '#1e2a3a' : '#f5f9ff',
+          border: `1px solid ${theme === 'dark' ? '#2a4a7a' : '#90caf9'}`,
+          borderRadius: '6px',
+          marginBottom: '12px',
+        }}>
+          {/* Step Counter and Navigation */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '12px',
+          }}>
+            <div style={{
+              fontSize: '12px',
+              fontWeight: 'bold',
+              color: theme === 'dark' ? '#90caf9' : '#1976d2',
+            }}>
+              Step {schemeStoreScheme.currentStepIndex + 1} of {schemeStoreScheme.steps.length}
+            </div>
+            <div style={{ display: 'flex', gap: '4px' }}>
+              <button
+                onClick={() => previousStep()}
+                disabled={!canGoPrevious()}
+                style={{
+                  padding: '4px 8px',
+                  backgroundColor: canGoPrevious() ? accentColor : '#999',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '3px',
+                  cursor: canGoPrevious() ? 'pointer' : 'not-allowed',
+                  fontSize: '10px',
+                }}
+              >
+                ← Prev
+              </button>
+              <button
+                onClick={() => nextStep()}
+                disabled={!canGoNext()}
+                style={{
+                  padding: '4px 8px',
+                  backgroundColor: canGoNext() ? accentColor : '#999',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '3px',
+                  cursor: canGoNext() ? 'pointer' : 'not-allowed',
+                  fontSize: '10px',
+                }}
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+
+          {/* Current Step Details */}
+          {getCurrentStep() && (
+            <div style={{
+              fontSize: '10px',
+              color: labelColor,
+              marginBottom: '8px',
+              borderTop: `1px solid ${borderColor}`,
+              paddingTop: '8px',
+            }}>
+              <div style={{ marginBottom: '4px', fontWeight: 'bold' }}>
+                Reactants: {getCurrentStep()!.reactants.length}
+              </div>
+              <div style={{ marginBottom: '8px' }}>
+                {getCurrentStep()!.reactants.map((r, i) => (
+                  <div key={i} style={{ fontSize: '9px', color: labelColor }}>
+                    • {r.atoms.length > 0 ? r.atoms.map((a) => a.element).join('') : '(unknown)'}
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ marginBottom: '4px', fontWeight: 'bold' }}>
+                Products: {getCurrentStep()!.products.length}
+              </div>
+              <div style={{ marginBottom: '8px' }}>
+                {getCurrentStep()!.products.map((p, i) => (
+                  <div key={i} style={{ fontSize: '9px', color: labelColor }}>
+                    • {p.atoms.length > 0 ? p.atoms.map((a) => a.element).join('') : '(unknown)'}
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ marginBottom: '4px', fontWeight: 'bold' }}>
+                Mechanism Arrows: {getCurrentStep()!.arrows.length}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Steps List */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '400px', overflow: 'auto' }}>
@@ -392,22 +504,53 @@ export function ReactionPanel() {
         )}
       </div>
 
-      {/* Add Step Button */}
-      <button
-        onClick={handleAddStep}
-        style={{
-          padding: '8px',
-          backgroundColor: accentColor,
-          color: 'white',
-          border: 'none',
-          borderRadius: '4px',
-          cursor: 'pointer',
-          fontSize: '11px',
-          fontWeight: 'bold',
-        }}
-      >
-        + Add Reaction Step
-      </button>
+      {/* Add Step / Create Scheme Button */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {!schemeStoreScheme && (
+          <button
+            onClick={handleCreateNewScheme}
+            style={{
+              padding: '8px',
+              backgroundColor: accentColor,
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '11px',
+              fontWeight: 'bold',
+            }}
+          >
+            + Create Reaction Scheme
+          </button>
+        )}
+        <button
+          onClick={handleAddStep}
+          style={{
+            padding: '8px',
+            backgroundColor: accentColor,
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontSize: '11px',
+            fontWeight: 'bold',
+          }}
+        >
+          {schemeStoreScheme ? '+ Add Step to Scheme' : '+ Add Reaction Step'}
+        </button>
+        {status && (
+          <div style={{
+            fontSize: '10px',
+            color: '#4caf50',
+            padding: '4px',
+            backgroundColor: 'rgba(76, 175, 80, 0.1)',
+            borderRadius: '3px',
+            textAlign: 'center',
+          }}>
+            {status}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
