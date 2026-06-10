@@ -15,6 +15,7 @@ export function MechanismPanel() {
   const pendingSinkAtomId = useMechanismStore((s) => s.pendingSinkAtomId);
 
   const [showArrowTypeDialog, setShowArrowTypeDialog] = useState(false);
+  const [selectedArrowId, setSelectedArrowIdLocal] = useState<string | null>(null);
 
   // Watch for sink atom selection and show dialog
   useEffect(() => {
@@ -49,6 +50,10 @@ export function MechanismPanel() {
   const handleChangeArrowType = (arrowId: string, type: 'forward' | 'retro' | 'resonance') => {
     useMechanismStore.getState().updateArrow(arrowId, { type });
     setStatus(`Arrow type changed to ${type}`);
+  };
+
+  const handleLabelChange = (arrowId: string, newLabel: string) => {
+    useMechanismStore.getState().updateArrow(arrowId, { label: newLabel });
   };
 
   const getAtomLabel = (atomId: number) => {
@@ -152,59 +157,121 @@ export function MechanismPanel() {
             No arrows yet
           </div>
         ) : (
-          mechanismArrows.map((arrow) => (
-            <div
-              key={arrow.id}
-              style={{
-                padding: '8px',
-                border: `1px solid ${borderColor}`,
-                borderRadius: '4px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                fontSize: '11px',
-                backgroundColor: isDark ? '#2f3a47' : '#f9f9f9',
-              }}
-            >
-              <span style={{ color: textColor, flex: 1 }}>
-                {getAtomLabel(arrow.sourceAtomId)} {getArrowTypeLabel(arrow.type)} {getAtomLabel(arrow.sinkAtomId)}
-              </span>
-              <div style={{ display: 'flex', gap: '4px' }}>
-                <select
-                  value={arrow.type}
-                  onChange={(e) => handleChangeArrowType(arrow.id, e.target.value as any)}
+          mechanismArrows.map((arrow) => {
+            const isSelected = selectedArrowId === arrow.id;
+
+            return (
+              <div
+                key={arrow.id}
+                style={{
+                  padding: '8px',
+                  border: `1px solid ${isSelected ? accentColor : borderColor}`,
+                  borderRadius: '4px',
+                  backgroundColor: isDark ? '#2f3a47' : '#f9f9f9',
+                  cursor: 'pointer',
+                }}
+              >
+                {/* Main arrow row - clickable to select */}
+                <div
+                  onClick={() => setSelectedArrowIdLocal(isSelected ? null : arrow.id)}
                   style={{
-                    padding: '2px 4px',
-                    fontSize: '9px',
-                    border: `1px solid ${borderColor}`,
-                    borderRadius: '2px',
-                    backgroundColor: bgColor,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    fontSize: '11px',
                     color: textColor,
-                    cursor: 'pointer',
+                    transition: 'background-color 0.2s',
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLDivElement).style.backgroundColor = isDark ? '#3a4f62' : '#f0f0f0';
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLDivElement).style.backgroundColor = 'transparent';
                   }}
                 >
-                  <option value="forward">→</option>
-                  <option value="retro">⇌</option>
-                  <option value="resonance">↔</option>
-                </select>
-                <button
-                  onClick={() => handleRemoveArrow(arrow.id)}
-                  style={{
-                    padding: '2px 6px',
-                    backgroundColor: deleteColor,
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '2px',
-                    cursor: 'pointer',
-                    fontSize: '9px',
-                    fontWeight: 'bold',
-                  }}
-                >
-                  ✕
-                </button>
+                  <span>
+                    {getAtomLabel(arrow.sourceAtomId)} {getArrowTypeLabel(arrow.type)} {getAtomLabel(arrow.sinkAtomId)}
+                  </span>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <select
+                      value={arrow.type}
+                      onChange={(e) => {
+                        handleChangeArrowType(arrow.id, e.target.value as any);
+                        e.stopPropagation();
+                      }}
+                      style={{
+                        padding: '2px 4px',
+                        fontSize: '9px',
+                        border: `1px solid ${borderColor}`,
+                        borderRadius: '2px',
+                        backgroundColor: bgColor,
+                        color: textColor,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <option value="forward">→</option>
+                      <option value="retro">⇌</option>
+                      <option value="resonance">↔</option>
+                    </select>
+                    <button
+                      onClick={(e) => {
+                        handleRemoveArrow(arrow.id);
+                        e.stopPropagation();
+                      }}
+                      style={{
+                        padding: '2px 6px',
+                        backgroundColor: deleteColor,
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '2px',
+                        cursor: 'pointer',
+                        fontSize: '9px',
+                        fontWeight: 'bold',
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Expanded details when selected */}
+                {isSelected && (
+                  <div
+                    style={{
+                      marginTop: '8px',
+                      paddingTop: '8px',
+                      borderTop: `1px solid ${borderColor}`,
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div style={{ fontSize: '10px', color: labelColor, marginBottom: '6px', fontWeight: 'bold' }}>
+                      Label (optional):
+                    </div>
+                    <input
+                      type="text"
+                      value={arrow.label || ''}
+                      onChange={(e) => handleLabelChange(arrow.id, e.target.value)}
+                      placeholder="e.g., H3C+, OH−, H2O"
+                      style={{
+                        width: '100%',
+                        padding: '4px 6px',
+                        fontSize: '11px',
+                        border: `1px solid ${borderColor}`,
+                        borderRadius: '2px',
+                        backgroundColor: bgColor,
+                        color: textColor,
+                        boxSizing: 'border-box',
+                        marginBottom: '6px',
+                      }}
+                    />
+                    <div style={{ fontSize: '9px', color: labelColor, fontStyle: 'italic' }}>
+                      Appears on arrow in diagram
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 

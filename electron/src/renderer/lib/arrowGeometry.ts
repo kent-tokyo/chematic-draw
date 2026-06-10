@@ -110,3 +110,43 @@ export function distanceToCurve(px: number, py: number, path: ArrowPath): number
   }
   return minDist;
 }
+
+export function getLabelPosition(
+  path: ArrowPath,
+  offsetDistance: number = 8
+): { x: number; y: number; angle: number } {
+  const t = 0.5;
+  const mt = 1 - t;
+
+  // Evaluate quadratic bezier curve at t=0.5 (center point)
+  const labelX = mt * mt * path.startX + 2 * mt * t * path.controlX + t * t * path.endX;
+  const labelY = mt * mt * path.startY + 2 * mt * t * path.controlY + t * t * path.endY;
+
+  // Calculate tangent vector (derivative of bezier curve)
+  const tangentX = 2 * mt * (path.controlX - path.startX) + 2 * t * (path.endX - path.controlX);
+  const tangentY = 2 * mt * (path.controlY - path.startY) + 2 * t * (path.endY - path.controlY);
+  const tangentLen = Math.hypot(tangentX, tangentY);
+
+  // Perpendicular vector (rotate tangent 90 degrees counterclockwise)
+  const perpX = tangentLen > 0.1 ? -tangentY / tangentLen : 0;
+  const perpY = tangentLen > 0.1 ? tangentX / tangentLen : 1;
+
+  // Apply perpendicular offset to avoid overlapping with arrow curve
+  const finalX = labelX + perpX * offsetDistance;
+  const finalY = labelY + perpY * offsetDistance;
+  const angle = Math.atan2(tangentY, tangentX);
+
+  return { x: finalX, y: finalY, angle };
+}
+
+export function getLabelDimensions(
+  text: string,
+  fontSize: number = 11
+): { width: number; height: number } {
+  // Simple estimation: text.length * fontSize * 0.6 for proportional fonts
+  // This is approximate; actual measurement happens in canvas
+  const estimatedWidth = Math.max(text.length * fontSize * 0.55, fontSize * 1.5);
+  const estimatedHeight = fontSize + 4; // font size + padding
+
+  return { width: estimatedWidth, height: estimatedHeight };
+}

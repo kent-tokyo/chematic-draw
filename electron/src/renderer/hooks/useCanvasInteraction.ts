@@ -3,7 +3,7 @@ import { useMoleculeStore } from '../store/moleculeStore';
 import { useCanvasStore } from '../store/canvasStore';
 import { useUIStore } from '../store/uiStore';
 import { useMechanismStore } from '../store/mechanismStore';
-import { Tool } from '../store/types';
+import { Tool, MechanismArrow, MoleculeDto } from '../store/types';
 import { hitTestAtom, hitTestBond, calculateBondedAtomPosition, getConnectedComponent } from '../lib/geometry';
 import { calculateArrowPath, distanceToCurve } from '../lib/arrowGeometry';
 
@@ -92,6 +92,22 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
         }
       }
 
+      // If not in arrow selection mode, check if clicking on an arrow to select it
+      if (activeSidebarPanel === 'mechanism' && arrowSelectionMode === 'idle') {
+        const clickedArrowId = findClickedArrow(
+          screenX, screenY,
+          mechanismArrows,
+          molecule,
+          { offset: useCanvasStore.getState().offset, zoom: useCanvasStore.getState().zoom }
+        );
+
+        if (clickedArrowId) {
+          useMechanismStore.getState().setSelectedArrow(clickedArrowId);
+          setStatus('✓ Arrow selected - edit label in panel');
+          return;
+        }
+      }
+
       // Handle tool-specific logic
       if (activeTool === Tool.Select) {
         const atomId = hitTestAtom(molecule, screenX, screenY, canvasState);
@@ -136,7 +152,7 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
         }
       }
     },
-    [molecule, activeTool, activeSidebarPanel, arrowSelectionMode, pendingSourceAtomId, selectAtom, deselectAll, removeAtom, removeBond, updateAtom, addAtom, pushUndo, setStatus]
+    [molecule, activeTool, activeSidebarPanel, arrowSelectionMode, pendingSourceAtomId, mechanismArrows, selectAtom, deselectAll, removeAtom, removeBond, updateAtom, addAtom, pushUndo, setStatus]
   );
 
   const onMouseMove = useCallback(
@@ -224,4 +240,21 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
     onMouseUp,
     onContextMenu,
   };
+}
+
+// Helper function to find which arrow is clicked
+function findClickedArrow(
+  screenX: number,
+  screenY: number,
+  arrows: MechanismArrow[],
+  molecule: MoleculeDto,
+  canvasState: { offset: { x: number; y: number }; zoom: number }
+): string | null {
+  for (const arrow of arrows) {
+    const path = calculateArrowPath(molecule, arrow, canvasState);
+    if (path && distanceToCurve(screenX, screenY, path) < 10) {
+      return arrow.id;
+    }
+  }
+  return null;
 }

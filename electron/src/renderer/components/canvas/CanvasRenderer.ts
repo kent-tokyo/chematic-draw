@@ -1,6 +1,7 @@
 import { MoleculeDto, AtomDto, BondDto } from '../../store/types';
 import { CanvasState } from '../../store/types';
 import { calculateArrowPath, getArrowHeadPoints, distanceToCurve, CanvasState as ArrowCanvasState } from '../../lib/arrowGeometry';
+import { getLabelPosition, getLabelDimensions } from '../../lib/arrowGeometry';
 import { MechanismArrow } from '../../store/types';
 
 export interface RenderOptions {
@@ -371,6 +372,62 @@ export class CanvasRenderer {
         this.ctx.stroke();
         this.ctx.setLineDash([]);
       }
+    }
+
+    // Draw arrow labels
+    const LABEL_FONT_SIZE = 11;
+    const LABEL_PADDING = 4;
+
+    for (const arrow of arrows) {
+      if (!arrow.label || arrow.label.trim() === '') continue;
+
+      const path = calculateArrowPath(molecule, arrow, state);
+      if (!path) continue;
+
+      const labelPos = getLabelPosition(path, 8);
+
+      // Save canvas state for text rendering
+      this.ctx.save();
+
+      // Calculate text metrics
+      this.ctx.font = `${LABEL_FONT_SIZE}px sans-serif`;
+      this.ctx.textAlign = 'center';
+      this.ctx.textBaseline = 'middle';
+      const textMetrics = this.ctx.measureText(arrow.label);
+      const textWidth = textMetrics.width;
+      const textHeight = LABEL_FONT_SIZE + 2;
+
+      // Draw background box
+      const bgX = labelPos.x - textWidth / 2 - LABEL_PADDING;
+      const bgY = labelPos.y - textHeight / 2 - LABEL_PADDING;
+      const bgWidth = textWidth + LABEL_PADDING * 2;
+      const bgHeight = textHeight + LABEL_PADDING * 2;
+
+      this.ctx.fillStyle = options.theme === 'dark' ? '#2a2a2a' : '#ffffff';
+      this.ctx.globalAlpha = 0.95;
+      this.ctx.beginPath();
+      if (typeof this.ctx.roundRect === 'function') {
+        this.ctx.roundRect(bgX, bgY, bgWidth, bgHeight, 3);
+      } else {
+        this.ctx.rect(bgX, bgY, bgWidth, bgHeight);
+      }
+      this.ctx.fill();
+      this.ctx.globalAlpha = 1.0;
+
+      // Draw border
+      this.ctx.strokeStyle = arrow.type === 'forward'
+        ? '#4d8dff'
+        : arrow.type === 'retro'
+        ? '#ff6b6b'
+        : '#51cf66';
+      this.ctx.lineWidth = 1;
+      this.ctx.stroke();
+
+      // Draw text
+      this.ctx.fillStyle = options.theme === 'dark' ? '#e8e8e8' : '#333333';
+      this.ctx.fillText(arrow.label, labelPos.x, labelPos.y);
+
+      this.ctx.restore();
     }
   }
 }
