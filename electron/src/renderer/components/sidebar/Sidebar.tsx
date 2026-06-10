@@ -12,6 +12,7 @@ import { LipinskiPanel } from './LipinskiPanel';
 import { PropertyPredictionPanel } from './PropertyPredictionPanel';
 import { MechanismPanel } from './MechanismPanel';
 import { DatabaseSearchPanel } from './DatabaseSearchPanel';
+import { Viewer3DPanel } from './Viewer3DPanel';
 
 export function Sidebar() {
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
@@ -34,6 +35,7 @@ export function Sidebar() {
     { id: 'lipinski', label: 'Lipinski', icon: 'lipinski' as const },
     { id: 'properties', label: 'Props', icon: 'properties' as const },
     { id: 'mechanism', label: 'Mech', icon: 'mechanism' as const },
+    { id: '3d', label: '3D', icon: 'database' as const },
     { id: 'database', label: 'DB', icon: 'database' as const },
     { id: 'research', label: 'Research', icon: 'research' as const },
     { id: 'chat', label: 'Chat', icon: 'chat' as const },
@@ -138,6 +140,7 @@ export function Sidebar() {
         {activeSidebarPanel === 'lipinski' && <LipinskiPanel />}
         {activeSidebarPanel === 'properties' && <PropertyPredictionPanel />}
         {activeSidebarPanel === 'mechanism' && <MechanismPanel />}
+        {activeSidebarPanel === '3d' && <Viewer3DPanel />}
         {activeSidebarPanel === 'database' && <DatabaseSearchPanel />}
         {activeSidebarPanel === 'research' && <ResearchPanel />}
         {activeSidebarPanel === 'chat' && <ChatPanel />}

@@ -61,6 +61,20 @@ pub struct ExtendedPropertiesDto {
     pub num_unspecified_stereocenters: u32,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Atom3dDto {
+    pub id: u32,
+    pub element: String,
+    pub x: f64,
+    pub y: f64,
+    pub z: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Coords3dDto {
+    pub atoms: Vec<Atom3dDto>,
+}
+
 // ─────────────────────────────────────────────────────────────────────────────────
 // WASM Public API
 // ─────────────────────────────────────────────────────────────────────────────────
@@ -769,5 +783,142 @@ pub fn run_reactants(mol_json: &JsValue, _smirks: &str) -> Result<JsValue, JsVal
     let product_dtos = vec![chem_to_dto(&chem_mol, Some(&coords))];
 
     serde_wasm_bindgen::to_value(&product_dtos)
+        .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// 3D Molecular Geometry (chematic 0.1.40+)
+// ─────────────────────────────────────────────────────────────────────────────────
+
+/// Generate initial 3D coordinates for a molecule using distance geometry.
+#[wasm_bindgen]
+pub fn generate_3d_coords(mol_json: &JsValue) -> Result<JsValue, JsValue> {
+    use chematic::core::AtomIdx;
+    use chematic::threed;
+
+    let dto: MoleculeDto = serde_wasm_bindgen::from_value(mol_json.clone())
+        .map_err(|e| JsValue::from_str(&format!("JSON decode failed: {e}")))?;
+
+    let chem_mol = dto_to_chem(&dto)?;
+    let coords3d = threed::generate_coords(&chem_mol);
+
+    let atoms = chem_mol
+        .atoms()
+        .enumerate()
+        .map(|(i, (_, atom))| {
+            let pt = coords3d.get(AtomIdx(i as u32));
+            Atom3dDto {
+                id: i as u32,
+                element: atom.element.symbol().to_string(),
+                x: pt.x,
+                y: pt.y,
+                z: pt.z,
+            }
+        })
+        .collect();
+
+    serde_wasm_bindgen::to_value(&Coords3dDto { atoms })
+        .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
+}
+
+/// Optimize 3D coordinates using UFF force field.
+#[wasm_bindgen]
+pub fn minimize_3d_uff(mol_json: &JsValue, coords_json: &JsValue) -> Result<JsValue, JsValue> {
+    use chematic::core::AtomIdx;
+    use chematic::threed;
+
+    let dto: MoleculeDto = serde_wasm_bindgen::from_value(mol_json.clone())
+        .map_err(|e| JsValue::from_str(&format!("JSON decode failed: {e}")))?;
+
+    let coords3d_dto: Coords3dDto = serde_wasm_bindgen::from_value(coords_json.clone())
+        .map_err(|e| JsValue::from_str(&format!("Coords decode failed: {e}")))?;
+
+    let chem_mol = dto_to_chem(&dto)?;
+
+    // Reconstruct 3D coordinates from DTO
+    let mut coords = threed::generate_coords(&chem_mol);
+    for atom3d in &coords3d_dto.atoms {
+        coords.set(
+            AtomIdx(atom3d.id),
+            chematic::threed::Point3 {
+                x: atom3d.x,
+                y: atom3d.y,
+                z: atom3d.z,
+            },
+        );
+    }
+
+    // Minimize
+    let minimized = threed::minimize_uff(&chem_mol, coords);
+
+    let atoms = chem_mol
+        .atoms()
+        .enumerate()
+        .map(|(i, (_, atom))| {
+            let pt = minimized.get(AtomIdx(i as u32));
+            Atom3dDto {
+                id: i as u32,
+                element: atom.element.symbol().to_string(),
+                x: pt.x,
+                y: pt.y,
+                z: pt.z,
+            }
+        })
+        .collect();
+
+    serde_wasm_bindgen::to_value(&Coords3dDto { atoms })
+        .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
+}
+
+/// Parse XYZ format coordinates.
+#[wasm_bindgen]
+pub fn parse_xyz_format(text: &str) -> Result<JsValue, JsValue> {
+    use chematic::core::AtomIdx;
+    use chematic::threed;
+
+    let (mol, coords) = threed::parse_xyz(text)
+        .map_err(|e| JsValue::from_str(&format!("XYZ parse failed: {e}")))?;
+
+    let atoms = mol
+        .atoms()
+        .enumerate()
+        .map(|(i, (_, atom))| {
+            let pt = coords.get(AtomIdx(i as u32));
+            Atom3dDto {
+                id: i as u32,
+                element: atom.element.symbol().to_string(),
+                x: pt.x,
+                y: pt.y,
+                z: pt.z,
+            }
+        })
+        .collect();
+
+    serde_wasm_bindgen::to_value(&Coords3dDto { atoms })
+        .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
+}
+
+/// Parse PDB format file.
+#[wasm_bindgen]
+pub fn parse_pdb_text(text: &str) -> Result<JsValue, JsValue> {
+    use chematic::threed;
+
+    let atoms = threed::parse_pdb_atoms(text);
+
+    let coords_dto = Coords3dDto {
+        atoms: atoms
+            .into_iter()
+            .enumerate()
+            .map(|(i, pdb_atom)| Atom3dDto {
+                id: i as u32,
+                element: pdb_atom.element,
+                x: pdb_atom.x,
+                y: pdb_atom.y,
+                z: pdb_atom.z,
+            })
+            .collect(),
+    };
+
+    serde_wasm_bindgen::to_value(&coords_dto)
         .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
 }

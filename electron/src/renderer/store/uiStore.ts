@@ -7,7 +7,7 @@ interface UIStoreState extends UIState {
   statusExpiry: number; // timestamp
 
   // Sidebar
-  activeSidebarPanel: 'inspector' | 'templates' | 'chat' | 'research' | 'reactions' | 'batch-results' | 'stereoisomers' | 'lipinski' | 'properties' | 'mechanism' | 'database';
+  activeSidebarPanel: 'inspector' | 'templates' | 'chat' | 'research' | 'reactions' | 'batch-results' | 'stereoisomers' | 'lipinski' | 'properties' | 'mechanism' | 'database' | '3d';
   selectedAtomForInspector: AtomDto | null;
   selectedBondForInspector: BondDto | null;
 
@@ -27,7 +27,7 @@ interface UIStoreState extends UIState {
   setLanguage: (lang: 'en' | 'ja') => void;
   setSidebarOpen: (open: boolean) => void;
   setSidebarWidth: (width: number) => void;
-  setActiveSidebarPanel: (panel: 'inspector' | 'templates' | 'chat' | 'research' | 'reactions' | 'batch-results' | 'stereoisomers' | 'lipinski' | 'properties' | 'mechanism' | 'database') => void;
+  setActiveSidebarPanel: (panel: 'inspector' | 'templates' | 'chat' | 'research' | 'reactions' | 'batch-results' | 'stereoisomers' | 'lipinski' | 'properties' | 'mechanism' | 'database' | '3d') => void;
   setSelectedAtomForInspector: (atom: AtomDto | null) => void;
   setSelectedBondForInspector: (bond: BondDto | null) => void;
   setFocusMode: (enabled: boolean) => void;

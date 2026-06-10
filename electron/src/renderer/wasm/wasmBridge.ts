@@ -194,3 +194,47 @@ export function runReactants(mol: MoleculeDto, smirks: string): MoleculeDto[] {
     return [];
   }
 }
+
+/**
+ * 3D Molecular Geometry (chematic 0.1.40+)
+ */
+
+export interface Atom3dDto {
+  id: number;
+  element: string;
+  x: number;
+  y: number;
+  z: number;
+}
+
+export interface Coords3dDto {
+  atoms: Atom3dDto[];
+}
+
+/**
+ * Generate initial 3D coordinates using distance geometry.
+ */
+export function generate3dCoords(mol: MoleculeDto): Coords3dDto {
+  return wasmModule.generate_3d_coords(mol) as Coords3dDto;
+}
+
+/**
+ * Optimize 3D coordinates using UFF force field.
+ */
+export function minimize3d(mol: MoleculeDto, coords: Coords3dDto): Coords3dDto {
+  return wasmModule.minimize_3d_uff(mol, coords) as Coords3dDto;
+}
+
+/**
+ * Parse XYZ format coordinates.
+ */
+export function parseXyz(text: string): Coords3dDto {
+  return wasmModule.parse_xyz_format(text) as Coords3dDto;
+}
+
+/**
+ * Parse PDB format file.
+ */
+export function parsePdb(text: string): Coords3dDto {
+  return wasmModule.parse_pdb_text(text) as Coords3dDto;
+}
