@@ -1,9 +1,14 @@
 import { create } from 'zustand';
 import { ReactionSchemeContext, MechanismStep, MechanismArrow } from './types';
+import { SchemeLayout } from '../lib/schemeLayout';
+import { calculateSchemeLayout } from '../lib/schemeLayout';
 
 interface ReactionSchemeStore {
   // State
   scheme: ReactionSchemeContext | null;
+  schemeLayout: SchemeLayout | null;
+  selectedStepIndex: number | null;
+  hoveredStepIndex: number | null;
 
   // Getters
   getCurrentStep(): MechanismStep | null;
@@ -29,10 +34,18 @@ interface ReactionSchemeStore {
 
   // View mode
   setViewMode(mode: 'step' | 'scheme'): void;
+
+  // Layout and selection
+  recalculateLayout(): void;
+  setSelectedStepIndex(index: number | null): void;
+  setHoveredStepIndex(index: number | null): void;
 }
 
 export const useReactionSchemeStore = create<ReactionSchemeStore>((set, get) => ({
   scheme: null,
+  schemeLayout: null,
+  selectedStepIndex: null,
+  hoveredStepIndex: null,
 
   // Getter: current step
   getCurrentStep: () => {
@@ -99,15 +112,22 @@ export const useReactionSchemeStore = create<ReactionSchemeStore>((set, get) => 
 
   // Scheme CRUD
   createScheme: (title: string, description?: string) => {
-    set({
-      scheme: {
+    set((state) => {
+      const newScheme: ReactionSchemeContext = {
         id: `scheme-${Date.now()}`,
         title,
         description,
         steps: [],
         currentStepIndex: 0,
         viewMode: 'step',
-      },
+      };
+
+      const layout = calculateSchemeLayout(newScheme);
+
+      return {
+        scheme: newScheme,
+        schemeLayout: layout,
+      };
     });
   },
 
@@ -119,11 +139,14 @@ export const useReactionSchemeStore = create<ReactionSchemeStore>((set, get) => 
   addStep: (step: MechanismStep) => {
     set((state) => {
       if (!state.scheme) return state;
+      const newScheme = {
+        ...state.scheme,
+        steps: [...state.scheme.steps, step],
+      };
+      const layout = calculateSchemeLayout(newScheme);
       return {
-        scheme: {
-          ...state.scheme,
-          steps: [...state.scheme.steps, step],
-        },
+        scheme: newScheme,
+        schemeLayout: layout,
       };
     });
   },
@@ -139,12 +162,17 @@ export const useReactionSchemeStore = create<ReactionSchemeStore>((set, get) => 
         newSteps.length - 1
       );
 
+      const newScheme = {
+        ...state.scheme,
+        steps: newSteps,
+        currentStepIndex: newIndex,
+      };
+      const layout = calculateSchemeLayout(newScheme);
+
       return {
-        scheme: {
-          ...state.scheme,
-          steps: newSteps,
-          currentStepIndex: newIndex,
-        },
+        scheme: newScheme,
+        schemeLayout: layout,
+        selectedStepIndex: state.selectedStepIndex !== null && state.selectedStepIndex >= newSteps.length ? null : state.selectedStepIndex,
       };
     });
   },
@@ -196,5 +224,22 @@ export const useReactionSchemeStore = create<ReactionSchemeStore>((set, get) => 
         },
       };
     });
+  },
+
+  // Layout and selection
+  recalculateLayout: () => {
+    set((state) => {
+      if (!state.scheme) return state;
+      const layout = calculateSchemeLayout(state.scheme);
+      return { schemeLayout: layout };
+    });
+  },
+
+  setSelectedStepIndex: (index: number | null) => {
+    set({ selectedStepIndex: index });
+  },
+
+  setHoveredStepIndex: (index: number | null) => {
+    set({ hoveredStepIndex: index });
   },
 }));

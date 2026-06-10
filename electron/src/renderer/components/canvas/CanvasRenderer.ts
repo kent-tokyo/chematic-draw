@@ -3,6 +3,9 @@ import { CanvasState } from '../../store/types';
 import { calculateArrowPath, getArrowHeadPoints, distanceToCurve, CanvasState as ArrowCanvasState } from '../../lib/arrowGeometry';
 import { getLabelPosition, getLabelDimensions } from '../../lib/arrowGeometry';
 import { MechanismArrow } from '../../store/types';
+import { SchemeLayout, StepBox, StepArrow } from '../../lib/schemeLayout';
+import { ReactionSchemeContext, MechanismStep } from '../../store/types';
+import { getExternalReagents } from '../../lib/reactionSchemeUtils';
 
 export interface RenderOptions {
   theme: 'dark' | 'light';
@@ -40,6 +43,12 @@ const COLORS = {
     snap: '#00a88c',
   },
 };
+
+const STEP_BOX_PADDING = 10;
+const STEP_BOX_BORDER_WIDTH = 2;
+const STEP_BOX_SELECTED_BORDER_WIDTH = 3;
+const STEP_ARROW_WIDTH = 2;
+const TEXT_LINE_HEIGHT = 16;
 
 export class CanvasRenderer {
   constructor(private ctx: CanvasRenderingContext2D, private width: number, private height: number) {}
@@ -429,5 +438,161 @@ export class CanvasRenderer {
 
       this.ctx.restore();
     }
+  }
+
+  /**
+   * Draw complete reaction scheme with all steps
+   */
+  drawReactionScheme(
+    scheme: ReactionSchemeContext,
+    layout: SchemeLayout,
+    options: RenderOptions & { selectedStepIndex?: number; hoveredStepIndex?: number }
+  ) {
+    const colors = COLORS[options.theme];
+
+    // Draw step arrows first (behind boxes)
+    for (const arrow of layout.stepArrows) {
+      this.drawStepConnectorArrow(arrow, colors.bond);
+    }
+
+    // Draw step boxes
+    for (const box of layout.stepBoxes) {
+      const step = scheme.steps[box.stepIndex];
+      if (step) {
+        const isSelected = box.stepIndex === options.selectedStepIndex;
+        const isHovered = box.stepIndex === options.hoveredStepIndex;
+        this.drawStepBox(step, box, isSelected, isHovered, options.theme);
+      }
+    }
+  }
+
+  /**
+   * Draw a single step box with content
+   */
+  private drawStepBox(
+    step: MechanismStep,
+    box: StepBox,
+    selected: boolean,
+    hovered: boolean,
+    theme: string
+  ) {
+    const colors = COLORS[theme as 'dark' | 'light'];
+    const bgColor = hovered ? (theme === 'dark' ? '#2a3a5a' : '#f0f4f8') : (theme === 'dark' ? '#1e2a3a' : '#ffffff');
+    const borderColor = selected ? '#4d8dff' : colors.bond;
+    const borderWidth = selected ? STEP_BOX_SELECTED_BORDER_WIDTH : STEP_BOX_BORDER_WIDTH;
+    const textColor = colors.atom;
+
+    // Draw background
+    this.ctx.fillStyle = bgColor;
+    this.ctx.fillRect(box.x, box.y, box.width, box.height);
+
+    // Draw border
+    this.ctx.strokeStyle = borderColor;
+    this.ctx.lineWidth = borderWidth;
+    this.ctx.strokeRect(box.x, box.y, box.width, box.height);
+
+    // Draw content with padding
+    let yPos = box.y + STEP_BOX_PADDING;
+    const xStart = box.x + STEP_BOX_PADDING;
+    const contentWidth = box.width - 2 * STEP_BOX_PADDING;
+
+    this.ctx.fillStyle = textColor;
+    this.ctx.font = 'bold 12px sans-serif';
+    this.ctx.fillText(`Step ${box.stepIndex + 1}`, xStart, yPos);
+    yPos += TEXT_LINE_HEIGHT;
+
+    // Draw divider
+    this.ctx.strokeStyle = colors.bond;
+    this.ctx.lineWidth = 1;
+    this.ctx.beginPath();
+    this.ctx.moveTo(xStart, yPos);
+    this.ctx.lineTo(box.x + box.width - STEP_BOX_PADDING, yPos);
+    this.ctx.stroke();
+    yPos += 8;
+
+    // Draw reactants
+    this.ctx.font = '10px sans-serif';
+    this.ctx.fillStyle = textColor;
+    this.ctx.fillText('Reactants:', xStart, yPos);
+    yPos += TEXT_LINE_HEIGHT;
+
+    for (const reactant of step.reactants) {
+      const formula = this.getSimplifiedFormula(reactant);
+      this.ctx.fillStyle = '#666';
+      this.ctx.font = '9px sans-serif';
+      this.ctx.fillText(`• ${formula}`, xStart + 8, yPos);
+      yPos += TEXT_LINE_HEIGHT;
+    }
+
+    yPos += 4;
+
+    // Draw arrows count
+    this.ctx.fillStyle = '#4CAF50';
+    this.ctx.font = '10px sans-serif';
+    this.ctx.fillText(`Mechanism: ${step.arrows.length} arrow${step.arrows.length !== 1 ? 's' : ''}`, xStart, yPos);
+    yPos += TEXT_LINE_HEIGHT * 1.5;
+
+    // Draw products
+    this.ctx.fillStyle = textColor;
+    this.ctx.font = '10px sans-serif';
+    this.ctx.fillText('Products:', xStart, yPos);
+    yPos += TEXT_LINE_HEIGHT;
+
+    for (const product of step.products) {
+      const formula = this.getSimplifiedFormula(product);
+      this.ctx.fillStyle = '#666';
+      this.ctx.font = '9px sans-serif';
+      this.ctx.fillText(`• ${formula}`, xStart + 8, yPos);
+      yPos += TEXT_LINE_HEIGHT;
+    }
+  }
+
+  /**
+   * Draw connector arrow between two steps
+   */
+  private drawStepConnectorArrow(arrow: StepArrow, color: string) {
+    this.ctx.strokeStyle = color;
+    this.ctx.lineWidth = STEP_ARROW_WIDTH;
+    this.ctx.lineCap = 'round';
+
+    // Draw line
+    this.ctx.beginPath();
+    this.ctx.moveTo(arrow.x1, arrow.y1);
+    this.ctx.lineTo(arrow.x2, arrow.y2);
+    this.ctx.stroke();
+
+    // Draw arrowhead
+    const headlen = 12;
+    const angle = Math.atan2(arrow.y2 - arrow.y1, arrow.x2 - arrow.x1);
+
+    this.ctx.fillStyle = color;
+    this.ctx.beginPath();
+    this.ctx.moveTo(arrow.x2, arrow.y2);
+    this.ctx.lineTo(arrow.x2 - headlen * Math.cos(angle - Math.PI / 6), arrow.y2 - headlen * Math.sin(angle - Math.PI / 6));
+    this.ctx.lineTo(arrow.x2 - headlen * Math.cos(angle + Math.PI / 6), arrow.y2 - headlen * Math.sin(angle + Math.PI / 6));
+    this.ctx.closePath();
+    this.ctx.fill();
+  }
+
+  /**
+   * Get simplified formula for molecule (first 3 elements)
+   */
+  private getSimplifiedFormula(mol: MoleculeDto): string {
+    if (mol.atoms.length === 0) return '(empty)';
+
+    // Count atoms by element
+    const counts: Record<string, number> = {};
+    mol.atoms.forEach((a) => {
+      counts[a.element] = (counts[a.element] || 0) + 1;
+    });
+
+    // Build formula string (simplified)
+    const elements = Object.keys(counts).slice(0, 3); // First 3 elements
+    const formula = elements.map((el) => {
+      const count = counts[el];
+      return count > 1 ? `${el}${count}` : el;
+    }).join('');
+
+    return formula || '(unknown)';
   }
 }

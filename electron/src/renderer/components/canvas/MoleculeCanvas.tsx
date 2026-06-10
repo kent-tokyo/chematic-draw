@@ -35,6 +35,10 @@ export function MoleculeCanvas() {
   const hoverArrowId = useMechanismStore((s) => s.hoverArrowId);
   const scheme = useReactionSchemeStore((s) => s.scheme);
   const getCurrentStep = useReactionSchemeStore((s) => s.getCurrentStep);
+  const schemeLayout = useReactionSchemeStore((s) => s.schemeLayout);
+  const selectedStepIndex = useReactionSchemeStore((s) => s.selectedStepIndex);
+  const hoveredStepIndex = useReactionSchemeStore((s) => s.hoveredStepIndex);
+  const recalculateLayout = useReactionSchemeStore((s) => s.recalculateLayout);
 
   const selectedAtomIds = useMemo(() =>
     molecule.atoms.filter((a) => 'selected' in a && (a as any).selected).map((a) => a.id),
@@ -75,6 +79,13 @@ export function MoleculeCanvas() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Recalculate layout when scheme or canvas size changes
+  useEffect(() => {
+    if (scheme) {
+      recalculateLayout();
+    }
+  }, [scheme, canvasSize, recalculateLayout]);
+
   // Render loop
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -88,29 +99,39 @@ export function MoleculeCanvas() {
     const canvasState = { offset, zoom };
 
     renderer.clear(theme);
-    renderer.drawGrid(canvasState, theme);
 
-    // Use display molecule (current step's product in scheme, or main molecule)
-    const renderMol = displayMolecule || molecule;
-    renderer.drawMolecule(renderMol, canvasState, {
-      theme,
-      hoverAtomId,
-      hoverBondId,
-      selectedAtomIds,
-      selectedBondIds,
-      bondDragFrom,
-      bondDragPos,
-    });
+    // Check if we should render full scheme or single step
+    if (scheme && scheme.viewMode === 'scheme' && schemeLayout) {
+      // Draw full reaction scheme
+      renderer.drawReactionScheme(scheme, schemeLayout, {
+        theme,
+        selectedStepIndex,
+        hoveredStepIndex,
+      });
+    } else {
+      // Draw single step (existing code)
+      renderer.drawGrid(canvasState, theme);
+      const renderMol = displayMolecule || molecule;
+      renderer.drawMolecule(renderMol, canvasState, {
+        theme,
+        hoverAtomId,
+        hoverBondId,
+        selectedAtomIds,
+        selectedBondIds,
+        bondDragFrom,
+        bondDragPos,
+      });
 
-    // Draw step indicator if in scheme
-    if (scheme && scheme.steps.length > 0) {
-      ctx.fillStyle = theme === 'dark' ? '#90caf9' : '#1976d2';
-      ctx.font = '12px sans-serif';
-      ctx.fillText(
-        `Step ${scheme.currentStepIndex + 1}/${scheme.steps.length} - Products`,
-        10,
-        20
-      );
+      // Draw step indicator if in scheme
+      if (scheme && scheme.steps.length > 0) {
+        ctx.fillStyle = theme === 'dark' ? '#90caf9' : '#1976d2';
+        ctx.font = '12px sans-serif';
+        ctx.fillText(
+          `Step ${scheme.currentStepIndex + 1}/${scheme.steps.length} - Products`,
+          10,
+          20
+        );
+      }
     }
 
     // Draw mechanism arrows if panel is active
@@ -121,7 +142,7 @@ export function MoleculeCanvas() {
         hoverArrowId,
       });
     }
-  }, [displayMolecule, molecule, theme, hoverAtomId, hoverBondId, selectedAtomIds, selectedBondIds, bondDragPos, bondDragFrom, activeSidebarPanel, mechanismArrows, selectedArrowId, hoverArrowId, scheme]);
+  }, [displayMolecule, molecule, theme, hoverAtomId, hoverBondId, selectedAtomIds, selectedBondIds, bondDragPos, bondDragFrom, activeSidebarPanel, mechanismArrows, selectedArrowId, hoverArrowId, scheme, schemeLayout, selectedStepIndex, hoveredStepIndex]);
 
   // Handle zoom
   const handleWheel = (e: React.WheelEvent) => {
@@ -150,6 +171,12 @@ export function MoleculeCanvas() {
   };
 
   const handleDrop = (e: React.DragEvent<HTMLCanvasElement>) => {
+    // Don't allow template drops in full scheme view
+    if (scheme?.viewMode === 'scheme') {
+      e.preventDefault();
+      return;
+    }
+
     e.preventDefault();
     const smiles = e.dataTransfer.getData('application/x-template-smiles');
     const name = e.dataTransfer.getData('application/x-template-name');

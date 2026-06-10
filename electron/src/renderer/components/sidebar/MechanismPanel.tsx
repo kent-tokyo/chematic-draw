@@ -23,6 +23,8 @@ export function MechanismPanel() {
 
   const scheme = useReactionSchemeStore((s) => s.scheme);
   const updateCurrentStepArrows = useReactionSchemeStore((s) => s.updateCurrentStepArrows);
+  const viewMode = useReactionSchemeStore((s) => s.scheme?.viewMode);
+  const setViewMode = useReactionSchemeStore((s) => s.setViewMode);
 
   useElectronSuggestions();
 
@@ -125,6 +127,74 @@ export function MechanismPanel() {
         overflow: 'auto',
       }}
     >
+      {/* View Mode Toggle - only show when scheme exists */}
+      {scheme && (
+        <div
+          style={{
+            display: 'flex',
+            gap: '6px',
+            marginBottom: '12px',
+            borderBottom: `1px solid ${borderColor}`,
+            paddingBottom: '12px',
+          }}
+        >
+          <button
+            onClick={() => setViewMode('step')}
+            style={{
+              flex: 1,
+              padding: '6px 8px',
+              backgroundColor: viewMode === 'step' ? accentColor : borderColor,
+              color: viewMode === 'step' ? 'white' : textColor,
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '10px',
+              fontWeight: 'bold',
+              transition: 'background-color 0.2s',
+            }}
+            onMouseEnter={(e) => {
+              if (viewMode !== 'step') {
+                (e.target as HTMLButtonElement).style.backgroundColor = isDark ? '#3a5a7a' : '#d0e8ff';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (viewMode !== 'step') {
+                (e.target as HTMLButtonElement).style.backgroundColor = borderColor;
+              }
+            }}
+          >
+            📋 Step-by-Step
+          </button>
+          <button
+            onClick={() => setViewMode('scheme')}
+            style={{
+              flex: 1,
+              padding: '6px 8px',
+              backgroundColor: viewMode === 'scheme' ? accentColor : borderColor,
+              color: viewMode === 'scheme' ? 'white' : textColor,
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '10px',
+              fontWeight: 'bold',
+              transition: 'background-color 0.2s',
+            }}
+            onMouseEnter={(e) => {
+              if (viewMode !== 'scheme') {
+                (e.target as HTMLButtonElement).style.backgroundColor = isDark ? '#3a5a7a' : '#d0e8ff';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (viewMode !== 'scheme') {
+                (e.target as HTMLButtonElement).style.backgroundColor = borderColor;
+              }
+            }}
+          >
+            📊 Full Scheme
+          </button>
+        </div>
+      )}
+
       <div style={{ fontSize: '12px', color: labelColor }}>
         {scheme && scheme.steps.length > 0 ? (
           <div style={{ fontSize: '12px', color: labelColor, marginBottom: '8px' }}>
@@ -136,6 +206,22 @@ export function MechanismPanel() {
           </div>
         )}
       </div>
+
+      {scheme && viewMode === 'scheme' && (
+        <div
+          style={{
+            fontSize: '11px',
+            color: labelColor,
+            marginBottom: '12px',
+            padding: '8px',
+            backgroundColor: isDark ? '#1a3a4a' : '#e3f2fd',
+            borderRadius: '4px',
+            borderLeft: `3px solid ${accentColor}`,
+          }}
+        >
+          📊 Viewing full reaction scheme. Click a step to edit details.
+        </div>
+      )}
 
       {/* Selection Status */}
       {arrowSelectionMode === 'awaitingSink' && (

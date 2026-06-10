@@ -6,6 +6,8 @@ import { useMechanismStore } from '../store/mechanismStore';
 import { Tool, MechanismArrow, MoleculeDto } from '../store/types';
 import { hitTestAtom, hitTestBond, calculateBondedAtomPosition, getConnectedComponent } from '../lib/geometry';
 import { calculateArrowPath, distanceToCurve } from '../lib/arrowGeometry';
+import { getStepBoxAtPosition } from '../lib/schemeLayout';
+import { useReactionSchemeStore } from '../store/reactionSchemeStore';
 
 const DRAG_THRESHOLD = 4;
 const BOND_LENGTH = 60;
@@ -37,6 +39,12 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
   const mechanismArrows = useMechanismStore((s) => s.arrows);
   const arrowSelectionMode = useMechanismStore((s) => s.arrowSelectionMode);
   const pendingSourceAtomId = useMechanismStore((s) => s.pendingSourceAtomId);
+  const scheme = useReactionSchemeStore((s) => s.scheme);
+  const schemeLayout = useReactionSchemeStore((s) => s.schemeLayout);
+  const setSelectedStepIndex = useReactionSchemeStore((s) => s.setSelectedStepIndex);
+  const goToStep = useReactionSchemeStore((s) => s.goToStep);
+  const setViewMode = useReactionSchemeStore((s) => s.setViewMode);
+  const setHoveredStepIndex = useReactionSchemeStore((s) => s.setHoveredStepIndex);
 
   const addAtom = useMoleculeStore((s) => s.addAtom);
   const updateAtom = useMoleculeStore((s) => s.updateAtom);
@@ -61,6 +69,18 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
         startX: screenX,
         startY: screenY,
       };
+
+      // Handle scheme view clicks - click on step to select and switch to edit
+      if (scheme?.viewMode === 'scheme' && schemeLayout) {
+        const clickedStepIndex = getStepBoxAtPosition(screenX, screenY, schemeLayout);
+        if (clickedStepIndex !== null) {
+          setSelectedStepIndex(clickedStepIndex);
+          goToStep(clickedStepIndex);
+          setViewMode('step');
+          setStatus(`✓ Switched to Step ${clickedStepIndex + 1} - Edit mode`);
+          return; // Don't process other clicks in scheme mode
+        }
+      }
 
       // Handle mechanism arrow selection mode
       if (activeSidebarPanel === 'mechanism' && arrowSelectionMode !== 'idle') {
@@ -152,7 +172,7 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
         }
       }
     },
-    [molecule, activeTool, activeSidebarPanel, arrowSelectionMode, pendingSourceAtomId, mechanismArrows, selectAtom, deselectAll, removeAtom, removeBond, updateAtom, addAtom, pushUndo, setStatus]
+    [molecule, activeTool, activeSidebarPanel, arrowSelectionMode, pendingSourceAtomId, mechanismArrows, selectAtom, deselectAll, removeAtom, removeBond, updateAtom, addAtom, pushUndo, setStatus, scheme, schemeLayout, setSelectedStepIndex, goToStep, setViewMode]
   );
 
   const onMouseMove = useCallback(
@@ -162,6 +182,12 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
       const screenX = e.clientX - rect.left;
       const screenY = e.clientY - rect.top;
       const canvasState = { offset, zoom };
+
+      // Show hover feedback for scheme steps
+      if (scheme?.viewMode === 'scheme' && schemeLayout) {
+        const hoveredStepIndex = getStepBoxAtPosition(screenX, screenY, schemeLayout);
+        setHoveredStepIndex(hoveredStepIndex);
+      }
 
       // Check if hovering over arrow
       if (activeSidebarPanel === 'mechanism' && mechanismArrows.length > 0) {
@@ -202,7 +228,7 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
         setBondDrag(dragStateRef.current.bondFrom, { x: screenX, y: screenY });
       }
     },
-    [molecule, activeTool, setHoverAtom, setHoverBond, pan, updateAtom, setBondDrag, activeSidebarPanel, mechanismArrows]
+    [molecule, activeTool, setHoverAtom, setHoverBond, pan, updateAtom, setBondDrag, activeSidebarPanel, mechanismArrows, scheme, schemeLayout, setHoveredStepIndex]
   );
 
   const onMouseUp = useCallback(
