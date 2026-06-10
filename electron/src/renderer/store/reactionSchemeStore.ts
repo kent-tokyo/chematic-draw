@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { ReactionSchemeContext, MechanismStep, MechanismArrow } from './types';
 import { SchemeLayout } from '../lib/schemeLayout';
 import { calculateSchemeLayout } from '../lib/schemeLayout';
+import { AtomMapping, ReactionClassification, GreenChemistryMetrics } from './types';
+import { mapAtomsAcrossSteps, classifyReaction, calculateGreenChemistryMetrics } from '../lib/atomMapping';
 
 interface ReactionSchemeStore {
   // State
@@ -9,6 +11,11 @@ interface ReactionSchemeStore {
   schemeLayout: SchemeLayout | null;
   selectedStepIndex: number | null;
   hoveredStepIndex: number | null;
+  atomMappings: AtomMapping | null;
+  reactionClassification: ReactionClassification | null;
+  greenMetrics: GreenChemistryMetrics | null;
+  atomLabelsVisible: boolean;
+  mappingLinesVisible: boolean;
 
   // Getters
   getCurrentStep(): MechanismStep | null;
@@ -39,6 +46,11 @@ interface ReactionSchemeStore {
   recalculateLayout(): void;
   setSelectedStepIndex(index: number | null): void;
   setHoveredStepIndex(index: number | null): void;
+
+  // Atom mapping and analysis
+  calculateAtomMappings(): void;
+  toggleAtomLabels(): void;
+  toggleMappingLines(): void;
 }
 
 export const useReactionSchemeStore = create<ReactionSchemeStore>((set, get) => ({
@@ -46,6 +58,11 @@ export const useReactionSchemeStore = create<ReactionSchemeStore>((set, get) => 
   schemeLayout: null,
   selectedStepIndex: null,
   hoveredStepIndex: null,
+  atomMappings: null,
+  reactionClassification: null,
+  greenMetrics: null,
+  atomLabelsVisible: true,
+  mappingLinesVisible: true,
 
   // Getter: current step
   getCurrentStep: () => {
@@ -127,6 +144,9 @@ export const useReactionSchemeStore = create<ReactionSchemeStore>((set, get) => 
       return {
         scheme: newScheme,
         schemeLayout: layout,
+        atomMappings: null,
+        reactionClassification: null,
+        greenMetrics: null,
       };
     });
   },
@@ -144,9 +164,18 @@ export const useReactionSchemeStore = create<ReactionSchemeStore>((set, get) => 
         steps: [...state.scheme.steps, step],
       };
       const layout = calculateSchemeLayout(newScheme);
+
+      // Recalculate atom mappings after adding step
+      const mappings = mapAtomsAcrossSteps(newScheme);
+      const classification = classifyReaction(newScheme);
+      const metrics = calculateGreenChemistryMetrics(newScheme);
+
       return {
         scheme: newScheme,
         schemeLayout: layout,
+        atomMappings: mappings,
+        reactionClassification: classification,
+        greenMetrics: metrics,
       };
     });
   },
@@ -169,10 +198,18 @@ export const useReactionSchemeStore = create<ReactionSchemeStore>((set, get) => 
       };
       const layout = calculateSchemeLayout(newScheme);
 
+      // Recalculate atom mappings after removing step
+      const mappings = mapAtomsAcrossSteps(newScheme);
+      const classification = classifyReaction(newScheme);
+      const metrics = calculateGreenChemistryMetrics(newScheme);
+
       return {
         scheme: newScheme,
         schemeLayout: layout,
         selectedStepIndex: state.selectedStepIndex !== null && state.selectedStepIndex >= newSteps.length ? null : state.selectedStepIndex,
+        atomMappings: mappings,
+        reactionClassification: classification,
+        greenMetrics: metrics,
       };
     });
   },
@@ -242,4 +279,31 @@ export const useReactionSchemeStore = create<ReactionSchemeStore>((set, get) => 
   setHoveredStepIndex: (index: number | null) => {
     set({ hoveredStepIndex: index });
   },
+
+  // Atom mapping and analysis
+  calculateAtomMappings: () => {
+    set((state) => {
+      if (!state.scheme) {
+        return {
+          atomMappings: null,
+          reactionClassification: null,
+          greenMetrics: null,
+        };
+      }
+
+      const mappings = mapAtomsAcrossSteps(state.scheme);
+      const classification = classifyReaction(state.scheme);
+      const metrics = calculateGreenChemistryMetrics(state.scheme);
+
+      return {
+        atomMappings: mappings,
+        reactionClassification: classification,
+        greenMetrics: metrics,
+      };
+    });
+  },
+
+  toggleAtomLabels: () => set((state) => ({ atomLabelsVisible: !state.atomLabelsVisible })),
+
+  toggleMappingLines: () => set((state) => ({ mappingLinesVisible: !state.mappingLinesVisible })),
 }));

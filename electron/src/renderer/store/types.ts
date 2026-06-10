@@ -116,3 +116,37 @@ export interface ReactionSchemeContext {
   currentStepIndex: number;         // 0-based index of current step
   viewMode: 'step' | 'scheme';      // Single step or full scheme view
 }
+
+// Atom mapping for reaction tracking
+export interface AtomMapEntry {
+  originalId: number;           // ID in first step
+  element: string;
+  formalCharge: number;
+  color: string;                // Assigned color for visualization
+  stepMappings: Array<{
+    stepIndex: number;
+    atomIdInStep: number;
+    retained: boolean;
+  }>;
+}
+
+export interface AtomMapping {
+  entries: Map<number, AtomMapEntry>;
+  totalMappedAtoms: number;
+}
+
+export interface ReactionClassification {
+  type: 'sn1' | 'sn2' | 'e1' | 'e2' | 'electrophilic_addition' | 'nucleophilic_addition' | 'other';
+  confidence: number;
+  indicators: string[];
+}
+
+export interface GreenChemistryMetrics {
+  atomEconomy: number;
+  eFactorApprox: number;
+  stepWaste: Array<{
+    stepIndex: number;
+    wasteAtoms: number;
+    percentage: number;
+  }>;
+}

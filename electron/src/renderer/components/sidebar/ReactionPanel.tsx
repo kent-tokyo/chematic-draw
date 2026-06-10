@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
 import { ReactionScheme, ReactionStep, ReactionCondition, createReactionStep, addStep, removeStep, updateConditions, executeReaction, SMIRKS_TEMPLATES } from '../../lib/reactions';
@@ -25,6 +25,14 @@ export function ReactionPanel() {
   const previousStep = useReactionSchemeStore((s) => s.previousStep);
   const canGoNext = useReactionSchemeStore((s) => s.canGoNext);
   const canGoPrevious = useReactionSchemeStore((s) => s.canGoPrevious);
+  const atomMappings = useReactionSchemeStore((s) => s.atomMappings);
+  const reactionClassification = useReactionSchemeStore((s) => s.reactionClassification);
+  const greenMetrics = useReactionSchemeStore((s) => s.greenMetrics);
+  const atomLabelsVisible = useReactionSchemeStore((s) => s.atomLabelsVisible);
+  const mappingLinesVisible = useReactionSchemeStore((s) => s.mappingLinesVisible);
+  const calculateAtomMappings = useReactionSchemeStore((s) => s.calculateAtomMappings);
+  const toggleAtomLabels = useReactionSchemeStore((s) => s.toggleAtomLabels);
+  const toggleMappingLines = useReactionSchemeStore((s) => s.toggleMappingLines);
 
   const bgColor = theme === 'dark' ? '#2f3a47' : '#ffffff';
   const borderColor = theme === 'dark' ? '#3a4a57' : '#e0e0e0';
@@ -91,6 +99,14 @@ export function ReactionPanel() {
     useReactionSchemeStore.getState().createScheme('New Mechanism', 'Multi-step reaction');
     setStatus('✓ New reaction scheme created');
   };
+
+  useEffect(() => {
+    if (scheme && scheme.steps.length > 0) {
+      calculateAtomMappings();
+    }
+  }, [scheme?.steps.length, calculateAtomMappings]);
+
+  const isDark = theme === 'dark';
 
   return (
     <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -221,6 +237,128 @@ export function ReactionPanel() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Reaction Classification Panel */}
+      {reactionClassification && scheme && scheme.steps.length > 0 && (
+        <div style={{
+          padding: '12px',
+          backgroundColor: isDark ? '#1a3a4a' : '#e3f2fd',
+          border: `1px solid ${isDark ? '#2a5a7a' : '#90caf9'}`,
+          borderRadius: '6px',
+          marginBottom: '12px',
+        }}>
+          <div style={{ fontSize: '12px', fontWeight: 'bold', color: isDark ? '#90caf9' : '#1976d2', marginBottom: '8px' }}>
+            Reaction Type
+          </div>
+          <div style={{ fontSize: '13px', fontWeight: 'bold', color: textColor, marginBottom: '4px' }}>
+            {reactionClassification.type.toUpperCase()}
+          </div>
+          <div style={{ fontSize: '10px', color: labelColor, marginBottom: '6px' }}>
+            Confidence: {Math.round(reactionClassification.confidence * 100)}%
+          </div>
+          {reactionClassification.indicators.map((ind, i) => (
+            <div key={i} style={{ fontSize: '9px', color: labelColor }}>• {ind}</div>
+          ))}
+        </div>
+      )}
+
+      {/* Atom Mapping Legend */}
+      {atomMappings && atomMappings.totalMappedAtoms > 0 && (
+        <div style={{
+          padding: '12px',
+          backgroundColor: isDark ? '#1e2a3a' : '#f9f9f9',
+          border: `1px solid ${borderColor}`,
+          borderRadius: '6px',
+          marginBottom: '12px',
+        }}>
+          <div style={{ fontSize: '12px', fontWeight: 'bold', color: textColor, marginBottom: '8px' }}>
+            Atom Mapping ({atomMappings.totalMappedAtoms} atoms)
+          </div>
+
+          {/* Color Legend */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px' }}>
+            {[
+              { color: '#51cf66', label: 'Persistent' },
+              { color: '#4d8dff', label: 'New' },
+              { color: '#ff6b6b', label: 'Leaving' },
+              { color: '#888888', label: 'Spectator' },
+            ].map((item) => (
+              <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px' }}>
+                <div style={{ width: '12px', height: '12px', backgroundColor: item.color, borderRadius: '2px' }} />
+                <span>{item.label}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Toggles */}
+          <div style={{ display: 'flex', gap: '4px' }}>
+            <button
+              onClick={() => toggleAtomLabels()}
+              style={{
+                flex: 1,
+                padding: '4px 6px',
+                backgroundColor: atomLabelsVisible ? accentColor : borderColor,
+                color: atomLabelsVisible ? 'white' : textColor,
+                border: 'none',
+                borderRadius: '2px',
+                cursor: 'pointer',
+                fontSize: '9px',
+              }}
+            >
+              {atomLabelsVisible ? '✓' : '○'} Labels
+            </button>
+            <button
+              onClick={() => toggleMappingLines()}
+              style={{
+                flex: 1,
+                padding: '4px 6px',
+                backgroundColor: mappingLinesVisible ? accentColor : borderColor,
+                color: mappingLinesVisible ? 'white' : textColor,
+                border: 'none',
+                borderRadius: '2px',
+                cursor: 'pointer',
+                fontSize: '9px',
+              }}
+            >
+              {mappingLinesVisible ? '✓' : '○'} Lines
+            </button>
+          </div>
+
+          {/* Atom List */}
+          <div style={{ marginTop: '8px', maxHeight: '120px', overflowY: 'auto', fontSize: '9px' }}>
+            {Array.from(atomMappings.entries).map(([id, entry]) => (
+              <div key={id} style={{ color: labelColor, marginBottom: '2px' }}>
+                <span style={{ fontWeight: 'bold' }}>{id}:</span> {entry.element}{entry.formalCharge > 0 ? '+' : entry.formalCharge < 0 ? '−' : ''}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Green Chemistry Metrics */}
+      {greenMetrics && scheme && scheme.steps.length > 0 && (
+        <div style={{
+          padding: '12px',
+          backgroundColor: isDark ? '#1a3a2a' : '#e8f5e9',
+          border: `1px solid ${isDark ? '#2a5a4a' : '#81c784'}`,
+          borderRadius: '6px',
+          marginBottom: '12px',
+        }}>
+          <div style={{ fontSize: '12px', fontWeight: 'bold', color: isDark ? '#81c784' : '#2e7d32', marginBottom: '8px' }}>
+            Green Chemistry Metrics
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-around', fontSize: '11px' }}>
+            <div>
+              <div style={{ fontWeight: 'bold', color: textColor }}>Atom Economy</div>
+              <div style={{ fontSize: '13px', color: '#4caf50', fontWeight: 'bold' }}>{greenMetrics.atomEconomy}%</div>
+            </div>
+            <div>
+              <div style={{ fontWeight: 'bold', color: textColor }}>E-Factor</div>
+              <div style={{ fontSize: '13px', color: '#ff9800', fontWeight: 'bold' }}>{greenMetrics.eFactorApprox}</div>
+            </div>
+          </div>
         </div>
       )}
 
