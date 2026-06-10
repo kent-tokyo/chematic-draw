@@ -178,3 +178,19 @@ export function identifyFunctionalGroups(mol: MoleculeDto): string[] {
   const result = wasmModule.identify_functional_groups_wasm(mol);
   return result as string[];
 }
+
+/**
+ * Execute SMIRKS-based reaction on a molecule.
+ * @param mol reactant molecule
+ * @param smirks SMIRKS pattern (e.g., "[C:1](=[O])[OH]>>[C:1](=[O])[NH2]")
+ * @returns array of product molecules
+ */
+export function runReactants(mol: MoleculeDto, smirks: string): MoleculeDto[] {
+  try {
+    const result = wasmModule.run_reactants(mol, smirks);
+    return result as MoleculeDto[];
+  } catch (err) {
+    console.error('Reaction execution failed:', err);
+    return [];
+  }
+}

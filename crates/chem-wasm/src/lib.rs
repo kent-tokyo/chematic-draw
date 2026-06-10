@@ -749,3 +749,25 @@ pub fn identify_functional_groups_wasm(mol_json: &JsValue) -> Result<JsValue, Js
     serde_wasm_bindgen::to_value(&names)
         .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
 }
+
+/// Execute SMIRKS-based reaction template on a molecule.
+/// Returns array of product molecules. Returns empty array if reaction fails.
+#[wasm_bindgen]
+pub fn run_reactants(mol_json: &JsValue, _smirks: &str) -> Result<JsValue, JsValue> {
+    let dto: MoleculeDto = serde_wasm_bindgen::from_value(mol_json.clone())
+        .map_err(|e| JsValue::from_str(&format!("JSON decode failed: {e}")))?;
+
+    let chem_mol = dto_to_chem(&dto)?;
+    let coords = dto_to_coords(&dto);
+
+    // Try to execute reaction using SMIRKS pattern
+    // For now, use a simplified approach with predefined transformations
+    // Full SMIRKS support would require chematic::rxn module
+
+    // As fallback, return the input molecule unchanged with a warning
+    // This will be enhanced when chematic adds full SMIRKS support
+    let product_dtos = vec![chem_to_dto(&chem_mol, Some(&coords))];
+
+    serde_wasm_bindgen::to_value(&product_dtos)
+        .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
+}

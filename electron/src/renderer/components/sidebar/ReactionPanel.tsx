@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
-import { ReactionScheme, ReactionStep, ReactionCondition, createReactionStep, addStep, removeStep, updateConditions } from '../../lib/reactions';
+import { ReactionScheme, ReactionStep, ReactionCondition, createReactionStep, addStep, removeStep, updateConditions, executeReaction, SMIRKS_TEMPLATES } from '../../lib/reactions';
 
 export function ReactionPanel() {
   const scheme = useMoleculeStore((s) => s.reactionScheme);
@@ -11,6 +11,9 @@ export function ReactionPanel() {
   const [expandedStepId, setExpandedStepId] = useState<string | null>(null);
   const [newStepReactants, setNewStepReactants] = useState<number>(1);
   const [newStepProducts, setNewStepProducts] = useState<number>(1);
+  const [smirlksInput, setSmirlksInput] = useState<string>('');
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('carboxylic_acid_to_amide');
+  const [reactionError, setReactionError] = useState<string>('');
 
   const bgColor = theme === 'dark' ? '#2f3a47' : '#ffffff';
   const borderColor = theme === 'dark' ? '#3a4a57' : '#e0e0e0';
@@ -45,6 +48,32 @@ export function ReactionPanel() {
       step.arrowType = arrowType;
       onSchemeChange({ ...scheme });
     }
+  };
+
+  const molecule = useMoleculeStore((s) => s.molecule);
+
+  const handleRunReaction = () => {
+    if (!molecule || molecule.atoms.length === 0) {
+      setReactionError('No molecule selected');
+      return;
+    }
+
+    const smirks = smirlksInput || SMIRKS_TEMPLATES[selectedTemplate as keyof typeof SMIRKS_TEMPLATES];
+    if (!smirks) {
+      setReactionError('No SMIRKS pattern provided');
+      return;
+    }
+
+    const newStep = executeReaction(molecule, smirks);
+    if (!newStep) {
+      setReactionError('Reaction execution failed. Check SMIRKS syntax.');
+      return;
+    }
+
+    setReactionError('');
+    const updatedScheme = { ...scheme, steps: [...scheme.steps, newStep] };
+    onSchemeChange(updatedScheme);
+    setSmirlksInput('');
   };
 
   return (
@@ -276,6 +305,90 @@ export function ReactionPanel() {
               )}
             </div>
           ))
+        )}
+      </div>
+
+      {/* Reaction Executor */}
+      <div style={{ padding: '12px', backgroundColor: bgColor, borderRadius: '4px', border: `1px solid ${borderColor}`, marginBottom: '12px' }}>
+        <div style={{ fontSize: '11px', fontWeight: 'bold', color: textColor, marginBottom: '8px' }}>
+          Execute Reaction
+        </div>
+
+        <div style={{ marginBottom: '8px' }}>
+          <label style={{ fontSize: '10px', color: labelColor, display: 'block', marginBottom: '4px' }}>
+            Template
+          </label>
+          <select
+            value={selectedTemplate}
+            onChange={(e) => setSelectedTemplate(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '4px',
+              border: `1px solid ${borderColor}`,
+              borderRadius: '3px',
+              backgroundColor: theme === 'dark' ? '#0e1530' : '#ffffff',
+              color: textColor,
+              fontSize: '10px',
+              boxSizing: 'border-box',
+            }}
+          >
+            <option value="carboxylic_acid_to_amide">Carboxylic acid → Amide</option>
+            <option value="ester_to_acid">Ester → Acid</option>
+            <option value="ester_to_alcohol">Ester → Alcohol</option>
+            <option value="alcohol_to_aldehyde">Alcohol → Aldehyde</option>
+            <option value="aldehyde_to_carboxylic_acid">Aldehyde → Carboxylic acid</option>
+            <option value="ketone_to_alcohol">Ketone → Alcohol</option>
+            <option value="custom">Custom SMIRKS</option>
+          </select>
+        </div>
+
+        {selectedTemplate === 'custom' && (
+          <div style={{ marginBottom: '8px' }}>
+            <label style={{ fontSize: '10px', color: labelColor, display: 'block', marginBottom: '4px' }}>
+              SMIRKS Pattern
+            </label>
+            <textarea
+              placeholder="e.g., [C:1](=[O])[OH]>>[C:1](=[O])[NH2]"
+              value={smirlksInput}
+              onChange={(e) => setSmirlksInput(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '4px',
+                border: `1px solid ${borderColor}`,
+                borderRadius: '3px',
+                backgroundColor: theme === 'dark' ? '#0e1530' : '#ffffff',
+                color: textColor,
+                fontSize: '9px',
+                fontFamily: 'monospace',
+                minHeight: '50px',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+        )}
+
+        <button
+          onClick={handleRunReaction}
+          style={{
+            width: '100%',
+            padding: '6px',
+            backgroundColor: '#4d8dff',
+            color: 'white',
+            border: 'none',
+            borderRadius: '3px',
+            cursor: 'pointer',
+            fontSize: '10px',
+            fontWeight: 'bold',
+            marginBottom: reactionError ? '6px' : '0',
+          }}
+        >
+          Execute Reaction
+        </button>
+
+        {reactionError && (
+          <div style={{ fontSize: '9px', color: '#f26d6d', padding: '4px', backgroundColor: 'rgba(242, 109, 109, 0.1)', borderRadius: '3px' }}>
+            {reactionError}
+          </div>
         )}
       </div>
 

@@ -15,6 +15,7 @@ export function InspectorPanel() {
   const [smartsPattern, setSmartsPattern] = useState('');
   const [smartsMatches, setSmartsMatches] = useState<number[]>([]);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [functionalGroups, setFunctionalGroups] = useState<string[]>([]);
 
   // Validate molecule
   useEffect(() => {
@@ -40,6 +41,20 @@ export function InspectorPanel() {
     }
   };
 
+  // Identify functional groups
+  useEffect(() => {
+    if (molecule && molecule.atoms.length > 0) {
+      try {
+        const groups = wasmBridge.identifyFunctionalGroups(molecule);
+        setFunctionalGroups(groups);
+      } catch (err) {
+        setFunctionalGroups([]);
+      }
+    } else {
+      setFunctionalGroups([]);
+    }
+  }, [molecule]);
+
   const bgColor = theme === 'dark' ? '#1e2530' : '#f9f9f9';
   const textColor = theme === 'dark' ? '#d8deea' : '#1d2430';
   const inputBg = theme === 'dark' ? '#2f3a47' : '#ffffff';
@@ -58,11 +73,41 @@ export function InspectorPanel() {
     }
   };
 
+  // Functional groups section
+  const FunctionalGroupsSection = () => (
+    <div style={{ padding: '12px', backgroundColor: bgColor, borderRadius: '4px', border: `1px solid ${labelColor}` }}>
+      <div style={{ fontSize: '11px', fontWeight: 'bold', color: textColor, marginBottom: '8px' }}>
+        Functional Groups
+      </div>
+      {functionalGroups.length === 0 ? (
+        <div style={{ fontSize: '10px', color: labelColor }}>None detected</div>
+      ) : (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+          {functionalGroups.map((group, i) => (
+            <div
+              key={i}
+              style={{
+                fontSize: '9px',
+                backgroundColor: '#4d8dff',
+                color: 'white',
+                padding: '4px 8px',
+                borderRadius: '12px',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {group.replace(/[()]/g, '')}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   // Validation section
   const ValidationSection = () => (
     <div style={{ padding: '12px', backgroundColor: bgColor, borderRadius: '4px', border: `1px solid ${labelColor}` }}>
       <div style={{ fontSize: '11px', fontWeight: 'bold', color: textColor, marginBottom: '8px' }}>
-        ⚠️ Validation
+        Validation
       </div>
       {validationErrors.length === 0 ? (
         <div style={{ fontSize: '10px', color: '#58c97a' }}>✓ No errors</div>
@@ -129,6 +174,7 @@ export function InspectorPanel() {
         <div style={{ color: labelColor, fontSize: '12px', textAlign: 'center', padding: '20px 0' }}>
           Select an atom or bond to inspect
         </div>
+        <FunctionalGroupsSection />
         <ValidationSection />
         <SmartsSection />
       </div>
@@ -271,6 +317,7 @@ export function InspectorPanel() {
 
       {!selectedAtom && !selectedBond && (
         <>
+          <FunctionalGroupsSection />
           <ValidationSection />
           <SmartsSection />
         </>
