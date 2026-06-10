@@ -2,12 +2,14 @@ import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react'
 import { useMoleculeStore } from '../../store/moleculeStore';
 import { useCanvasStore } from '../../store/canvasStore';
 import { useUIStore } from '../../store/uiStore';
+import { useMechanismStore } from '../../store/mechanismStore';
 import { useKeyboard } from '../../hooks/useKeyboard';
 import { useCanvasInteraction } from '../../hooks/useCanvasInteraction';
 import { useContextMenu } from '../../hooks/useContextMenu';
 import { CanvasRenderer } from './CanvasRenderer';
 import { Tool } from '../../store/types';
 import { mergeTemplateIntoMolecule } from '../../lib/templateMerge';
+import { calculateArrowPath, distanceToCurve } from '../../lib/arrowGeometry';
 
 export function MoleculeCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -26,6 +28,10 @@ export function MoleculeCanvas() {
   const theme = useUIStore.getState().theme;
   const bondDragPos = useCanvasStore.getState().bondDragPos;
   const bondDragFrom = useCanvasStore.getState().bondDragFrom;
+  const activeSidebarPanel = useUIStore((s) => s.activeSidebarPanel);
+  const mechanismArrows = useMechanismStore((s) => s.arrows);
+  const selectedArrowId = useMechanismStore((s) => s.selectedArrowId);
+  const hoverArrowId = useMechanismStore((s) => s.hoverArrowId);
 
   const selectedAtomIds = useMemo(() =>
     molecule.atoms.filter((a) => 'selected' in a && (a as any).selected).map((a) => a.id),
@@ -77,7 +83,16 @@ export function MoleculeCanvas() {
       bondDragFrom,
       bondDragPos,
     });
-  }, [molecule, theme, hoverAtomId, hoverBondId, selectedAtomIds, selectedBondIds, bondDragPos, bondDragFrom]);
+
+    // Draw mechanism arrows if panel is active
+    if (activeSidebarPanel === 'mechanism' && mechanismArrows.length > 0) {
+      renderer.drawMechanismArrows(molecule, mechanismArrows, canvasState, {
+        theme,
+        selectedArrowId,
+        hoverArrowId,
+      });
+    }
+  }, [molecule, theme, hoverAtomId, hoverBondId, selectedAtomIds, selectedBondIds, bondDragPos, bondDragFrom, activeSidebarPanel, mechanismArrows, selectedArrowId, hoverArrowId]);
 
   // Handle zoom
   const handleWheel = (e: React.WheelEvent) => {

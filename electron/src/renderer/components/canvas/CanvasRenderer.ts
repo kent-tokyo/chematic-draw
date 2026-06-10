@@ -1,5 +1,7 @@
 import { MoleculeDto, AtomDto, BondDto } from '../../store/types';
 import { CanvasState } from '../../store/types';
+import { calculateArrowPath, getArrowHeadPoints, distanceToCurve, CanvasState as ArrowCanvasState } from '../../lib/arrowGeometry';
+import { MechanismArrow } from '../../store/types';
 
 export interface RenderOptions {
   theme: 'dark' | 'light';
@@ -298,6 +300,76 @@ export class CanvasRenderer {
       const chargeStr = atom.charge > 0 ? `+${atom.charge}` : `${atom.charge}`;
       this.ctx.font = `${10 * state.zoom}px Arial`;
       this.ctx.fillText(chargeStr, x + radius + 5, y - radius - 5);
+    }
+  }
+
+  drawMechanismArrows(
+    molecule: MoleculeDto,
+    arrows: MechanismArrow[],
+    state: ArrowCanvasState,
+    options: RenderOptions
+  ) {
+    const colors = COLORS[options.theme];
+
+    for (const arrow of arrows) {
+      const path = calculateArrowPath(molecule, arrow, state);
+      if (!path) continue;
+
+      const isSelected = (options as any).selectedArrowId === arrow.id;
+      const isHover = (options as any).hoverArrowId === arrow.id;
+
+      let arrowColor = colors.bond;
+      if (arrow.type === 'forward') {
+        arrowColor = '#4d8dff';
+      } else if (arrow.type === 'retro') {
+        arrowColor = '#ff6b6b';
+      } else if (arrow.type === 'resonance') {
+        arrowColor = '#51cf66';
+      }
+
+      if (isSelected) arrowColor = colors.selected;
+      else if (isHover) arrowColor = colors.accent;
+
+      this.ctx.strokeStyle = arrowColor;
+      this.ctx.lineWidth = 2.5;
+      this.ctx.lineCap = 'round';
+      this.ctx.lineJoin = 'round';
+
+      this.ctx.beginPath();
+      this.ctx.moveTo(path.startX, path.startY);
+      this.ctx.quadraticCurveTo(path.controlX, path.controlY, path.endX, path.endY);
+      this.ctx.stroke();
+
+      const headPoints = getArrowHeadPoints(path.endX, path.endY, path.endAngle);
+      this.ctx.fillStyle = arrowColor;
+      this.ctx.beginPath();
+      this.ctx.moveTo(headPoints.x1, headPoints.y1);
+      this.ctx.lineTo(headPoints.x2, headPoints.y2);
+      this.ctx.lineTo(headPoints.x3, headPoints.y3);
+      this.ctx.closePath();
+      this.ctx.fill();
+
+      if (arrow.type === 'retro') {
+        this.ctx.strokeStyle = arrowColor;
+        this.ctx.lineWidth = 2;
+        this.ctx.setLineDash([5, 3]);
+        this.ctx.beginPath();
+        this.ctx.moveTo(path.startX, path.startY);
+        this.ctx.quadraticCurveTo(path.controlX, path.controlY, path.endX, path.endY);
+        this.ctx.stroke();
+        this.ctx.setLineDash([]);
+      }
+
+      if (arrow.type === 'resonance') {
+        this.ctx.strokeStyle = arrowColor;
+        this.ctx.lineWidth = 1.5;
+        this.ctx.setLineDash([3, 3]);
+        this.ctx.beginPath();
+        this.ctx.moveTo(path.startX, path.startY);
+        this.ctx.quadraticCurveTo(path.controlX, path.controlY, path.endX, path.endY);
+        this.ctx.stroke();
+        this.ctx.setLineDash([]);
+      }
     }
   }
 }

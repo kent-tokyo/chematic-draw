@@ -1,4 +1,4 @@
-import { MoleculeDto } from '../store/types';
+import { MoleculeDto, MechanismArrow } from '../store/types';
 import * as wasmBridge from '../wasm/wasmBridge';
 
 // Phase 6: Stereoisomer Enumeration
@@ -101,7 +101,7 @@ export interface MechanismStep {
   id: string;
   reactants: MoleculeDto[];
   products: MoleculeDto[];
-  arrows: 'forward' | 'retro' | 'resonance';
+  arrows: MechanismArrow[];
   mechanismType: 'sn2' | 'sn1' | 'e1' | 'e2' | 'electrophilic_addition';
 }
 
@@ -111,7 +111,7 @@ export function createMechanismStep(id: string): MechanismStep {
     id,
     reactants: [],
     products: [],
-    arrows: 'forward',
+    arrows: [],
     mechanismType: 'sn2',
   };
 }

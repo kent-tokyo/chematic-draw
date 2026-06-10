@@ -69,3 +69,22 @@ export interface UIState {
   sidebarWidth: number;
   focusMode: boolean;
 }
+
+// Mechanism state
+export interface MechanismArrow {
+  id: string;
+  sourceAtomId: number;
+  sinkAtomId: number;
+  type: 'forward' | 'retro' | 'resonance';
+  stepId: string;
+  label?: string;
+}
+
+export interface MechanismState {
+  arrows: MechanismArrow[];
+  selectedArrowId: string | null;
+  arrowSelectionMode: 'idle' | 'awaitingSink';
+  pendingSourceAtomId: number | null;
+  pendingSinkAtomId: number | null;
+  hoverArrowId: string | null;
+}

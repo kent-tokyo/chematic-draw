@@ -1,8 +1,11 @@
 import { useCallback, useRef, useMemo } from 'react';
 import { useMoleculeStore } from '../store/moleculeStore';
 import { useCanvasStore } from '../store/canvasStore';
+import { useUIStore } from '../store/uiStore';
+import { useMechanismStore } from '../store/mechanismStore';
 import { Tool } from '../store/types';
 import { hitTestAtom, hitTestBond, calculateBondedAtomPosition, getConnectedComponent } from '../lib/geometry';
+import { calculateArrowPath, distanceToCurve } from '../lib/arrowGeometry';
 
 const DRAG_THRESHOLD = 4;
 const BOND_LENGTH = 60;
@@ -29,6 +32,11 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
   const setHoverBond = useCanvasStore((s) => s.setHoverBond);
   const setBondDrag = useCanvasStore((s) => s.setBondDrag);
   const pan = useCanvasStore((s) => s.pan);
+  const activeSidebarPanel = useUIStore((s) => s.activeSidebarPanel);
+  const setStatus = useUIStore((s) => s.setStatus);
+  const mechanismArrows = useMechanismStore((s) => s.arrows);
+  const arrowSelectionMode = useMechanismStore((s) => s.arrowSelectionMode);
+  const pendingSourceAtomId = useMechanismStore((s) => s.pendingSourceAtomId);
 
   const addAtom = useMoleculeStore((s) => s.addAtom);
   const updateAtom = useMoleculeStore((s) => s.updateAtom);
@@ -53,6 +61,27 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
         startX: screenX,
         startY: screenY,
       };
+
+      // Handle mechanism arrow selection mode
+      if (activeSidebarPanel === 'mechanism' && arrowSelectionMode !== 'idle') {
+        const atomId = hitTestAtom(molecule, screenX, screenY, canvasState);
+        if (atomId !== null) {
+          if (arrowSelectionMode === 'awaitingSink') {
+            // This is the sink atom click
+            if (atomId === pendingSourceAtomId) {
+              setStatus('Source and sink atoms must be different');
+              useMechanismStore.getState().cancelArrowSelection();
+              return;
+            }
+            // Set the sink atom ID - MechanismPanel will watch for this and show the dialog
+            useMechanismStore.getState().setPendingSinkAtomId(atomId);
+            return;
+          }
+        } else {
+          setStatus('Click on an atom to select it');
+          return;
+        }
+      }
 
       // Handle tool-specific logic
       if (activeTool === Tool.Select) {
@@ -98,7 +127,7 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
         }
       }
     },
-    [molecule, activeTool, selectAtom, deselectAll, removeAtom, removeBond, updateAtom, addAtom, pushUndo]
+    [molecule, activeTool, activeSidebarPanel, arrowSelectionMode, pendingSourceAtomId, selectAtom, deselectAll, removeAtom, removeBond, updateAtom, addAtom, pushUndo, setStatus]
   );
 
   const onMouseMove = useCallback(
@@ -108,6 +137,19 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
       const screenX = e.clientX - rect.left;
       const screenY = e.clientY - rect.top;
       const canvasState = { offset, zoom };
+
+      // Check if hovering over arrow
+      if (activeSidebarPanel === 'mechanism' && mechanismArrows.length > 0) {
+        let foundArrowId: string | null = null;
+        for (const arrow of mechanismArrows) {
+          const path = calculateArrowPath(molecule, arrow, { offset: canvasState.offset, zoom: canvasState.zoom });
+          if (path && distanceToCurve(screenX, screenY, path) < 8) {
+            foundArrowId = arrow.id;
+            break;
+          }
+        }
+        useMechanismStore.getState().setHoverArrow(foundArrowId);
+      }
 
       // Update hover state
       setHoverAtom(hitTestAtom(molecule, screenX, screenY, canvasState));
@@ -135,7 +177,7 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
         setBondDrag(dragStateRef.current.bondFrom, { x: screenX, y: screenY });
       }
     },
-    [molecule, activeTool, setHoverAtom, setHoverBond, pan, updateAtom, setBondDrag]
+    [molecule, activeTool, setHoverAtom, setHoverBond, pan, updateAtom, setBondDrag, activeSidebarPanel, mechanismArrows]
   );
 
   const onMouseUp = useCallback(
