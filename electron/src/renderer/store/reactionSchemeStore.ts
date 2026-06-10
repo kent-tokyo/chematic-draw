@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { ReactionSchemeContext, MechanismStep, MechanismArrow } from './types';
+import { ReactionSchemeContext, MechanismArrow } from './types';
+import { MechanismStep } from '../lib/advancedFeatures';
 import { SchemeLayout } from '../lib/schemeLayout';
 import { calculateSchemeLayout } from '../lib/schemeLayout';
 import { AtomMapping, ReactionClassification, GreenChemistryMetrics } from './types';

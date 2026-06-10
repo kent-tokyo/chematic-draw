@@ -128,10 +128,10 @@ export function exportSchemeAsSVG(
     <text x="0" y="0" class="legend-label" style="font-weight: bold;">Green Chemistry Metrics:</text>
 `;
 
-  if (schemeLayout.stepBoxes.length > 0) {
+  if (greenMetrics) {
     svg += `
-    <text x="0" y="20" class="metric-text">Atom Economy: [pending]</text>
-    <text x="0" y="40" class="metric-text">E-Factor: [pending]</text>
+    <text x="0" y="20" class="metric-text">Atom Economy: ${greenMetrics.atomEconomy}%</text>
+    <text x="0" y="40" class="metric-text">E-Factor: ${greenMetrics.eFactorApprox}</text>
 `;
   }
 
