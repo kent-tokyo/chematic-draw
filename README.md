@@ -1,7 +1,7 @@
 # chematic-draw
 
 An open-source chemical structure editor written in **Pure Rust**.  
-An experimental, offline-first chemical drawing environment — not yet a drop-in replacement for ChemDraw, ChemDoodle, Ketcher, or ChemSketch, but built toward chemical correctness and interoperability first. See [ROADMAP.md](./ROADMAP.md) for the current positioning and priorities.
+An experimental, offline-first chemical drawing environment — not yet a drop-in replacement for ChemDraw, ChemDoodle, Ketcher, or ChemSketch, but built toward chemical correctness and interoperability first.
 
 ---
 

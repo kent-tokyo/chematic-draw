@@ -1,7 +1,7 @@
 # chematic-draw
 
 **Pure Rust** で書かれたオープンソースの化学構造描画エディタ。  
-実験的なオフラインファーストの化学構造描画環境です。ChemDraw・ChemDoodle・Ketcher・ChemSketch の代替を目指していますが、まだドロップイン置き換えではなく、科学的正確性と相互運用性を優先して開発しています。現在の方針は [ROADMAP.md](./ROADMAP.md) を参照してください。
+実験的なオフラインファーストの化学構造描画環境です。ChemDraw・ChemDoodle・Ketcher・ChemSketch の代替を目指していますが、まだドロップイン置き換えではなく、科学的正確性と相互運用性を優先して開発しています。
 
 ---
 

@@ -30,7 +30,6 @@ Have you considered alternative approaches? Are there existing tools that solve 
 - Any related issues or discussions?
 
 ## Checklist
-- [ ] I've checked the roadmap (ROADMAP.md)
 - [ ] This isn't covered by existing features
 - [ ] I've described the use case clearly
 - [ ] This aligns with the project vision

@@ -144,3 +144,5 @@ perf.data.old
 coverage/
 lcov.info
 tarpaulin-report.*
+
+internal_docs/
