@@ -87,13 +87,16 @@ console.log(aspirin.bonds.length);  // 13
 
 ### validateMolecule(mol: MoleculeDto): ValidationResult
 
-Check molecule validity and report issues.
+Check molecule *structural* validity: bonds referencing atom IDs that don't
+exist (error), and atoms with no bonds when the molecule has more than one atom
+(warning). **Does not check valence** — that's a separate check, only run as
+part of `getProperties()`'s `valence_errors` field.
 
 ```typescript
 interface ValidationResult {
   valid: boolean;
-  errors: string[];        // "Invalid valence", "Disconnected graph", etc.
-  warnings: string[];      // "Uncommon element", "High formal charge", etc.
+  errors: string[];        // e.g. "bond references missing atom id"
+  warnings: string[];      // e.g. "N disconnected atom(s)"
 }
 
 const result = wasmBridge.validateMolecule(mol);
@@ -159,7 +162,7 @@ console.log(mol3d.atoms[0]);  // { id: 0, element: "C", x: 0.5, y: 1.2, z: -0.3 
 
 ### minimize3d(mol: MoleculeDto, coords: Coords3dDto): Coords3dDto
 
-Optimize 3D coordinates using Universal Force Field (UFF).
+Optimize 3D coordinates via gradient descent on a UFF-derived energy function.
 
 ```typescript
 const initialCoords = await wasmBridge.generate3dCoords(mol);
@@ -171,7 +174,10 @@ const optimized = await wasmBridge.minimize3d(mol, initialCoords);
 - Van der Waals forces
 - Bond stretch penalties
 - Angle bend penalties
-- Dihedral torsion constraints
+
+No dihedral torsion term is included in this code path (chematic-3d has a
+separate MMFF94 implementation that does include torsion, not what's wired up
+here).
 
 **Performance:**
 - 100-200 iterations
@@ -206,19 +212,23 @@ console.log(coords.atoms.length);  // 6
 
 ---
 
-### parsePdb(text: string): { mol: MoleculeDto; coords: Coords3dDto }
+### parsePdb(text: string): Coords3dDto
 
-Parse PDB file (ATOM records only).
+Parse a PDB file's ATOM/HETATM records into raw 3D coordinates.
 
 ```typescript
-const { mol, coords } = await wasmBridge.parsePdb(pdbText);
-// Returns both connectivity and coordinates
+const coords = wasmBridge.parsePdb(pdbText);
+// coords.atoms: { id, element, x, y, z }[]
 ```
 
 **Supported:**
 - ATOM/HETATM records
-- Standard bond inference
 - Element detection from atomic symbols
+
+**Not supported:** bond inference. This returns coordinates only — no
+`MoleculeDto`, no connectivity. Building a bonded molecule from a PDB structure
+would require inferring bonds from interatomic distances, which isn't
+implemented; the raw atoms/coordinates are what's actually available today.
 
 ---
 
@@ -230,7 +240,7 @@ Generate ECFP4 extended connectivity fingerprint.
 
 ```typescript
 const fp = wasmBridge.getFingerprint(mol);
-// Returns hex string: "a1f3c2e5f7..." (256-bit, 64 hex chars)
+// Returns hex string: "a1f3c2e5f7..." (2048-bit, 512 hex chars)
 ```
 
 **Properties:**

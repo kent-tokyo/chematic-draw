@@ -667,8 +667,10 @@ pub fn enumerate_stereoisomers(mol_json: &JsValue) -> Result<JsValue, JsValue> {
         .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
 }
 
-/// Convert molecule to InChI string.
-/// Uses chematic_inchi::inchi() to generate standard IUPAC InChI format.
+/// Convert molecule to an InChI-like string via chematic_inchi::inchi() — a pure-Rust,
+/// FFI-free approximation documented by that crate as not bit-exact with the real
+/// IUPAC reference implementation (which needs the `native-inchi` feature, unavailable
+/// in WASM). Do not expect this to match InChIKeys computed by PubChem/RDKit/ChemSpider.
 #[wasm_bindgen]
 pub fn mol_to_inchi(mol_json: &JsValue) -> Result<String, JsValue> {
     use chematic_inchi;
@@ -682,8 +684,8 @@ pub fn mol_to_inchi(mol_json: &JsValue) -> Result<String, JsValue> {
     Ok(chematic_inchi::inchi(&chem_mol))
 }
 
-/// Convert InChI string to InChIKey.
-/// Uses chematic_inchi::inchi_key() for standard IUPAC InChIKey format.
+/// Convert an InChI string to its InChIKey (real SHA-256-based hashing, but built
+/// on the approximate InChI above, so it inherits the same non-bit-exactness).
 #[wasm_bindgen]
 pub fn inchi_to_inchikey(inchi: &str) -> Result<String, JsValue> {
     use chematic_inchi;

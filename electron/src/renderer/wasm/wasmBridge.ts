@@ -126,16 +126,18 @@ export function enumerateStereoisomers(mol: MoleculeDto): MoleculeDto[] {
 }
 
 /**
- * Convert molecule to InChI string.
- * Uses chematic-inchi to generate standard IUPAC InChI format.
+ * Convert molecule to an InChI-like string via chematic-inchi — a pure-Rust
+ * approximation, not bit-exact with the real IUPAC reference implementation
+ * (that needs a native feature unavailable in WASM). Don't expect this to match
+ * InChIKeys from PubChem/RDKit/ChemSpider for the same molecule.
  */
 export function molToInchi(mol: MoleculeDto): string {
   return wasmModule.mol_to_inchi(mol);
 }
 
 /**
- * Convert InChI string to InChIKey.
- * Uses chematic-inchi to generate standard IUPAC InChIKey format.
+ * Convert an InChI string to its InChIKey (real hashing, but inherits the
+ * approximate InChI above — see molToInchi).
  */
 export function inchiToInchikey(inchi: string): string {
   return wasmModule.inchi_to_inchikey(inchi);

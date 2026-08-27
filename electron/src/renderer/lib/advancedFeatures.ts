@@ -128,7 +128,11 @@ export interface DatabaseResult {
 
 export async function searchDatabase(mol: MoleculeDto, source: 'pubchem' | 'chemspider'): Promise<DatabaseResult[]> {
   try {
-    // Get InChIKey from the molecule
+    // Get InChIKey from the molecule. Note: chematic-inchi's InChI is a pure-Rust
+    // approximation, not bit-exact with the real IUPAC reference implementation
+    // (see wasmBridge.molToInchi), so the InChIKey computed here will often not
+    // match PubChem's own InChIKey for the same molecule — this lookup can
+    // legitimately return no results for a molecule that IS in PubChem.
     const inchi = wasmBridge.molToInchi(mol);
     if (!inchi || inchi.startsWith('InChI_placeholder')) {
       throw new Error('Failed to generate InChI for molecule');

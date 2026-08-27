@@ -63,27 +63,30 @@ Legend: `Yes` = Full support · `Partial` = Limited / partial · `No` = Not supp
 | **logP (Crippen)** | Yes | Yes | Yes | No | No | No |
 | **TPSA** | Yes | Yes | Yes | No | No | No |
 | **Lipinski / drug-likeness** | Yes | Yes | Partial | No | No | No |
-| **QED score** | Yes | Partial | No | No | No | No |
-| **IUPAC name (offline)** | No | Yes | Partial | No | No | No |
-| **IUPAC name (online)** | Yes (online, PubChem) | Yes | Yes | Partial | No | No |
-| **Name-to-structure** | No | Yes | Yes | No | No | Partial |
+| **QED score** | No | Partial | No | No | No | No |
+| **IUPAC name (offline)** | Yes | Yes | Partial | No | No | No |
+| **IUPAC name (online)** | No | Yes | Yes | Partial | No | No |
+| **Name-to-structure** | Yes (online, PubChem) | Yes | Yes | No | No | Partial |
 | **SMARTS substructure search** | Yes | Yes | Yes | Yes | No | No |
-| **Fingerprints (Morgan, ECFP)** | Yes | Yes | Yes | Partial | No | No |
-| **Tautomer enumeration** | Yes | Yes | Partial | No | No | No |
+| **Fingerprints (Morgan, ECFP)** | Partial (WASM/Electron build only) | Yes | Yes | Partial | No | No |
+| **Tautomer enumeration** | No | Yes | Partial | No | No | No |
 | **Stereochemistry (R/S, E/Z)** | Partial | Yes | Yes | Yes | Partial | Partial |
-| **Isotope labeling** | Partial | Yes | Yes | Yes | No | Partial |
-| **Formal charge / radicals** | Yes | Yes | Yes | Yes | Partial | Yes |
-| **Atom mapping (reactions)** | No | Yes | Yes | Yes | No | No |
+| **Isotope labeling** | No | Yes | Yes | Yes | No | Partial |
+| **Formal charge** | Yes | Yes | Yes | Yes | Partial | Yes |
+| **Radicals** | No | Yes | Yes | Yes | No | No |
+| **Atom mapping (reactions)** | Partial (manual) | Yes | Yes | Yes | No | No |
 | **Abbreviated groups (Ph, Ac...)** | No | Yes | Yes | Yes | No | Partial |
-| **Built-in template library** | No | Yes | Yes | Yes | Partial | Partial |
+| **Built-in template library** | Yes | Yes | Yes | Yes | Partial | Partial |
 | **Polymer / S-group notation** | No | Yes | Partial | Partial | No | No |
 | **Markush structures** | No | Yes | No | Partial | No | No |
 | **NMR / spectra prediction** | No | Yes (add-on) | No | No | No | Partial |
 | **Undo / Redo** | Yes | Yes | Yes | Yes | Partial | Yes |
-| **Structure validation** | No | Yes | Yes | Yes | No | No |
+| **Structure validation** | Partial (valence only) | Yes | Yes | Yes | No | No |
 | **Fully offline** | Yes (note 1) | Yes | Partial (note 2) | Partial (note 2) | Yes | Yes |
 
-> Note 1: All features except IUPAC name lookup work offline.  
+> Note 1: Everything is offline except "Import by Name" (name-to-structure lookup
+> against PubChem). QED, tautomer enumeration, and isotope labeling are unused/
+> unimplemented in the UI regardless of network access — see the notes above.  
 > Note 2: Web-based tools require a browser; some features require a server connection.
 
 ### UI and UX
@@ -113,8 +116,9 @@ Legend: `Yes` = Full support · `Partial` = Limited / partial · `No` = Not supp
 | Multi-language UI (English / Japanese) | Yes |
 | Clipboard paste — SMILES & MOL V2000 (Ctrl+V) | Yes |
 | Export as SMILES, MOL, SVG, PNG | Yes |
-| IUPAC name lookup (PubChem API, requires internet) | Yes |
-| Molecular weight, logP, TPSA, QED calculation | Yes |
+| IUPAC name generation (offline, local algorithm) | Yes |
+| Import by Name — name-to-structure (PubChem API, requires internet) | Yes |
+| Molecular weight, logP, TPSA calculation | Yes |
 | Reaction mechanism canvas (arrows, curly arrows) | Yes |
 | 3D molecular viewer (ball-and-stick, orthographic) | Yes |
 | ChemDraw XML (CDXML) import (read only) | Partial |
@@ -161,7 +165,7 @@ crates/
     fonts.rs           — platform CJK font loading (Hiragino / Noto / YuGothic)
     toolbar.rs         — tool palette
     inspector.rs       — property panel (MW, SMILES, IUPAC)
-    iupac.rs           — PubChem API background fetch
+    iupac.rs           — offline IUPAC name generation (local algorithm)
     paste.rs           — clipboard SMILES/MOL paste
     export.rs          — SVG/SMILES/MOL export
     reaction.rs        — reaction mechanism canvas
@@ -181,7 +185,7 @@ i18n/
 
 ## Chemistry engine
 
-All chemistry is handled by the [`chematic`](https://crates.io/crates/chematic) crate — a pure-Rust RDKit alternative with zero C/C++ FFI.
+All chemistry is handled by the [`chematic`](https://crates.io/crates/chematic) crate — a pure-Rust RDKit alternative with zero C/C++ FFI. This table lists what each sub-crate can do; not every capability is wired into the UI yet (QED and tautomer enumeration, for example, are available in `chematic-chem` but not currently exposed anywhere in chematic-draw — see the feature comparison table above).
 
 | Sub-crate | Used for |
 |-----------|---------|
@@ -196,22 +200,27 @@ All chemistry is handled by the [`chematic`](https://crates.io/crates/chematic) 
 
 ---
 
-## Network dependency: IUPAC name lookup
+## Network dependency: Import by Name
 
-The **IUPAC name** feature queries the
-[PubChem REST API](https://pubchem.ncbi.nlm.nih.gov/docs/pug-rest):
+IUPAC name **generation** (Inspector panel) is a local, offline algorithm — no
+network access, no PubChem involved. The only feature that needs the network is
+**Import by Name** (File menu), which looks up a compound name against the
+[PubChem REST API](https://pubchem.ncbi.nlm.nih.gov/docs/pug-rest) to fetch its
+structure:
 
 ```
-GET https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/{smiles}/property/IUPACName/JSON
+GET https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{name}/property/IsomericSMILES/JSON
 ```
 
-- **Internet access is required** for this feature.
-- The result is cached in memory for the session.
-- When offline, the Inspector shows an error instead of blocking the UI.
+- **Internet access is required** for this feature only.
+- Runs on a background thread; the UI stays responsive while it's in flight.
+- When offline or the name isn't found, the Inspector shows an error instead of
+  blocking the UI.
 - No API key is required. PubChem is a free public service provided by the NCBI / NIH.
 - Data returned from PubChem is subject to its [terms of use](https://www.ncbi.nlm.nih.gov/home/about/policies/).
 
-All other features (drawing, export, 3D, SMILES/MOL paste) work fully **offline**.
+Every other feature (drawing, export, 3D, SMILES/MOL paste, IUPAC name generation)
+works fully **offline**.
 
 ---
 
