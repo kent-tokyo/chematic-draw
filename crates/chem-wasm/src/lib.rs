@@ -321,29 +321,35 @@ pub fn iupac_name(mol_json: &JsValue) -> Result<String, JsValue> {
     }
 }
 
+/// Pure Rust core of [`smarts_search`], kept free of the wasm/JsValue boundary so
+/// it's directly unit-testable.
+fn find_smarts_matches(
+    chem_mol: &chematic::core::Molecule,
+    pattern: &str,
+) -> Result<Vec<u32>, String> {
+    use chematic::smarts;
+
+    let query_mol =
+        smarts::parse_smarts(pattern).map_err(|e| format!("SMARTS parse failed: {e}"))?;
+    let matches = smarts::find_matches(&query_mol, chem_mol);
+
+    // find_matches returns Vec<FxHashMap<usize, AtomIdx>>: key = SMARTS pattern atom
+    // index (always small sequential ints like 0,1,2…), value = the *target molecule's*
+    // real matched AtomIdx. Must use .values(), not .keys() — the query-pattern index
+    // isn't a real atom in the user's molecule at all.
+    Ok(matches
+        .into_iter()
+        .flat_map(|match_map| match_map.values().map(|idx| idx.0).collect::<Vec<u32>>())
+        .collect())
+}
+
 /// SMARTS substructure search. Returns array of matched atom indices.
 #[wasm_bindgen]
 pub fn smarts_search(mol_json: &JsValue, pattern: &str) -> Result<Vec<u32>, JsValue> {
-    use chematic::smarts;
-
     let mol: MoleculeDto = serde_wasm_bindgen::from_value(mol_json.clone())
         .map_err(|e| JsValue::from_str(&format!("JSON decode failed: {e}")))?;
     let chem_mol = dto_to_chem(&mol)?;
-    let query_mol = smarts::parse_smarts(pattern)
-        .map_err(|e| JsValue::from_str(&format!("SMARTS parse failed: {e}")))?;
-    let matches = smarts::find_matches(&query_mol, &chem_mol);
-
-    // matches is Vec of match results; flatten and extract atom indices
-    let result: Vec<u32> = matches
-        .into_iter()
-        .flat_map(|match_map| {
-            match_map
-                .keys()
-                .map(|&idx| idx as u32)
-                .collect::<Vec<u32>>()
-        })
-        .collect();
-    Ok(result)
+    find_smarts_matches(&chem_mol, pattern).map_err(|e| JsValue::from_str(&e))
 }
 
 /// Standardize molecule: neutralize charges, remove explicit H, apply canonical tautomer.
@@ -731,24 +737,28 @@ fn bitvec_to_hex(bv: &chematic::fp::BitVec2048) -> String {
 }
 
 /// Decode a fingerprint hex string produced by [`bitvec_to_hex`] back into its bits.
-fn hex_to_bitvec(hex: &str) -> chematic::fp::BitVec2048 {
-    assert_eq!(
-        hex.len(),
-        512,
-        "fingerprint hex must be 512 chars (2048 bits), got {}",
-        hex.len()
-    );
+/// Never panics: malformed input (wrong length, non-hex characters) is a normal,
+/// expected failure mode for a value that crossed the JS boundary, so it's reported
+/// as a structured `Err` rather than a Rust panic (which would surface as an opaque
+/// WASM trap instead of a catchable, descriptive JS exception).
+fn hex_to_bitvec(hex: &str) -> Result<chematic::fp::BitVec2048, String> {
+    if hex.len() != 512 {
+        return Err(format!(
+            "fingerprint hex must be 512 chars (2048 bits), got {}",
+            hex.len()
+        ));
+    }
     let mut bv = chematic::fp::BitVec2048::new();
     for byte_idx in 0..256 {
         let byte = u8::from_str_radix(&hex[byte_idx * 2..byte_idx * 2 + 2], 16)
-            .expect("fingerprint hex must be valid hex digits");
+            .map_err(|_| format!("fingerprint hex has invalid hex digits at byte {byte_idx}"))?;
         for bit_in_byte in 0..8 {
             if (byte >> bit_in_byte) & 1 == 1 {
                 bv.set(byte_idx * 8 + bit_in_byte);
             }
         }
     }
-    bv
+    Ok(bv)
 }
 
 /// Get ECFP4 fingerprint as a 512-char hex string encoding the real 2048-bit vector.
@@ -765,16 +775,29 @@ pub fn get_fingerprint(mol_json: &JsValue) -> Result<String, JsValue> {
     Ok(bitvec_to_hex(&fp_bits))
 }
 
+/// Pure core of [`tanimoto_similarity`]/[`dice_similarity`]'s shared hex decoding,
+/// kept free of the wasm/JsValue boundary so it's directly unit-testable: JsValue
+/// FFI stubs (e.g. `JsValue::from_str`) panic when called outside a real wasm32/JS
+/// host, so error paths that construct one can't be exercised by native `cargo test`.
+fn decode_fingerprint_pair(
+    fp_a_hex: &str,
+    fp_b_hex: &str,
+) -> Result<(chematic::fp::BitVec2048, chematic::fp::BitVec2048), String> {
+    Ok((hex_to_bitvec(fp_a_hex)?, hex_to_bitvec(fp_b_hex)?))
+}
+
 /// Calculate Tanimoto similarity between two ECFP4 fingerprints (hex format from `get_fingerprint`).
 #[wasm_bindgen]
-pub fn tanimoto_similarity(fp_a_hex: &str, fp_b_hex: &str) -> f64 {
-    hex_to_bitvec(fp_a_hex).tanimoto(&hex_to_bitvec(fp_b_hex))
+pub fn tanimoto_similarity(fp_a_hex: &str, fp_b_hex: &str) -> Result<f64, JsValue> {
+    let (a, b) = decode_fingerprint_pair(fp_a_hex, fp_b_hex).map_err(|e| JsValue::from_str(&e))?;
+    Ok(a.tanimoto(&b))
 }
 
 /// Calculate Dice similarity between two ECFP4 fingerprints (hex format from `get_fingerprint`).
 #[wasm_bindgen]
-pub fn dice_similarity(fp_a_hex: &str, fp_b_hex: &str) -> f64 {
-    hex_to_bitvec(fp_a_hex).dice(&hex_to_bitvec(fp_b_hex))
+pub fn dice_similarity(fp_a_hex: &str, fp_b_hex: &str) -> Result<f64, JsValue> {
+    let (a, b) = decode_fingerprint_pair(fp_a_hex, fp_b_hex).map_err(|e| JsValue::from_str(&e))?;
+    Ok(a.dice(&b))
 }
 
 /// Identify functional groups in a molecule.
@@ -802,10 +825,15 @@ pub fn identify_functional_groups_wasm(mol_json: &JsValue) -> Result<JsValue, Js
 /// a fake product by silently returning the unchanged input molecule.
 /// Pure Rust core of [`run_reactants`], kept free of the wasm/JsValue boundary
 /// so it's directly unit-testable.
+///
+/// Products get a freshly computed 2D layout ([`chem_to_dto`] with `coords: None`)
+/// rather than reusing the reactant's coordinates: a reaction can add, remove, or
+/// reorder atoms, so indexing into the reactant's coordinate array by product atom
+/// index would silently misplace atoms (new atoms piling up at the origin, or
+/// existing atoms inheriting a stranger's position) rather than erroring.
 fn execute_reaction(
     chem_mol: &chematic::core::Molecule,
     smirks: &str,
-    coords: &[(f64, f64)],
 ) -> Result<Vec<MoleculeDto>, String> {
     use chematic::rxn;
 
@@ -816,7 +844,7 @@ fn execute_reaction(
     let mut all_products = Vec::new();
     for product_vec in product_sets {
         for product in product_vec {
-            all_products.push(chem_to_dto(&product, Some(coords)));
+            all_products.push(chem_to_dto(&product, None));
         }
     }
     Ok(all_products)
@@ -829,9 +857,8 @@ pub fn run_reactants(mol_json: &JsValue, smirks: &str) -> Result<JsValue, JsValu
         .map_err(|e| JsValue::from_str(&format!("JSON decode failed: {e}")))?;
 
     let chem_mol = dto_to_chem(&dto)?;
-    let coords = dto_to_coords(&dto);
 
-    let products = execute_reaction(&chem_mol, smirks, &coords)
+    let products = execute_reaction(&chem_mol, smirks)
         .map_err(|e| JsValue::from_str(&format!("Reaction execution failed: {e}")))?;
 
     serde_wasm_bindgen::to_value(&products)
@@ -842,11 +869,30 @@ pub fn run_reactants(mol_json: &JsValue, smirks: &str) -> Result<JsValue, JsValu
 // Maximum Common Substructure (MCS) - chematic 0.1.40+
 // ─────────────────────────────────────────────────────────────────────────────────
 
+/// MCS search is combinatorially explosive (branch-and-bound over the Cartesian
+/// product of candidate atom mappings) and this API accepts arbitrary user-drawn
+/// molecules, so the search is bounded rather than run to unbounded completion.
+///
+/// Note: `chematic-smarts` 0.20.1's public API (`find_mcs_with_config`) accepts this
+/// deadline and silently returns its best-so-far result when it's hit, but does not
+/// expose whether a given run was exhaustive or cut short — that distinction exists
+/// only as a private field on its internal search state. Reporting an honest
+/// `exhaustive` flag here would require either an upstream API addition (tracked as
+/// follow-up) or a wall-clock measurement good enough to guess it, which was judged
+/// not worth a new dependency for an approximate answer. `search_budget_ms` is
+/// reported instead so callers can show an honest "may be incomplete for complex
+/// structures" caveat rather than a fabricated exhaustive/timed-out verdict.
+const MCS_SEARCH_BUDGET_MS: u64 = 5_000;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McsResultDto {
     pub common_atoms: Vec<u32>,
     pub common_bonds: Vec<u32>,
     pub similarity: f64,
+    /// The time budget (milliseconds) applied to the search. The result may be a
+    /// partial best-effort match rather than the true maximum for structures complex
+    /// enough to exhaust this budget.
+    pub search_budget_ms: u64,
 }
 
 /// Compute the maximum common substructure between two molecules, mapped onto
@@ -859,10 +905,16 @@ fn compute_mcs(
 ) -> McsResultDto {
     use chematic::smarts;
 
-    // find_mcs returns a QueryMolecule representing the common substructure as an
-    // abstract pattern; map it back onto molecule A's atom/bond indices via substructure
-    // matching so the UI can highlight the actual shared atoms/bonds.
-    let mcs_query = smarts::find_mcs(&[chem_mol_a, chem_mol_b]);
+    let config = smarts::McsConfig {
+        timeout_ms: Some(MCS_SEARCH_BUDGET_MS),
+        ..Default::default()
+    };
+
+    // find_mcs_with_config returns a QueryMolecule representing the common
+    // substructure as an abstract pattern; map it back onto molecule A's atom/bond
+    // indices via substructure matching so the UI can highlight the actual shared
+    // atoms/bonds.
+    let mcs_query = smarts::find_mcs_with_config(&[chem_mol_a, chem_mol_b], &config);
     let matches_a = smarts::find_matches(&mcs_query, chem_mol_a);
 
     let (common_atoms, common_bonds) = match matches_a.first() {
@@ -896,6 +948,7 @@ fn compute_mcs(
         common_atoms,
         common_bonds,
         similarity,
+        search_budget_ms: MCS_SEARCH_BUDGET_MS,
     }
 }
 
@@ -1067,23 +1120,23 @@ mod correctness_tests {
     #[test]
     fn fingerprint_hex_round_trips_exactly() {
         let bits = chematic::fp::ecfp4(&mol("c1ccccc1O")); // phenol
-        let round_tripped = hex_to_bitvec(&bitvec_to_hex(&bits));
+        let round_tripped = hex_to_bitvec(&bitvec_to_hex(&bits)).expect("valid hex must decode");
         assert_eq!(bits, round_tripped);
     }
 
     #[test]
     fn tanimoto_and_dice_are_one_for_identical_molecules() {
         let fp = bitvec_to_hex(&chematic::fp::ecfp4(&mol("CCO")));
-        assert_eq!(tanimoto_similarity(&fp, &fp), 1.0);
-        assert_eq!(dice_similarity(&fp, &fp), 1.0);
+        assert_eq!(tanimoto_similarity(&fp, &fp).unwrap(), 1.0);
+        assert_eq!(dice_similarity(&fp, &fp).unwrap(), 1.0);
     }
 
     #[test]
     fn tanimoto_and_dice_are_lower_for_dissimilar_molecules() {
         let fp_ethanol = bitvec_to_hex(&chematic::fp::ecfp4(&mol("CCO")));
         let fp_benzene = bitvec_to_hex(&chematic::fp::ecfp4(&mol("c1ccccc1")));
-        let tanimoto = tanimoto_similarity(&fp_ethanol, &fp_benzene);
-        let dice = dice_similarity(&fp_ethanol, &fp_benzene);
+        let tanimoto = tanimoto_similarity(&fp_ethanol, &fp_benzene).unwrap();
+        let dice = dice_similarity(&fp_ethanol, &fp_benzene).unwrap();
         assert!(
             (0.0..1.0).contains(&tanimoto),
             "tanimoto out of range: {tanimoto}"
@@ -1097,12 +1150,92 @@ mod correctness_tests {
         let fp_ethanol = bitvec_to_hex(&chematic::fp::ecfp4(&mol("CCO")));
         let fp_propanol = bitvec_to_hex(&chematic::fp::ecfp4(&mol("CCCO")));
         let fp_benzene = bitvec_to_hex(&chematic::fp::ecfp4(&mol("c1ccccc1")));
-        let close = tanimoto_similarity(&fp_ethanol, &fp_propanol);
-        let far = tanimoto_similarity(&fp_ethanol, &fp_benzene);
+        let close = tanimoto_similarity(&fp_ethanol, &fp_propanol).unwrap();
+        let far = tanimoto_similarity(&fp_ethanol, &fp_benzene).unwrap();
         assert!(
             close > far,
             "expected ethanol~propanol ({close}) > ethanol~benzene ({far})"
         );
+    }
+
+    // ── Fingerprint hex decoding: malformed input is a structured Err, never a panic ──
+
+    #[test]
+    fn fingerprint_decode_rejects_too_short_hex() {
+        let short = "a".repeat(511);
+        assert!(hex_to_bitvec(&short).is_err());
+        // Exercises the same path tanimoto_similarity/dice_similarity delegate to
+        // (calling the #[wasm_bindgen] fns directly would panic natively as soon as
+        // they touch JsValue::from_str, which is a real-JS-host-only FFI stub).
+        assert!(decode_fingerprint_pair(&short, &short).is_err());
+    }
+
+    #[test]
+    fn fingerprint_decode_rejects_too_long_hex() {
+        let long = "a".repeat(513);
+        assert!(hex_to_bitvec(&long).is_err());
+        assert!(decode_fingerprint_pair(&long, &long).is_err());
+    }
+
+    #[test]
+    fn fingerprint_decode_rejects_non_hex_characters() {
+        let mut bad = "0".repeat(511);
+        bad.push('z'); // not a hex digit
+        assert!(hex_to_bitvec(&bad).is_err());
+    }
+
+    #[test]
+    fn fingerprint_decode_rejects_empty_string() {
+        assert!(hex_to_bitvec("").is_err());
+        assert!(decode_fingerprint_pair("", "").is_err());
+    }
+
+    #[test]
+    fn fingerprint_decode_accepts_uppercase_and_lowercase_hex() {
+        let hex = bitvec_to_hex(&chematic::fp::ecfp4(&mol("CCO")));
+        let upper = hex.to_uppercase();
+        let lower_decoded = hex_to_bitvec(&hex).expect("lowercase must decode");
+        let upper_decoded = hex_to_bitvec(&upper).expect("uppercase must decode too");
+        assert_eq!(lower_decoded, upper_decoded);
+    }
+
+    #[test]
+    fn fingerprint_decode_rejects_correct_length_but_corrupted_input() {
+        // Right length (512), but not a fingerprint this app ever produced —
+        // must still decode (it's valid hex) rather than silently misbehaving,
+        // and must round-trip back to the same bits it encodes.
+        let corrupted: String = "f".repeat(512);
+        let decoded = hex_to_bitvec(&corrupted).expect("valid hex chars must decode");
+        assert_eq!(decoded.popcount(), 2048); // all bits set, as "f" x512 implies
+    }
+
+    // ── SMARTS search: real target-molecule atom indices, not the query's own indices ──
+
+    #[test]
+    fn smarts_search_returns_target_molecule_indices_not_query_indices() {
+        // Ethanol "CCO" parses as atom 0=C, 1=C, 2=O. A single-atom oxygen query has
+        // its own (query-pattern) atom index 0 — the bug returned that unconditionally
+        // instead of the real matched atom, so this would wrongly return [0] instead
+        // of [2] no matter which molecule/pattern was searched.
+        let ethanol = mol("CCO");
+        let matches = find_smarts_matches(&ethanol, "[#8]").expect("valid SMARTS must search");
+        assert_eq!(
+            matches,
+            vec![2],
+            "expected the real oxygen atom index (2), not the query's own atom index (0)"
+        );
+    }
+
+    #[test]
+    fn smarts_search_multi_atom_pattern_returns_real_indices() {
+        // A 2-atom C-O query has query-pattern indices {0,1}; the bug would return
+        // that fixed pair regardless of molecule. The real C-O bond in ethanol is
+        // atoms {1,2} (the second C and the O), not {0,1}.
+        let ethanol = mol("CCO");
+        let mut matches =
+            find_smarts_matches(&ethanol, "[#6]-[#8]").expect("valid SMARTS must search");
+        matches.sort_unstable();
+        assert_eq!(matches, vec![1, 2]);
     }
 
     // ── MCS: real substructure match, not an atom-count proxy ──
@@ -1142,6 +1275,19 @@ mod correctness_tests {
         );
     }
 
+    #[test]
+    fn mcs_reports_the_search_budget_it_used() {
+        // The search must be bounded (arbitrary user molecules + combinatorial
+        // branch-and-bound = unbounded worst case), and callers need to know what
+        // budget was applied since a hit budget means a possibly-partial result.
+        let result = compute_mcs(&mol("CCO"), &mol("CCCO"));
+        assert_eq!(result.search_budget_ms, MCS_SEARCH_BUDGET_MS);
+        assert!(
+            result.search_budget_ms > 0,
+            "an unbounded search is the bug being fixed"
+        );
+    }
+
     // ── Reaction execution: real success/no-match/error states, never a fake product ──
 
     const CARBOXYLIC_ACID_TO_AMIDE: &str = "[C:1](=[O])[OH]>>[C:1](=[O])[NH2]";
@@ -1149,7 +1295,7 @@ mod correctness_tests {
     #[test]
     fn reaction_produces_real_product_on_match() {
         let acetic_acid = mol("CC(=O)O");
-        let products = execute_reaction(&acetic_acid, CARBOXYLIC_ACID_TO_AMIDE, &[])
+        let products = execute_reaction(&acetic_acid, CARBOXYLIC_ACID_TO_AMIDE)
             .expect("valid SMIRKS on a matching molecule must succeed");
         assert!(!products.is_empty(), "expected at least one product");
         // The product should be the amide, not the unchanged carboxylic acid input:
@@ -1166,7 +1312,7 @@ mod correctness_tests {
     fn reaction_returns_empty_not_a_fake_product_on_no_match() {
         // Ethanol has no carboxylic acid group, so this SMIRKS cannot apply.
         let ethanol = mol("CCO");
-        let products = execute_reaction(&ethanol, CARBOXYLIC_ACID_TO_AMIDE, &[])
+        let products = execute_reaction(&ethanol, CARBOXYLIC_ACID_TO_AMIDE)
             .expect("a non-matching SMIRKS is a valid outcome, not an error");
         assert!(
             products.is_empty(),
@@ -1177,10 +1323,35 @@ mod correctness_tests {
     #[test]
     fn reaction_returns_err_on_invalid_smirks() {
         let ethanol = mol("CCO");
-        let result = execute_reaction(&ethanol, "not a valid smirks pattern", &[]);
+        let result = execute_reaction(&ethanol, "not a valid smirks pattern");
         assert!(
             result.is_err(),
             "an invalid SMIRKS must be a real error, not a silently-returned empty/unchanged result"
         );
+    }
+
+    #[test]
+    fn reaction_product_gets_its_own_layout_not_the_reactants_coordinates() {
+        // A reaction that grows the atom count (ester -> acid + alcohol fragment):
+        // indexing into the reactant's coordinate array by product atom index would
+        // put the new/reordered atoms at the wrong place or piled at the origin.
+        let ester = mol("CC(=O)OC"); // methyl acetate
+        let products = execute_reaction(&ester, "[C:1](=[O])[O][C:2]>>[C:1](=[O])[O].[C:2]")
+            .expect("valid SMIRKS on a matching molecule must succeed");
+        assert!(!products.is_empty(), "expected at least one product");
+
+        for product in &products {
+            let distinct_positions: std::collections::HashSet<(i64, i64)> = product
+                .atoms
+                .iter()
+                .map(|a| ((a.x * 1000.0) as i64, (a.y * 1000.0) as i64))
+                .collect();
+            assert!(
+                distinct_positions.len() > 1 || product.atoms.len() <= 1,
+                "product atoms all landed on the same point ({:?}) — looks like \
+                 reused/misindexed reactant coordinates, not a real layout",
+                product.atoms.first().map(|a| (a.x, a.y))
+            );
+        }
     }
 }
