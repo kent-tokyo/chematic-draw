@@ -158,21 +158,23 @@ export function getExtendedProperties(mol: MoleculeDto): ExtendedPropertiesDto {
 }
 
 /**
- * Get ECFP4 fingerprint (as JSON-encoded bitvector).
+ * Get ECFP4 fingerprint as a 512-character hex string (the real 2048-bit vector).
  */
 export function getFingerprint(mol: MoleculeDto): string {
   return wasmModule.get_fingerprint(mol);
 }
 
 /**
- * Calculate Tanimoto similarity between two ECFP4 fingerprints.
+ * Calculate Tanimoto similarity between two ECFP4 fingerprints (hex strings from
+ * `getFingerprint`). Throws if either string isn't a valid 512-char fingerprint hex.
  */
 export function tanimotoSimilarity(fpA: string, fpB: string): number {
   return wasmModule.tanimoto_similarity(fpA, fpB);
 }
 
 /**
- * Calculate Dice similarity between two ECFP4 fingerprints.
+ * Calculate Dice similarity between two ECFP4 fingerprints (hex strings from
+ * `getFingerprint`). Throws if either string isn't a valid 512-char fingerprint hex.
  */
 export function diceSimilarity(fpA: string, fpB: string): number {
   return wasmModule.dice_similarity(fpA, fpB);
@@ -187,21 +189,35 @@ export function identifyFunctionalGroups(mol: MoleculeDto): string[] {
 }
 
 /**
+ * Result of executing a SMIRKS-based reaction. Keeps "the SMIRKS pattern didn't
+ * match this molecule" (a valid chemical outcome), "the SMIRKS was invalid or
+ * execution failed" (a real error), and "it applied" as three distinct, checkable
+ * states — collapsing the first two into the same `[]` is exactly the bug this
+ * type exists to prevent (see git history: the Rust side already distinguishes
+ * these; this type carries that distinction across the wasm/JS boundary instead
+ * of re-collapsing it here).
+ */
+export type ReactionRunResult =
+  | { status: 'applied'; products: MoleculeDto[] }
+  | { status: 'no_match' }
+  | { status: 'error'; message: string };
+
+/**
  * Execute SMIRKS-based reaction on a molecule.
  * @param mol reactant molecule
  * @param smirks SMIRKS pattern (e.g., "[C:1](=[O])[OH]>>[C:1](=[O])[NH2]")
- * @returns product molecules, or an empty array if the SMIRKS pattern doesn't
- *   match this molecule (valid "no reaction" outcome) or the WASM call throws
- *   (invalid SMIRKS / internal failure — logged via console.error). Never
- *   returns the unchanged input molecule as if it were a product.
  */
-export function runReactants(mol: MoleculeDto, smirks: string): MoleculeDto[] {
+export function runReactants(mol: MoleculeDto, smirks: string): ReactionRunResult {
   try {
-    const result = wasmModule.run_reactants(mol, smirks);
-    return result as MoleculeDto[];
+    const result = wasmModule.run_reactants(mol, smirks) as MoleculeDto[];
+    if (result.length === 0) {
+      return { status: 'no_match' };
+    }
+    return { status: 'applied', products: result };
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
     console.error('Reaction execution failed:', err);
-    return [];
+    return { status: 'error', message };
   }
 }
 
@@ -213,6 +229,9 @@ export interface McsResultDto {
   common_atoms: number[];
   common_bonds: number[];
   similarity: number;
+  /** Time budget (ms) applied to the search; the result may be a partial
+   * best-effort match rather than the true maximum if this budget was hit. */
+  search_budget_ms: number;
 }
 
 export function findMcs(molA: MoleculeDto, molB: MoleculeDto): McsResultDto {

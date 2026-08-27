@@ -138,8 +138,27 @@ describe('wasmBridge', () => {
 
       const result = wasmBridge.runReactants(mockMolecule, smirks);
 
-      expect(result).toHaveLength(1);
+      expect(result.status).toBe('applied');
+      if (result.status === 'applied') {
+        expect(result.products).toHaveLength(1);
+      }
       expect(wasmModule.run_reactants).toHaveBeenCalledWith(mockMolecule, smirks);
+    });
+
+    it('should report no_match distinctly from an error', () => {
+      const smirks = '[C:1](=[O])[OH]>>[C:1](=[O])[NH2]';
+      (wasmModule.run_reactants as jest.Mock).mockReturnValue([]);
+      const noMatch = wasmBridge.runReactants(mockMolecule, smirks);
+      expect(noMatch.status).toBe('no_match');
+
+      (wasmModule.run_reactants as jest.Mock).mockImplementation(() => {
+        throw new Error('invalid SMIRKS');
+      });
+      const errored = wasmBridge.runReactants(mockMolecule, 'not smirks');
+      expect(errored.status).toBe('error');
+      if (errored.status === 'error') {
+        expect(errored.message).toContain('invalid SMIRKS');
+      }
     });
   });
 });

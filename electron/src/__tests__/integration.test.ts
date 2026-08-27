@@ -136,25 +136,30 @@ describe('Integration Tests', () => {
         },
       ];
 
-      (wasmBridge.runReactants as jest.Mock).mockReturnValue(mockProducts);
+      (wasmBridge.runReactants as jest.Mock).mockReturnValue({
+        status: 'applied',
+        products: mockProducts,
+      });
 
-      const products = wasmBridge.runReactants(reactant, smirks);
+      const result = wasmBridge.runReactants(reactant, smirks);
 
-      expect(products).toHaveLength(1);
-      expect(products[0].atoms).toHaveLength(4);
-      expect(products[0].atoms.some((a) => a.element === 'N')).toBe(true);
+      expect(result.status).toBe('applied');
+      if (result.status !== 'applied') throw new Error('expected applied');
+      expect(result.products).toHaveLength(1);
+      expect(result.products[0].atoms).toHaveLength(4);
+      expect(result.products[0].atoms.some((a) => a.element === 'N')).toBe(true);
     });
   });
 
   describe('Error Handling', () => {
-    it('should handle invalid SMILES gracefully', () => {
+    it('should report no_match, distinct from a real error, for an invalid SMIRKS', () => {
       const invalidSmiles = 'CC[invalid]CC';
 
-      (wasmBridge.runReactants as jest.Mock).mockReturnValue([]);
+      (wasmBridge.runReactants as jest.Mock).mockReturnValue({ status: 'no_match' });
 
       const result = wasmBridge.runReactants(mockBenzene, invalidSmiles);
 
-      expect(result).toEqual([]);
+      expect(result).toEqual({ status: 'no_match' });
     });
 
     it('should handle empty molecule input', () => {

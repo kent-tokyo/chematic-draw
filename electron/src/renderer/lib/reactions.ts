@@ -59,31 +59,38 @@ export function generateReactionSmiles(scheme: ReactionScheme): string[] {
 }
 
 /**
+ * Result of executing a reaction step: distinguishes a successful application from
+ * a valid "SMIRKS didn't match this molecule" outcome and a real execution error,
+ * so callers can show the user an accurate message instead of one generic failure.
+ */
+export type ExecuteReactionResult =
+  | { status: 'applied'; step: ReactionStep }
+  | { status: 'no_match' }
+  | { status: 'error'; message: string };
+
+/**
  * Execute a SMIRKS-based reaction on a molecule.
- * Returns the product molecules as a new ReactionStep.
+ * Returns the product molecules as a new ReactionStep, or the reason it didn't.
  */
 export function executeReaction(
   reactant: MoleculeDto,
   smirks: string
-): ReactionStep | null {
-  try {
-    const products = wasmBridge.runReactants(reactant, smirks);
-    if (products.length === 0) {
-      console.warn('No products generated from reaction');
-      return null;
-    }
+): ExecuteReactionResult {
+  const result = wasmBridge.runReactants(reactant, smirks);
+  if (result.status !== 'applied') {
+    return result;
+  }
 
-    return {
+  return {
+    status: 'applied',
+    step: {
       id: `reaction-${Date.now()}`,
       reactants: [reactant],
-      products,
+      products: result.products,
       conditions: {},
       arrowType: 'single',
-    };
-  } catch (err) {
-    console.error('Reaction execution error:', err);
-    return null;
-  }
+    },
+  };
 }
 
 /**

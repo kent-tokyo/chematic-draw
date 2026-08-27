@@ -87,14 +87,18 @@ export function ReactionPanel() {
       return;
     }
 
-    const newStep = executeReaction(molecule, smirks);
-    if (!newStep) {
-      setReactionError('Reaction execution failed. Check SMIRKS syntax.');
+    const result = executeReaction(molecule, smirks);
+    if (result.status === 'no_match') {
+      setReactionError('SMIRKS pattern did not match this molecule.');
+      return;
+    }
+    if (result.status === 'error') {
+      setReactionError(`Reaction execution failed: ${result.message}`);
       return;
     }
 
     setReactionError('');
-    const updatedScheme = { ...scheme, steps: [...scheme.steps, newStep] };
+    const updatedScheme = { ...scheme, steps: [...scheme.steps, result.step] };
     onSchemeChange(updatedScheme);
     setSmirlksInput('');
   };
