@@ -1,6 +1,6 @@
 //! AI chat assistant — Anthropic Messages API integration.
 //! Threading pattern mirrors iupac.rs: blocking HTTP on a spawned thread,
-//! result polled each frame via Arc<Mutex>.
+//! result polled each frame via `Arc<Mutex>`.
 
 use std::sync::{Arc, Mutex};
 
