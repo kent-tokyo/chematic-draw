@@ -33,7 +33,8 @@ jobs:
         run: cargo install wasm-pack
 
       - name: Build WASM
-        run: cd crates/chem-wasm && wasm-pack build --target web --release && cd ../..
+        working-directory: electron
+        run: npm run build:wasm:release
 
       - name: Install dependencies
         working-directory: electron

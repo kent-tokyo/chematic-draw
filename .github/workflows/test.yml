@@ -55,7 +55,8 @@ jobs:
         run: cargo install wasm-pack
 
       - name: Build WASM
-        run: cd crates/chem-wasm && wasm-pack build --target web && cd ../..
+        working-directory: electron
+        run: npm run build:wasm
 
       - name: Install JavaScript dependencies
         working-directory: electron
@@ -103,7 +104,8 @@ jobs:
         run: cargo install wasm-pack
 
       - name: Build WASM
-        run: cd crates/chem-wasm && wasm-pack build --target web && cd ../..
+        working-directory: electron
+        run: npm run build:wasm
 
       - name: Install JavaScript dependencies
         working-directory: electron
@@ -152,7 +154,8 @@ jobs:
         run: cargo install wasm-pack
 
       - name: Build WASM (Release)
-        run: cd crates/chem-wasm && wasm-pack build --target web --release && cd ../..
+        working-directory: electron
+        run: npm run build:wasm:release
 
       - name: Install JavaScript dependencies
         working-directory: electron
