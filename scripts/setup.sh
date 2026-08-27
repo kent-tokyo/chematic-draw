@@ -133,22 +133,26 @@ echo -e "\n${BLUE}7. Updating submodules...${NC}"
 git submodule update --init --recursive || true
 
 # 8. Install Node dependencies
+# The only package.json is in electron/ — there is none at the repo root.
 echo -e "\n${BLUE}8. Installing Node.js dependencies...${NC}"
-npm install
+(cd electron && npm install)
 print_status "Node.js dependencies"
 
 # 9. Build WASM module
+# wasm-pack resolves --out-dir relative to the crate path argument, not the
+# shell's cwd, so this must be run from the repo root with an explicit
+# --out-dir — see electron/package.json's build:wasm script, used here so the
+# path only needs to be correct in one place.
 echo -e "\n${BLUE}9. Building WASM module...${NC}"
-cd crates/chem-wasm
-wasm-pack build --target web
+(cd electron && npm run build:wasm)
 print_status "WASM build"
-cd ../..
 
 # 10. Verify setup
 echo -e "\n${BLUE}10. Verifying setup...${NC}"
 
-# Check WASM output
-if [ -f "crates/chem-wasm/pkg/chem_wasm.wasm" ]; then
+# Check WASM output (the app imports from electron/src/renderer/wasm/pkg,
+# and wasm-bindgen names the compiled binary chem_wasm_bg.wasm, not chem_wasm.wasm)
+if [ -f "electron/src/renderer/wasm/pkg/chem_wasm_bg.wasm" ]; then
   print_status "WASM module generated"
 else
   echo -e "${RED}✗ WASM module not found${NC}"
@@ -156,7 +160,7 @@ else
 fi
 
 # Check node_modules
-if [ -d "node_modules" ]; then
+if [ -d "electron/node_modules" ]; then
   print_status "Node modules installed"
 else
   echo -e "${RED}✗ Node modules not installed${NC}"
@@ -202,26 +206,26 @@ echo -e "\n${GREEN}════════════════════�
 echo -e "${GREEN}✓ Setup complete!${NC}"
 echo -e "${GREEN}═══════════════════════════════════════${NC}"
 
-echo -e "\n${BLUE}Next steps:${NC}"
+echo -e "\n${BLUE}Next steps (all from the electron/ directory):${NC}"
 echo "1. Start development server:"
-echo "   ${GREEN}npm start${NC}"
+echo "   ${GREEN}cd electron && npm start${NC}"
 echo ""
 echo "2. Run tests:"
-echo "   ${GREEN}npm test${NC}"
+echo "   ${GREEN}cd electron && npm test${NC}"
 echo ""
 echo "3. Build for distribution:"
-echo "   ${GREEN}npm run make${NC}"
+echo "   ${GREEN}cd electron && npm run make${NC}"
 echo ""
 echo "4. Read documentation:"
 echo "   ${GREEN}cat docs/README.md${NC}"
 
-echo -e "\n${BLUE}Useful commands:${NC}"
+echo -e "\n${BLUE}Useful commands (run from electron/):${NC}"
 echo "npm start          - Start dev server with hot reload"
 echo "npm test           - Run unit tests"
 echo "npm run test:e2e   - Run E2E tests"
 echo "npm run test:perf  - Run performance benchmarks"
 echo "npm run lint       - TypeScript type checking"
-echo "npm run build      - Build for production"
+echo "npm run package    - Package the app (no installer)"
 echo "npm run make       - Package for distribution"
 
 echo -e "\n${BLUE}Documentation:${NC}"
