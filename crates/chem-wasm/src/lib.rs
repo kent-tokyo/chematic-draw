@@ -794,46 +794,48 @@ pub fn identify_functional_groups_wasm(mol_json: &JsValue) -> Result<JsValue, Js
         .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
 }
 
-/// Execute SMIRKS-based reaction template on a molecule.
-/// Returns array of product molecules. Returns input molecule if reaction fails.
-#[wasm_bindgen]
-pub fn run_reactants(mol_json: &JsValue, smirks: &str) -> Result<JsValue, JsValue> {
+/// Run a SMIRKS-based reaction template against a molecule.
+///
+/// `Ok(products)` — possibly empty when the SMIRKS pattern simply doesn't match
+/// this molecule, a valid "no reaction" outcome distinct from an error. `Err`
+/// only for an invalid SMIRKS or an internal execution failure. Never fabricates
+/// a fake product by silently returning the unchanged input molecule.
+/// Pure Rust core of [`run_reactants`], kept free of the wasm/JsValue boundary
+/// so it's directly unit-testable.
+fn execute_reaction(
+    chem_mol: &chematic::core::Molecule,
+    smirks: &str,
+    coords: &[(f64, f64)],
+) -> Result<Vec<MoleculeDto>, String> {
     use chematic::rxn;
 
+    let product_sets = rxn::run_reactants(smirks, &[chem_mol]).map_err(|e| e.to_string())?;
+
+    // product_sets is Vec<Vec<Molecule>>; empty means the SMIRKS pattern found no
+    // match on this molecule — surface it as zero products, not a fabricated one.
+    let mut all_products = Vec::new();
+    for product_vec in product_sets {
+        for product in product_vec {
+            all_products.push(chem_to_dto(&product, Some(coords)));
+        }
+    }
+    Ok(all_products)
+}
+
+/// Execute SMIRKS-based reaction template on a molecule.
+#[wasm_bindgen]
+pub fn run_reactants(mol_json: &JsValue, smirks: &str) -> Result<JsValue, JsValue> {
     let dto: MoleculeDto = serde_wasm_bindgen::from_value(mol_json.clone())
         .map_err(|e| JsValue::from_str(&format!("JSON decode failed: {e}")))?;
 
     let chem_mol = dto_to_chem(&dto)?;
     let coords = dto_to_coords(&dto);
 
-    // Try to execute reaction using rxn::run_reactants
-    match rxn::run_reactants(smirks, &[&chem_mol]) {
-        Ok(product_sets) => {
-            let mut all_products = Vec::new();
+    let products = execute_reaction(&chem_mol, smirks, &coords)
+        .map_err(|e| JsValue::from_str(&format!("Reaction execution failed: {e}")))?;
 
-            if product_sets.is_empty() {
-                // If no products, return input molecule
-                all_products.push(chem_to_dto(&chem_mol, Some(&coords)));
-            } else {
-                // product_sets is Vec<Vec<Molecule>>
-                for product_vec in product_sets {
-                    for product in product_vec {
-                        all_products.push(chem_to_dto(&product, Some(&coords)));
-                    }
-                }
-            }
-
-            serde_wasm_bindgen::to_value(&all_products)
-                .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
-        }
-        Err(e) => {
-            // On reaction failure, return input molecule unchanged
-            eprintln!("Reaction execution failed: {e}");
-            let fallback = vec![chem_to_dto(&chem_mol, Some(&coords))];
-            serde_wasm_bindgen::to_value(&fallback)
-                .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
-        }
-    }
+    serde_wasm_bindgen::to_value(&products)
+        .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────
@@ -1137,6 +1139,48 @@ mod correctness_tests {
         assert!(
             related > unrelated,
             "expected ethanol~propanol ({related}) > ethanol~benzene ({unrelated})"
+        );
+    }
+
+    // ── Reaction execution: real success/no-match/error states, never a fake product ──
+
+    const CARBOXYLIC_ACID_TO_AMIDE: &str = "[C:1](=[O])[OH]>>[C:1](=[O])[NH2]";
+
+    #[test]
+    fn reaction_produces_real_product_on_match() {
+        let acetic_acid = mol("CC(=O)O");
+        let products = execute_reaction(&acetic_acid, CARBOXYLIC_ACID_TO_AMIDE, &[])
+            .expect("valid SMIRKS on a matching molecule must succeed");
+        assert!(!products.is_empty(), "expected at least one product");
+        // The product should be the amide, not the unchanged carboxylic acid input:
+        // it must contain a nitrogen the reactant never had. `element` is a
+        // depiction label (e.g. "NH₂" for a terminal amine), not a bare symbol.
+        let has_nitrogen = products[0].atoms.iter().any(|a| a.element.contains('N'));
+        assert!(
+            has_nitrogen,
+            "product should contain the newly-introduced N"
+        );
+    }
+
+    #[test]
+    fn reaction_returns_empty_not_a_fake_product_on_no_match() {
+        // Ethanol has no carboxylic acid group, so this SMIRKS cannot apply.
+        let ethanol = mol("CCO");
+        let products = execute_reaction(&ethanol, CARBOXYLIC_ACID_TO_AMIDE, &[])
+            .expect("a non-matching SMIRKS is a valid outcome, not an error");
+        assert!(
+            products.is_empty(),
+            "no match must yield zero products, not the unchanged input molecule"
+        );
+    }
+
+    #[test]
+    fn reaction_returns_err_on_invalid_smirks() {
+        let ethanol = mol("CCO");
+        let result = execute_reaction(&ethanol, "not a valid smirks pattern", &[]);
+        assert!(
+            result.is_err(),
+            "an invalid SMIRKS must be a real error, not a silently-returned empty/unchanged result"
         );
     }
 }

@@ -190,7 +190,10 @@ export function identifyFunctionalGroups(mol: MoleculeDto): string[] {
  * Execute SMIRKS-based reaction on a molecule.
  * @param mol reactant molecule
  * @param smirks SMIRKS pattern (e.g., "[C:1](=[O])[OH]>>[C:1](=[O])[NH2]")
- * @returns array of product molecules
+ * @returns product molecules, or an empty array if the SMIRKS pattern doesn't
+ *   match this molecule (valid "no reaction" outcome) or the WASM call throws
+ *   (invalid SMIRKS / internal failure — logged via console.error). Never
+ *   returns the unchanged input molecule as if it were a product.
  */
 export function runReactants(mol: MoleculeDto, smirks: string): MoleculeDto[] {
   try {
