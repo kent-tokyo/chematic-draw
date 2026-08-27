@@ -134,7 +134,13 @@ describe('wasmBridge', () => {
         },
       ];
 
-      (wasmModule.run_reactants as jest.Mock).mockReturnValue(mockProducts);
+      // The real WASM binary returns the tagged ReactionOutcome shape directly
+      // (see chem-wasm's #[serde(tag = "status")]) — wasmBridge.runReactants no
+      // longer post-processes an array into this shape, it passes it through.
+      (wasmModule.run_reactants as jest.Mock).mockReturnValue({
+        status: 'applied',
+        products: mockProducts,
+      });
 
       const result = wasmBridge.runReactants(mockMolecule, smirks);
 
@@ -145,19 +151,36 @@ describe('wasmBridge', () => {
       expect(wasmModule.run_reactants).toHaveBeenCalledWith(mockMolecule, smirks);
     });
 
-    it('should report no_match distinctly from an error', () => {
+    it('should report no_match, invalid_reaction, unsupported_chemistry, and error distinctly', () => {
       const smirks = '[C:1](=[O])[OH]>>[C:1](=[O])[NH2]';
-      (wasmModule.run_reactants as jest.Mock).mockReturnValue([]);
+
+      (wasmModule.run_reactants as jest.Mock).mockReturnValue({ status: 'no_match' });
       const noMatch = wasmBridge.runReactants(mockMolecule, smirks);
       expect(noMatch.status).toBe('no_match');
 
-      (wasmModule.run_reactants as jest.Mock).mockImplementation(() => {
-        throw new Error('invalid SMIRKS');
+      (wasmModule.run_reactants as jest.Mock).mockReturnValue({
+        status: 'invalid_reaction',
+        message: 'SMIRKS parse error: reaction SMILES must contain \'>>\'',
       });
-      const errored = wasmBridge.runReactants(mockMolecule, 'not smirks');
+      const invalid = wasmBridge.runReactants(mockMolecule, 'not smirks');
+      expect(invalid.status).toBe('invalid_reaction');
+
+      (wasmModule.run_reactants as jest.Mock).mockReturnValue({
+        status: 'unsupported_chemistry',
+        message: 'reactant count mismatch: expected 2, got 1',
+      });
+      const unsupported = wasmBridge.runReactants(mockMolecule, '[C:1].[N:2]>>[C:1][N:2]');
+      expect(unsupported.status).toBe('unsupported_chemistry');
+
+      // A thrown exception (FFI-level failure, e.g. malformed input JSON) is
+      // still caught and mapped to the generic 'error' status.
+      (wasmModule.run_reactants as jest.Mock).mockImplementation(() => {
+        throw new Error('JSON decode failed');
+      });
+      const errored = wasmBridge.runReactants(mockMolecule, smirks);
       expect(errored.status).toBe('error');
       if (errored.status === 'error') {
-        expect(errored.message).toContain('invalid SMIRKS');
+        expect(errored.message).toContain('JSON decode failed');
       }
     });
   });

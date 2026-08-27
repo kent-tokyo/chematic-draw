@@ -66,6 +66,8 @@ export function generateReactionSmiles(scheme: ReactionScheme): string[] {
 export type ExecuteReactionResult =
   | { status: 'applied'; step: ReactionStep }
   | { status: 'no_match' }
+  | { status: 'invalid_reaction'; message: string }
+  | { status: 'unsupported_chemistry'; message: string }
   | { status: 'error'; message: string };
 
 /**

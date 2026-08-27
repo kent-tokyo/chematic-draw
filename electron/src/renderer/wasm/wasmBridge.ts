@@ -191,17 +191,24 @@ export function identifyFunctionalGroups(mol: MoleculeDto): string[] {
 }
 
 /**
- * Result of executing a SMIRKS-based reaction. Keeps "the SMIRKS pattern didn't
- * match this molecule" (a valid chemical outcome), "the SMIRKS was invalid or
- * execution failed" (a real error), and "it applied" as three distinct, checkable
- * states — collapsing the first two into the same `[]` is exactly the bug this
- * type exists to prevent (see git history: the Rust side already distinguishes
- * these; this type carries that distinction across the wasm/JS boundary instead
- * of re-collapsing it here).
+ * Result of executing a SMIRKS-based reaction. `no_match`, `invalid_reaction`,
+ * and `unsupported_chemistry` are real, honestly-distinguished states from the
+ * Rust side's `ReactionOutcome`/`TransformError` (see chem-wasm/src/lib.rs) —
+ * not fabricated categories:
+ * - `no_match`: the SMIRKS parsed fine but doesn't match this molecule.
+ * - `invalid_reaction`: the SMIRKS string itself doesn't parse.
+ * - `unsupported_chemistry`: the SMIRKS is valid but needs a different number
+ *   of reactant molecules than chematic-draw supplies (it always passes one).
+ * - `error`: an FFI-level failure before any chemistry was attempted (e.g.
+ *   malformed input), not a chemistry-domain outcome.
+ * Collapsing any of these into the same `[]` or into each other is exactly the
+ * bug this type exists to prevent.
  */
 export type ReactionRunResult =
   | { status: 'applied'; products: MoleculeDto[] }
   | { status: 'no_match' }
+  | { status: 'invalid_reaction'; message: string }
+  | { status: 'unsupported_chemistry'; message: string }
   | { status: 'error'; message: string };
 
 /**
@@ -211,11 +218,7 @@ export type ReactionRunResult =
  */
 export function runReactants(mol: MoleculeDto, smirks: string): ReactionRunResult {
   try {
-    const result = wasmModule.run_reactants(mol, smirks) as MoleculeDto[];
-    if (result.length === 0) {
-      return { status: 'no_match' };
-    }
-    return { status: 'applied', products: result };
+    return wasmModule.run_reactants(mol, smirks) as ReactionRunResult;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('Reaction execution failed:', err);

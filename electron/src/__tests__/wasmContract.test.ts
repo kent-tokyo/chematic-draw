@@ -140,15 +140,19 @@ describe('WASM contract (real binary, not mocked)', () => {
         { id: 2, from: 1, to: 3, order: 1, stereo: 0 },
       ],
     };
-    const products = wasm.run_reactants(
+    const outcome = wasm.run_reactants(
       aceticAcid,
       '[C:1](=[O])[OH]>>[C:1](=[O])[NH2]'
-    ) as Array<{ atoms: Array<{ element: string }> }>;
-    expect(products.length).toBeGreaterThan(0);
-    expect(products[0].atoms.some((a) => a.element.includes('N'))).toBe(true);
+    ) as { status: string; products?: Array<{ atoms: Array<{ element: string }> }> };
+    expect(outcome.status).toBe('applied');
+    expect(outcome.products!.length).toBeGreaterThan(0);
+    expect(outcome.products![0].atoms.some((a) => a.element.includes('N'))).toBe(true);
   });
 
-  it('reaction execution: invalid SMIRKS throws a catchable JS exception, not a crash', () => {
+  it('reaction execution: invalid SMIRKS is a tagged invalid_reaction outcome, not an exception', () => {
+    // Domain-level outcomes (including an unparseable SMIRKS) are real Ok
+    // values through the wasm boundary now — Err/throw is reserved for
+    // FFI-level failures (e.g. malformed input JSON), which don't apply here.
     const ethanol = {
       atoms: [
         { id: 0, element: 'C', x: 0, y: 0, charge: 0, atom_map: 0 },
@@ -160,10 +164,15 @@ describe('WASM contract (real binary, not mocked)', () => {
         { id: 1, from: 1, to: 2, order: 1, stereo: 0 },
       ],
     };
-    expect(() => wasm.run_reactants(ethanol, 'not a valid smirks pattern')).toThrow();
+    const outcome = wasm.run_reactants(ethanol, 'not a valid smirks pattern') as {
+      status: string;
+      message?: string;
+    };
+    expect(outcome.status).toBe('invalid_reaction');
+    expect(outcome.message).toBeTruthy();
   });
 
-  it('reaction execution: no match on a non-matching molecule returns empty, not the unchanged input', () => {
+  it('reaction execution: reactant-count mismatch is a distinct unsupported_chemistry outcome, not misreported as invalid_reaction', () => {
     const ethanol = {
       atoms: [
         { id: 0, element: 'C', x: 0, y: 0, charge: 0, atom_map: 0 },
@@ -175,10 +184,32 @@ describe('WASM contract (real binary, not mocked)', () => {
         { id: 1, from: 1, to: 2, order: 1, stereo: 0 },
       ],
     };
-    const products = wasm.run_reactants(
+    // Syntactically valid SMIRKS written for two reactants; chematic-draw
+    // always supplies one.
+    const outcome = wasm.run_reactants(ethanol, '[C:1].[N:2]>>[C:1][N:2]') as {
+      status: string;
+      message?: string;
+    };
+    expect(outcome.status).toBe('unsupported_chemistry');
+    expect(outcome.message).toBeTruthy();
+  });
+
+  it('reaction execution: no match on a non-matching molecule is a tagged no_match, not the unchanged input', () => {
+    const ethanol = {
+      atoms: [
+        { id: 0, element: 'C', x: 0, y: 0, charge: 0, atom_map: 0 },
+        { id: 1, element: 'C', x: 1, y: 0, charge: 0, atom_map: 0 },
+        { id: 2, element: 'O', x: 2, y: 0, charge: 0, atom_map: 0 },
+      ],
+      bonds: [
+        { id: 0, from: 0, to: 1, order: 1, stereo: 0 },
+        { id: 1, from: 1, to: 2, order: 1, stereo: 0 },
+      ],
+    };
+    const outcome = wasm.run_reactants(
       ethanol,
       '[C:1](=[O])[OH]>>[C:1](=[O])[NH2]'
-    ) as unknown[];
-    expect(products).toEqual([]);
+    ) as { status: string };
+    expect(outcome.status).toBe('no_match');
   });
 });

@@ -819,12 +819,49 @@ pub fn identify_functional_groups_wasm(mol_json: &JsValue) -> Result<JsValue, Js
         .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
 }
 
+/// Why a reaction failed to apply — distinguished using chematic-rxn's own
+/// [`chematic::rxn::TransformError`] variants, not a guess:
+/// - `InvalidReaction`: the SMIRKS string itself doesn't parse
+///   (`TransformError::SmirksParse`, e.g. missing `>>` or an unparsable SMILES
+///   component).
+/// - `UnsupportedChemistry`: the SMIRKS is syntactically valid but needs a
+///   different number of reactant molecules than chematic-draw supplies
+///   (`TransformError::ReactantCountMismatch`) — chematic-draw always calls
+///   `run_reactants` with exactly one reactant molecule today, so a
+///   multi-reactant template is a real, honestly-distinguishable "not
+///   supported by this call site" case, not a parse failure.
+#[derive(Debug, Clone)]
+enum ReactionError {
+    InvalidReaction(String),
+    UnsupportedChemistry(String),
+}
+
+impl std::fmt::Display for ReactionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InvalidReaction(msg) | Self::UnsupportedChemistry(msg) => write!(f, "{msg}"),
+        }
+    }
+}
+
+impl From<chematic::rxn::TransformError> for ReactionError {
+    fn from(e: chematic::rxn::TransformError) -> Self {
+        match &e {
+            chematic::rxn::TransformError::SmirksParse(_) => Self::InvalidReaction(e.to_string()),
+            chematic::rxn::TransformError::ReactantCountMismatch { .. } => {
+                Self::UnsupportedChemistry(e.to_string())
+            }
+        }
+    }
+}
+
 /// Run a SMIRKS-based reaction template against a molecule.
 ///
 /// `Ok(products)` — possibly empty when the SMIRKS pattern simply doesn't match
 /// this molecule, a valid "no reaction" outcome distinct from an error. `Err`
-/// only for an invalid SMIRKS or an internal execution failure. Never fabricates
-/// a fake product by silently returning the unchanged input molecule.
+/// only for an invalid SMIRKS or unsupported reactant-count chemistry (see
+/// [`ReactionError`]). Never fabricates a fake product by silently returning
+/// the unchanged input molecule.
 /// Pure Rust core of [`run_reactants`], kept free of the wasm/JsValue boundary
 /// so it's directly unit-testable.
 ///
@@ -836,10 +873,10 @@ pub fn identify_functional_groups_wasm(mol_json: &JsValue) -> Result<JsValue, Js
 fn execute_reaction(
     chem_mol: &chematic::core::Molecule,
     smirks: &str,
-) -> Result<Vec<MoleculeDto>, String> {
+) -> Result<Vec<MoleculeDto>, ReactionError> {
     use chematic::rxn;
 
-    let product_sets = rxn::run_reactants(smirks, &[chem_mol]).map_err(|e| e.to_string())?;
+    let product_sets = rxn::run_reactants(smirks, &[chem_mol])?;
 
     // product_sets is Vec<Vec<Molecule>>; empty means the SMIRKS pattern found no
     // match on this molecule — surface it as zero products, not a fabricated one.
@@ -852,7 +889,40 @@ fn execute_reaction(
     Ok(all_products)
 }
 
+/// Tagged reaction outcome sent to JS — every domain-level result (success, no
+/// match, invalid SMIRKS, or unsupported reactant count) is a normal `Ok`
+/// value; the `#[wasm_bindgen]` `Err` channel is reserved for FFI-level
+/// failures (e.g. the input JSON not decoding), which can't happen once
+/// `execute_reaction` is reached. Serializes to `{"status": "applied", ...}`
+/// etc., matching `ReactionRunResult` on the TS side.
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+enum ReactionOutcome {
+    Applied { products: Vec<MoleculeDto> },
+    NoMatch,
+    InvalidReaction { message: String },
+    UnsupportedChemistry { message: String },
+}
+
+impl From<Result<Vec<MoleculeDto>, ReactionError>> for ReactionOutcome {
+    fn from(result: Result<Vec<MoleculeDto>, ReactionError>) -> Self {
+        match result {
+            Ok(products) if products.is_empty() => Self::NoMatch,
+            Ok(products) => Self::Applied { products },
+            Err(ReactionError::InvalidReaction(message)) => Self::InvalidReaction { message },
+            Err(ReactionError::UnsupportedChemistry(message)) => {
+                Self::UnsupportedChemistry { message }
+            }
+        }
+    }
+}
+
 /// Execute SMIRKS-based reaction template on a molecule.
+///
+/// Returns a tagged [`ReactionOutcome`] on success — `applied`, `no_match`,
+/// `invalid_reaction`, and `unsupported_chemistry` are all `Ok` values here.
+/// `Err` is reserved for FFI-level failures that happen before any chemistry
+/// is attempted (malformed input JSON).
 #[wasm_bindgen]
 pub fn run_reactants(mol_json: &JsValue, smirks: &str) -> Result<JsValue, JsValue> {
     let dto: MoleculeDto = serde_wasm_bindgen::from_value(mol_json.clone())
@@ -860,10 +930,9 @@ pub fn run_reactants(mol_json: &JsValue, smirks: &str) -> Result<JsValue, JsValu
 
     let chem_mol = dto_to_chem(&dto)?;
 
-    let products = execute_reaction(&chem_mol, smirks)
-        .map_err(|e| JsValue::from_str(&format!("Reaction execution failed: {e}")))?;
+    let outcome: ReactionOutcome = execute_reaction(&chem_mol, smirks).into();
 
-    serde_wasm_bindgen::to_value(&products)
+    serde_wasm_bindgen::to_value(&outcome)
         .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
 }
 
@@ -1369,13 +1438,51 @@ mod correctness_tests {
     }
 
     #[test]
-    fn reaction_returns_err_on_invalid_smirks() {
+    fn reaction_returns_invalid_reaction_on_unparseable_smirks() {
         let ethanol = mol("CCO");
         let result = execute_reaction(&ethanol, "not a valid smirks pattern");
         assert!(
-            result.is_err(),
-            "an invalid SMIRKS must be a real error, not a silently-returned empty/unchanged result"
+            matches!(result, Err(ReactionError::InvalidReaction(_))),
+            "an unparseable SMIRKS must be a real error, not a silently-returned empty/unchanged result: {result:?}"
         );
+    }
+
+    #[test]
+    fn reaction_returns_unsupported_chemistry_on_reactant_count_mismatch() {
+        // Syntactically valid SMIRKS, but written for two separate reactant
+        // molecules. chematic-draw always calls run_reactants with exactly one
+        // reactant, so this is a real, library-reported mismatch — not a parse
+        // failure, and not something we should misreport as one.
+        let ethanol = mol("CCO");
+        let two_reactant_smirks = "[C:1].[N:2]>>[C:1][N:2]";
+        let result = execute_reaction(&ethanol, two_reactant_smirks);
+        assert!(
+            matches!(result, Err(ReactionError::UnsupportedChemistry(_))),
+            "a reactant-count mismatch must be distinguished from an invalid-SMIRKS parse error: {result:?}"
+        );
+    }
+
+    #[test]
+    fn reaction_outcome_tags_each_case_distinctly() {
+        let acetic_acid = mol("CC(=O)O");
+        let ethanol = mol("CCO");
+
+        let applied: ReactionOutcome =
+            execute_reaction(&acetic_acid, CARBOXYLIC_ACID_TO_AMIDE).into();
+        assert!(matches!(applied, ReactionOutcome::Applied { .. }));
+
+        let no_match: ReactionOutcome = execute_reaction(&ethanol, CARBOXYLIC_ACID_TO_AMIDE).into();
+        assert!(matches!(no_match, ReactionOutcome::NoMatch));
+
+        let invalid: ReactionOutcome = execute_reaction(&ethanol, "not valid").into();
+        assert!(matches!(invalid, ReactionOutcome::InvalidReaction { .. }));
+
+        let unsupported: ReactionOutcome =
+            execute_reaction(&ethanol, "[C:1].[N:2]>>[C:1][N:2]").into();
+        assert!(matches!(
+            unsupported,
+            ReactionOutcome::UnsupportedChemistry { .. }
+        ));
     }
 
     #[test]

@@ -92,6 +92,14 @@ export function ReactionPanel() {
       setReactionError('SMIRKS pattern did not match this molecule.');
       return;
     }
+    if (result.status === 'invalid_reaction') {
+      setReactionError(`Invalid SMIRKS pattern: ${result.message}`);
+      return;
+    }
+    if (result.status === 'unsupported_chemistry') {
+      setReactionError(`Unsupported reaction: ${result.message}`);
+      return;
+    }
     if (result.status === 'error') {
       setReactionError(`Reaction execution failed: ${result.message}`);
       return;
