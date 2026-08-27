@@ -6,12 +6,12 @@ Complete reference for chematic-draw WASM bridge functions and TypeScript interf
 
 1. [Core Types](#core-types)
 2. [Molecule Operations](#molecule-operations)
-3. [3D Operations](#3d-operations)
-4. [Fingerprint & Similarity](#fingerprint--similarity)
-5. [Reaction Operations](#reaction-operations)
-6. [Search & Analysis](#search--analysis)
-7. [Error Handling](#error-handling)
-8. [TypeScript Interfaces](#typescript-interfaces)
+3. [Physicochemical Properties](#physicochemical-properties)
+4. [3D Operations](#3d-operations)
+5. [Fingerprint & Similarity](#fingerprint--similarity)
+6. [Reaction Operations](#reaction-operations)
+7. [Search & Analysis](#search--analysis)
+8. [Error Handling](#error-handling)
 
 ---
 
@@ -65,18 +65,19 @@ const benzene: MoleculeDto = {
 
 ## Molecule Operations
 
-### parseSmilesWasm(smiles: string): MoleculeDto
+### parseMolecule(text: string): MoleculeDto
 
-Parse SMILES string into molecule structure.
+Parse a molecule from text, auto-detecting the format: CDXML, CML, SDF,
+MOL V2000/V3000, or SMILES.
 
 ```typescript
-const aspirin = wasmBridge.parseSmilesWasm("CC(=O)Oc1ccccc1C(=O)O");
+const aspirin = wasmBridge.parseMolecule("CC(=O)Oc1ccccc1C(=O)O");
 console.log(aspirin.atoms.length);  // 13
 console.log(aspirin.bonds.length);  // 13
 ```
 
 **Throws:**
-- Invalid SMILES syntax
+- Invalid/unrecognized syntax
 - Unsupported elements
 
 **Performance:**
@@ -107,12 +108,12 @@ if (!result.valid) {
 
 ---
 
-### canonicalizeSmiles(mol: MoleculeDto): string
+### toCanonicalSmiles(mol: MoleculeDto): string
 
 Convert molecule to canonical SMILES representation.
 
 ```typescript
-const smiles = wasmBridge.canonicalizeSmiles(mol);
+const smiles = wasmBridge.toCanonicalSmiles(mol);
 // Returns: "CC(=O)Oc1ccccc1C(=O)O" (always same for same structure)
 ```
 
@@ -120,6 +121,76 @@ const smiles = wasmBridge.canonicalizeSmiles(mol);
 - Molecule deduplication
 - Consistency checking
 - Database lookup
+
+---
+
+## Physicochemical Properties
+
+Per ROADMAP v0.2.1's scientific capability audit: every calculated property
+below lists the real algorithm and its source, sourced by reading
+chematic-chem 0.20.1's own doc comments and implementation, not assumed from
+the property name. "Domain" notes when a property is unreliable or undefined
+outside typical drug-like organic molecules.
+
+### getProperties(mol: MoleculeDto): PropertiesDto
+
+Core physicochemical descriptors, computed synchronously and deterministically
+(same input always produces the same output — no network, no randomness).
+
+```typescript
+interface PropertiesDto {
+  formula: string;
+  atom_count: number;
+  bond_count: number;
+  molecular_weight: number;
+  logp: number;
+  tpsa: number;
+  hba: number;
+  hbd: number;
+  rotatable_bonds: number;
+  lipinski_pass: boolean;
+  valence_errors: string[];
+}
+```
+
+| Property | Algorithm / source | Unit | Limitations |
+|---|---|---|---|
+| `molecular_weight` | Sum of average atomic mass per heavy atom + 1.008 Da per implicit H. | Da (g/mol) | Average (not monoisotopic) mass. |
+| `logp` | Crippen atom-contribution method (Wildman & Crippen 1999-style per-atom SMARTS-like classification, summed). | unitless (log₁₀ of the octanol/water partition ratio) | Atom-additive methods are known to be less accurate for large, unusual, or highly conjugated structures than they are for typical drug-like molecules. |
+| `tpsa` | Topological Polar Surface Area (Ertl, Rohde & Selzer 2000), Ertl per-atom-type contributions for N/O/S/P. | Å² | **Differs from RDKit's default**: S and P contributions are included here (matches RDKit's `includeSandP=True`, not RDKit's own default of `False`) — a like-for-like comparison against external TPSA values needs the same flag. |
+| `hba` | Rule-based heavy-atom count of N/O acceptor patterns (not the simpler Lipinski N+O count — see `lipinski_pass` below, which uses its own `hba_count_lipinski`). | count | Rule-based classification, not a physical measurement; edge cases (e.g. amide N, thio-acids) are handled by explicit pattern rules in chematic-chem, not a general electronic-structure calculation. |
+| `hbd` | Count of heavy atoms (N or O) with ≥1 attached H. Counted per heavy atom, not per H. | count | — |
+| `rotatable_bonds` | Standard rotatable-bond definition: non-ring single bonds between two non-terminal heavy atoms (excludes amide C–N bonds and similar restricted-rotation cases per chematic-chem's classifier). | count | — |
+| `lipinski_pass` | Lipinski's Rule of Five: MW ≤ 500 Da AND HBD ≤ 5 AND HBA ≤ 10 (via a separate Lipinski-specific HBA count) AND Crippen LogP ≤ 5.0. | boolean | A screening heuristic from Lipinski et al. 1997, not a solubility/permeability measurement — passing or failing doesn't determine oral bioavailability by itself. |
+| `valence_errors` | Structural valence check (`chematic::perception::validate_valence`): flags atoms whose bond count exceeds the allowed valence for their element. | list of strings | Only flags valence exceedance; does not check charge-adjusted valence exceptions beyond what chematic-core models, and is a separate, narrower check than full chemical validity. |
+
+---
+
+### getExtendedProperties(mol: MoleculeDto): ExtendedPropertiesDto
+
+Additional descriptors used by the Property Prediction panel — despite the UI
+label, these are deterministic structural/empirical calculations, not
+statistical or ML predictions (no confidence interval exists to report).
+
+```typescript
+interface ExtendedPropertiesDto {
+  sa_score: number;
+  esol_solubility: number;
+  fsp3: number;
+  pains_violations: boolean;
+  num_stereocenters: number;
+  num_unspecified_stereocenters: number;
+}
+```
+
+| Property | Algorithm / source | Unit | Limitations |
+|---|---|---|---|
+| `sa_score` | Synthetic Accessibility Score (Ertl & Schuffenhauer 2009-style fragment-contribution method). Fragment environments are hashed with the same FNV-1a scheme as ECFP fingerprints, so the fragment table is directly ECFP4-compatible. | 1 (trivially easy) – 10 (very hard) | A fragment-frequency heuristic estimating *how routine the fragments look*, not a real retrosynthetic feasibility analysis — see the project's Explicitly Deferred list re: not implementing a second synthesizability scorer. |
+| `esol_solubility` | ESOL model (Delaney 2004): `logS = 0.16 − 0.63·cLogP − 0.0062·MW + 0.066·RotB − 0.74·AP`, where AP = aromatic proportion. | log(S), log mol/L | Linear regression fit to a specific training set of drug-like molecules (Delaney 2004); returns `0.0` for molecules with no heavy atoms rather than a real solubility value. |
+| `fsp3` | Fraction sp3 carbons: non-aromatic carbons with no double/triple bond, divided by total carbon count. | unitless ratio, 0.0–1.0 | Returns `0.0` for molecules with no carbon atoms (not undefined/NaN). |
+| `pains_violations` | PAINS (Pan-Assay Interference Compounds) substructure alert matching (Baell & Holloway 2010 pattern set), matched via VF2 subgraph isomorphism against explicit-hydrogen structures. | boolean (`true` = at least one alert fired) | **Conservative on ambiguity**: if a pattern match can't be conclusively resolved within the matcher's search budget, it's folded in as if matched — so this can report a false violation, but should not under-report a real one. |
+| `num_stereocenters` | Count of atoms with 4 substituents whose CIP priorities are all distinct (specified + unspecified), matching RDKit's `CalcNumAtomStereoCenters` semantics. | count | Tetrahedral stereocenters only — doesn't count other stereogenic elements (axial chirality, etc.). |
+| `num_unspecified_stereocenters` | Subset of the above: sp3 carbons with 4 substituents where no `@`/`@@` was specified in the input. | count | Same tetrahedral-only scope as `num_stereocenters`. |
 
 ---
 
@@ -245,7 +316,9 @@ const fp = wasmBridge.getFingerprint(mol);
 
 **Properties:**
 - 2048-bit fingerprint
-- Circular radius = 4
+- Circular **radius = 2** (the "4" in "ECFP4" is the *diameter*, 2× radius —
+  matching RDKit's ECFP4 naming convention; it is not the radius itself)
+- Bit vector (presence/absence per position), not an occurrence count
 - Hashing-based representation
 - Reproducible per structure
 
@@ -255,13 +328,38 @@ const fp = wasmBridge.getFingerprint(mol);
 
 ---
 
+### getFingerprintWithMetadata(mol: MoleculeDto): FingerprintDto
+
+Same fingerprint as `getFingerprint`, plus the real parameters that produced
+it — for callers that need to know/display what was actually computed rather
+than treat the hex string as opaque.
+
+```typescript
+interface FingerprintDto {
+  hex: string;
+  kind: string;        // "ECFP4"
+  radius: number;       // 2
+  bit_length: number;   // 2048
+  mode: string;          // "bit" (not "count")
+}
+
+const result = wasmBridge.getFingerprintWithMetadata(mol);
+console.log(result.radius, result.bit_length, result.mode); // 2 2048 "bit"
+```
+
+`radius`/`bit_length`/`mode` are read from chematic-fp's own `EcfpConfig`
+default at call time, not hardcoded — if a future version of the app switches
+to a different fingerprint config, this stays accurate automatically.
+
+---
+
 ### tanimotoSimilarity(fp1: string, fp2: string): number
 
 Calculate Tanimoto similarity between two fingerprints.
 
 ```typescript
-const molA = wasmBridge.parseSmilesWasm("c1ccccc1");
-const molB = wasmBridge.parseSmilesWasm("c1ccccc1C");  // toluene
+const molA = wasmBridge.parseMolecule("c1ccccc1");
+const molB = wasmBridge.parseMolecule("c1ccccc1C");  // toluene
 
 const fpA = wasmBridge.getFingerprint(molA);
 const fpB = wasmBridge.getFingerprint(molB);
@@ -296,22 +394,31 @@ Dice = 2 * |A ∩ B| / (|A| + |B|)
 
 ## Reaction Operations
 
-### runReactants(smirks: string, reactants: MoleculeDto[]): MoleculeDto[][]
+### runReactants(mol: MoleculeDto, smirks: string): ReactionRunResult
 
-Execute reaction on substrates (SMIRKS pattern).
+Execute a SMIRKS-based reaction template against one reactant molecule.
 
 ```typescript
-const reactants = [
-  wasmBridge.parseSmilesWasm("CCBr"),      // alkyl bromide
-];
+type ReactionRunResult =
+  | { status: 'applied'; products: MoleculeDto[] }
+  | { status: 'no_match' }
+  | { status: 'invalid_reaction'; message: string }
+  | { status: 'unsupported_chemistry'; message: string }
+  | { status: 'error'; message: string };
 
-const products = wasmBridge.runReactants(
-  "[#6:1][Br]>>[#6:1][OH]",               // SN2: Br → OH
-  reactants
-);
-
-console.log(products);  // [ [ { alcohol } ] ]
+const bromide = wasmBridge.parseMolecule("CCBr");
+const result = wasmBridge.runReactants(bromide, "[#6:1][Br]>>[#6:1][OH]");
+if (result.status === 'applied') {
+  console.log(result.products);
+}
 ```
+
+`no_match`, `invalid_reaction` (the SMIRKS string doesn't parse), and
+`unsupported_chemistry` (syntactically valid SMIRKS written for a different
+number of reactants than the one this call always supplies) are real,
+distinguishable outcomes sourced from chematic-rxn's own `TransformError`
+enum — not fabricated categories. Only FFI-level failures (malformed input)
+throw; every reaction-domain outcome above is a normal return value.
 
 **SMIRKS Format:**
 ```
@@ -319,126 +426,45 @@ console.log(products);  // [ [ { alcohol } ] ]
 [C:1][Br:2]>>[C:1][O:2]  // Atom mapping required
 ```
 
-**Returns:**
-- Array of product sets (one array per input reactant)
-- Empty array if no reaction matches
-
-**Throws:**
-- Invalid SMIRKS syntax
-- Invalid molecule structure
-
----
-
-### classifyReaction(reactants: MoleculeDto[], products: MoleculeDto[]): ReactionType
-
-Predict reaction mechanism type.
-
-```typescript
-interface ReactionType {
-  type: "SN1" | "SN2" | "E1" | "E2" | "Addition" | "Other";
-  confidence: number;    // 0.0-1.0
-  details: string;
-}
-
-const classification = wasmBridge.classifyReaction(reactants, products);
-console.log(classification);
-// { type: "SN2", confidence: 0.92, details: "Backside attack..." }
-```
-
 ---
 
 ## Search & Analysis
 
-### findMcs(molA: MoleculeDto, molB: MoleculeDto): McsResult
+### findMcs(molA: MoleculeDto, molB: MoleculeDto): McsResultDto
 
-Find Maximum Common Substructure.
+Find the Maximum Common Substructure between two molecules using
+chematic-smarts's real branch-and-bound MCS algorithm (not an atom-count
+proxy), bounded by a fixed search-time budget.
 
 ```typescript
-interface McsResult {
-  commonAtoms: number[];      // Atom indices in molecule A
-  commonBonds: number[];      // Bond indices in molecule A
-  similarity: number;         // 0.0-1.0
+interface McsResultDto {
+  common_atoms: number[];
+  common_bonds: number[];
+  similarity: number;
+  search_budget_ms: number;  // time budget applied; a hit budget means a
+                              // possibly-partial (not necessarily maximum) result
 }
 
-const mcsA = wasmBridge.parseSmilesWasm("c1ccccc1");      // benzene
-const mcsB = wasmBridge.parseSmilesWasm("c1ccccc1C");     // toluene
-
-const result = wasmBridge.findMcs(mcsA, mcsB);
-console.log(result.commonAtoms);  // [0, 1, 2, 3, 4, 5] (6-atom benzene ring)
-console.log(result.similarity);   // 0.857
+const benzene = wasmBridge.parseMolecule("c1ccccc1");
+const toluene = wasmBridge.parseMolecule("c1ccccc1C");
+const result = wasmBridge.findMcs(benzene, toluene);
+console.log(result.common_atoms, result.similarity);
 ```
 
 **Performance:**
-- 50-200ms for typical molecules
-- Exponential for very large molecules (>100 atoms)
+- Bounded by `search_budget_ms` (currently a fixed constant on the Rust side);
+  large/highly symmetric molecule pairs may hit the budget and return a
+  best-effort partial match rather than the true maximum.
 
 ---
 
-### calculateMolecularWeight(mol: MoleculeDto): number
-
-Sum of atomic weights.
-
-```typescript
-const mw = wasmBridge.calculateMolecularWeight(mol);
-console.log(mw);  // 180.157 for aspirin
-```
-
----
-
-### predictProperties(mol: MoleculeDto): PropertyPrediction
-
-Predict molecular properties.
-
-```typescript
-interface PropertyPrediction {
-  molWeight: number;
-  logP: number;              // Lipophilicity
-  hbd: number;               // Hydrogen bond donors
-  hba: number;               // Hydrogen bond acceptors
-  rotBonds: number;          // Rotatable bonds
-  saScore: number;           // Synthetic accessibility (0-10)
-  esolSolubility: number;    // LogS (ESOL model)
-  painViolations: number;    // PAINS alert count
-}
-
-const props = wasmBridge.predictProperties(mol);
-console.log(props.saScore);  // 3.2 (easy to synthesize)
-```
-
----
-
-## TypeScript Interfaces
-
-### Full Bridge Type Definitions
-
-```typescript
-// wasmBridge.ts exports
-
-// Core parsing
-export function parseSmilesWasm(smiles: string): MoleculeDto;
-export function canonicalizeSmiles(mol: MoleculeDto): string;
-export function validateMolecule(mol: MoleculeDto): ValidationResult;
-
-// 3D operations
-export async function generate3dCoords(mol: MoleculeDto): Promise<Coords3dDto>;
-export async function minimize3d(mol: MoleculeDto, coords: Coords3dDto): Promise<Coords3dDto>;
-export async function parseXyz(text: string): Promise<Coords3dDto>;
-export async function parsePdb(text: string): Promise<{ mol: MoleculeDto; coords: Coords3dDto }>;
-
-// Fingerprints & similarity
-export function getFingerprint(mol: MoleculeDto): string;
-export function tanimotoSimilarity(fp1: string, fp2: string): number;
-export function diceSimilarity(fp1: string, fp2: string): number;
-
-// Reactions
-export function runReactants(smirks: string, reactants: MoleculeDto[]): MoleculeDto[][];
-export function classifyReaction(reactants: MoleculeDto[], products: MoleculeDto[]): ReactionType;
-
-// Search & analysis
-export function findMcs(molA: MoleculeDto, molB: MoleculeDto): McsResult;
-export function calculateMolecularWeight(mol: MoleculeDto): number;
-export function predictProperties(mol: MoleculeDto): PropertyPrediction;
-```
+Molecular weight, LogP, TPSA, and the other extended descriptors
+(`sa_score`, `esol_solubility`, `fsp3`, `pains_violations`, stereocenter
+counts) are documented in [Physicochemical Properties](#physicochemical-properties)
+above — there is no separate `calculateMolecularWeight` or `predictProperties`
+function on the WASM bridge itself. The Property Prediction UI panel is a thin
+presentational wrapper around `getExtendedProperties` (see
+`electron/src/renderer/lib/advancedFeatures.ts`), not a separate calculation.
 
 ---
 
@@ -458,7 +484,7 @@ export function predictProperties(mol: MoleculeDto): PropertyPrediction;
 
 ```typescript
 try {
-  const mol = wasmBridge.parseSmilesWasm(userInput);
+  const mol = wasmBridge.parseMolecule(userInput);
   const coords = await wasmBridge.generate3dCoords(mol);
   // ... use coords
 } catch (error) {
