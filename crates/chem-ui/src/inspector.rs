@@ -110,7 +110,7 @@ impl Inspector {
             // SMILES — editable on click (§5)
             let current_smiles = canvas_to_canonical_smiles(mol);
             ui.label(egui::RichText::new("SMILES").small().color(tokens.sidebar_title.gamma_multiply(0.66)));
-            if let Some(ref mut buf) = smiles_edit {
+            if let Some(buf) = smiles_edit {
                 // Editing mode
                 let border_color = if *smiles_edit_error { tokens.error } else { tokens.accent };
                 let resp = ui.add(

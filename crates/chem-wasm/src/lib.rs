@@ -344,6 +344,7 @@ pub fn standardize_molecule(mol_json: &JsValue) -> Result<JsValue, JsValue> {
         neutralize_charges: true,
         remove_explicit_h: true,
         largest_fragment_only: false,
+        zwitterion_handling: chematic::chem::ZwitterionHandling::Normalize,
     };
 
     let standardized = standardize(&chem_mol, &opts);

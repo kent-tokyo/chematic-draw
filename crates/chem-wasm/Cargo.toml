@@ -1,7 +1,7 @@
 [package]
 name = "chem-wasm"
-version = "0.1.0"
-edition = "2021"
+version = "0.2.0"
+edition = "2024"
 description = "chematic → WASM bridge for Electron renderer"
 license = "MIT OR Apache-2.0"
 
@@ -9,12 +9,12 @@ license = "MIT OR Apache-2.0"
 crate-type = ["cdylib"]
 
 [dependencies]
-chematic = { version = "0.1.40", features = ["full"] }
-chematic-inchi = { version = "0.1.40" }
+chematic = { workspace = true }
+chematic-inchi = { workspace = true }
 wasm-bindgen = "0.2"
-serde = { version = "1", features = ["derive"] }
+serde = { workspace = true }
 serde-wasm-bindgen = "0.6"
-serde_json = "1"
+serde_json = { workspace = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.2", features = ["js"] }

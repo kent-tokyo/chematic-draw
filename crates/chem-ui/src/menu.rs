@@ -1,5 +1,3 @@
-use egui::Context;
-
 use crate::canvas::CanvasMolecule;
 use crate::export::{canvas_to_cml, canvas_to_mol, canvas_to_mol_v3000, canvas_to_sdf, canvas_to_canonical_smiles, canvas_to_svg};
 use crate::reaction::ReactionScheme;
@@ -75,7 +73,7 @@ pub struct MenuBar;
 #[allow(deprecated)]
 impl MenuBar {
     pub fn show(
-        ctx: &Context,
+        ui: &mut egui::Ui,
         mol: &mut CanvasMolecule,
         reaction: &ReactionScheme,
         theme: &mut Theme,
@@ -83,19 +81,20 @@ impl MenuBar {
         actions: &mut MenuActions,
         active_menu: &mut Option<TopMenu>,
     ) {
+        let ctx = ui.ctx().clone();
         // Global Ctrl+V paste
         let paste_triggered = ctx.input(|i| {
             i.key_pressed(egui::Key::V) && i.modifiers.ctrl
         });
         if paste_triggered {
-            let center = ctx.input(|i| i.screen_rect()).center();
+            let center = ctx.input(|i| i.viewport_rect()).center();
             match paste_from_clipboard(center) {
                 Ok(new_mol) => *mol = new_mol,
                 Err(e) => actions.paste_error = Some(e.to_string()),
             }
         }
 
-        egui::Panel::top("menu_bar").show(ctx, |ui| {
+        egui::Panel::top("menu_bar").show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 // ── File ──
                 let file_label = i18n.t("menu.file").to_owned();
@@ -224,7 +223,7 @@ impl MenuBar {
                     }
                     ui.separator();
                     if ui.button(format!("{} (Ctrl+V)", i18n.t("menu.edit.paste_smiles"))).clicked() {
-                        let center = ui.ctx().input(|i| i.screen_rect()).center();
+                        let center = ui.ctx().input(|i| i.viewport_rect()).center();
                         match paste_from_clipboard(center) {
                             Ok(new_mol) => *mol = new_mol,
                             Err(e) => actions.paste_error = Some(e.to_string()),
@@ -265,12 +264,12 @@ impl MenuBar {
                 Self::hover_menu(ui, active_menu, TopMenu::View, view_label, |ui| {
                     if ui.button(i18n.t("menu.view.dark")).clicked() {
                         *theme = Theme::Dark;
-                        apply_theme(ctx, *theme);
+                        apply_theme(&ctx, *theme);
                         ui.close();
                     }
                     if ui.button(i18n.t("menu.view.light")).clicked() {
                         *theme = Theme::Light;
-                        apply_theme(ctx, *theme);
+                        apply_theme(&ctx, *theme);
                         ui.close();
                     }
                     ui.separator();
@@ -336,7 +335,7 @@ impl MenuBar {
             egui::Window::new("Error")
                 .collapsible(false)
                 .resizable(false)
-                .show(ctx, |ui| {
+                .show(&ctx, |ui| {
                     ui.colored_label(egui::Color32::RED, err);
                     if ui.button("OK").clicked() {
                         actions.paste_error = None;

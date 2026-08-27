@@ -211,5 +211,13 @@ fn chem_bond_order(o: ChemBondOrder) -> (BondOrder, BondStereo) {
         ChemBondOrder::Triple
         | ChemBondOrder::Quadruple         => (BondOrder::Triple,   BondStereo::None),
         ChemBondOrder::Aromatic            => (BondOrder::Aromatic, BondStereo::None),
+        // ponytail: canvas has no representation for zero/dative/query bonds yet;
+        // fall back to a plain single bond rather than reject the molecule.
+        ChemBondOrder::Zero
+        | ChemBondOrder::Dative
+        | ChemBondOrder::QueryAny
+        | ChemBondOrder::QuerySingleOrDouble
+        | ChemBondOrder::QuerySingleOrAromatic
+        | ChemBondOrder::QueryDoubleOrAromatic => (BondOrder::Single, BondStereo::None),
     }
 }

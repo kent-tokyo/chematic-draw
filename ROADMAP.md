@@ -31,34 +31,24 @@ Create a **free, open-source, cross-platform chemical structure editor** that ri
 
 ## Upcoming Releases
 
-### v0.3.0 - Web & Collaboration (Q3 2026)
+### v0.3.0 - Web Version (Q3 2026)
 
 #### Web Version
 - [ ] Compile Electron app to web (same WASM bridge)
 - [ ] Browser-based access (no installation)
 - [ ] PWA support for offline use
-- [ ] Cloud storage integration (Google Drive, OneDrive)
 
 **Benefits:**
 - No installation required
 - Works on any device (desktop, tablet)
 - Share molecules via URL
-- Backup to cloud automatically
 
-#### Collaborative Features
-- [ ] Real-time collaborative editing (WebSocket)
-- [ ] User comments and annotations
-- [ ] Project sharing with permissions (view/edit/admin)
-- [ ] Version history and conflict resolution
-
-**Use Cases:**
-- Research teams working on same project
-- Teaching labs with shared datasets
-- Structure validation workflows
+> Cloud storage integration and real-time collaboration were deferred to
+> v0.5.0+ — see [Long-term](#long-term-v050) — to keep this release scoped
+> to the web build itself.
 
 #### Timeline
-- Months 1-2: Web build pipeline, Firebase integration
-- Months 2-3: Real-time sync, conflict resolution
+- Months 1-2: Web build pipeline
 - Month 3: Testing, documentation, release
 
 ---
@@ -188,6 +178,18 @@ Create a **free, open-source, cross-platform chemical structure editor** that ri
 
 ### Long-term (v0.5.0+)
 
+#### Cloud & Collaboration
+- [ ] Cloud storage integration (Google Drive, OneDrive)
+- [ ] Real-time collaborative editing (WebSocket)
+- [ ] User comments and annotations
+- [ ] Project sharing with permissions (view/edit/admin)
+- [ ] Version history and conflict resolution
+
+**Use Cases:**
+- Research teams working on same project
+- Teaching labs with shared datasets
+- Structure validation workflows
+
 #### Machine Learning
 - [ ] Custom model training interface
 - [ ] Transfer learning for property prediction
@@ -241,9 +243,11 @@ These features:
 ### Next Focus (v0.3.0)
 
 1. **Web Version** — Browser accessibility
-2. **Collaboration** — Team workflows
-3. **Extended Chemistry** — NMR, ADMET, retrosynthesis
-4. **Mobile Support** — iOS/Android native apps
+2. **Extended Chemistry** — NMR, ADMET, retrosynthesis
+3. **Mobile Support** — iOS/Android native apps
+
+Cloud storage and real-time collaboration are deferred to v0.5.0+ (see
+[Long-term](#long-term-v050)).
 
 ---
 
@@ -330,6 +334,6 @@ We collaborate with:
 
 ---
 
-Last updated: June 2026
+Last updated: August 2026
 
 **Next review:** December 2026

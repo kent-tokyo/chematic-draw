@@ -302,13 +302,13 @@ fn export_reaction_smiles(scheme: &ReactionScheme) -> String {
 
     let reactant_smiles: Vec<String> = scheme.molecules.iter()
         .zip(scheme.mol_roles.iter().chain(std::iter::repeat(&false)))
-        .filter(|(_, &is_product)| !is_product)
+        .filter(|&(_, &is_product)| !is_product)
         .filter_map(|(mol, _)| to_smiles(mol))
         .collect();
 
     let product_smiles: Vec<String> = scheme.molecules.iter()
         .zip(scheme.mol_roles.iter().chain(std::iter::repeat(&false)))
-        .filter(|(_, &is_product)| is_product)
+        .filter(|&(_, &is_product)| is_product)
         .filter_map(|(mol, _)| to_smiles(mol))
         .collect();
 

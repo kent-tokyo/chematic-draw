@@ -1,5 +1,5 @@
 use eframe::CreationContext;
-use egui::{CentralPanel, Context};
+use egui::CentralPanel;
 
 use crate::ai_chat::{AiChatPanel, AiChatState, ApplyMode, ChatStatus, extract_smiles};
 use crate::bridge::clean_layout;
@@ -359,9 +359,8 @@ impl eframe::App for ChemDrawApp {
         eframe::set_value(storage, eframe::APP_KEY, self);
     }
 
-    fn ui(&mut self, _ui: &mut egui::Ui, _frame: &mut eframe::Frame) {}
-
-    fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        let ctx = ui.ctx().clone();
         let tokens = Tokens::for_theme(self.theme);
         let mut i18n = I18n::new(self.lang);
         let mut actions = MenuActions::default();
@@ -530,7 +529,7 @@ impl eframe::App for ChemDrawApp {
 
         // ── Menu bar ──
         MenuBar::show(
-            ctx,
+            ui,
             &mut self.molecule,
             &self.reaction,
             &mut self.theme,
@@ -696,11 +695,11 @@ impl eframe::App for ChemDrawApp {
         if !self.focus_mode {
         #[allow(deprecated)]
         egui::Panel::top("mode_tabs")
-            .exact_height(38.0)
+            .exact_size(38.0)
             .frame(egui::Frame::NONE
                 .fill(tokens.panel_bg)
                 .inner_margin(egui::Margin::symmetric(10, 6)))
-            .show(ctx, |ui| {
+            .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.add_space(2.0);
                     for (label, mode) in [
@@ -742,9 +741,9 @@ impl eframe::App for ChemDrawApp {
         if !self.focus_mode {
         #[allow(deprecated)]
         egui::Panel::top("tool_controls")
-            .exact_height(TOOL_CONTROLS_HEIGHT + 6.0)
+            .exact_size(TOOL_CONTROLS_HEIGHT + 6.0)
             .frame(egui::Frame::NONE.fill(tokens.panel_bg).inner_margin(egui::Margin::symmetric(10, 4)))
-            .show(ctx, |ui| {
+            .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     match self.active_tool {
                         Tool::Single | Tool::Double | Tool::Triple | Tool::Aromatic
@@ -790,10 +789,10 @@ impl eframe::App for ChemDrawApp {
         if !self.focus_mode {
         #[allow(deprecated)]
         egui::Panel::left("activity_bar")
-            .exact_width(48.0)
+            .exact_size(48.0)
             .resizable(false)
             .frame(egui::Frame::NONE.fill(tokens.activity_bar_bg))
-            .show(ctx, |ui| {
+            .show(ui, |ui| {
                 if crate::toolbar::ActivityBar::show(
                     ui, &mut self.activity_panel, &mut self.sidebar_open, &tokens
                 ) {
@@ -806,12 +805,12 @@ impl eframe::App for ChemDrawApp {
         if self.sidebar_open && !self.focus_mode {
             #[allow(deprecated)]
             let panel_resp = egui::Panel::left("sidebar")
-                .min_width(180.0)
-                .max_width(480.0)
-                .default_width(self.sidebar_width)
+                .min_size(180.0)
+                .max_size(480.0)
+                .default_size(self.sidebar_width)
                 .resizable(true)
                 .frame(egui::Frame::NONE.fill(tokens.sidebar_bg))
-                .show(ctx, |ui| {
+                .show(ui, |ui| {
                     self.sidebar_width = ui.available_width();
                     match self.activity_panel {
                         ActivityPanel::Tools => {
@@ -903,7 +902,7 @@ impl eframe::App for ChemDrawApp {
                 .default_size([180.0, 500.0])
                 .resizable(true)
                 .open(&mut self.show_templates)
-                .show(ctx, |ui| {
+                .show(&ctx, |ui| {
                     let mut insert: Option<crate::canvas::CanvasMolecule> = None;
                     TemplatePanel::show(ui, &tokens, &mut insert);
                     if let Some(mut new_mol) = insert {
@@ -929,7 +928,7 @@ impl eframe::App for ChemDrawApp {
                 .min_size([320.0, 200.0])
                 .resizable(true)
                 .open(&mut self.show_chat)
-                .show(ctx, |ui| {
+                .show(&ctx, |ui| {
                     apply_result = AiChatPanel::show(
                         ui,
                         &mut self.ai_chat,
@@ -978,7 +977,7 @@ impl eframe::App for ChemDrawApp {
                 .resizable(false)
                 .open(&mut self.show_about)
                 .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
-                .show(ctx, |ui| {
+                .show(&ctx, |ui| {
                     ui.add_space(8.0);
                     ui.label(egui::RichText::new("chematic-draw").heading().strong());
                     ui.label(format!("Version {}", env!("CARGO_PKG_VERSION")));
@@ -999,7 +998,7 @@ impl eframe::App for ChemDrawApp {
             egui::Window::new("Undo History")
                 .open(&mut open)
                 .fixed_size([220.0, 300.0])
-                .show(ctx, |ui| {
+                .show(&ctx, |ui| {
                     let current = self.undo_stack.len();
                     if current == 0 {
                         ui.label(egui::RichText::new("(empty)").small().color(tokens.separator));
@@ -1034,7 +1033,7 @@ impl eframe::App for ChemDrawApp {
             egui::Area::new(egui::Id::new("cmd_palette"))
                 .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
                 .order(egui::Order::Foreground)
-                .show(ctx, |ui| {
+                .show(&ctx, |ui| {
                     egui::Frame::popup(ui.style())
                         .fill(tokens.panel_bg)
                         .show(ui, |ui| {
@@ -1121,7 +1120,7 @@ impl eframe::App for ChemDrawApp {
                 egui::Area::new(egui::Id::new("exit_focus"))
                     .fixed_pos(egui::Pos2::new(vp.max.x - 90.0, vp.min.y + 4.0))
                     .order(egui::Order::Foreground)
-                    .show(ctx, |ui| {
+                    .show(&ctx, |ui| {
                         if ui.button("Exit Focus").clicked() {
                             self.focus_mode = false;
                         }
@@ -1136,7 +1135,7 @@ impl eframe::App for ChemDrawApp {
                 .open(&mut open)
                 .default_size([560.0, 400.0])
                 .resizable(true)
-                .show(ctx, |ui| {
+                .show(&ctx, |ui| {
                     static SECTIONS: &[(&str, &[(&str, &str)])] = &[
                         ("Global", &[
                             ("Ctrl+N", "New file"),
@@ -1241,7 +1240,7 @@ impl eframe::App for ChemDrawApp {
             egui::Window::new("Import by Name")
                 .open(&mut open)
                 .fixed_size([360.0, 80.0])
-                .show(ctx, |ui| {
+                .show(&ctx, |ui| {
                     ui.horizontal(|ui| {
                         ui.label("Name / CAS:");
                         let resp = ui.add(
@@ -1296,7 +1295,7 @@ impl eframe::App for ChemDrawApp {
                 .default_size([380.0, 220.0])
                 .resizable(false)
                 .open(&mut self.show_settings)
-                .show(ctx, |ui| {
+                .show(&ctx, |ui| {
                     SettingsPanel::show(
                         ui,
                         &mut self.api_key,
@@ -1312,7 +1311,7 @@ impl eframe::App for ChemDrawApp {
             egui::Window::new("3D Viewer")
                 .default_size([400.0, 400.0])
                 .resizable(true)
-                .show(ctx, |ui| {
+                .show(&ctx, |ui| {
                     Viewer3d::show(ui, &self.molecule, &mut self.viewer3d_state, &tokens);
                 });
         }
@@ -1320,9 +1319,9 @@ impl eframe::App for ChemDrawApp {
         // ── Status bar — VS Code style (#007ACC blue background) ──
         #[allow(deprecated)]
         egui::Panel::bottom("statusbar")
-            .exact_height(22.0)
+            .exact_size(22.0)
             .frame(egui::Frame::NONE.fill(tokens.status_bar_bg).inner_margin(egui::Margin::symmetric(8, 3)))
-            .show(ctx, |ui| {
+            .show(ui, |ui| {
                 ui.visuals_mut().override_text_color = Some(tokens.status_bar_fg);
                 let now = ctx.input(|i| i.time);
                 ui.horizontal(|ui| {
@@ -1403,7 +1402,7 @@ impl eframe::App for ChemDrawApp {
         #[allow(deprecated)]
         CentralPanel::default()
             .frame(egui::Frame::NONE.fill(tokens.canvas_bg).inner_margin(egui::Margin::symmetric(8, 0)))
-            .show(ctx, |ui| {
+            .show(ui, |ui| {
                 self.canvas_rect = ui.available_rect_before_wrap();
                 match self.mode {
                     EditorMode::Structure => {
