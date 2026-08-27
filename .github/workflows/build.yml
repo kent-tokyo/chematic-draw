@@ -24,6 +24,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+          cache-dependency-path: electron/package-lock.json
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -42,9 +43,11 @@ jobs:
         run: cd crates/chem-wasm && wasm-pack build --target web --release && cd ../..
 
       - name: Install dependencies
+        working-directory: electron
         run: npm ci
 
       - name: Build Application
+        working-directory: electron
         run: npm run make
 
       - name: Upload Linux artifacts
@@ -52,7 +55,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: linux-binaries
-          path: out/make/**/*.AppImage
+          path: electron/out/make/**/*.AppImage
           if-no-files-found: ignore
 
       - name: Upload macOS artifacts
@@ -60,7 +63,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: macos-binaries
-          path: out/make/**/*.dmg
+          path: electron/out/make/**/*.dmg
           if-no-files-found: ignore
 
       - name: Upload Windows artifacts
@@ -68,7 +71,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: windows-binaries
-          path: out/make/**/*.exe
+          path: electron/out/make/**/*.exe
           if-no-files-found: ignore
 
   release:

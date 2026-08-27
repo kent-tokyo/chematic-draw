@@ -17,6 +17,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+          cache-dependency-path: electron/package-lock.json
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -35,16 +36,24 @@ jobs:
         run: cd crates/chem-wasm && wasm-pack build --target web --release && cd ../..
 
       - name: Install dependencies
+        working-directory: electron
         run: npm ci
 
+      - name: Build WASM (nodejs target, for real-WASM contract tests)
+        working-directory: electron
+        run: npm run build:wasm:test
+
       - name: Run all tests
+        working-directory: electron
         run: npm test
 
       - name: Performance benchmarks
+        working-directory: electron
         run: npm run test:perf
 
       - name: Build application
-        run: npm run build
+        working-directory: electron
+        run: npm run package
 
   security-audit:
     name: Security Audit
@@ -53,6 +62,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run npm audit
+        working-directory: electron
         run: npm audit --audit-level=moderate
 
       - name: Run cargo audit
@@ -65,6 +75,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Check npm outdated
+        working-directory: electron
         run: npm outdated
 
       - name: Setup Rust
