@@ -1,15 +1,10 @@
 use std::collections::HashMap;
 
-#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default)]
 pub enum Language {
+    #[default]
     En,
     Ja,
-}
-
-impl Default for Language {
-    fn default() -> Self {
-        Self::En
-    }
 }
 
 impl Language {

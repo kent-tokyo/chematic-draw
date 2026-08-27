@@ -43,7 +43,9 @@ pub fn canvas_to_mol(mol: &CanvasMolecule) -> Option<String> {
     let chem_mol = canvas_to_chem(mol)?;
     let meta = chematic::mol::MolMetadata::default();
     let coords = crate::bridge::canvas_coords(mol);
-    Some(chematic::mol::write_mol_with_coords(&chem_mol, &meta, &coords))
+    Some(chematic::mol::write_mol_with_coords(
+        &chem_mol, &meta, &coords,
+    ))
 }
 
 /// Generate a MOL V3000 string (supports >999 atoms).
@@ -68,4 +70,3 @@ pub fn canvas_to_sdf(mol: &CanvasMolecule) -> Option<String> {
     let coords = crate::bridge::canvas_coords(mol);
     Some(chematic::mol::write_sdf(&[(&chem_mol, &meta, &coords)]))
 }
-

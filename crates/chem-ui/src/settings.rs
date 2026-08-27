@@ -2,11 +2,14 @@
 
 use egui::Ui;
 
-use crate::theme::{Tokens, SPACING_SM, SPACING_MD};
+use crate::theme::{SPACING_MD, SPACING_SM, Tokens};
 
 const MODELS: &[(&str, &str)] = &[
-    ("claude-haiku-4-5-20251001", "Claude Haiku 4.5 (fast, economical)"),
-    ("claude-sonnet-4-6",         "Claude Sonnet 4.6 (balanced)"),
+    (
+        "claude-haiku-4-5-20251001",
+        "Claude Haiku 4.5 (fast, economical)",
+    ),
+    ("claude-sonnet-4-6", "Claude Sonnet 4.6 (balanced)"),
 ];
 
 pub struct SettingsPanel;
@@ -20,7 +23,11 @@ impl SettingsPanel {
         tokens: &Tokens,
     ) {
         ui.add_space(SPACING_SM);
-        ui.label(egui::RichText::new("Anthropic API Key").strong().color(tokens.accent));
+        ui.label(
+            egui::RichText::new("Anthropic API Key")
+                .strong()
+                .color(tokens.accent),
+        );
         ui.add_space(4.0);
 
         ui.horizontal(|ui| {
@@ -30,13 +37,20 @@ impl SettingsPanel {
                 .desired_width(f32::INFINITY);
             ui.add(edit);
             let eye = if *show_key { "🙈" } else { "👁" };
-            if ui.small_button(eye).on_hover_text("Show/hide key").clicked() {
+            if ui
+                .small_button(eye)
+                .on_hover_text("Show/hide key")
+                .clicked()
+            {
                 *show_key = !*show_key;
             }
         });
 
         if api_key.is_empty() {
-            ui.colored_label(tokens.warning, "Key is empty. Get one at console.anthropic.com");
+            ui.colored_label(
+                tokens.warning,
+                "Key is empty. Get one at console.anthropic.com",
+            );
         } else {
             ui.colored_label(tokens.success, "✓ Key is set");
         }
@@ -45,7 +59,8 @@ impl SettingsPanel {
         ui.label(egui::RichText::new("Model").strong().color(tokens.accent));
         ui.add_space(4.0);
 
-        let current_label = MODELS.iter()
+        let current_label = MODELS
+            .iter()
             .find(|(id, _)| id == &model.as_str())
             .map(|(_, label)| *label)
             .unwrap_or(model.as_str());
@@ -63,11 +78,9 @@ impl SettingsPanel {
         ui.separator();
         ui.add_space(SPACING_SM);
         ui.label(
-            egui::RichText::new(
-                "Settings are saved automatically when you close this window.",
-            )
-            .small()
-            .color(tokens.separator),
+            egui::RichText::new("Settings are saved automatically when you close this window.")
+                .small()
+                .color(tokens.separator),
         );
     }
 }

@@ -1,7 +1,9 @@
 //! Conversion between [`CanvasMolecule`] (canvas model) and
 //! [`chematic::core::Molecule`] (chemistry engine model).
 
-use chematic::core::{Atom, AtomIdx, BondOrder as ChemBondOrder, Chirality, Element, MoleculeBuilder};
+use chematic::core::{
+    Atom, AtomIdx, BondOrder as ChemBondOrder, Chirality, Element, MoleculeBuilder,
+};
 use chematic::depict::compute_layout;
 
 use crate::canvas::{BondOrder, BondStereo, CanvasAtom, CanvasBond, CanvasMolecule};
@@ -16,7 +18,8 @@ pub fn canvas_to_chem(canvas: &CanvasMolecule) -> Option<chematic::core::Molecul
 
     for atom in &canvas.atoms {
         let element = Element::from_symbol(&atom.element)?;
-        let is_rgroup = atom.element == "R" || atom.element.starts_with("R*")
+        let is_rgroup = atom.element == "R"
+            || atom.element.starts_with("R*")
             || (atom.element.starts_with('R') && atom.element[1..].parse::<u8>().is_ok());
         let chem_atom = Atom {
             element,
@@ -26,7 +29,11 @@ pub fn canvas_to_chem(canvas: &CanvasMolecule) -> Option<chematic::core::Molecul
             aromatic: false,
             chirality: Chirality::None,
             wildcard: is_rgroup,
-            atom_map: if atom.atom_map != 0 { Some(atom.atom_map as u16) } else { None },
+            atom_map: if atom.atom_map != 0 {
+                Some(atom.atom_map)
+            } else {
+                None
+            },
             cip_code: None,
         };
         let idx = builder.add_atom(chem_atom);
@@ -34,8 +41,12 @@ pub fn canvas_to_chem(canvas: &CanvasMolecule) -> Option<chematic::core::Molecul
     }
 
     for bond in &canvas.bonds {
-        let Some(&a) = id_to_idx.get(&bond.from) else { continue };
-        let Some(&b) = id_to_idx.get(&bond.to) else { continue };
+        let Some(&a) = id_to_idx.get(&bond.from) else {
+            continue;
+        };
+        let Some(&b) = id_to_idx.get(&bond.to) else {
+            continue;
+        };
         let _ = builder.add_bond(a, b, canvas_bond_order(bond.order, bond.stereo));
     }
 
@@ -62,7 +73,11 @@ pub fn canvas_to_chem(canvas: &CanvasMolecule) -> Option<chematic::core::Molecul
 /// Canvas coords in chemistry convention (Y-up), matching atom-insertion order.
 /// Used internally for stereo assignment.
 fn canvas_coords_chem(canvas: &CanvasMolecule) -> Vec<(f64, f64)> {
-    canvas.atoms.iter().map(|a| (a.pos.x as f64, -(a.pos.y as f64))).collect()
+    canvas
+        .atoms
+        .iter()
+        .map(|a| (a.pos.x as f64, -(a.pos.y as f64)))
+        .collect()
 }
 
 /// Extract canvas-space coordinates from a `CanvasMolecule` in atom-insertion order.
@@ -154,15 +169,24 @@ pub fn chem_to_canvas(mol: &chematic::core::Molecule, center: egui::Pos2) -> Can
 /// Atom IDs and element/charge data are preserved; only `pos` is updated.
 /// `center` is the canvas-space target center for the resulting layout.
 pub fn clean_layout(mol: &mut CanvasMolecule, center: egui::Pos2) {
-    let Some(chem_mol) = canvas_to_chem(mol) else { return };
-    if mol.atoms.is_empty() { return; }
+    let Some(chem_mol) = canvas_to_chem(mol) else {
+        return;
+    };
+    if mol.atoms.is_empty() {
+        return;
+    }
     let layout = compute_layout(&chem_mol);
-    let raw: Vec<(f64, f64)> = mol.atoms.iter().enumerate().map(|(i, _)| {
-        // atom i in canvas order corresponds to AtomIdx(i) because canvas_to_chem
-        // inserts atoms in iteration order.
-        let pt = layout.get(chematic::core::AtomIdx(i as u32));
-        (pt.x, pt.y)
-    }).collect();
+    let raw: Vec<(f64, f64)> = mol
+        .atoms
+        .iter()
+        .enumerate()
+        .map(|(i, _)| {
+            // atom i in canvas order corresponds to AtomIdx(i) because canvas_to_chem
+            // inserts atoms in iteration order.
+            let pt = layout.get(chematic::core::AtomIdx(i as u32));
+            (pt.x, pt.y)
+        })
+        .collect();
     let min_x = raw.iter().map(|t| t.0).fold(f64::MAX, f64::min);
     let max_x = raw.iter().map(|t| t.0).fold(f64::MIN, f64::max);
     let min_y = raw.iter().map(|t| t.1).fold(f64::MAX, f64::min);
@@ -184,19 +208,26 @@ fn build_canvas_bonds(atoms: &[CanvasAtom], mol: &chematic::core::Molecule) -> V
         .enumerate()
         .map(|(i, (_, bond))| {
             let (order, stereo) = chem_bond_order(bond.order);
-            CanvasBond { id: i + atoms.len(), from: bond.atom1.0 as usize, to: bond.atom2.0 as usize, order, stereo, selected: false }
+            CanvasBond {
+                id: i + atoms.len(),
+                from: bond.atom1.0 as usize,
+                to: bond.atom2.0 as usize,
+                order,
+                stereo,
+                selected: false,
+            }
         })
         .collect()
 }
 
 fn canvas_bond_order(o: BondOrder, stereo: BondStereo) -> ChemBondOrder {
     match stereo {
-        BondStereo::WedgeUp   => ChemBondOrder::Up,
+        BondStereo::WedgeUp => ChemBondOrder::Up,
         BondStereo::WedgeDown => ChemBondOrder::Down,
         BondStereo::None => match o {
-            BondOrder::Single   => ChemBondOrder::Single,
-            BondOrder::Double   => ChemBondOrder::Double,
-            BondOrder::Triple   => ChemBondOrder::Triple,
+            BondOrder::Single => ChemBondOrder::Single,
+            BondOrder::Double => ChemBondOrder::Double,
+            BondOrder::Triple => ChemBondOrder::Triple,
             BondOrder::Aromatic => ChemBondOrder::Aromatic,
         },
     }
@@ -204,13 +235,12 @@ fn canvas_bond_order(o: BondOrder, stereo: BondStereo) -> ChemBondOrder {
 
 fn chem_bond_order(o: ChemBondOrder) -> (BondOrder, BondStereo) {
     match o {
-        ChemBondOrder::Single              => (BondOrder::Single,   BondStereo::None),
-        ChemBondOrder::Up                  => (BondOrder::Single,   BondStereo::WedgeUp),
-        ChemBondOrder::Down                => (BondOrder::Single,   BondStereo::WedgeDown),
-        ChemBondOrder::Double              => (BondOrder::Double,   BondStereo::None),
-        ChemBondOrder::Triple
-        | ChemBondOrder::Quadruple         => (BondOrder::Triple,   BondStereo::None),
-        ChemBondOrder::Aromatic            => (BondOrder::Aromatic, BondStereo::None),
+        ChemBondOrder::Single => (BondOrder::Single, BondStereo::None),
+        ChemBondOrder::Up => (BondOrder::Single, BondStereo::WedgeUp),
+        ChemBondOrder::Down => (BondOrder::Single, BondStereo::WedgeDown),
+        ChemBondOrder::Double => (BondOrder::Double, BondStereo::None),
+        ChemBondOrder::Triple | ChemBondOrder::Quadruple => (BondOrder::Triple, BondStereo::None),
+        ChemBondOrder::Aromatic => (BondOrder::Aromatic, BondStereo::None),
         // ponytail: canvas has no representation for zero/dative/query bonds yet;
         // fall back to a plain single bond rather than reject the molecule.
         ChemBondOrder::Zero

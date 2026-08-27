@@ -28,7 +28,9 @@ const CJK_FONT_KEY: &str = "CJK-Primary";
 pub fn setup(ctx: &egui::Context) {
     let mut fonts = FontDefinitions::default();
     if let Some(data) = load_cjk_font() {
-        fonts.font_data.insert(CJK_FONT_KEY.to_owned(), Arc::new(data));
+        fonts
+            .font_data
+            .insert(CJK_FONT_KEY.to_owned(), Arc::new(data));
 
         // Insert CJK font at position 0 (before Ubuntu-Light) in Proportional.
         fonts
@@ -52,8 +54,7 @@ pub fn setup(ctx: &egui::Context) {
 // ---------------------------------------------------------------------------
 
 fn load_cjk_font() -> Option<FontData> {
-    platform_font()
-        .or_else(bundled_fallback)
+    platform_font().or_else(bundled_fallback)
 }
 
 #[cfg(target_os = "macos")]

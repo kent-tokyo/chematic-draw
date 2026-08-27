@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 
 use egui::Ui;
 
-use crate::theme::{Tokens, SPACING_SM};
+use crate::theme::{SPACING_SM, Tokens};
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -41,6 +41,7 @@ pub enum ChatStatus {
 
 // ── State ────────────────────────────────────────────────────────────────────
 
+#[derive(Default)]
 pub struct AiChatState {
     pub history: Vec<ChatMessage>,
     pub input_buf: String,
@@ -52,23 +53,15 @@ pub struct AiChatState {
     pub last_error: Option<String>,
 }
 
-impl Default for AiChatState {
-    fn default() -> Self {
-        Self {
-            history: Vec::new(),
-            input_buf: String::new(),
-            pending_smiles: None,
-            pending: None,
-            last_error: None,
-        }
-    }
-}
-
 impl AiChatState {
     /// Poll the background thread for a result.
     pub fn poll(&mut self) -> ChatStatus {
         let finished = if let Some(shared) = &self.pending {
-            if let Ok(mut g) = shared.try_lock() { g.take() } else { None }
+            if let Ok(mut g) = shared.try_lock() {
+                g.take()
+            } else {
+                None
+            }
         } else {
             None
         };
@@ -76,12 +69,14 @@ impl AiChatState {
         if let Some(result) = finished {
             self.pending = None;
             return match result {
-                Ok(text)  => ChatStatus::Done(text),
-                Err(msg)  => ChatStatus::Error(msg),
+                Ok(text) => ChatStatus::Done(text),
+                Err(msg) => ChatStatus::Error(msg),
             };
         }
 
-        if self.pending.is_some() { return ChatStatus::Waiting; }
+        if self.pending.is_some() {
+            return ChatStatus::Waiting;
+        }
         ChatStatus::Idle
     }
 
@@ -93,7 +88,9 @@ impl AiChatState {
         api_key: &str,
         model: &str,
     ) {
-        if self.pending.is_some() { return; } // already in flight
+        if self.pending.is_some() {
+            return;
+        } // already in flight
 
         self.history.push(ChatMessage {
             role: Role::User,
@@ -105,23 +102,36 @@ impl AiChatState {
         let shared: SharedResult = Arc::new(Mutex::new(None));
         let shared_clone = Arc::clone(&shared);
 
-        let user_msg   = user_msg.to_string();
-        let api_key    = api_key.to_string();
-        let model      = model.to_string();
+        let user_msg = user_msg.to_string();
+        let api_key = api_key.to_string();
+        let model = model.to_string();
         let canvas_ctx = current_smiles.map(|s| s.to_string());
         // Build history for the API call (last 20 messages to stay within context)
-        let history_snapshot: Vec<(String, String)> = self.history.iter()
-            .rev().take(20).rev()
-            .map(|m| (
-                if m.role == Role::User { "user".into() } else { "assistant".into() },
-                m.content.clone(),
-            ))
+        let history_snapshot: Vec<(String, String)> = self
+            .history
+            .iter()
+            .rev()
+            .take(20)
+            .rev()
+            .map(|m| {
+                (
+                    if m.role == Role::User {
+                        "user".into()
+                    } else {
+                        "assistant".into()
+                    },
+                    m.content.clone(),
+                )
+            })
             .collect();
 
         std::thread::spawn(move || {
             let result = call_anthropic(
-                &user_msg, canvas_ctx.as_deref(),
-                &api_key, &model, &history_snapshot,
+                &user_msg,
+                canvas_ctx.as_deref(),
+                &api_key,
+                &model,
+                &history_snapshot,
             );
             if let Ok(mut g) = shared_clone.lock() {
                 *g = Some(result);
@@ -138,7 +148,9 @@ impl AiChatState {
         self.pending = None;
     }
 
-    pub fn is_waiting(&self) -> bool { self.pending.is_some() }
+    pub fn is_waiting(&self) -> bool {
+        self.pending.is_some()
+    }
 }
 
 // ── UI ───────────────────────────────────────────────────────────────────────
@@ -172,8 +184,8 @@ impl AiChatPanel {
             .show(ui, |ui| {
                 for msg in &state.history {
                     let (prefix, color) = match msg.role {
-                        Role::User      => ("You", tokens.accent),
-                        Role::Assistant => ("AI",  tokens.success),
+                        Role::User => ("You", tokens.accent),
+                        Role::Assistant => ("AI", tokens.success),
                     };
                     ui.horizontal_wrapped(|ui| {
                         ui.label(egui::RichText::new(prefix).strong().color(color));
@@ -185,7 +197,11 @@ impl AiChatPanel {
                 if state.is_waiting() {
                     ui.horizontal(|ui| {
                         ui.spinner();
-                        ui.label(egui::RichText::new("Thinking…").italics().color(tokens.separator));
+                        ui.label(
+                            egui::RichText::new("Thinking…")
+                                .italics()
+                                .color(tokens.separator),
+                        );
                     });
                 }
             });
@@ -199,14 +215,26 @@ impl AiChatPanel {
                 smiles.clone()
             };
             ui.horizontal_wrapped(|ui| {
-                ui.label(egui::RichText::new(format!("SMILES: {preview}")).monospace().small());
+                ui.label(
+                    egui::RichText::new(format!("SMILES: {preview}"))
+                        .monospace()
+                        .small(),
+                );
             });
             ui.horizontal(|ui| {
-                if ui.button("↺ 置き換え").on_hover_text("現在の構造を置き換えます").clicked() {
+                if ui
+                    .button("↺ 置き換え")
+                    .on_hover_text("現在の構造を置き換えます")
+                    .clicked()
+                {
                     apply_result = Some(ApplyMode::Replace(smiles.clone()));
                     state.pending_smiles = None;
                 }
-                if ui.button("＋ 追加").on_hover_text("現在の構造に追加します").clicked() {
+                if ui
+                    .button("＋ 追加")
+                    .on_hover_text("現在の構造に追加します")
+                    .clicked()
+                {
                     apply_result = Some(ApplyMode::Append(smiles.clone()));
                     state.pending_smiles = None;
                 }
@@ -236,8 +264,7 @@ impl AiChatPanel {
                     .hint_text("Ask AI to draw a molecule…")
                     .desired_width(f32::INFINITY),
             );
-            let enter_pressed = input.lost_focus()
-                && ui.input(|i| i.key_pressed(egui::Key::Enter));
+            let enter_pressed = input.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
 
             if (send_clicked || enter_pressed) && !state.input_buf.trim().is_empty() {
                 let msg = state.input_buf.trim().to_string();
@@ -246,7 +273,11 @@ impl AiChatPanel {
                 input.request_focus();
             }
 
-            if ui.small_button("Clear").on_hover_text("Clear chat history").clicked() {
+            if ui
+                .small_button("Clear")
+                .on_hover_text("Clear chat history")
+                .clicked()
+            {
                 state.clear();
             }
         });
@@ -282,9 +313,10 @@ fn call_anthropic(
     );
 
     // Build messages array from history (the last entry is already the current user message)
-    let mut messages: Vec<serde_json::Value> = history.iter().map(|(role, content)| {
-        serde_json::json!({"role": role, "content": content})
-    }).collect();
+    let messages: Vec<serde_json::Value> = history
+        .iter()
+        .map(|(role, content)| serde_json::json!({"role": role, "content": content}))
+        .collect();
 
     // Deduplicate: if the last message is already the user_msg, skip adding it again.
     // (history already includes the pushed user message from send())
@@ -309,7 +341,8 @@ fn call_anthropic(
     let json: serde_json::Value = resp.json().map_err(|e| e.to_string())?;
 
     if !status.is_success() {
-        let err_msg = json.pointer("/error/message")
+        let err_msg = json
+            .pointer("/error/message")
             .and_then(|v| v.as_str())
             .unwrap_or("Unknown API error");
         return Err(format!("API error {status}: {err_msg}"));

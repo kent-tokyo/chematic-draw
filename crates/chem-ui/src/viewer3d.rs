@@ -16,7 +16,11 @@ pub struct Viewer3dState {
 
 impl Default for Viewer3dState {
     fn default() -> Self {
-        Self { angle_x: 0.3, angle_y: 0.5, zoom: 1.0 }
+        Self {
+            angle_x: 0.3,
+            angle_y: 0.5,
+            zoom: 1.0,
+        }
     }
 }
 
@@ -24,8 +28,7 @@ pub struct Viewer3d;
 
 impl Viewer3d {
     pub fn show(ui: &mut Ui, mol: &CanvasMolecule, state: &mut Viewer3dState, tokens: &Tokens) {
-        let (resp, painter) =
-            ui.allocate_painter(ui.available_size(), Sense::click_and_drag());
+        let (resp, painter) = ui.allocate_painter(ui.available_size(), Sense::click_and_drag());
         let rect = resp.rect;
 
         painter.rect_filled(rect, 0.0, tokens.canvas_bg);
@@ -59,12 +62,18 @@ impl Viewer3d {
         let scale = state.zoom * 60.0;
 
         // Project atoms to screen with depth info.
-        struct Proj { screen: Pos2, z: f32, elem: String }
+        struct Proj {
+            screen: Pos2,
+            z: f32,
+            elem: String,
+        }
         let mut projs: Vec<Proj> = chem_mol
             .atoms()
             .map(|(idx, atom)| {
                 let p = coords3d.get(idx);
-                let (x, y, z) = rotate(p.x as f32, p.y as f32, p.z as f32, sin_x, cos_x, sin_y, cos_y);
+                let (x, y, z) = rotate(
+                    p.x as f32, p.y as f32, p.z as f32, sin_x, cos_x, sin_y, cos_y,
+                );
                 Proj {
                     screen: Pos2::new(center.x + x * scale, center.y - y * scale),
                     z,
@@ -94,7 +103,11 @@ impl Viewer3d {
             let depth = (proj.z + 5.0) / 10.0;
             let color = element_color_3d(&proj.elem, depth, tokens);
 
-            painter.circle_filled(proj.screen + Vec2::new(2.0, 2.0), r, Color32::from_black_alpha(60));
+            painter.circle_filled(
+                proj.screen + Vec2::new(2.0, 2.0),
+                r,
+                Color32::from_black_alpha(60),
+            );
             painter.circle_filled(proj.screen, r, color);
             if proj.elem != "C" && r > 8.0 {
                 painter.text(
@@ -117,7 +130,15 @@ impl Viewer3d {
     }
 }
 
-fn rotate(x: f32, y: f32, z: f32, sin_x: f32, cos_x: f32, sin_y: f32, cos_y: f32) -> (f32, f32, f32) {
+fn rotate(
+    x: f32,
+    y: f32,
+    z: f32,
+    sin_x: f32,
+    cos_x: f32,
+    sin_y: f32,
+    cos_y: f32,
+) -> (f32, f32, f32) {
     let x1 = x * cos_y + z * sin_y;
     let z1 = -x * sin_y + z * cos_y;
     let y2 = y * cos_x - z1 * sin_x;
@@ -135,10 +156,17 @@ fn vdw_radius(elem: &str) -> f32 {
 
 fn element_color_3d(elem: &str, depth: f32, tokens: &Tokens) -> Color32 {
     let base = match elem {
-        "C" => tokens.elem_c, "N" => tokens.elem_n, "O" => tokens.elem_o,
-        "S" => tokens.elem_s, "P" => tokens.elem_p, "F" => tokens.elem_f,
-        "Cl" => tokens.elem_cl, "Br" => tokens.elem_br, "I" => tokens.elem_i,
-        "H" => tokens.elem_h, _ => tokens.elem_other,
+        "C" => tokens.elem_c,
+        "N" => tokens.elem_n,
+        "O" => tokens.elem_o,
+        "S" => tokens.elem_s,
+        "P" => tokens.elem_p,
+        "F" => tokens.elem_f,
+        "Cl" => tokens.elem_cl,
+        "Br" => tokens.elem_br,
+        "I" => tokens.elem_i,
+        "H" => tokens.elem_h,
+        _ => tokens.elem_other,
     };
     base.gamma_multiply((depth * 0.6 + 0.4).clamp(0.3, 1.0))
 }

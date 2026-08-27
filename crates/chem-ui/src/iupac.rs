@@ -18,7 +18,10 @@ pub struct IupacState {
 
 impl Default for IupacState {
     fn default() -> Self {
-        Self { status: IupacStatus::Idle, cache: Default::default() }
+        Self {
+            status: IupacStatus::Idle,
+            cache: Default::default(),
+        }
     }
 }
 

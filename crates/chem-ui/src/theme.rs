@@ -1,15 +1,10 @@
 use egui::Color32;
 
-#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default)]
 pub enum Theme {
+    #[default]
     Dark,
     Light,
-}
-
-impl Default for Theme {
-    fn default() -> Self {
-        Self::Dark
-    }
 }
 
 /// Design tokens — all colours are defined here; never hard-code elsewhere.
@@ -29,12 +24,12 @@ pub struct Tokens {
     pub snap_indicator: Color32,
     pub ring_fuse_hover: Color32,
     // VS Code-style chrome
-    pub activity_bar_bg: Color32,   // far-left icon strip
-    pub sidebar_bg: Color32,        // tool list / inspector panel
-    pub sidebar_title: Color32,     // section header text
-    pub sidebar_hover: Color32,     // hovered row background
-    pub status_bar_bg: Color32,     // bottom status strip
-    pub status_bar_fg: Color32,     // status strip text
+    pub activity_bar_bg: Color32, // far-left icon strip
+    pub sidebar_bg: Color32,      // tool list / inspector panel
+    pub sidebar_title: Color32,   // section header text
+    pub sidebar_hover: Color32,   // hovered row background
+    pub status_bar_bg: Color32,   // bottom status strip
+    pub status_bar_fg: Color32,   // status strip text
     // CPK element colours (subset; extend as needed)
     pub elem_c: Color32,
     pub elem_n: Color32,
@@ -64,7 +59,7 @@ impl Tokens {
             warning: Color32::from_rgb(0xE9, 0xB9, 0x49),
             error: Color32::from_rgb(0xF2, 0x6D, 0x6D),
             canvas_bg: Color32::from_rgb(0xF8, 0xF9, 0xFB),
-            panel_bg:  Color32::from_rgb(0x24, 0x28, 0x30),
+            panel_bg: Color32::from_rgb(0x24, 0x28, 0x30),
             separator: Color32::from_rgb(0x8F, 0x98, 0xA8),
             bond: Color32::from_rgb(0x16, 0x1B, 0x22),
             atom_selected: Color32::from_rgb(0x2F, 0x6F, 0xE8),
@@ -97,7 +92,7 @@ impl Tokens {
             warning: Color32::from_rgb(0xB7, 0x78, 0x10),
             error: Color32::from_rgb(0xC7, 0x3A, 0x3A),
             canvas_bg: Color32::from_rgb(0xFB, 0xFC, 0xFE),
-            panel_bg:  Color32::from_rgb(0xF3, 0xF5, 0xF8),
+            panel_bg: Color32::from_rgb(0xF3, 0xF5, 0xF8),
             separator: Color32::from_rgb(0x79, 0x83, 0x93),
             bond: Color32::from_rgb(0x16, 0x1B, 0x22),
             atom_selected: Color32::from_rgb(0x2F, 0x6F, 0xE8),
@@ -165,7 +160,7 @@ pub const SPACING_MD: f32 = 16.0;
 pub const SPACING_LG: f32 = 24.0;
 pub const SPACING_XL: f32 = 32.0;
 
-pub const TOOLBAR_WIDTH: f32 = 64.0;  // macOS: wider for 44px touch targets
+pub const TOOLBAR_WIDTH: f32 = 64.0; // macOS: wider for 44px touch targets
 pub const INSPECTOR_WIDTH: f32 = 240.0;
 pub const INSPECTOR_WIDTH_MIN: f32 = 180.0;
 pub const INSPECTOR_WIDTH_MAX: f32 = 400.0;

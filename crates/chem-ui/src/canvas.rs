@@ -1,9 +1,8 @@
 use egui::{Painter, Pos2, Rect, Sense, Stroke, Vec2};
 
 use crate::theme::{
-    Tokens, ATOM_RADIUS, BOND_ANGLE_SNAP_DEG, BOND_WIDTH, DOUBLE_BOND_OFFSET,
-    DRAG_THRESHOLD_PX, GHOST_BOND_ALPHA, RING_FUSE_THRESHOLD, SNAP_FLASH_SECS,
-    UNDO_HISTORY_STEPS,
+    ATOM_RADIUS, BOND_ANGLE_SNAP_DEG, BOND_WIDTH, DOUBLE_BOND_OFFSET, DRAG_THRESHOLD_PX,
+    GHOST_BOND_ALPHA, RING_FUSE_THRESHOLD, SNAP_FLASH_SECS, Tokens, UNDO_HISTORY_STEPS,
 };
 use crate::toolbar::Tool;
 
@@ -200,7 +199,10 @@ impl Default for CanvasState {
 
 impl CanvasState {
     pub fn world_to_screen(&self, p: Pos2) -> Pos2 {
-        Pos2::new(p.x * self.zoom + self.offset.x, p.y * self.zoom + self.offset.y)
+        Pos2::new(
+            p.x * self.zoom + self.offset.x,
+            p.y * self.zoom + self.offset.y,
+        )
     }
 
     pub fn screen_to_world(&self, p: Pos2) -> Pos2 {
@@ -263,9 +265,8 @@ impl MoleculeCanvas {
             state.offset.x += scroll_x;
         }
         // Shift+Ctrl+Primary drag → pan fallback for trackpad users
-        let shift_ctrl = ui.input(|i| {
-            (i.modifiers.shift) && (i.modifiers.ctrl || i.modifiers.mac_cmd)
-        });
+        let shift_ctrl =
+            ui.input(|i| (i.modifiers.shift) && (i.modifiers.ctrl || i.modifiers.mac_cmd));
         if shift_ctrl && resp.dragged_by(egui::PointerButton::Primary) {
             state.offset += resp.drag_delta();
         }
@@ -276,9 +277,8 @@ impl MoleculeCanvas {
 
         // ── hover detection (non-blocking; uses pointer hover, not click) ──
         let hover_pos = ui.input(|i| i.pointer.hover_pos());
-        let hover_atom = hover_pos.and_then(|hp| {
-            mol.atom_at(state.screen_to_world(hp), ATOM_RADIUS * 2.0)
-        });
+        let hover_atom =
+            hover_pos.and_then(|hp| mol.atom_at(state.screen_to_world(hp), ATOM_RADIUS * 2.0));
         let hover_bond = if hover_atom.is_none() {
             hover_pos.and_then(|hp| bond_at(mol, state.screen_to_world(hp), state, 6.0))
         } else {
@@ -297,11 +297,11 @@ impl MoleculeCanvas {
 
         // Expire snap flash
         let now = ui.input(|i| i.time);
-        if let Some((_, until)) = state.snap_flash {
-            if now > until {
-                state.snap_flash = None;
-                state.snap_status = None;
-            }
+        if let Some((_, until)) = state.snap_flash
+            && now > until
+        {
+            state.snap_flash = None;
+            state.snap_status = None;
         }
 
         // ── bonds ──
@@ -325,7 +325,11 @@ impl MoleculeCanvas {
             } else {
                 tokens.bond
             };
-            let stroke_w = if is_hovered || is_ring_fuse { BOND_WIDTH * 1.8 } else { BOND_WIDTH };
+            let stroke_w = if is_hovered || is_ring_fuse {
+                BOND_WIDTH * 1.8
+            } else {
+                BOND_WIDTH
+            };
             Self::draw_bond_w(&painter, p1, p2, bond.order, bond.stereo, color, stroke_w);
         }
 
@@ -340,21 +344,23 @@ impl MoleculeCanvas {
                 color
             };
             let base_r = ATOM_RADIUS * state.zoom;
-            let r = if is_hovered || atom.selected { base_r * 1.25 } else { base_r };
+            let r = if is_hovered || atom.selected {
+                base_r * 1.25
+            } else {
+                base_r
+            };
 
             // Hover glow ring
             if is_hovered && !atom.selected {
                 painter.circle_stroke(
-                    pos, r + 3.0,
+                    pos,
+                    r + 3.0,
                     Stroke::new(1.5, tokens.accent.gamma_multiply(0.5)),
                 );
             }
             // Selection ring
             if atom.selected {
-                painter.circle_stroke(
-                    pos, r + 3.0,
-                    Stroke::new(2.0, tokens.atom_selected),
-                );
+                painter.circle_stroke(pos, r + 3.0, Stroke::new(2.0, tokens.atom_selected));
             }
 
             if atom.element != "C" {
@@ -368,7 +374,11 @@ impl MoleculeCanvas {
                 );
             } else {
                 // Carbon nodes: show only as a small dot unless selected/hovered
-                let dot_r = if atom.selected || is_hovered { base_r * 0.5 } else { 2.0 };
+                let dot_r = if atom.selected || is_hovered {
+                    base_r * 0.5
+                } else {
+                    2.0
+                };
                 painter.circle_filled(pos, dot_r, border);
             }
             // Atom map number (reaction SMILES :N)
@@ -404,42 +414,37 @@ impl MoleculeCanvas {
         // ── snap flash indicator ──
         if let Some((snap_world, _)) = state.snap_flash {
             let snap_screen = state.world_to_screen(snap_world);
-            painter.circle_stroke(
-                snap_screen,
-                4.0,
-                Stroke::new(2.0, tokens.snap_indicator),
-            );
+            painter.circle_stroke(snap_screen, 4.0, Stroke::new(2.0, tokens.snap_indicator));
         }
 
         // ── Ring tool ghost silhouette (§4.2) ──
-        if active_tool.is_ring_tool() {
-            if let Some(hp) = hover_pos {
-                let (n, radius) = match active_tool {
-                    Tool::Benzene => (6usize, 52.0f32),
-                    Tool::Cyclohexane => (6, 52.0),
-                    _ => (5, 45.0),
-                };
-                let ghost_color = tokens.accent.gamma_multiply(0.30);
-                let ghost_stroke = Stroke::new(BOND_WIDTH * 0.8, ghost_color);
-                // If hovering a fuse bond, draw ghost at fuse position; else at cursor
-                let ghost_center = if let Some(bid) = state.ring_fuse_bond {
-                    // Compute ring center as place_ring_on_bond would
-                    ring_ghost_center_for_bond(mol, bid, n)
-                        .map(|c| state.world_to_screen(c))
-                        .unwrap_or(hp)
-                } else {
-                    hp
-                };
-                let ring_radius_screen = radius * state.zoom;
-                for i in 0..n {
-                    let a1 = std::f32::consts::TAU / n as f32 * i as f32
-                        - std::f32::consts::FRAC_PI_2;
-                    let a2 = std::f32::consts::TAU / n as f32 * (i + 1) as f32
-                        - std::f32::consts::FRAC_PI_2;
-                    let p1 = ghost_center + Vec2::new(a1.cos(), a1.sin()) * ring_radius_screen;
-                    let p2 = ghost_center + Vec2::new(a2.cos(), a2.sin()) * ring_radius_screen;
-                    painter.line_segment([p1, p2], ghost_stroke);
-                }
+        if active_tool.is_ring_tool()
+            && let Some(hp) = hover_pos
+        {
+            let (n, radius) = match active_tool {
+                Tool::Benzene => (6usize, 52.0f32),
+                Tool::Cyclohexane => (6, 52.0),
+                _ => (5, 45.0),
+            };
+            let ghost_color = tokens.accent.gamma_multiply(0.30);
+            let ghost_stroke = Stroke::new(BOND_WIDTH * 0.8, ghost_color);
+            // If hovering a fuse bond, draw ghost at fuse position; else at cursor
+            let ghost_center = if let Some(bid) = state.ring_fuse_bond {
+                // Compute ring center as place_ring_on_bond would
+                ring_ghost_center_for_bond(mol, bid, n)
+                    .map(|c| state.world_to_screen(c))
+                    .unwrap_or(hp)
+            } else {
+                hp
+            };
+            let ring_radius_screen = radius * state.zoom;
+            for i in 0..n {
+                let a1 = std::f32::consts::TAU / n as f32 * i as f32 - std::f32::consts::FRAC_PI_2;
+                let a2 =
+                    std::f32::consts::TAU / n as f32 * (i + 1) as f32 - std::f32::consts::FRAC_PI_2;
+                let p1 = ghost_center + Vec2::new(a1.cos(), a1.sin()) * ring_radius_screen;
+                let p2 = ghost_center + Vec2::new(a2.cos(), a2.sin()) * ring_radius_screen;
+                painter.line_segment([p1, p2], ghost_stroke);
             }
         }
 
@@ -460,10 +465,14 @@ impl MoleculeCanvas {
             let is_dragging = resp.dragged_by(egui::PointerButton::Primary);
             let cursor = match active_tool {
                 Tool::Pan => egui::CursorIcon::Grab,
-                Tool::Select if is_dragging && state.dragging_atom.is_some() => egui::CursorIcon::Grabbing,
+                Tool::Select if is_dragging && state.dragging_atom.is_some() => {
+                    egui::CursorIcon::Grabbing
+                }
                 Tool::Select if hover_atom.is_some() => egui::CursorIcon::Grab,
                 Tool::Select => egui::CursorIcon::Default,
-                Tool::Eraser if hover_atom.is_some() || hover_bond.is_some() => egui::CursorIcon::NotAllowed,
+                Tool::Eraser if hover_atom.is_some() || hover_bond.is_some() => {
+                    egui::CursorIcon::NotAllowed
+                }
                 t if t.is_atom_tool() || t.is_bond_tool() => egui::CursorIcon::Crosshair,
                 t if t.is_ring_tool() => egui::CursorIcon::Crosshair,
                 _ => egui::CursorIcon::Default,
@@ -472,28 +481,25 @@ impl MoleculeCanvas {
         }
 
         // ── Atom tool element overlay near cursor ──
-        if active_tool.is_atom_tool() {
-            if let Some(hp) = hover_pos {
-                if let Some(elem) = tool_element(active_tool) {
-                    painter.text(
-                        hp + Vec2::new(10.0, -10.0),
-                        egui::Align2::LEFT_BOTTOM,
-                        elem,
-                        egui::FontId::proportional(12.0),
-                        tokens.accent,
-                    );
-                }
-            }
+        if active_tool.is_atom_tool()
+            && let Some(hp) = hover_pos
+            && let Some(elem) = tool_element(active_tool)
+        {
+            painter.text(
+                hp + Vec2::new(10.0, -10.0),
+                egui::Align2::LEFT_BOTTOM,
+                elem,
+                egui::FontId::proportional(12.0),
+                tokens.accent,
+            );
         }
 
         // ── tool interaction ──
         let pointer_opt = resp.interact_pointer_pos();
 
         // Pan tool (Space hold) — all primary clicks become pan
-        if active_tool == Tool::Pan {
-            if resp.dragged_by(egui::PointerButton::Primary) {
-                state.offset += resp.drag_delta();
-            }
+        if active_tool == Tool::Pan && resp.dragged_by(egui::PointerButton::Primary) {
+            state.offset += resp.drag_delta();
         }
 
         match active_tool {
@@ -545,35 +551,42 @@ impl MoleculeCanvas {
                     let shift = ui.input(|i| i.modifiers.shift);
 
                     // Shift+DblClick: select entire connected fragment (§4.2)
-                    if resp.double_clicked_by(egui::PointerButton::Primary) {
-                        if let Some(id) = mol.atom_at(world, ATOM_RADIUS * 2.0) {
-                            if shift {
-                                // Select the whole connected component containing this atom
-                                let component: Vec<usize> = {
-                                    let mut visited = std::collections::HashSet::new();
-                                    let mut queue = std::collections::VecDeque::new();
-                                    queue.push_back(id);
-                                    visited.insert(id);
-                                    while let Some(cur) = queue.pop_front() {
-                                        for b in &mol.bonds {
-                                            let nb = if b.from == cur { Some(b.to) }
-                                                     else if b.to == cur { Some(b.from) }
-                                                     else { None };
-                                            if let Some(n) = nb {
-                                                if visited.insert(n) { queue.push_back(n); }
-                                            }
-                                        }
-                                    }
-                                    visited.into_iter().collect()
-                                };
-                                for a in mol.atoms.iter_mut() {
-                                    if component.contains(&a.id) { a.selected = true; }
-                                }
-                                for b in mol.bonds.iter_mut() {
-                                    if component.contains(&b.from) && component.contains(&b.to) {
-                                        b.selected = true;
+                    if resp.double_clicked_by(egui::PointerButton::Primary)
+                        && let Some(id) = mol.atom_at(world, ATOM_RADIUS * 2.0)
+                        && shift
+                    {
+                        // Select the whole connected component containing this atom
+                        let component: Vec<usize> = {
+                            let mut visited = std::collections::HashSet::new();
+                            let mut queue = std::collections::VecDeque::new();
+                            queue.push_back(id);
+                            visited.insert(id);
+                            while let Some(cur) = queue.pop_front() {
+                                for b in &mol.bonds {
+                                    let nb = if b.from == cur {
+                                        Some(b.to)
+                                    } else if b.to == cur {
+                                        Some(b.from)
+                                    } else {
+                                        None
+                                    };
+                                    if let Some(n) = nb
+                                        && visited.insert(n)
+                                    {
+                                        queue.push_back(n);
                                     }
                                 }
+                            }
+                            visited.into_iter().collect()
+                        };
+                        for a in mol.atoms.iter_mut() {
+                            if component.contains(&a.id) {
+                                a.selected = true;
+                            }
+                        }
+                        for b in mol.bonds.iter_mut() {
+                            if component.contains(&b.from) && component.contains(&b.to) {
+                                b.selected = true;
                             }
                         }
                     }
@@ -581,11 +594,16 @@ impl MoleculeCanvas {
                     // Ctrl+Click: select all atoms of same element (§4.2)
                     if resp.clicked_by(egui::PointerButton::Primary) && ctrl {
                         if let Some(id) = mol.atom_at(world, ATOM_RADIUS * 2.0) {
-                            let elem = mol.atoms.iter().find(|a| a.id == id)
+                            let elem = mol
+                                .atoms
+                                .iter()
+                                .find(|a| a.id == id)
                                 .map(|a| a.element.clone())
                                 .unwrap_or_default();
                             for a in mol.atoms.iter_mut() {
-                                if a.element == elem { a.selected = true; }
+                                if a.element == elem {
+                                    a.selected = true;
+                                }
                             }
                         }
                     } else if resp.clicked_by(egui::PointerButton::Primary) && !shift {
@@ -594,10 +612,10 @@ impl MoleculeCanvas {
                             if let Some(a) = mol.atoms.iter_mut().find(|a| a.id == id) {
                                 a.selected = true;
                             }
-                        } else if let Some(bond_id) = bond_at(mol, world, state, 6.0) {
-                            if let Some(b) = mol.bonds.iter_mut().find(|b| b.id == bond_id) {
-                                b.selected = true;
-                            }
+                        } else if let Some(bond_id) = bond_at(mol, world, state, 6.0)
+                            && let Some(b) = mol.bonds.iter_mut().find(|b| b.id == bond_id)
+                        {
+                            b.selected = true;
                         }
                     } else if resp.clicked_by(egui::PointerButton::Primary) && shift {
                         // Shift+Click: toggle single item
@@ -605,10 +623,10 @@ impl MoleculeCanvas {
                             if let Some(a) = mol.atoms.iter_mut().find(|a| a.id == id) {
                                 a.selected = !a.selected;
                             }
-                        } else if let Some(bond_id) = bond_at(mol, world, state, 6.0) {
-                            if let Some(b) = mol.bonds.iter_mut().find(|b| b.id == bond_id) {
-                                b.selected = !b.selected;
-                            }
+                        } else if let Some(bond_id) = bond_at(mol, world, state, 6.0)
+                            && let Some(b) = mol.bonds.iter_mut().find(|b| b.id == bond_id)
+                        {
+                            b.selected = !b.selected;
                         }
                     }
                 } else {
@@ -640,7 +658,7 @@ impl MoleculeCanvas {
             | Tool::WedgeUp
             | Tool::WedgeDown => {
                 let (order, stereo) = bond_order_from_tool(active_tool);
-                let alt_held  = ui.input(|i| i.modifiers.alt);
+                let alt_held = ui.input(|i| i.modifiers.alt);
                 let ctrl_held = ui.input(|i| i.modifiers.ctrl);
 
                 if let Some(pointer) = pointer_opt {
@@ -657,12 +675,11 @@ impl MoleculeCanvas {
                     }
                     if resp.dragged_by(egui::PointerButton::Primary) {
                         // 4px drag threshold
-                        if !state.drag_confirmed {
-                            if let Some(start) = state.drag_start_screen {
-                                if (pointer - start).length() > DRAG_THRESHOLD_PX {
-                                    state.drag_confirmed = true;
-                                }
-                            }
+                        if !state.drag_confirmed
+                            && let Some(start) = state.drag_start_screen
+                            && (pointer - start).length() > DRAG_THRESHOLD_PX
+                        {
+                            state.drag_confirmed = true;
                         }
                     }
 
@@ -680,37 +697,40 @@ impl MoleculeCanvas {
                     state.bond_drag_pos = Some(snapped_screen);
 
                     // Update drag info for status bar
-                    if let Some(from_id) = state.bond_drag_from {
-                        if let Some(from_atom) = mol.atoms.iter().find(|a| a.id == from_id) {
-                            let from_screen = state.world_to_screen(from_atom.pos);
-                            let len_px = from_screen.distance(snapped_screen);
-                            let delta = snapped_world - from_atom.pos;
-                            let angle_deg = delta.y.atan2(delta.x).to_degrees();
-                            let angle_display = ((angle_deg % 360.0) + 360.0) % 360.0;
-                            state.bond_drag_info = Some((len_px, angle_display));
-                        }
+                    if let Some(from_id) = state.bond_drag_from
+                        && let Some(from_atom) = mol.atoms.iter().find(|a| a.id == from_id)
+                    {
+                        let from_screen = state.world_to_screen(from_atom.pos);
+                        let len_px = from_screen.distance(snapped_screen);
+                        let delta = snapped_world - from_atom.pos;
+                        let angle_deg = delta.y.atan2(delta.x).to_degrees();
+                        let angle_display = ((angle_deg % 360.0) + 360.0) % 360.0;
+                        state.bond_drag_info = Some((len_px, angle_display));
                     }
 
                     if resp.drag_stopped_by(egui::PointerButton::Primary) {
-                        if let Some(from_id) = state.bond_drag_from.take() {
-                            if state.drag_confirmed {
-                                // Snap to existing atom within threshold
-                                let to_id = mol
-                                    .atom_at(snapped_world, ATOM_RADIUS * 2.0)
-                                    .filter(|&id| id != from_id)
-                                    .unwrap_or_else(|| mol.add_atom("C", snapped_world));
-                                let exists = mol.bonds.iter().any(|b| {
-                                    (b.from == from_id && b.to == to_id)
-                                        || (b.from == to_id && b.to == from_id)
-                                });
-                                if !exists {
-                                    mol.add_bond(from_id, to_id, order, stereo);
-                                    // Flash snap indicator at the endpoint
-                                    let snap_time = ui.input(|i| i.time);
-                                    state.snap_flash = Some((snapped_world, snap_time + SNAP_FLASH_SECS));
-                                    state.snap_status = Some(format!("Bond angle: {:.0}°",
-                                        state.bond_drag_info.map(|(_, a)| a).unwrap_or(0.0)));
-                                }
+                        if let Some(from_id) = state.bond_drag_from.take()
+                            && state.drag_confirmed
+                        {
+                            // Snap to existing atom within threshold
+                            let to_id = mol
+                                .atom_at(snapped_world, ATOM_RADIUS * 2.0)
+                                .filter(|&id| id != from_id)
+                                .unwrap_or_else(|| mol.add_atom("C", snapped_world));
+                            let exists = mol.bonds.iter().any(|b| {
+                                (b.from == from_id && b.to == to_id)
+                                    || (b.from == to_id && b.to == from_id)
+                            });
+                            if !exists {
+                                mol.add_bond(from_id, to_id, order, stereo);
+                                // Flash snap indicator at the endpoint
+                                let snap_time = ui.input(|i| i.time);
+                                state.snap_flash =
+                                    Some((snapped_world, snap_time + SNAP_FLASH_SECS));
+                                state.snap_status = Some(format!(
+                                    "Bond angle: {:.0}°",
+                                    state.bond_drag_info.map(|(_, a)| a).unwrap_or(0.0)
+                                ));
                             }
                         }
                         state.bond_drag_pos = None;
@@ -724,12 +744,18 @@ impl MoleculeCanvas {
                         if let Some(from_id) = mol.atom_at(world, ATOM_RADIUS * 2.0) {
                             push_undo(undo, redo, mol);
                             // WedgeUp/WedgeDown: flip existing stereo, else change order
-                            if let Some(bond_id) = mol.bonds.iter().find(|b|
-                                (b.from == from_id || b.to == from_id)
-                                && b.stereo != BondStereo::None
-                            ).map(|b| b.id) {
+                            if let Some(bond_id) = mol
+                                .bonds
+                                .iter()
+                                .find(|b| {
+                                    (b.from == from_id || b.to == from_id)
+                                        && b.stereo != BondStereo::None
+                                })
+                                .map(|b| b.id)
+                            {
                                 if active_tool == Tool::WedgeUp || active_tool == Tool::WedgeDown {
-                                    if let Some(b) = mol.bonds.iter_mut().find(|b| b.id == bond_id) {
+                                    if let Some(b) = mol.bonds.iter_mut().find(|b| b.id == bond_id)
+                                    {
                                         b.stereo = if b.stereo == BondStereo::WedgeUp {
                                             BondStereo::WedgeDown
                                         } else {
@@ -780,17 +806,14 @@ impl MoleculeCanvas {
                 }
 
                 // Preview line (ghost bond, accent-colored at GHOST_BOND_ALPHA opacity)
-                if let (Some(from_id), Some(drag_pos)) =
-                    (state.bond_drag_from, state.bond_drag_pos)
+                if let (Some(from_id), Some(drag_pos)) = (state.bond_drag_from, state.bond_drag_pos)
+                    && state.drag_confirmed
+                    && let Some(from_atom) = mol.atoms.iter().find(|a| a.id == from_id)
                 {
-                    if state.drag_confirmed {
-                        if let Some(from_atom) = mol.atoms.iter().find(|a| a.id == from_id) {
-                            let p1 = state.world_to_screen(from_atom.pos);
-                            let preview_stroke =
-                                Stroke::new(BOND_WIDTH, tokens.accent.gamma_multiply(GHOST_BOND_ALPHA));
-                            painter.line_segment([p1, drag_pos], preview_stroke);
-                        }
-                    }
+                    let p1 = state.world_to_screen(from_atom.pos);
+                    let preview_stroke =
+                        Stroke::new(BOND_WIDTH, tokens.accent.gamma_multiply(GHOST_BOND_ALPHA));
+                    painter.line_segment([p1, drag_pos], preview_stroke);
                 }
             }
 
@@ -816,11 +839,21 @@ impl MoleculeCanvas {
                                 if dist > RING_FUSE_THRESHOLD {
                                     // Attach via single bond
                                     let center_offset = Vec2::new(radius, 0.0);
-                                    let atom_pos = mol.atoms.iter().find(|a| a.id == atom_id).map(|a| a.pos).unwrap_or(world);
+                                    let atom_pos = mol
+                                        .atoms
+                                        .iter()
+                                        .find(|a| a.id == atom_id)
+                                        .map(|a| a.pos)
+                                        .unwrap_or(world);
                                     let bond_end = atom_pos + center_offset;
                                     let new_center = bond_end;
                                     let connector_id = mol.add_atom("C", bond_end);
-                                    mol.add_bond(atom_id, connector_id, BondOrder::Single, BondStereo::None);
+                                    mol.add_bond(
+                                        atom_id,
+                                        connector_id,
+                                        BondOrder::Single,
+                                        BondStereo::None,
+                                    );
                                     place_ring(mol, new_center, n, radius, ring_order);
                                 } else {
                                     // Fuse directly at atom
@@ -842,37 +875,40 @@ impl MoleculeCanvas {
             }
 
             Tool::FragmentSelect => {
-                if let Some(pointer) = pointer_opt {
-                    if resp.clicked_by(egui::PointerButton::Primary) {
-                        let world = state.screen_to_world(pointer);
-                        if let Some(bond_id) = bond_at(mol, world, state, 8.0) {
-                            let bond = mol.bonds.iter().find(|b| b.id == bond_id);
-                            if let Some(b) = bond {
-                                let (from_id, to_id) = (b.from, b.to);
-                                // Toggle: if same bond as last time, select the other side
-                                let select_from_side = if state.fragment_bond == Some(bond_id) {
-                                    // check which side is currently selected
-                                    let from_side_selected = mol.atoms.iter()
-                                        .filter(|a| a.selected)
-                                        .any(|a| a.id == from_id);
-                                    !from_side_selected  // flip
-                                } else {
-                                    true  // default: from-side
-                                };
-                                state.fragment_bond = Some(bond_id);
-                                let start_atom = if select_from_side { from_id } else { to_id };
-                                let component = connected_component_excluding_bond(mol, bond_id, start_atom);
-                                mol.deselect_all();
-                                for a in mol.atoms.iter_mut() {
-                                    if component.contains(&a.id) {
-                                        a.selected = true;
-                                    }
+                if let Some(pointer) = pointer_opt
+                    && resp.clicked_by(egui::PointerButton::Primary)
+                {
+                    let world = state.screen_to_world(pointer);
+                    if let Some(bond_id) = bond_at(mol, world, state, 8.0) {
+                        let bond = mol.bonds.iter().find(|b| b.id == bond_id);
+                        if let Some(b) = bond {
+                            let (from_id, to_id) = (b.from, b.to);
+                            // Toggle: if same bond as last time, select the other side
+                            let select_from_side = if state.fragment_bond == Some(bond_id) {
+                                // check which side is currently selected
+                                let from_side_selected = mol
+                                    .atoms
+                                    .iter()
+                                    .filter(|a| a.selected)
+                                    .any(|a| a.id == from_id);
+                                !from_side_selected // flip
+                            } else {
+                                true // default: from-side
+                            };
+                            state.fragment_bond = Some(bond_id);
+                            let start_atom = if select_from_side { from_id } else { to_id };
+                            let component =
+                                connected_component_excluding_bond(mol, bond_id, start_atom);
+                            mol.deselect_all();
+                            for a in mol.atoms.iter_mut() {
+                                if component.contains(&a.id) {
+                                    a.selected = true;
                                 }
-                                // Select bonds fully inside the component
-                                for b in mol.bonds.iter_mut() {
-                                    if component.contains(&b.from) && component.contains(&b.to) {
-                                        b.selected = true;
-                                    }
+                            }
+                            // Select bonds fully inside the component
+                            for b in mol.bonds.iter_mut() {
+                                if component.contains(&b.from) && component.contains(&b.to) {
+                                    b.selected = true;
                                 }
                             }
                         }
@@ -891,36 +927,35 @@ impl MoleculeCanvas {
                     let world = state.screen_to_world(pointer);
 
                     // ── Drag-to-move: grab existing atom ──
-                    if resp.drag_started_by(egui::PointerButton::Primary) {
-                        if let Some(id) = mol.atom_at(world, ATOM_RADIUS * 2.0) {
-                            push_undo(undo, redo, mol);
-                            if !mol.atoms.iter().any(|a| a.id == id && a.selected) {
-                                mol.deselect_all();
-                                if let Some(a) = mol.atoms.iter_mut().find(|a| a.id == id) {
-                                    a.selected = true;
-                                }
+                    if resp.drag_started_by(egui::PointerButton::Primary)
+                        && let Some(id) = mol.atom_at(world, ATOM_RADIUS * 2.0)
+                    {
+                        push_undo(undo, redo, mol);
+                        if !mol.atoms.iter().any(|a| a.id == id && a.selected) {
+                            mol.deselect_all();
+                            if let Some(a) = mol.atoms.iter_mut().find(|a| a.id == id) {
+                                a.selected = true;
                             }
-                            state.dragging_atom = Some(id);
-                            state.drag_start_screen = Some(pointer);
-                            state.drag_confirmed = false;
                         }
+                        state.dragging_atom = Some(id);
+                        state.drag_start_screen = Some(pointer);
+                        state.drag_confirmed = false;
                     }
 
-                    if resp.dragged_by(egui::PointerButton::Primary) {
-                        if state.dragging_atom.is_some() {
-                            // 4px threshold before confirming move
-                            if !state.drag_confirmed {
-                                if let Some(start) = state.drag_start_screen {
-                                    if (pointer - start).length() > DRAG_THRESHOLD_PX {
-                                        state.drag_confirmed = true;
-                                    }
-                                }
-                            }
-                            if state.drag_confirmed {
-                                let delta = resp.drag_delta() / state.zoom;
-                                for a in mol.atoms.iter_mut().filter(|a| a.selected) {
-                                    a.pos += delta;
-                                }
+                    if resp.dragged_by(egui::PointerButton::Primary)
+                        && state.dragging_atom.is_some()
+                    {
+                        // 4px threshold before confirming move
+                        if !state.drag_confirmed
+                            && let Some(start) = state.drag_start_screen
+                            && (pointer - start).length() > DRAG_THRESHOLD_PX
+                        {
+                            state.drag_confirmed = true;
+                        }
+                        if state.drag_confirmed {
+                            let delta = resp.drag_delta() / state.zoom;
+                            for a in mol.atoms.iter_mut().filter(|a| a.selected) {
+                                a.pos += delta;
                             }
                         }
                     }
@@ -932,16 +967,16 @@ impl MoleculeCanvas {
                     }
 
                     // ── Click only: place or change element ──
-                    if resp.clicked_by(egui::PointerButton::Primary) {
-                        if let Some(element) = tool_element(active_tool) {
-                            push_undo(undo, redo, mol);
-                            if let Some(id) = mol.atom_at(world, ATOM_RADIUS * 2.0) {
-                                if let Some(a) = mol.atoms.iter_mut().find(|a| a.id == id) {
-                                    a.element = element.to_string();
-                                }
-                            } else {
-                                mol.add_atom(element, world);
+                    if resp.clicked_by(egui::PointerButton::Primary)
+                        && let Some(element) = tool_element(active_tool)
+                    {
+                        push_undo(undo, redo, mol);
+                        if let Some(id) = mol.atom_at(world, ATOM_RADIUS * 2.0) {
+                            if let Some(a) = mol.atoms.iter_mut().find(|a| a.id == id) {
+                                a.element = element.to_string();
                             }
+                        } else {
+                            mol.add_atom(element, world);
                         }
                     }
                 } else {
@@ -951,19 +986,19 @@ impl MoleculeCanvas {
         }
 
         // ── Right-click context menu ──────────────────────────────────────────
-        if let Some(pointer) = resp.interact_pointer_pos() {
-            if resp.secondary_clicked() {
-                let world = state.screen_to_world(pointer);
-                let target = if let Some(id) = mol.atom_at(world, ATOM_RADIUS * 2.0) {
-                    ContextTarget::Atom(id)
-                } else if let Some(bid) = bond_at(mol, world, state, 8.0) {
-                    ContextTarget::Bond(bid)
-                } else {
-                    ContextTarget::Canvas
-                };
-                state.context_target = Some(target);
-                state.context_pos = Some(pointer);
-            }
+        if let Some(pointer) = resp.interact_pointer_pos()
+            && resp.secondary_clicked()
+        {
+            let world = state.screen_to_world(pointer);
+            let target = if let Some(id) = mol.atom_at(world, ATOM_RADIUS * 2.0) {
+                ContextTarget::Atom(id)
+            } else if let Some(bid) = bond_at(mol, world, state, 8.0) {
+                ContextTarget::Bond(bid)
+            } else {
+                ContextTarget::Canvas
+            };
+            state.context_target = Some(target);
+            state.context_pos = Some(pointer);
         }
         // Close context menu when clicking elsewhere
         if resp.clicked_by(egui::PointerButton::Primary) {
@@ -980,7 +1015,9 @@ impl MoleculeCanvas {
                         match &target {
                             ContextTarget::Atom(id) => {
                                 let id = *id;
-                                ui.label(egui::RichText::new("Atom").small().color(tokens.separator));
+                                ui.label(
+                                    egui::RichText::new("Atom").small().color(tokens.separator),
+                                );
                                 if ui.button("Delete atom").clicked() {
                                     push_undo(undo, redo, mol);
                                     mol.remove_atom(id);
@@ -988,20 +1025,44 @@ impl MoleculeCanvas {
                                 }
                                 if ui.button("Select").clicked() {
                                     mol.deselect_all();
-                                    if let Some(a) = mol.atoms.iter_mut().find(|a| a.id == id) { a.selected = true; }
+                                    if let Some(a) = mol.atoms.iter_mut().find(|a| a.id == id) {
+                                        a.selected = true;
+                                    }
                                     close = true;
                                 }
                                 ui.separator();
                                 ui.horizontal(|ui| {
-                                    if ui.small_button("C").clicked() { if let Some(a) = mol.atoms.iter_mut().find(|a| a.id == id) { a.element = "C".into(); } close = true; }
-                                    if ui.small_button("N").clicked() { if let Some(a) = mol.atoms.iter_mut().find(|a| a.id == id) { a.element = "N".into(); } close = true; }
-                                    if ui.small_button("O").clicked() { if let Some(a) = mol.atoms.iter_mut().find(|a| a.id == id) { a.element = "O".into(); } close = true; }
-                                    if ui.small_button("S").clicked() { if let Some(a) = mol.atoms.iter_mut().find(|a| a.id == id) { a.element = "S".into(); } close = true; }
+                                    if ui.small_button("C").clicked() {
+                                        if let Some(a) = mol.atoms.iter_mut().find(|a| a.id == id) {
+                                            a.element = "C".into();
+                                        }
+                                        close = true;
+                                    }
+                                    if ui.small_button("N").clicked() {
+                                        if let Some(a) = mol.atoms.iter_mut().find(|a| a.id == id) {
+                                            a.element = "N".into();
+                                        }
+                                        close = true;
+                                    }
+                                    if ui.small_button("O").clicked() {
+                                        if let Some(a) = mol.atoms.iter_mut().find(|a| a.id == id) {
+                                            a.element = "O".into();
+                                        }
+                                        close = true;
+                                    }
+                                    if ui.small_button("S").clicked() {
+                                        if let Some(a) = mol.atoms.iter_mut().find(|a| a.id == id) {
+                                            a.element = "S".into();
+                                        }
+                                        close = true;
+                                    }
                                 });
                             }
                             ContextTarget::Bond(bid) => {
                                 let bid = *bid;
-                                ui.label(egui::RichText::new("Bond").small().color(tokens.separator));
+                                ui.label(
+                                    egui::RichText::new("Bond").small().color(tokens.separator),
+                                );
                                 if ui.button("Delete bond").clicked() {
                                     push_undo(undo, redo, mol);
                                     mol.remove_bond(bid);
@@ -1009,28 +1070,42 @@ impl MoleculeCanvas {
                                 }
                                 if ui.button("Single  —").clicked() {
                                     push_undo(undo, redo, mol);
-                                    if let Some(b) = mol.bonds.iter_mut().find(|b| b.id == bid) { b.order = BondOrder::Single; b.stereo = BondStereo::None; }
+                                    if let Some(b) = mol.bonds.iter_mut().find(|b| b.id == bid) {
+                                        b.order = BondOrder::Single;
+                                        b.stereo = BondStereo::None;
+                                    }
                                     close = true;
                                 }
                                 if ui.button("Double  =").clicked() {
                                     push_undo(undo, redo, mol);
-                                    if let Some(b) = mol.bonds.iter_mut().find(|b| b.id == bid) { b.order = BondOrder::Double; b.stereo = BondStereo::None; }
+                                    if let Some(b) = mol.bonds.iter_mut().find(|b| b.id == bid) {
+                                        b.order = BondOrder::Double;
+                                        b.stereo = BondStereo::None;
+                                    }
                                     close = true;
                                 }
                                 if ui.button("Triple  ≡").clicked() {
                                     push_undo(undo, redo, mol);
-                                    if let Some(b) = mol.bonds.iter_mut().find(|b| b.id == bid) { b.order = BondOrder::Triple; b.stereo = BondStereo::None; }
+                                    if let Some(b) = mol.bonds.iter_mut().find(|b| b.id == bid) {
+                                        b.order = BondOrder::Triple;
+                                        b.stereo = BondStereo::None;
+                                    }
                                     close = true;
                                 }
                                 if ui.button("Aromatic ⊙").clicked() {
                                     push_undo(undo, redo, mol);
-                                    if let Some(b) = mol.bonds.iter_mut().find(|b| b.id == bid) { b.order = BondOrder::Aromatic; b.stereo = BondStereo::None; }
+                                    if let Some(b) = mol.bonds.iter_mut().find(|b| b.id == bid) {
+                                        b.order = BondOrder::Aromatic;
+                                        b.stereo = BondStereo::None;
+                                    }
                                     close = true;
                                 }
                             }
                             ContextTarget::Canvas => {
                                 if ui.button("Select All").clicked() {
-                                    for a in &mut mol.atoms { a.selected = true; }
+                                    for a in &mut mol.atoms {
+                                        a.selected = true;
+                                    }
                                     close = true;
                                 }
                                 if ui.button("Clear All").clicked() {
@@ -1042,7 +1117,9 @@ impl MoleculeCanvas {
                         }
                     });
                 });
-            if close { state.context_target = None; }
+            if close {
+                state.context_target = None;
+            }
         }
     }
 
@@ -1150,7 +1227,8 @@ impl MoleculeCanvas {
             "C" => tokens.elem_c,
             "H" => tokens.elem_h,
             // R-groups: teal/cyan to distinguish from regular atoms
-            e if e == "R" || e.starts_with("R*")
+            e if e == "R"
+                || e.starts_with("R*")
                 || (e.starts_with('R') && e[1..].parse::<u8>().is_ok()) =>
             {
                 egui::Color32::from_rgb(0x20, 0xC0, 0xA0)
@@ -1166,7 +1244,6 @@ impl MoleculeCanvas {
         }
     }
 }
-
 
 fn tool_element(tool: Tool) -> Option<&'static str> {
     match tool {
@@ -1188,23 +1265,35 @@ fn tool_element(tool: Tool) -> Option<&'static str> {
 /// Map a bond Tool variant to (BondOrder, BondStereo).
 fn bond_order_from_tool(tool: Tool) -> (BondOrder, BondStereo) {
     match tool {
-        Tool::Double   => (BondOrder::Double,   BondStereo::None),
-        Tool::Triple   => (BondOrder::Triple,   BondStereo::None),
+        Tool::Double => (BondOrder::Double, BondStereo::None),
+        Tool::Triple => (BondOrder::Triple, BondStereo::None),
         Tool::Aromatic => (BondOrder::Aromatic, BondStereo::None),
-        Tool::WedgeUp  => (BondOrder::Single,   BondStereo::WedgeUp),
-        Tool::WedgeDown => (BondOrder::Single,  BondStereo::WedgeDown),
-        _              => (BondOrder::Single,   BondStereo::None),
+        Tool::WedgeUp => (BondOrder::Single, BondStereo::WedgeUp),
+        Tool::WedgeDown => (BondOrder::Single, BondStereo::WedgeDown),
+        _ => (BondOrder::Single, BondStereo::None),
     }
 }
 
 /// Find the bond closest to a world-space point, within `tolerance` screen pixels.
-fn bond_at(mol: &CanvasMolecule, world: Pos2, state: &CanvasState, tol_screen: f32) -> Option<usize> {
+fn bond_at(
+    mol: &CanvasMolecule,
+    world: Pos2,
+    state: &CanvasState,
+    tol_screen: f32,
+) -> Option<usize> {
     let tol = tol_screen / state.zoom;
-    mol.bonds.iter().find(|b| {
-        let Some(a1) = mol.atoms.iter().find(|a| a.id == b.from) else { return false };
-        let Some(a2) = mol.atoms.iter().find(|a| a.id == b.to)   else { return false };
-        point_segment_dist(world, a1.pos, a2.pos) < tol
-    }).map(|b| b.id)
+    mol.bonds
+        .iter()
+        .find(|b| {
+            let Some(a1) = mol.atoms.iter().find(|a| a.id == b.from) else {
+                return false;
+            };
+            let Some(a2) = mol.atoms.iter().find(|a| a.id == b.to) else {
+                return false;
+            };
+            point_segment_dist(world, a1.pos, a2.pos) < tol
+        })
+        .map(|b| b.id)
 }
 
 fn point_segment_dist(p: Pos2, a: Pos2, b: Pos2) -> f32 {
@@ -1241,9 +1330,17 @@ fn default_bond_endpoint(mol: &CanvasMolecule, from_id: usize) -> Pos2 {
     let candidate = (0..12)
         .map(|i| i as f32 * std::f32::consts::TAU / 12.0)
         .max_by(|&a, &b| {
-            let min_a = existing_angles.iter().map(|&e| (a - e).abs().min(std::f32::consts::TAU - (a - e).abs())).fold(f32::MAX, f32::min);
-            let min_b = existing_angles.iter().map(|&e| (b - e).abs().min(std::f32::consts::TAU - (b - e).abs())).fold(f32::MAX, f32::min);
-            min_a.partial_cmp(&min_b).unwrap_or(std::cmp::Ordering::Equal)
+            let min_a = existing_angles
+                .iter()
+                .map(|&e| (a - e).abs().min(std::f32::consts::TAU - (a - e).abs()))
+                .fold(f32::MAX, f32::min);
+            let min_b = existing_angles
+                .iter()
+                .map(|&e| (b - e).abs().min(std::f32::consts::TAU - (b - e).abs()))
+                .fold(f32::MAX, f32::min);
+            min_a
+                .partial_cmp(&min_b)
+                .unwrap_or(std::cmp::Ordering::Equal)
         })
         .unwrap_or(0.0);
 
@@ -1310,7 +1407,12 @@ fn snap_bond_angle(
 }
 
 /// Public wrapper for keyboard-triggered ring annelation from app.rs.
-pub fn place_ring_on_bond_pub(mol: &mut CanvasMolecule, bond_id: usize, n: usize, order: BondOrder) {
+pub fn place_ring_on_bond_pub(
+    mol: &mut CanvasMolecule,
+    bond_id: usize,
+    n: usize,
+    order: BondOrder,
+) {
     place_ring_on_bond(mol, bond_id, n, order);
 }
 
@@ -1319,15 +1421,23 @@ pub fn place_ring_on_bond_pub(mol: &mut CanvasMolecule, bond_id: usize, n: usize
 /// left-perpendicular side of the bond (from → to direction).
 fn place_ring_on_bond(mol: &mut CanvasMolecule, bond_id: usize, n: usize, order: BondOrder) {
     let (bond_from, bond_to, from_pos, to_pos) = {
-        let Some(bond) = mol.bonds.iter().find(|b| b.id == bond_id) else { return };
-        let Some(fa) = mol.atoms.iter().find(|a| a.id == bond.from) else { return };
-        let Some(ta) = mol.atoms.iter().find(|a| a.id == bond.to) else { return };
+        let Some(bond) = mol.bonds.iter().find(|b| b.id == bond_id) else {
+            return;
+        };
+        let Some(fa) = mol.atoms.iter().find(|a| a.id == bond.from) else {
+            return;
+        };
+        let Some(ta) = mol.atoms.iter().find(|a| a.id == bond.to) else {
+            return;
+        };
         (bond.from, bond.to, fa.pos, ta.pos)
     };
 
     let bond_vec = to_pos - from_pos;
     let l = bond_vec.length();
-    if l < 1.0 { return; }
+    if l < 1.0 {
+        return;
+    }
 
     // Circumradius and apothem of a regular n-gon with edge length l
     let circumradius = l / (2.0 * (std::f32::consts::PI / n as f32).sin());
@@ -1360,10 +1470,13 @@ fn place_ring_on_bond(mol: &mut CanvasMolecule, bond_id: usize, n: usize, order:
         let a = ids[i];
         let b = ids[(i + 1) % n];
         let is_shared = (a == bond_from && b == bond_to) || (a == bond_to && b == bond_from);
-        if is_shared { continue; }
-        let exists = mol.bonds.iter().any(|bnd| {
-            (bnd.from == a && bnd.to == b) || (bnd.from == b && bnd.to == a)
-        });
+        if is_shared {
+            continue;
+        }
+        let exists = mol
+            .bonds
+            .iter()
+            .any(|bnd| (bnd.from == a && bnd.to == b) || (bnd.from == b && bnd.to == a));
         if !exists {
             mol.add_bond(a, b, order, BondStereo::None);
         }
@@ -1382,7 +1495,9 @@ fn connected_component_excluding_bond(
     visited.insert(start_atom);
     while let Some(current) = queue.pop_front() {
         for bond in &mol.bonds {
-            if bond.id == bond_id { continue; }
+            if bond.id == bond_id {
+                continue;
+            }
             let neighbor = if bond.from == current {
                 Some(bond.to)
             } else if bond.to == current {
@@ -1390,10 +1505,10 @@ fn connected_component_excluding_bond(
             } else {
                 None
             };
-            if let Some(n) = neighbor {
-                if visited.insert(n) {
-                    queue.push_back(n);
-                }
+            if let Some(n) = neighbor
+                && visited.insert(n)
+            {
+                queue.push_back(n);
             }
         }
     }
@@ -1408,7 +1523,9 @@ fn ring_ghost_center_for_bond(mol: &CanvasMolecule, bond_id: usize, n: usize) ->
     let ta = mol.atoms.iter().find(|a| a.id == bond.to)?;
     let bond_vec = ta.pos - fa.pos;
     let l = bond_vec.length();
-    if l < 1.0 { return None; }
+    if l < 1.0 {
+        return None;
+    }
     let apothem = l / (2.0 * (std::f32::consts::PI / n as f32).tan());
     let mid = Pos2::new((fa.pos.x + ta.pos.x) / 2.0, (fa.pos.y + ta.pos.y) / 2.0);
     let norm = Vec2::new(-bond_vec.y / l, bond_vec.x / l);
@@ -1433,9 +1550,10 @@ fn place_ring(mol: &mut CanvasMolecule, center: Pos2, n: usize, radius: f32, ord
     for i in 0..n {
         let a = ids[i];
         let b = ids[(i + 1) % n];
-        let exists = mol.bonds.iter().any(|b_| {
-            (b_.from == a && b_.to == b) || (b_.from == b && b_.to == a)
-        });
+        let exists = mol
+            .bonds
+            .iter()
+            .any(|b_| (b_.from == a && b_.to == b) || (b_.from == b && b_.to == a));
         if !exists {
             mol.add_bond(a, b, order, BondStereo::None);
         }

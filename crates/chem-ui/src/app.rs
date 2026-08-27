@@ -3,56 +3,56 @@ use egui::CentralPanel;
 
 use crate::ai_chat::{AiChatPanel, AiChatState, ApplyMode, ChatStatus, extract_smiles};
 use crate::bridge::clean_layout;
-use crate::canvas::{push_undo, CanvasMolecule, CanvasState};
+use crate::canvas::{CanvasMolecule, CanvasState, push_undo};
 use crate::export::canvas_to_canonical_smiles;
 use crate::i18n::{I18n, Language};
 use crate::inspector::Inspector;
 use crate::iupac::IupacState;
-use crate::menu::{open_file_dialog, MenuActions, MenuBar};
+use crate::menu::{MenuActions, MenuBar, open_file_dialog};
 use crate::paste::parse_any;
-use crate::reaction::{ReactionScheme, ReactionCanvas};
+use crate::reaction::{ReactionCanvas, ReactionScheme};
 use crate::settings::SettingsPanel;
 use crate::templates::TemplatePanel;
-use crate::theme::{alpha, apply as apply_theme, Tokens, Theme, INSPECTOR_WIDTH, TOOL_CONTROLS_HEIGHT};
+use crate::theme::{
+    INSPECTOR_WIDTH, TOOL_CONTROLS_HEIGHT, Theme, Tokens, alpha, apply as apply_theme,
+};
 use crate::toolbar::{ActivityPanel, Tool};
 use crate::viewer3d::{Viewer3d, Viewer3dState};
 
 /// Which editing mode is active.
-#[derive(Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize, Default)]
 pub enum EditorMode {
+    #[default]
     Structure,
     Reaction,
 }
 
-impl Default for EditorMode {
-    fn default() -> Self {
-        Self::Structure
-    }
-}
+/// Background PubChem lookup result, shared with the spawned request thread.
+type PubchemResult = std::sync::Arc<std::sync::Mutex<Option<Result<String, String>>>>;
 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(default)]
 pub struct ChemDrawApp {
-    pub molecule:      CanvasMolecule,
-    pub canvas_state:  CanvasState,
-    pub active_tool:   Tool,
-    pub theme:         Theme,
-    pub lang:          Language,
-    pub mode:          EditorMode,
-    pub reaction:      ReactionScheme,
+    pub molecule: CanvasMolecule,
+    pub canvas_state: CanvasState,
+    pub active_tool: Tool,
+    pub theme: Theme,
+    pub lang: Language,
+    pub mode: EditorMode,
+    pub reaction: ReactionScheme,
     /// 3D viewer — not persisted: always starts closed
     #[serde(skip)]
-    pub show_3d:       bool,
+    pub show_3d: bool,
     pub viewer3d_state: Viewer3dState,
     #[serde(skip)]
-    pub iupac:         IupacState,
+    pub iupac: IupacState,
     #[serde(skip)]
-    pub undo_stack:    Vec<CanvasMolecule>,
+    pub undo_stack: Vec<CanvasMolecule>,
     #[serde(skip)]
-    pub redo_stack:    Vec<CanvasMolecule>,
+    pub redo_stack: Vec<CanvasMolecule>,
     /// Cached canvas rect for zoom-fit (updated each frame).
     #[serde(skip)]
-    pub canvas_rect:   egui::Rect,
+    pub canvas_rect: egui::Rect,
     /// Show template library panel.
     pub show_templates: bool,
     /// SMARTS search buffer (not persisted).
@@ -124,54 +124,54 @@ pub struct ChemDrawApp {
     pub pubchem_query: String,
     /// PubChem background result channel.
     #[serde(skip)]
-    pub pubchem_result: Option<std::sync::Arc<std::sync::Mutex<Option<Result<String, String>>>>>,
+    pub pubchem_result: Option<PubchemResult>,
 }
 
 impl Default for ChemDrawApp {
     fn default() -> Self {
         Self {
-            molecule:       CanvasMolecule::default(),
-            canvas_state:   CanvasState::default(),
-            active_tool:    Tool::Select,
-            theme:          Theme::Dark,
-            lang:           Language::En,
-            mode:           EditorMode::Structure,
-            reaction:       ReactionScheme::default(),
-            show_3d:        false,
+            molecule: CanvasMolecule::default(),
+            canvas_state: CanvasState::default(),
+            active_tool: Tool::Select,
+            theme: Theme::Dark,
+            lang: Language::En,
+            mode: EditorMode::Structure,
+            reaction: ReactionScheme::default(),
+            show_3d: false,
             viewer3d_state: Viewer3dState::default(),
-            iupac:          IupacState::default(),
-            undo_stack:      Vec::new(),
-            redo_stack:      Vec::new(),
-            canvas_rect:     egui::Rect::NOTHING,
-            show_templates:      false,
-            smarts_buf:          String::new(),
-            show_about:          false,
-            status_msg:          None,
-            menu_bar_active:     false,
-            active_top_menu:     None,
-            api_key:             String::new(),
-            ai_model:            "claude-haiku-4-5-20251001".to_string(),
-            show_chat:           false,
-            show_settings:       false,
-            ai_chat:             AiChatState::default(),
-            settings_show_key:   false,
-            pan_tool_saved:      None,
-            show_inspector:      true,
-            inspector_width:     INSPECTOR_WIDTH,
-            activity_panel:      ActivityPanel::Tools,
-            sidebar_open:        true,
-            sidebar_width:       260.0,
-            zoom_edit:           None,
-            smiles_edit:         None,
-            smiles_edit_error:   false,
-            focus_mode:          false,
-            show_key_ref:        false,
-            show_pubchem:        false,
-            pubchem_query:       String::new(),
-            pubchem_result:      None,
-            show_palette:        false,
-            palette_query:       String::new(),
-            show_undo_history:   false,
+            iupac: IupacState::default(),
+            undo_stack: Vec::new(),
+            redo_stack: Vec::new(),
+            canvas_rect: egui::Rect::NOTHING,
+            show_templates: false,
+            smarts_buf: String::new(),
+            show_about: false,
+            status_msg: None,
+            menu_bar_active: false,
+            active_top_menu: None,
+            api_key: String::new(),
+            ai_model: "claude-haiku-4-5-20251001".to_string(),
+            show_chat: false,
+            show_settings: false,
+            ai_chat: AiChatState::default(),
+            settings_show_key: false,
+            pan_tool_saved: None,
+            show_inspector: true,
+            inspector_width: INSPECTOR_WIDTH,
+            activity_panel: ActivityPanel::Tools,
+            sidebar_open: true,
+            sidebar_width: 260.0,
+            zoom_edit: None,
+            smiles_edit: None,
+            smiles_edit_error: false,
+            focus_mode: false,
+            show_key_ref: false,
+            show_pubchem: false,
+            pubchem_query: String::new(),
+            pubchem_result: None,
+            show_palette: false,
+            palette_query: String::new(),
+            show_undo_history: false,
         }
     }
 }
@@ -179,7 +179,8 @@ impl Default for ChemDrawApp {
 impl ChemDrawApp {
     pub fn new(cc: &CreationContext) -> Self {
         crate::fonts::setup(&cc.egui_ctx);
-        let theme_stored = cc.storage
+        let theme_stored = cc
+            .storage
             .and_then(|s| eframe::get_value::<Self>(s, eframe::APP_KEY))
             .is_some();
         let mut app: Self = if let Some(storage) = cc.storage {
@@ -188,13 +189,11 @@ impl ChemDrawApp {
             Self::default()
         };
         // §6: OS dark/light auto-detect (only when no stored preference)
-        if !theme_stored {
-            if let Some(sys) = cc.egui_ctx.system_theme() {
-                app.theme = match sys {
-                    egui::Theme::Light => crate::theme::Theme::Light,
-                    egui::Theme::Dark  => crate::theme::Theme::Dark,
-                };
-            }
+        if !theme_stored && let Some(sys) = cc.egui_ctx.system_theme() {
+            app.theme = match sys {
+                egui::Theme::Light => crate::theme::Theme::Light,
+                egui::Theme::Dark => crate::theme::Theme::Dark,
+            };
         }
         apply_theme(&cc.egui_ctx, app.theme);
         app
@@ -216,62 +215,108 @@ impl ChemDrawApp {
 
     fn flip_horizontal(&mut self) {
         let targets: Vec<usize> = {
-            let selected: Vec<_> = self.molecule.atoms.iter()
-                .filter(|a| a.selected).map(|a| a.id).collect();
+            let selected: Vec<_> = self
+                .molecule
+                .atoms
+                .iter()
+                .filter(|a| a.selected)
+                .map(|a| a.id)
+                .collect();
             if selected.is_empty() {
                 self.molecule.atoms.iter().map(|a| a.id).collect()
             } else {
                 selected
             }
         };
-        if targets.is_empty() { return; }
-        let cx = targets.iter()
+        if targets.is_empty() {
+            return;
+        }
+        let cx = targets
+            .iter()
             .filter_map(|&id| self.molecule.atoms.iter().find(|a| a.id == id))
             .map(|a| a.pos.x)
-            .sum::<f32>() / targets.len() as f32;
-        for a in self.molecule.atoms.iter_mut().filter(|a| targets.contains(&a.id)) {
+            .sum::<f32>()
+            / targets.len() as f32;
+        for a in self
+            .molecule
+            .atoms
+            .iter_mut()
+            .filter(|a| targets.contains(&a.id))
+        {
             a.pos.x = 2.0 * cx - a.pos.x;
         }
     }
 
     fn flip_vertical(&mut self) {
         let targets: Vec<usize> = {
-            let selected: Vec<_> = self.molecule.atoms.iter()
-                .filter(|a| a.selected).map(|a| a.id).collect();
+            let selected: Vec<_> = self
+                .molecule
+                .atoms
+                .iter()
+                .filter(|a| a.selected)
+                .map(|a| a.id)
+                .collect();
             if selected.is_empty() {
                 self.molecule.atoms.iter().map(|a| a.id).collect()
             } else {
                 selected
             }
         };
-        if targets.is_empty() { return; }
-        let cy = targets.iter()
+        if targets.is_empty() {
+            return;
+        }
+        let cy = targets
+            .iter()
             .filter_map(|&id| self.molecule.atoms.iter().find(|a| a.id == id))
             .map(|a| a.pos.y)
-            .sum::<f32>() / targets.len() as f32;
-        for a in self.molecule.atoms.iter_mut().filter(|a| targets.contains(&a.id)) {
+            .sum::<f32>()
+            / targets.len() as f32;
+        for a in self
+            .molecule
+            .atoms
+            .iter_mut()
+            .filter(|a| targets.contains(&a.id))
+        {
             a.pos.y = 2.0 * cy - a.pos.y;
         }
     }
 
     fn rotate_90(&mut self) {
         let targets: Vec<usize> = {
-            let selected: Vec<_> = self.molecule.atoms.iter()
-                .filter(|a| a.selected).map(|a| a.id).collect();
+            let selected: Vec<_> = self
+                .molecule
+                .atoms
+                .iter()
+                .filter(|a| a.selected)
+                .map(|a| a.id)
+                .collect();
             if selected.is_empty() {
                 self.molecule.atoms.iter().map(|a| a.id).collect()
             } else {
                 selected
             }
         };
-        if targets.is_empty() { return; }
-        let cx = targets.iter()
+        if targets.is_empty() {
+            return;
+        }
+        let cx = targets
+            .iter()
             .filter_map(|&id| self.molecule.atoms.iter().find(|a| a.id == id))
-            .map(|a| a.pos.x).sum::<f32>() / targets.len() as f32;
-        let cy = targets.iter()
+            .map(|a| a.pos.x)
+            .sum::<f32>()
+            / targets.len() as f32;
+        let cy = targets
+            .iter()
             .filter_map(|&id| self.molecule.atoms.iter().find(|a| a.id == id))
-            .map(|a| a.pos.y).sum::<f32>() / targets.len() as f32;
-        for a in self.molecule.atoms.iter_mut().filter(|a| targets.contains(&a.id)) {
+            .map(|a| a.pos.y)
+            .sum::<f32>()
+            / targets.len() as f32;
+        for a in self
+            .molecule
+            .atoms
+            .iter_mut()
+            .filter(|a| targets.contains(&a.id))
+        {
             let dx = a.pos.x - cx;
             let dy = a.pos.y - cy;
             // clockwise 90°: (dx, dy) → (dy, -dx) in screen coords (Y-down)
@@ -281,11 +326,33 @@ impl ChemDrawApp {
     }
 
     fn fit_zoom(&mut self) {
-        if self.molecule.atoms.is_empty() || self.canvas_rect == egui::Rect::NOTHING { return; }
-        let min_x = self.molecule.atoms.iter().map(|a| a.pos.x).fold(f32::MAX, f32::min);
-        let max_x = self.molecule.atoms.iter().map(|a| a.pos.x).fold(f32::MIN, f32::max);
-        let min_y = self.molecule.atoms.iter().map(|a| a.pos.y).fold(f32::MAX, f32::min);
-        let max_y = self.molecule.atoms.iter().map(|a| a.pos.y).fold(f32::MIN, f32::max);
+        if self.molecule.atoms.is_empty() || self.canvas_rect == egui::Rect::NOTHING {
+            return;
+        }
+        let min_x = self
+            .molecule
+            .atoms
+            .iter()
+            .map(|a| a.pos.x)
+            .fold(f32::MAX, f32::min);
+        let max_x = self
+            .molecule
+            .atoms
+            .iter()
+            .map(|a| a.pos.x)
+            .fold(f32::MIN, f32::max);
+        let min_y = self
+            .molecule
+            .atoms
+            .iter()
+            .map(|a| a.pos.y)
+            .fold(f32::MAX, f32::min);
+        let max_y = self
+            .molecule
+            .atoms
+            .iter()
+            .map(|a| a.pos.y)
+            .fold(f32::MIN, f32::max);
         let mol_w = (max_x - min_x).max(60.0);
         let mol_h = (max_y - min_y).max(60.0);
         let zoom = ((self.canvas_rect.width() / mol_w) * 0.80)
@@ -301,51 +368,127 @@ impl ChemDrawApp {
     }
 
     fn align_atoms_left(mol: &mut CanvasMolecule) {
-        let min_x = mol.atoms.iter().filter(|a| a.selected).map(|a| a.pos.x).fold(f32::MAX, f32::min);
-        for a in mol.atoms.iter_mut().filter(|a| a.selected) { a.pos.x = min_x; }
+        let min_x = mol
+            .atoms
+            .iter()
+            .filter(|a| a.selected)
+            .map(|a| a.pos.x)
+            .fold(f32::MAX, f32::min);
+        for a in mol.atoms.iter_mut().filter(|a| a.selected) {
+            a.pos.x = min_x;
+        }
     }
     fn align_atoms_right(mol: &mut CanvasMolecule) {
-        let max_x = mol.atoms.iter().filter(|a| a.selected).map(|a| a.pos.x).fold(f32::MIN, f32::max);
-        for a in mol.atoms.iter_mut().filter(|a| a.selected) { a.pos.x = max_x; }
+        let max_x = mol
+            .atoms
+            .iter()
+            .filter(|a| a.selected)
+            .map(|a| a.pos.x)
+            .fold(f32::MIN, f32::max);
+        for a in mol.atoms.iter_mut().filter(|a| a.selected) {
+            a.pos.x = max_x;
+        }
     }
     fn align_atoms_center_h(mol: &mut CanvasMolecule) {
-        let xs: Vec<f32> = mol.atoms.iter().filter(|a| a.selected).map(|a| a.pos.x).collect();
-        if xs.is_empty() { return; }
+        let xs: Vec<f32> = mol
+            .atoms
+            .iter()
+            .filter(|a| a.selected)
+            .map(|a| a.pos.x)
+            .collect();
+        if xs.is_empty() {
+            return;
+        }
         let cx = xs.iter().sum::<f32>() / xs.len() as f32;
-        for a in mol.atoms.iter_mut().filter(|a| a.selected) { a.pos.x = cx; }
+        for a in mol.atoms.iter_mut().filter(|a| a.selected) {
+            a.pos.x = cx;
+        }
     }
     fn align_atoms_top(mol: &mut CanvasMolecule) {
-        let min_y = mol.atoms.iter().filter(|a| a.selected).map(|a| a.pos.y).fold(f32::MAX, f32::min);
-        for a in mol.atoms.iter_mut().filter(|a| a.selected) { a.pos.y = min_y; }
+        let min_y = mol
+            .atoms
+            .iter()
+            .filter(|a| a.selected)
+            .map(|a| a.pos.y)
+            .fold(f32::MAX, f32::min);
+        for a in mol.atoms.iter_mut().filter(|a| a.selected) {
+            a.pos.y = min_y;
+        }
     }
     fn align_atoms_bottom(mol: &mut CanvasMolecule) {
-        let max_y = mol.atoms.iter().filter(|a| a.selected).map(|a| a.pos.y).fold(f32::MIN, f32::max);
-        for a in mol.atoms.iter_mut().filter(|a| a.selected) { a.pos.y = max_y; }
+        let max_y = mol
+            .atoms
+            .iter()
+            .filter(|a| a.selected)
+            .map(|a| a.pos.y)
+            .fold(f32::MIN, f32::max);
+        for a in mol.atoms.iter_mut().filter(|a| a.selected) {
+            a.pos.y = max_y;
+        }
     }
     fn align_atoms_center_v(mol: &mut CanvasMolecule) {
-        let ys: Vec<f32> = mol.atoms.iter().filter(|a| a.selected).map(|a| a.pos.y).collect();
-        if ys.is_empty() { return; }
+        let ys: Vec<f32> = mol
+            .atoms
+            .iter()
+            .filter(|a| a.selected)
+            .map(|a| a.pos.y)
+            .collect();
+        if ys.is_empty() {
+            return;
+        }
         let cy = ys.iter().sum::<f32>() / ys.len() as f32;
-        for a in mol.atoms.iter_mut().filter(|a| a.selected) { a.pos.y = cy; }
+        for a in mol.atoms.iter_mut().filter(|a| a.selected) {
+            a.pos.y = cy;
+        }
     }
 
     /// Apply bare-key tool shortcuts (called from keyboard handler).
     fn apply_tool_shortcuts(i: &egui::InputState, active_tool: &mut Tool) {
-        if i.key_pressed(egui::Key::C) { *active_tool = Tool::Carbon; }
-        if i.key_pressed(egui::Key::N) { *active_tool = Tool::Nitrogen; }
-        if i.key_pressed(egui::Key::O) { *active_tool = Tool::Oxygen; }
-        if i.key_pressed(egui::Key::S) { *active_tool = Tool::Sulfur; }
-        if i.key_pressed(egui::Key::P) { *active_tool = Tool::Phosphorus; }
-        if i.key_pressed(egui::Key::F) { *active_tool = Tool::Fluorine; }
-        if i.key_pressed(egui::Key::H) { *active_tool = Tool::Hydrogen; }
-        if i.key_pressed(egui::Key::Num1) { *active_tool = Tool::Single; }
-        if i.key_pressed(egui::Key::Num2) { *active_tool = Tool::Double; }
-        if i.key_pressed(egui::Key::Num3) { *active_tool = Tool::Triple; }
-        if i.key_pressed(egui::Key::Num4) { *active_tool = Tool::Aromatic; }
-        if i.key_pressed(egui::Key::W) { *active_tool = Tool::WedgeUp; }
-        if i.key_pressed(egui::Key::D) { *active_tool = Tool::WedgeDown; }
-        if i.key_pressed(egui::Key::B) { *active_tool = Tool::Benzene; }
-        if i.key_pressed(egui::Key::R) { *active_tool = Tool::Rgroup; }
+        if i.key_pressed(egui::Key::C) {
+            *active_tool = Tool::Carbon;
+        }
+        if i.key_pressed(egui::Key::N) {
+            *active_tool = Tool::Nitrogen;
+        }
+        if i.key_pressed(egui::Key::O) {
+            *active_tool = Tool::Oxygen;
+        }
+        if i.key_pressed(egui::Key::S) {
+            *active_tool = Tool::Sulfur;
+        }
+        if i.key_pressed(egui::Key::P) {
+            *active_tool = Tool::Phosphorus;
+        }
+        if i.key_pressed(egui::Key::F) {
+            *active_tool = Tool::Fluorine;
+        }
+        if i.key_pressed(egui::Key::H) {
+            *active_tool = Tool::Hydrogen;
+        }
+        if i.key_pressed(egui::Key::Num1) {
+            *active_tool = Tool::Single;
+        }
+        if i.key_pressed(egui::Key::Num2) {
+            *active_tool = Tool::Double;
+        }
+        if i.key_pressed(egui::Key::Num3) {
+            *active_tool = Tool::Triple;
+        }
+        if i.key_pressed(egui::Key::Num4) {
+            *active_tool = Tool::Aromatic;
+        }
+        if i.key_pressed(egui::Key::W) {
+            *active_tool = Tool::WedgeUp;
+        }
+        if i.key_pressed(egui::Key::D) {
+            *active_tool = Tool::WedgeDown;
+        }
+        if i.key_pressed(egui::Key::B) {
+            *active_tool = Tool::Benzene;
+        }
+        if i.key_pressed(egui::Key::R) {
+            *active_tool = Tool::Rgroup;
+        }
     }
 
     /// Set a temporary status bar message with explicit expiry time.
@@ -366,10 +509,10 @@ impl eframe::App for ChemDrawApp {
         let mut actions = MenuActions::default();
 
         // ── Expire status message ──
-        if let Some((_, _, exp)) = self.status_msg {
-            if ctx.input(|i| i.time) > exp {
-                self.status_msg = None;
-            }
+        if let Some((_, _, exp)) = self.status_msg
+            && ctx.input(|i| i.time) > exp
+        {
+            self.status_msg = None;
         }
 
         // ── Space key: temporary pan tool ──
@@ -380,10 +523,8 @@ impl eframe::App for ChemDrawApp {
                 self.pan_tool_saved = Some(self.active_tool);
                 self.active_tool = Tool::Pan;
             }
-            if space_released {
-                if let Some(prev) = self.pan_tool_saved.take() {
-                    self.active_tool = prev;
-                }
+            if space_released && let Some(prev) = self.pan_tool_saved.take() {
+                self.active_tool = prev;
             }
         }
 
@@ -402,20 +543,36 @@ impl eframe::App for ChemDrawApp {
                 && (i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Backspace))
                 && !i.modifiers.ctrl
             {
-                let selected_atoms: Vec<usize> = self.molecule.atoms.iter()
-                    .filter(|a| a.selected).map(|a| a.id).collect();
-                let selected_bonds: Vec<usize> = self.molecule.bonds.iter()
-                    .filter(|b| b.selected).map(|b| b.id).collect();
+                let selected_atoms: Vec<usize> = self
+                    .molecule
+                    .atoms
+                    .iter()
+                    .filter(|a| a.selected)
+                    .map(|a| a.id)
+                    .collect();
+                let selected_bonds: Vec<usize> = self
+                    .molecule
+                    .bonds
+                    .iter()
+                    .filter(|b| b.selected)
+                    .map(|b| b.id)
+                    .collect();
                 if !selected_atoms.is_empty() || !selected_bonds.is_empty() {
                     push_undo(&mut self.undo_stack, &mut self.redo_stack, &self.molecule);
-                    for id in selected_atoms { self.molecule.remove_atom(id); }
-                    for id in selected_bonds { self.molecule.remove_bond(id); }
+                    for id in selected_atoms {
+                        self.molecule.remove_atom(id);
+                    }
+                    for id in selected_bonds {
+                        self.molecule.remove_bond(id);
+                    }
                 }
             }
 
             // Undo / Redo — support both Ctrl (Win/Linux) and Cmd (macOS)
             let pm = i.modifiers.ctrl || i.modifiers.mac_cmd;
-            if i.key_pressed(egui::Key::Z) && pm && !i.modifiers.shift { actions.request_undo = true; }
+            if i.key_pressed(egui::Key::Z) && pm && !i.modifiers.shift {
+                actions.request_undo = true;
+            }
             if (i.key_pressed(egui::Key::Z) && pm && i.modifiers.shift)
                 || (i.key_pressed(egui::Key::Y) && pm)
             {
@@ -427,9 +584,15 @@ impl eframe::App for ChemDrawApp {
             }
 
             // File
-            if i.key_pressed(egui::Key::N) && pm { actions.request_new = true; }
-            if i.key_pressed(egui::Key::O) && pm { actions.request_open = true; }
-            if i.key_pressed(egui::Key::S) && pm { actions.request_save = true; }
+            if i.key_pressed(egui::Key::N) && pm {
+                actions.request_new = true;
+            }
+            if i.key_pressed(egui::Key::O) && pm {
+                actions.request_open = true;
+            }
+            if i.key_pressed(egui::Key::S) && pm {
+                actions.request_save = true;
+            }
 
             // Ctrl+Shift+P: command palette
             if i.key_pressed(egui::Key::P) && pm && i.modifiers.shift {
@@ -446,19 +609,43 @@ impl eframe::App for ChemDrawApp {
 
             // Edit
             if i.key_pressed(egui::Key::A) && pm {
-                for a in &mut self.molecule.atoms { a.selected = true; }
+                for a in &mut self.molecule.atoms {
+                    a.selected = true;
+                }
             }
-            if i.key_pressed(egui::Key::L) && pm { actions.request_clean = true; }
+            if i.key_pressed(egui::Key::L) && pm {
+                actions.request_clean = true;
+            }
 
             // Arrow keys: move selected atoms by one grid step (skip in text fields)
             if !wants_kb {
                 let step = 40.0 / self.canvas_state.zoom;
                 let any_sel = self.molecule.atoms.iter().any(|a| a.selected);
                 if any_sel {
-                    if i.key_pressed(egui::Key::ArrowUp)    { push_undo(&mut self.undo_stack, &mut self.redo_stack, &self.molecule); for a in self.molecule.atoms.iter_mut().filter(|a| a.selected) { a.pos.y -= step; } }
-                    if i.key_pressed(egui::Key::ArrowDown)  { push_undo(&mut self.undo_stack, &mut self.redo_stack, &self.molecule); for a in self.molecule.atoms.iter_mut().filter(|a| a.selected) { a.pos.y += step; } }
-                    if i.key_pressed(egui::Key::ArrowLeft)  { push_undo(&mut self.undo_stack, &mut self.redo_stack, &self.molecule); for a in self.molecule.atoms.iter_mut().filter(|a| a.selected) { a.pos.x -= step; } }
-                    if i.key_pressed(egui::Key::ArrowRight) { push_undo(&mut self.undo_stack, &mut self.redo_stack, &self.molecule); for a in self.molecule.atoms.iter_mut().filter(|a| a.selected) { a.pos.x += step; } }
+                    if i.key_pressed(egui::Key::ArrowUp) {
+                        push_undo(&mut self.undo_stack, &mut self.redo_stack, &self.molecule);
+                        for a in self.molecule.atoms.iter_mut().filter(|a| a.selected) {
+                            a.pos.y -= step;
+                        }
+                    }
+                    if i.key_pressed(egui::Key::ArrowDown) {
+                        push_undo(&mut self.undo_stack, &mut self.redo_stack, &self.molecule);
+                        for a in self.molecule.atoms.iter_mut().filter(|a| a.selected) {
+                            a.pos.y += step;
+                        }
+                    }
+                    if i.key_pressed(egui::Key::ArrowLeft) {
+                        push_undo(&mut self.undo_stack, &mut self.redo_stack, &self.molecule);
+                        for a in self.molecule.atoms.iter_mut().filter(|a| a.selected) {
+                            a.pos.x -= step;
+                        }
+                    }
+                    if i.key_pressed(egui::Key::ArrowRight) {
+                        push_undo(&mut self.undo_stack, &mut self.redo_stack, &self.molecule);
+                        for a in self.molecule.atoms.iter_mut().filter(|a| a.selected) {
+                            a.pos.x += step;
+                        }
+                    }
                 }
             }
 
@@ -475,19 +662,19 @@ impl eframe::App for ChemDrawApp {
             // Tool shortcuts (no modifier, skip in text fields)
             if !wants_kb && !i.modifiers.ctrl {
                 // Context-dependent stereo shortcuts: Select + bond hover
-                if self.active_tool == Tool::Select {
-                    if let Some(bid) = self.canvas_state.hover_bond_id {
-                        if i.key_pressed(egui::Key::W) {
-                            push_undo(&mut self.undo_stack, &mut self.redo_stack, &self.molecule);
-                            if let Some(b) = self.molecule.bonds.iter_mut().find(|b| b.id == bid) {
-                                b.stereo = crate::canvas::BondStereo::WedgeUp;
-                            }
+                if self.active_tool == Tool::Select
+                    && let Some(bid) = self.canvas_state.hover_bond_id
+                {
+                    if i.key_pressed(egui::Key::W) {
+                        push_undo(&mut self.undo_stack, &mut self.redo_stack, &self.molecule);
+                        if let Some(b) = self.molecule.bonds.iter_mut().find(|b| b.id == bid) {
+                            b.stereo = crate::canvas::BondStereo::WedgeUp;
                         }
-                        if i.key_pressed(egui::Key::D) {
-                            push_undo(&mut self.undo_stack, &mut self.redo_stack, &self.molecule);
-                            if let Some(b) = self.molecule.bonds.iter_mut().find(|b| b.id == bid) {
-                                b.stereo = crate::canvas::BondStereo::WedgeDown;
-                            }
+                    }
+                    if i.key_pressed(egui::Key::D) {
+                        push_undo(&mut self.undo_stack, &mut self.redo_stack, &self.molecule);
+                        if let Some(b) = self.molecule.bonds.iter_mut().find(|b| b.id == bid) {
+                            b.stereo = crate::canvas::BondStereo::WedgeDown;
                         }
                     }
                 }
@@ -496,13 +683,28 @@ impl eframe::App for ChemDrawApp {
                 if let Some(bond_id) = self.canvas_state.hover_bond_id {
                     if i.key_pressed(egui::Key::B) {
                         push_undo(&mut self.undo_stack, &mut self.redo_stack, &self.molecule);
-                        crate::canvas::place_ring_on_bond_pub(&mut self.molecule, bond_id, 6, crate::canvas::BondOrder::Aromatic);
+                        crate::canvas::place_ring_on_bond_pub(
+                            &mut self.molecule,
+                            bond_id,
+                            6,
+                            crate::canvas::BondOrder::Aromatic,
+                        );
                     } else if i.key_pressed(egui::Key::Num5) {
                         push_undo(&mut self.undo_stack, &mut self.redo_stack, &self.molecule);
-                        crate::canvas::place_ring_on_bond_pub(&mut self.molecule, bond_id, 5, crate::canvas::BondOrder::Single);
+                        crate::canvas::place_ring_on_bond_pub(
+                            &mut self.molecule,
+                            bond_id,
+                            5,
+                            crate::canvas::BondOrder::Single,
+                        );
                     } else if i.key_pressed(egui::Key::Num6) {
                         push_undo(&mut self.undo_stack, &mut self.redo_stack, &self.molecule);
-                        crate::canvas::place_ring_on_bond_pub(&mut self.molecule, bond_id, 6, crate::canvas::BondOrder::Single);
+                        crate::canvas::place_ring_on_bond_pub(
+                            &mut self.molecule,
+                            bond_id,
+                            6,
+                            crate::canvas::BondOrder::Single,
+                        );
                     } else {
                         // No ring key: fall through to regular tool shortcuts
                         Self::apply_tool_shortcuts(i, &mut self.active_tool);
@@ -512,7 +714,7 @@ impl eframe::App for ChemDrawApp {
                 }
 
                 // Charge adjustment
-                let plus  = i.key_pressed(egui::Key::Plus) || i.key_pressed(egui::Key::Equals);
+                let plus = i.key_pressed(egui::Key::Plus) || i.key_pressed(egui::Key::Equals);
                 let minus = i.key_pressed(egui::Key::Minus);
                 if plus || minus {
                     let delta: i8 = if plus { 1 } else { -1 };
@@ -539,12 +741,12 @@ impl eframe::App for ChemDrawApp {
         );
 
         // ── Dispatch menu actions ──
-        if actions.request_undo  {
+        if actions.request_undo {
             self.undo();
             let exp = ctx.input(|i| i.time) + 3.0;
             self.set_status_timed("Undo".to_string(), tokens.separator, exp);
         }
-        if actions.request_redo  {
+        if actions.request_redo {
             self.redo();
             let exp = ctx.input(|i| i.time) + 3.0;
             self.set_status_timed("Redo".to_string(), tokens.separator, exp);
@@ -559,16 +761,36 @@ impl eframe::App for ChemDrawApp {
         if actions.request_quit {
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }
-        if actions.request_3d            { self.show_3d            = !self.show_3d; }
-        if actions.request_templates     { self.show_templates     = !self.show_templates; }
-        if actions.request_palette       { self.show_palette       = !self.show_palette; }
-        if actions.request_undo_history  { self.show_undo_history  = !self.show_undo_history; }
-        if actions.request_focus_mode    { self.focus_mode         = !self.focus_mode; }
-        if actions.request_key_ref       { self.show_key_ref       = !self.show_key_ref; }
-        if actions.request_pubchem       { self.show_pubchem       = true; }
-        if actions.request_chat      { self.show_chat      = !self.show_chat; }
-        if actions.request_settings  { self.show_settings  = !self.show_settings; }
-        if actions.request_about     { self.show_about     = !self.show_about; }
+        if actions.request_3d {
+            self.show_3d = !self.show_3d;
+        }
+        if actions.request_templates {
+            self.show_templates = !self.show_templates;
+        }
+        if actions.request_palette {
+            self.show_palette = !self.show_palette;
+        }
+        if actions.request_undo_history {
+            self.show_undo_history = !self.show_undo_history;
+        }
+        if actions.request_focus_mode {
+            self.focus_mode = !self.focus_mode;
+        }
+        if actions.request_key_ref {
+            self.show_key_ref = !self.show_key_ref;
+        }
+        if actions.request_pubchem {
+            self.show_pubchem = true;
+        }
+        if actions.request_chat {
+            self.show_chat = !self.show_chat;
+        }
+        if actions.request_settings {
+            self.show_settings = !self.show_settings;
+        }
+        if actions.request_about {
+            self.show_about = !self.show_about;
+        }
 
         // ── Poll AI chat background thread ──
         match self.ai_chat.poll() {
@@ -593,41 +815,48 @@ impl eframe::App for ChemDrawApp {
         }
 
         // File open
-        if actions.request_open {
-            if let Some((name, content)) = open_file_dialog() {
-                let is_rxn = name.ends_with(".rxn") || content.trim_start().starts_with("$RXN");
-                if is_rxn {
-                    match chematic::mol::parse_rxn_file(&content) {
-                        Ok(rxn) => {
-                            let center = ctx.input(|i| i.viewport_rect()).center();
-                            let spacing = 200.0f32;
-                            let n = rxn.reactants.len() + rxn.products.len();
-                            let start_x = center.x - spacing * (n as f32 - 1.0) / 2.0;
-                            let mut new_scheme = crate::reaction::ReactionScheme::default();
-                            for (i, m) in rxn.reactants.iter().enumerate() {
-                                let pos = egui::Pos2::new(start_x + spacing * i as f32, center.y);
-                                new_scheme.molecules.push(crate::bridge::chem_to_canvas(m, pos));
-                                new_scheme.mol_roles.push(false);
-                            }
-                            for (i, m) in rxn.products.iter().enumerate() {
-                                let pos = egui::Pos2::new(start_x + spacing * (rxn.reactants.len() + i) as f32, center.y);
-                                new_scheme.molecules.push(crate::bridge::chem_to_canvas(m, pos));
-                                new_scheme.mol_roles.push(true);
-                            }
-                            self.reaction = new_scheme;
-                            self.mode = EditorMode::Reaction;
+        if actions.request_open
+            && let Some((name, content)) = open_file_dialog()
+        {
+            let is_rxn = name.ends_with(".rxn") || content.trim_start().starts_with("$RXN");
+            if is_rxn {
+                match chematic::mol::parse_rxn_file(&content) {
+                    Ok(rxn) => {
+                        let center = ctx.input(|i| i.viewport_rect()).center();
+                        let spacing = 200.0f32;
+                        let n = rxn.reactants.len() + rxn.products.len();
+                        let start_x = center.x - spacing * (n as f32 - 1.0) / 2.0;
+                        let mut new_scheme = crate::reaction::ReactionScheme::default();
+                        for (i, m) in rxn.reactants.iter().enumerate() {
+                            let pos = egui::Pos2::new(start_x + spacing * i as f32, center.y);
+                            new_scheme
+                                .molecules
+                                .push(crate::bridge::chem_to_canvas(m, pos));
+                            new_scheme.mol_roles.push(false);
                         }
-                        Err(e) => actions.paste_error = Some(format!("RXN parse error: {e}")),
-                    }
-                } else {
-                    let center = ctx.input(|i| i.viewport_rect()).center();
-                    match parse_any(&content, center) {
-                        Ok(new_mol) => {
-                            push_undo(&mut self.undo_stack, &mut self.redo_stack, &self.molecule);
-                            self.molecule = new_mol;
+                        for (i, m) in rxn.products.iter().enumerate() {
+                            let pos = egui::Pos2::new(
+                                start_x + spacing * (rxn.reactants.len() + i) as f32,
+                                center.y,
+                            );
+                            new_scheme
+                                .molecules
+                                .push(crate::bridge::chem_to_canvas(m, pos));
+                            new_scheme.mol_roles.push(true);
                         }
-                        Err(e) => actions.paste_error = Some(e.to_string()),
+                        self.reaction = new_scheme;
+                        self.mode = EditorMode::Reaction;
                     }
+                    Err(e) => actions.paste_error = Some(format!("RXN parse error: {e}")),
+                }
+            } else {
+                let center = ctx.input(|i| i.viewport_rect()).center();
+                match parse_any(&content, center) {
+                    Ok(new_mol) => {
+                        push_undo(&mut self.undo_stack, &mut self.redo_stack, &self.molecule);
+                        self.molecule = new_mol;
+                    }
+                    Err(e) => actions.paste_error = Some(e.to_string()),
                 }
             }
         }
@@ -635,28 +864,27 @@ impl eframe::App for ChemDrawApp {
         // File save — delegate to rfd via menu save_text_file
         if actions.request_save {
             // Trigger MOL export as default "save"
-            if let Some(s) = crate::export::canvas_to_mol(&self.molecule) {
-                if let Some(path) = rfd::FileDialog::new()
+            if let Some(s) = crate::export::canvas_to_mol(&self.molecule)
+                && let Some(path) = rfd::FileDialog::new()
                     .set_file_name("molecule.mol")
                     .add_filter("MDL MOL", &["mol"])
                     .add_filter("SDF", &["sdf"])
                     .add_filter("CML", &["cml"])
                     .add_filter("SVG", &["svg"])
                     .save_file()
-                {
-                    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("mol");
-                    let result = match ext {
-                        "sdf" => crate::export::canvas_to_sdf(&self.molecule)
-                            .map(|c| std::fs::write(&path, c)),
-                        "cml" => crate::export::canvas_to_cml(&self.molecule)
-                            .map(|c| std::fs::write(&path, c)),
-                        "svg" => crate::export::canvas_to_svg(&self.molecule)
-                            .map(|c| std::fs::write(&path, c)),
-                        _ => Some(std::fs::write(&path, s)),
-                    };
-                    if let Some(Err(e)) = result {
-                        actions.paste_error = Some(format!("Save failed: {e}"));
-                    }
+            {
+                let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("mol");
+                let result = match ext {
+                    "sdf" => crate::export::canvas_to_sdf(&self.molecule)
+                        .map(|c| std::fs::write(&path, c)),
+                    "cml" => crate::export::canvas_to_cml(&self.molecule)
+                        .map(|c| std::fs::write(&path, c)),
+                    "svg" => crate::export::canvas_to_svg(&self.molecule)
+                        .map(|c| std::fs::write(&path, c)),
+                    _ => Some(std::fs::write(&path, s)),
+                };
+                if let Some(Err(e)) = result {
+                    actions.paste_error = Some(format!("Save failed: {e}"));
                 }
             }
         }
@@ -693,112 +921,171 @@ impl eframe::App for ChemDrawApp {
 
         // ── Mode tab bar (hidden in Focus Mode §20) ──
         if !self.focus_mode {
-        #[allow(deprecated)]
-        egui::Panel::top("mode_tabs")
-            .exact_size(38.0)
-            .frame(egui::Frame::NONE
-                .fill(tokens.panel_bg)
-                .inner_margin(egui::Margin::symmetric(10, 6)))
-            .show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.add_space(2.0);
-                    for (label, mode) in [
-                        ("Structure", EditorMode::Structure),
-                        ("Reaction",  EditorMode::Reaction),
-                    ] {
-                        let active = self.mode == mode;
-                        let text = egui::RichText::new(label).size(13.0).strong();
-                        let resp = ui.add(
-                            egui::Button::new(text)
-                                .selected(active)
-                                .fill(if active {
+            #[allow(deprecated)]
+            egui::Panel::top("mode_tabs")
+                .exact_size(38.0)
+                .frame(
+                    egui::Frame::NONE
+                        .fill(tokens.panel_bg)
+                        .inner_margin(egui::Margin::symmetric(10, 6)),
+                )
+                .show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.add_space(2.0);
+                        for (label, mode) in [
+                            ("Structure", EditorMode::Structure),
+                            ("Reaction", EditorMode::Reaction),
+                        ] {
+                            let active = self.mode == mode;
+                            let text = egui::RichText::new(label).size(13.0).strong();
+                            let resp =
+                                ui.add(egui::Button::new(text).selected(active).fill(if active {
                                     alpha(tokens.accent, 48)
                                 } else {
                                     alpha(tokens.sidebar_hover, 110)
-                                })
-                        );
-                        if resp.clicked() { self.mode = mode; }
-                        ui.add_space(4.0);
-                    }
-                    // 3D toggle
-                    let text_3d = egui::RichText::new("3D").size(13.0).strong();
-                    if ui.add(
-                        egui::Button::new(text_3d)
-                            .selected(self.show_3d)
-                            .fill(if self.show_3d {
-                                alpha(tokens.accent, 48)
-                            } else {
-                                alpha(tokens.sidebar_hover, 110)
-                            })
-                    ).clicked() {
-                        self.show_3d = !self.show_3d;
-                    }
+                                }));
+                            if resp.clicked() {
+                                self.mode = mode;
+                            }
+                            ui.add_space(4.0);
+                        }
+                        // 3D toggle
+                        let text_3d = egui::RichText::new("3D").size(13.0).strong();
+                        if ui
+                            .add(egui::Button::new(text_3d).selected(self.show_3d).fill(
+                                if self.show_3d {
+                                    alpha(tokens.accent, 48)
+                                } else {
+                                    alpha(tokens.sidebar_hover, 110)
+                                },
+                            ))
+                            .clicked()
+                        {
+                            self.show_3d = !self.show_3d;
+                        }
+                    });
                 });
-            });
         } // end !focus_mode
 
         // ── Tool Controls Bar (hidden in Focus Mode) ──
         if !self.focus_mode {
-        #[allow(deprecated)]
-        egui::Panel::top("tool_controls")
-            .exact_size(TOOL_CONTROLS_HEIGHT + 6.0)
-            .frame(egui::Frame::NONE.fill(tokens.panel_bg).inner_margin(egui::Margin::symmetric(10, 4)))
-            .show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    match self.active_tool {
-                        Tool::Single | Tool::Double | Tool::Triple | Tool::Aromatic
-                        | Tool::WedgeUp | Tool::WedgeDown => {
-                            ui.label(egui::RichText::new("Order").small().color(tokens.sidebar_title.gamma_multiply(0.66)));
-                            let orders = [("1", Tool::Single), ("2", Tool::Double), ("3", Tool::Triple), ("A", Tool::Aromatic)];
+            #[allow(deprecated)]
+            egui::Panel::top("tool_controls")
+                .exact_size(TOOL_CONTROLS_HEIGHT + 6.0)
+                .frame(
+                    egui::Frame::NONE
+                        .fill(tokens.panel_bg)
+                        .inner_margin(egui::Margin::symmetric(10, 4)),
+                )
+                .show(ui, |ui| {
+                    ui.horizontal(|ui| match self.active_tool {
+                        Tool::Single
+                        | Tool::Double
+                        | Tool::Triple
+                        | Tool::Aromatic
+                        | Tool::WedgeUp
+                        | Tool::WedgeDown => {
+                            ui.label(
+                                egui::RichText::new("Order")
+                                    .small()
+                                    .color(tokens.sidebar_title.gamma_multiply(0.66)),
+                            );
+                            let orders = [
+                                ("1", Tool::Single),
+                                ("2", Tool::Double),
+                                ("3", Tool::Triple),
+                                ("A", Tool::Aromatic),
+                            ];
                             for (label, t) in orders {
                                 if ui.selectable_label(self.active_tool == t, label).clicked() {
                                     self.active_tool = t;
                                 }
                             }
                             ui.separator();
-                            ui.label(egui::RichText::new("Stereo").small().color(tokens.sidebar_title.gamma_multiply(0.66)));
-                            if ui.selectable_label(self.active_tool == Tool::WedgeUp, "▲Up").clicked() { self.active_tool = Tool::WedgeUp; }
-                            if ui.selectable_label(self.active_tool == Tool::WedgeDown, "▽Dn").clicked() { self.active_tool = Tool::WedgeDown; }
+                            ui.label(
+                                egui::RichText::new("Stereo")
+                                    .small()
+                                    .color(tokens.sidebar_title.gamma_multiply(0.66)),
+                            );
+                            if ui
+                                .selectable_label(self.active_tool == Tool::WedgeUp, "▲Up")
+                                .clicked()
+                            {
+                                self.active_tool = Tool::WedgeUp;
+                            }
+                            if ui
+                                .selectable_label(self.active_tool == Tool::WedgeDown, "▽Dn")
+                                .clicked()
+                            {
+                                self.active_tool = Tool::WedgeDown;
+                            }
                         }
-                        Tool::Carbon | Tool::Nitrogen | Tool::Oxygen | Tool::Sulfur
-                        | Tool::Phosphorus | Tool::Fluorine | Tool::Chlorine
-                        | Tool::Bromine | Tool::Iodine | Tool::Hydrogen | Tool::Rgroup => {
-                            ui.label(egui::RichText::new("Element").small().color(tokens.sidebar_title.gamma_multiply(0.66)));
+                        Tool::Carbon
+                        | Tool::Nitrogen
+                        | Tool::Oxygen
+                        | Tool::Sulfur
+                        | Tool::Phosphorus
+                        | Tool::Fluorine
+                        | Tool::Chlorine
+                        | Tool::Bromine
+                        | Tool::Iodine
+                        | Tool::Hydrogen
+                        | Tool::Rgroup => {
+                            ui.label(
+                                egui::RichText::new("Element")
+                                    .small()
+                                    .color(tokens.sidebar_title.gamma_multiply(0.66)),
+                            );
                             ui.label(egui::RichText::new(self.active_tool.label()).small());
                         }
                         Tool::Select => {
-                            let sel_count = self.molecule.atoms.iter().filter(|a| a.selected).count();
+                            let sel_count =
+                                self.molecule.atoms.iter().filter(|a| a.selected).count();
                             let enabled = sel_count >= 2;
                             ui.add_enabled_ui(enabled, |ui| {
-                                if ui.small_button("⫤L").clicked() { Self::align_atoms_left(&mut self.molecule); }
-                                if ui.small_button("⫡C").clicked() { Self::align_atoms_center_h(&mut self.molecule); }
-                                if ui.small_button("⊣R").clicked() { Self::align_atoms_right(&mut self.molecule); }
+                                if ui.small_button("⫤L").clicked() {
+                                    Self::align_atoms_left(&mut self.molecule);
+                                }
+                                if ui.small_button("⫡C").clicked() {
+                                    Self::align_atoms_center_h(&mut self.molecule);
+                                }
+                                if ui.small_button("⊣R").clicked() {
+                                    Self::align_atoms_right(&mut self.molecule);
+                                }
                                 ui.separator();
-                                if ui.small_button("⊤T").clicked() { Self::align_atoms_top(&mut self.molecule); }
-                                if ui.small_button("⊥M").clicked() { Self::align_atoms_center_v(&mut self.molecule); }
-                                if ui.small_button("⊥B").clicked() { Self::align_atoms_bottom(&mut self.molecule); }
+                                if ui.small_button("⊤T").clicked() {
+                                    Self::align_atoms_top(&mut self.molecule);
+                                }
+                                if ui.small_button("⊥M").clicked() {
+                                    Self::align_atoms_center_v(&mut self.molecule);
+                                }
+                                if ui.small_button("⊥B").clicked() {
+                                    Self::align_atoms_bottom(&mut self.molecule);
+                                }
                             });
                         }
                         _ => {}
-                    }
+                    });
                 });
-            });
         } // end !focus_mode (tool controls)
 
         // ── Activity Bar (left, 48px) ──
         if !self.focus_mode {
-        #[allow(deprecated)]
-        egui::Panel::left("activity_bar")
-            .exact_size(48.0)
-            .resizable(false)
-            .frame(egui::Frame::NONE.fill(tokens.activity_bar_bg))
-            .show(ui, |ui| {
-                if crate::toolbar::ActivityBar::show(
-                    ui, &mut self.activity_panel, &mut self.sidebar_open, &tokens
-                ) {
-                    self.show_settings = true;
-                }
-            });
+            #[allow(deprecated)]
+            egui::Panel::left("activity_bar")
+                .exact_size(48.0)
+                .resizable(false)
+                .frame(egui::Frame::NONE.fill(tokens.activity_bar_bg))
+                .show(ui, |ui| {
+                    if crate::toolbar::ActivityBar::show(
+                        ui,
+                        &mut self.activity_panel,
+                        &mut self.sidebar_open,
+                        &tokens,
+                    ) {
+                        self.show_settings = true;
+                    }
+                });
         } // end !focus_mode (activity bar)
 
         // ── Sidebar (left, 260px, conditional) ──
@@ -814,16 +1101,30 @@ impl eframe::App for ChemDrawApp {
                     self.sidebar_width = ui.available_width();
                     match self.activity_panel {
                         ActivityPanel::Tools => {
-                            crate::toolbar::ToolsSidebar::show(ui, &mut self.active_tool, &tokens, &i18n);
+                            crate::toolbar::ToolsSidebar::show(
+                                ui,
+                                &mut self.active_tool,
+                                &tokens,
+                                &i18n,
+                            );
                         }
                         ActivityPanel::Inspector => {
                             let parse_result = Inspector::show(
-                                ui, &mut self.molecule, &mut self.iupac, &tokens, &i18n,
+                                ui,
+                                &mut self.molecule,
+                                &mut self.iupac,
+                                &tokens,
+                                &i18n,
                                 &mut self.smarts_buf,
-                                &mut self.smiles_edit, &mut self.smiles_edit_error,
+                                &mut self.smiles_edit,
+                                &mut self.smiles_edit_error,
                             );
                             if let Some(new_mol) = parse_result {
-                                push_undo(&mut self.undo_stack, &mut self.redo_stack, &self.molecule);
+                                push_undo(
+                                    &mut self.undo_stack,
+                                    &mut self.redo_stack,
+                                    &self.molecule,
+                                );
                                 self.molecule = new_mol;
                             }
                         }
@@ -832,10 +1133,20 @@ impl eframe::App for ChemDrawApp {
                             TemplatePanel::show(ui, &tokens, &mut insert);
                             if let Some(mut new_mol) = insert {
                                 let cx = self.canvas_rect.center();
-                                for a in &mut new_mol.atoms { a.pos += cx.to_vec2(); }
-                                push_undo(&mut self.undo_stack, &mut self.redo_stack, &self.molecule);
-                                for a in new_mol.atoms { self.molecule.atoms.push(a); }
-                                for b in new_mol.bonds { self.molecule.bonds.push(b); }
+                                for a in &mut new_mol.atoms {
+                                    a.pos += cx.to_vec2();
+                                }
+                                push_undo(
+                                    &mut self.undo_stack,
+                                    &mut self.redo_stack,
+                                    &self.molecule,
+                                );
+                                for a in new_mol.atoms {
+                                    self.molecule.atoms.push(a);
+                                }
+                                for b in new_mol.bonds {
+                                    self.molecule.bonds.push(b);
+                                }
                             }
                         }
                         ActivityPanel::Chat => {
@@ -854,7 +1165,11 @@ impl eframe::App for ChemDrawApp {
                                     ApplyMode::Replace(s) | ApplyMode::Append(s) => s.clone(),
                                 };
                                 if let Ok(new_mol) = parse_any(&smiles, center) {
-                                    push_undo(&mut self.undo_stack, &mut self.redo_stack, &self.molecule);
+                                    push_undo(
+                                        &mut self.undo_stack,
+                                        &mut self.redo_stack,
+                                        &self.molecule,
+                                    );
                                     match apply_result {
                                         ApplyMode::Replace(_) => {
                                             self.molecule = new_mol;
@@ -866,9 +1181,9 @@ impl eframe::App for ChemDrawApp {
                                                 self.molecule.atoms.push(a);
                                             }
                                             for mut b in new_mol.bonds {
-                                                b.id   += offset;
+                                                b.id += offset;
                                                 b.from += offset;
-                                                b.to   += offset;
+                                                b.to += offset;
                                                 self.molecule.bonds.push(b);
                                             }
                                         }
@@ -885,15 +1200,18 @@ impl eframe::App for ChemDrawApp {
                                     .color(tokens.sidebar_title),
                             );
                             ui.add_space(8.0);
-                            SettingsPanel::show(ui, &mut self.api_key, &mut self.ai_model,
-                                               &mut self.settings_show_key, &tokens);
+                            SettingsPanel::show(
+                                ui,
+                                &mut self.api_key,
+                                &mut self.ai_model,
+                                &mut self.settings_show_key,
+                                &tokens,
+                            );
                         }
                     }
                 });
             // Save resized width
-            self.sidebar_width = panel_resp.response.rect.width().clamp(
-                180.0, 480.0
-            );
+            self.sidebar_width = panel_resp.response.rect.width().clamp(180.0, 480.0);
         }
 
         // ── Template library window ──
@@ -908,10 +1226,16 @@ impl eframe::App for ChemDrawApp {
                     if let Some(mut new_mol) = insert {
                         // Centre at current canvas centre
                         let cx = self.canvas_rect.center();
-                        for a in &mut new_mol.atoms { a.pos += cx.to_vec2(); }
+                        for a in &mut new_mol.atoms {
+                            a.pos += cx.to_vec2();
+                        }
                         push_undo(&mut self.undo_stack, &mut self.redo_stack, &self.molecule);
-                        for a in new_mol.atoms { self.molecule.atoms.push(a); }
-                        for b in new_mol.bonds { self.molecule.bonds.push(b); }
+                        for a in new_mol.atoms {
+                            self.molecule.atoms.push(a);
+                        }
+                        for b in new_mol.bonds {
+                            self.molecule.bonds.push(b);
+                        }
                     }
                 });
         }
@@ -919,8 +1243,8 @@ impl eframe::App for ChemDrawApp {
         // ── AI Chat window ──
         if self.show_chat {
             let current_smiles = canvas_to_canonical_smiles(&self.molecule);
-            let api_key   = self.api_key.clone();
-            let ai_model  = self.ai_model.clone();
+            let api_key = self.api_key.clone();
+            let ai_model = self.ai_model.clone();
             let mut apply_result: Option<ApplyMode> = None;
 
             egui::Window::new("AI Chat")
@@ -959,9 +1283,9 @@ impl eframe::App for ChemDrawApp {
                                 self.molecule.atoms.push(a);
                             }
                             for mut b in new_mol.bonds {
-                                b.id   += offset;
+                                b.id += offset;
                                 b.from += offset;
-                                b.to   += offset;
+                                b.to += offset;
                                 self.molecule.bonds.push(b);
                             }
                         }
@@ -985,9 +1309,16 @@ impl eframe::App for ChemDrawApp {
                     ui.label("Pure Rust chemical structure editor");
                     ui.label("ChemDraw / Ketcher / ChemSketch compatible");
                     ui.add_space(4.0);
-                    ui.label(egui::RichText::new("MIT OR Apache-2.0").small().color(tokens.separator));
+                    ui.label(
+                        egui::RichText::new("MIT OR Apache-2.0")
+                            .small()
+                            .color(tokens.separator),
+                    );
                     ui.add_space(4.0);
-                    ui.hyperlink_to("github.com/kent-tokyo/chematic", "https://github.com/kent-tokyo/chematic");
+                    ui.hyperlink_to(
+                        "github.com/kent-tokyo/chematic",
+                        "https://github.com/kent-tokyo/chematic",
+                    );
                     ui.add_space(8.0);
                 });
         }
@@ -1001,14 +1332,19 @@ impl eframe::App for ChemDrawApp {
                 .show(&ctx, |ui| {
                     let current = self.undo_stack.len();
                     if current == 0 {
-                        ui.label(egui::RichText::new("(empty)").small().color(tokens.separator));
+                        ui.label(
+                            egui::RichText::new("(empty)")
+                                .small()
+                                .color(tokens.separator),
+                        );
                         return;
                     }
                     let mut jump_to: Option<usize> = None;
                     egui::ScrollArea::vertical().show(ui, |ui| {
                         for (i, _mol) in self.undo_stack.iter().enumerate().rev() {
                             let is_current = i == current - 1;
-                            let label = format!("{} Step {}", if is_current { "●" } else { " " }, i + 1);
+                            let label =
+                                format!("{} Step {}", if is_current { "●" } else { " " }, i + 1);
                             if ui.selectable_label(is_current, label).clicked() && !is_current {
                                 jump_to = Some(i);
                             }
@@ -1042,9 +1378,10 @@ impl eframe::App for ChemDrawApp {
                             let resp = ui.add(
                                 egui::TextEdit::singleline(&mut self.palette_query)
                                     .hint_text("Search commands…")
-                                    .desired_width(460.0)
+                                    .desired_width(460.0),
                             );
-                            if resp.lost_focus() && ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+                            if resp.lost_focus() && ctx.input(|i| i.key_pressed(egui::Key::Escape))
+                            {
                                 close_palette = true;
                             }
                             resp.request_focus();
@@ -1080,23 +1417,32 @@ impl eframe::App for ChemDrawApp {
                                 ("Wedge Up", "W"),
                                 ("Wedge Down", "D"),
                             ];
-                            egui::ScrollArea::vertical().max_height(280.0).show(ui, |ui| {
-                                for (name, shortcut) in commands {
-                                    if !q.is_empty() && !name.to_lowercase().contains(&q) {
-                                        continue;
-                                    }
-                                    ui.horizontal(|ui| {
-                                        if ui.selectable_label(false, *name).clicked() {
-                                            close_palette = true;
+                            egui::ScrollArea::vertical()
+                                .max_height(280.0)
+                                .show(ui, |ui| {
+                                    for (name, shortcut) in commands {
+                                        if !q.is_empty() && !name.to_lowercase().contains(&q) {
+                                            continue;
                                         }
-                                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                            if !shortcut.is_empty() {
-                                                ui.label(egui::RichText::new(*shortcut).small().color(tokens.separator));
+                                        ui.horizontal(|ui| {
+                                            if ui.selectable_label(false, *name).clicked() {
+                                                close_palette = true;
                                             }
+                                            ui.with_layout(
+                                                egui::Layout::right_to_left(egui::Align::Center),
+                                                |ui| {
+                                                    if !shortcut.is_empty() {
+                                                        ui.label(
+                                                            egui::RichText::new(*shortcut)
+                                                                .small()
+                                                                .color(tokens.separator),
+                                                        );
+                                                    }
+                                                },
+                                            );
                                         });
-                                    });
-                                }
-                            });
+                                    }
+                                });
                         });
                 });
             if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
@@ -1112,7 +1458,8 @@ impl eframe::App for ChemDrawApp {
         if self.focus_mode {
             let vp = ctx.input(|i| i.viewport_rect());
             let hover_near_corner = ctx.input(|i| {
-                i.pointer.hover_pos()
+                i.pointer
+                    .hover_pos()
                     .map(|p| p.x > vp.max.x - 60.0 && p.y < vp.min.y + 40.0)
                     .unwrap_or(false)
             });
@@ -1137,48 +1484,59 @@ impl eframe::App for ChemDrawApp {
                 .resizable(true)
                 .show(&ctx, |ui| {
                     static SECTIONS: &[(&str, &[(&str, &str)])] = &[
-                        ("Global", &[
-                            ("Ctrl+N", "New file"),
-                            ("Ctrl+O", "Open file"),
-                            ("Ctrl+S", "Save"),
-                            ("Ctrl+Z", "Undo"),
-                            ("Ctrl+Shift+Z", "Redo"),
-                            ("Ctrl+A", "Select all"),
-                            ("Ctrl+L", "Clean structure"),
-                            ("Ctrl+Shift+P", "Command Palette"),
-                            ("Ctrl+Alt+Z", "Undo History popup"),
-                            ("Ctrl+Shift+F", "Focus Mode toggle"),
-                            ("Ctrl+Shift+?", "This dialog"),
-                            ("Delete/Backspace", "Delete selected"),
-                            ("Esc", "Select tool / cancel"),
-                        ]),
-                        ("Canvas", &[
-                            ("0", "Zoom to fit"),
-                            ("+/-", "Zoom in/out"),
-                            ("Space (hold)", "Temporary pan"),
-                            ("Ctrl (drag)", "Disable snap"),
-                            ("Alt (drag)", "Free-angle bond"),
-                            ("I", "Toggle inspector"),
-                            ("Tab", "Cycle selection"),
-                            ("Arrows", "Move selected atoms"),
-                            ("+/- (atom selected)", "Adjust charge"),
-                        ]),
-                        ("Tools", &[
-                            ("Esc", "Select"),
-                            ("C/N/O/S/P", "Atom tools"),
-                            ("F/H/R", "Fluorine/Hydrogen/R-group"),
-                            ("1/2/3/4", "Single/Double/Triple/Aromatic"),
-                            ("W/D", "Wedge Up/Down"),
-                            ("B", "Benzene / fuse benzene"),
-                            ("5/6 (hover bond)", "Fuse 5/6-ring"),
-                            ("W/D (hover bond)", "Apply stereo without tool switch"),
-                            ("Del", "Eraser"),
-                        ]),
+                        (
+                            "Global",
+                            &[
+                                ("Ctrl+N", "New file"),
+                                ("Ctrl+O", "Open file"),
+                                ("Ctrl+S", "Save"),
+                                ("Ctrl+Z", "Undo"),
+                                ("Ctrl+Shift+Z", "Redo"),
+                                ("Ctrl+A", "Select all"),
+                                ("Ctrl+L", "Clean structure"),
+                                ("Ctrl+Shift+P", "Command Palette"),
+                                ("Ctrl+Alt+Z", "Undo History popup"),
+                                ("Ctrl+Shift+F", "Focus Mode toggle"),
+                                ("Ctrl+Shift+?", "This dialog"),
+                                ("Delete/Backspace", "Delete selected"),
+                                ("Esc", "Select tool / cancel"),
+                            ],
+                        ),
+                        (
+                            "Canvas",
+                            &[
+                                ("0", "Zoom to fit"),
+                                ("+/-", "Zoom in/out"),
+                                ("Space (hold)", "Temporary pan"),
+                                ("Ctrl (drag)", "Disable snap"),
+                                ("Alt (drag)", "Free-angle bond"),
+                                ("I", "Toggle inspector"),
+                                ("Tab", "Cycle selection"),
+                                ("Arrows", "Move selected atoms"),
+                                ("+/- (atom selected)", "Adjust charge"),
+                            ],
+                        ),
+                        (
+                            "Tools",
+                            &[
+                                ("Esc", "Select"),
+                                ("C/N/O/S/P", "Atom tools"),
+                                ("F/H/R", "Fluorine/Hydrogen/R-group"),
+                                ("1/2/3/4", "Single/Double/Triple/Aromatic"),
+                                ("W/D", "Wedge Up/Down"),
+                                ("B", "Benzene / fuse benzene"),
+                                ("5/6 (hover bond)", "Fuse 5/6-ring"),
+                                ("W/D (hover bond)", "Apply stereo without tool switch"),
+                                ("Del", "Eraser"),
+                            ],
+                        ),
                     ];
                     let mut search_buf = String::new();
-                    ui.add(egui::TextEdit::singleline(&mut search_buf)
-                        .hint_text("Search shortcuts…")
-                        .desired_width(f32::INFINITY));
+                    ui.add(
+                        egui::TextEdit::singleline(&mut search_buf)
+                            .hint_text("Search shortcuts…")
+                            .desired_width(f32::INFINITY),
+                    );
                     ui.separator();
                     egui::ScrollArea::vertical().show(ui, |ui| {
                         for (section, entries) in SECTIONS {
@@ -1186,9 +1544,16 @@ impl eframe::App for ChemDrawApp {
                             for (key, desc) in *entries {
                                 ui.horizontal(|ui| {
                                     ui.monospace(*key);
-                                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                        ui.label(egui::RichText::new(*desc).small().color(tokens.separator));
-                                    });
+                                    ui.with_layout(
+                                        egui::Layout::right_to_left(egui::Align::Center),
+                                        |ui| {
+                                            ui.label(
+                                                egui::RichText::new(*desc)
+                                                    .small()
+                                                    .color(tokens.separator),
+                                            );
+                                        },
+                                    );
                                 });
                             }
                             ui.add_space(4.0);
@@ -1204,19 +1569,20 @@ impl eframe::App for ChemDrawApp {
             let mut found_mol: Option<String> = None;
             let mut found_err: Option<String> = None;
             let mut clear_result = false;
-            if let Some(ref arc) = self.pubchem_result {
-                if let Ok(mut guard) = arc.try_lock() {
-                    if let Some(ref res) = *guard {
-                        match res {
-                            Ok(smiles) => found_mol = Some(smiles.clone()),
-                            Err(e) => found_err = Some(e.clone()),
-                        }
-                        *guard = None;
-                        clear_result = true;
-                    }
+            if let Some(ref arc) = self.pubchem_result
+                && let Ok(mut guard) = arc.try_lock()
+                && let Some(ref res) = *guard
+            {
+                match res {
+                    Ok(smiles) => found_mol = Some(smiles.clone()),
+                    Err(e) => found_err = Some(e.clone()),
                 }
+                *guard = None;
+                clear_result = true;
             }
-            if clear_result { self.pubchem_result = None; }
+            if clear_result {
+                self.pubchem_result = None;
+            }
             if let Some(smiles) = found_mol {
                 let center = self.canvas_rect.center();
                 if let Ok(new_mol) = parse_any(&smiles, center) {
@@ -1225,7 +1591,8 @@ impl eframe::App for ChemDrawApp {
                     let exp = ctx.input(|i| i.time) + 4.0;
                     self.set_status_timed(
                         format!("Loaded from PubChem: {smiles}"),
-                        tokens.success, exp
+                        tokens.success,
+                        exp,
                     );
                 }
                 self.show_pubchem = false;
@@ -1256,8 +1623,8 @@ impl eframe::App for ChemDrawApp {
                         ).clicked();
                         if (enter || clicked) && !fetching && !self.pubchem_query.is_empty() {
                             let query = self.pubchem_query.clone();
-                            let result_arc: std::sync::Arc<std::sync::Mutex<Option<Result<String, String>>>>
-                                = std::sync::Arc::new(std::sync::Mutex::new(None));
+                            let result_arc: PubchemResult =
+                                std::sync::Arc::new(std::sync::Mutex::new(None));
                             let arc_clone = result_arc.clone();
                             std::thread::spawn(move || {
                                 let encoded: String = query.chars().map(|c| {
@@ -1286,7 +1653,9 @@ impl eframe::App for ChemDrawApp {
                         }
                     });
                 });
-            if !open { self.show_pubchem = false; }
+            if !open {
+                self.show_pubchem = false;
+            }
         }
 
         // ── Settings window ──
@@ -1320,7 +1689,11 @@ impl eframe::App for ChemDrawApp {
         #[allow(deprecated)]
         egui::Panel::bottom("statusbar")
             .exact_size(22.0)
-            .frame(egui::Frame::NONE.fill(tokens.status_bar_bg).inner_margin(egui::Margin::symmetric(8, 3)))
+            .frame(
+                egui::Frame::NONE
+                    .fill(tokens.status_bar_bg)
+                    .inner_margin(egui::Margin::symmetric(8, 3)),
+            )
             .show(ui, |ui| {
                 ui.visuals_mut().override_text_color = Some(tokens.status_bar_fg);
                 let now = ctx.input(|i| i.time);
@@ -1333,40 +1706,59 @@ impl eframe::App for ChemDrawApp {
                             "Pan".to_string()
                         }
                     } else {
-                        let sc = self.active_tool.shortcut()
-                            .map(|s| format!("[{s}]")).unwrap_or_default();
-                        let tip = self.active_tool.tip()
-                            .map(|t| format!("  {t}")).unwrap_or_default();
-                        format!("Tool: {} {}{}",
-                            self.active_tool.label(), sc, tip)
+                        let sc = self
+                            .active_tool
+                            .shortcut()
+                            .map(|s| format!("[{s}]"))
+                            .unwrap_or_default();
+                        let tip = self
+                            .active_tool
+                            .tip()
+                            .map(|t| format!("  {t}"))
+                            .unwrap_or_default();
+                        format!("Tool: {} {}{}", self.active_tool.label(), sc, tip)
                     };
-                    ui.label(egui::RichText::new(tool_display).small().color(tokens.status_bar_fg));
+                    ui.label(
+                        egui::RichText::new(tool_display)
+                            .small()
+                            .color(tokens.status_bar_fg),
+                    );
                     ui.separator();
 
                     // Center: bond drag info OR snap status OR selection info OR molecule info
                     if let Some((len_px, angle_deg)) = self.canvas_state.bond_drag_info {
-                        ui.label(egui::RichText::new(
-                            format!("Bond: {len_px:.0} px / {angle_deg:.0}°")
-                        ).small().color(tokens.accent));
+                        ui.label(
+                            egui::RichText::new(format!("Bond: {len_px:.0} px / {angle_deg:.0}°"))
+                                .small()
+                                .color(tokens.accent),
+                        );
                     } else if let Some(ref snap_txt) = self.canvas_state.snap_status.clone() {
-                        ui.label(egui::RichText::new(snap_txt).small().color(tokens.snap_indicator));
+                        ui.label(
+                            egui::RichText::new(snap_txt)
+                                .small()
+                                .color(tokens.snap_indicator),
+                        );
                     } else {
                         let sel_a = self.molecule.atoms.iter().filter(|a| a.selected).count();
                         let sel_b = self.molecule.bonds.iter().filter(|b| b.selected).count();
                         let info = if sel_a + sel_b > 0 {
                             format!("{sel_a} atoms + {sel_b} bonds selected")
                         } else {
-                            format!("{} atoms  {} bonds", self.molecule.atoms.len(), self.molecule.bonds.len())
+                            format!(
+                                "{} atoms  {} bonds",
+                                self.molecule.atoms.len(),
+                                self.molecule.bonds.len()
+                            )
                         };
                         ui.label(egui::RichText::new(info).small());
                     }
 
                     // Temporary status message
-                    if let Some((ref text, color, exp)) = self.status_msg.clone() {
-                        if now < exp {
-                            ui.separator();
-                            ui.label(egui::RichText::new(text).small().color(color));
-                        }
+                    if let Some((ref text, color, exp)) = self.status_msg.clone()
+                        && now < exp
+                    {
+                        ui.separator();
+                        ui.label(egui::RichText::new(text).small().color(color));
                     }
 
                     // Zoom on far right (clickable to edit)
@@ -1375,10 +1767,12 @@ impl eframe::App for ChemDrawApp {
                             let resp = ui.add(
                                 egui::TextEdit::singleline(edit_buf)
                                     .desired_width(48.0)
-                                    .font(egui::TextStyle::Small)
+                                    .font(egui::TextStyle::Small),
                             );
                             if resp.lost_focus() || ctx.input(|i| i.key_pressed(egui::Key::Enter)) {
-                                if let Ok(pct) = edit_buf.trim_end_matches('%').trim().parse::<f32>() {
+                                if let Ok(pct) =
+                                    edit_buf.trim_end_matches('%').trim().parse::<f32>()
+                                {
                                     self.canvas_state.zoom = (pct / 100.0).clamp(0.2, 10.0);
                                 }
                                 self.zoom_edit = None;
@@ -1387,11 +1781,15 @@ impl eframe::App for ChemDrawApp {
                                 self.zoom_edit = None;
                             }
                         } else {
-                            let zoom_label = egui::RichText::new(
-                                format!("{:.0}%", self.canvas_state.zoom * 100.0)
-                            ).small().color(tokens.separator);
+                            let zoom_label = egui::RichText::new(format!(
+                                "{:.0}%",
+                                self.canvas_state.zoom * 100.0
+                            ))
+                            .small()
+                            .color(tokens.separator);
                             if ui.label(zoom_label).clicked() {
-                                self.zoom_edit = Some(format!("{:.0}", self.canvas_state.zoom * 100.0));
+                                self.zoom_edit =
+                                    Some(format!("{:.0}", self.canvas_state.zoom * 100.0));
                             }
                         }
                     });
@@ -1401,7 +1799,11 @@ impl eframe::App for ChemDrawApp {
         // ── Central panel (Structure or Reaction) ──
         #[allow(deprecated)]
         CentralPanel::default()
-            .frame(egui::Frame::NONE.fill(tokens.canvas_bg).inner_margin(egui::Margin::symmetric(8, 0)))
+            .frame(
+                egui::Frame::NONE
+                    .fill(tokens.canvas_bg)
+                    .inner_margin(egui::Margin::symmetric(8, 0)),
+            )
             .show(ui, |ui| {
                 self.canvas_rect = ui.available_rect_before_wrap();
                 match self.mode {
@@ -1417,12 +1819,7 @@ impl eframe::App for ChemDrawApp {
                         );
                     }
                     EditorMode::Reaction => {
-                        ReactionCanvas::show(
-                            ui,
-                            &mut self.reaction,
-                            self.active_tool,
-                            &tokens,
-                        );
+                        ReactionCanvas::show(ui, &mut self.reaction, self.active_tool, &tokens);
                     }
                 }
             });

@@ -58,11 +58,19 @@ pub struct ReactionScheme {
 impl ReactionScheme {
     pub fn next_id(&self) -> usize {
         let mol_ids = self.molecules.iter().flat_map(|m| {
-            m.atoms.iter().map(|a| a.id).chain(m.bonds.iter().map(|b| b.id))
+            m.atoms
+                .iter()
+                .map(|a| a.id)
+                .chain(m.bonds.iter().map(|b| b.id))
         });
         let arrow_ids = self.arrows.iter().map(|a| a.id);
         let label_ids = self.labels.iter().map(|l| l.id);
-        mol_ids.chain(arrow_ids).chain(label_ids).max().map(|m| m + 1).unwrap_or(0)
+        mol_ids
+            .chain(arrow_ids)
+            .chain(label_ids)
+            .max()
+            .map(|m| m + 1)
+            .unwrap_or(0)
     }
 }
 
@@ -89,8 +97,7 @@ impl ReactionCanvas {
         });
         ui.separator();
 
-        let (resp, painter) =
-            ui.allocate_painter(ui.available_size(), Sense::click_and_drag());
+        let (resp, painter) = ui.allocate_painter(ui.available_size(), Sense::click_and_drag());
         let rect = resp.rect;
 
         // Background
@@ -145,35 +152,30 @@ impl ReactionCanvas {
         }
 
         // Tool interaction: place reaction arrow
-        if let Some(pointer) = resp.interact_pointer_pos() {
-            if resp.drag_stopped() && active_tool == Tool::ReactionArrow {
-                let start = scheme.canvas_state.screen_to_world(
-                    pointer - resp.drag_delta(),
-                );
-                let end = scheme.canvas_state.screen_to_world(pointer);
-                if start.distance(end) > 10.0 {
-                    let id = scheme.next_id();
-                    scheme.arrows.push(ReactionArrow {
-                        id,
-                        from: start,
-                        to: end,
-                        kind: ArrowKind::Forward,
-                        label_above: String::new(),
-                        label_below: String::new(),
-                    });
-                }
+        if let Some(pointer) = resp.interact_pointer_pos()
+            && resp.drag_stopped()
+            && active_tool == Tool::ReactionArrow
+        {
+            let start = scheme
+                .canvas_state
+                .screen_to_world(pointer - resp.drag_delta());
+            let end = scheme.canvas_state.screen_to_world(pointer);
+            if start.distance(end) > 10.0 {
+                let id = scheme.next_id();
+                scheme.arrows.push(ReactionArrow {
+                    id,
+                    from: start,
+                    to: end,
+                    kind: ArrowKind::Forward,
+                    label_above: String::new(),
+                    label_below: String::new(),
+                });
             }
         }
     }
 }
 
-fn draw_arrow(
-    painter: &egui::Painter,
-    p1: Pos2,
-    p2: Pos2,
-    kind: ArrowKind,
-    tokens: &Tokens,
-) {
+fn draw_arrow(painter: &egui::Painter, p1: Pos2, p2: Pos2, kind: ArrowKind, tokens: &Tokens) {
     let stroke = Stroke::new(2.0, tokens.bond);
     let dir = (p2 - p1).normalized();
     let perp = Vec2::new(-dir.y, dir.x);
@@ -231,8 +233,12 @@ fn arrowhead(painter: &egui::Painter, tip: Pos2, dir: Vec2, color: Color32) {
 /// Parse a reaction SMILES and populate the scheme with reactants/products.
 fn import_reaction_smiles(scheme: &mut ReactionScheme, center: Pos2) {
     let s = scheme.rxn_smiles_buf.trim().to_string();
-    if s.is_empty() { return; }
-    let Ok(rxn) = chematic::rxn::parse_reaction(&s) else { return };
+    if s.is_empty() {
+        return;
+    }
+    let Ok(rxn) = chematic::rxn::parse_reaction(&s) else {
+        return;
+    };
 
     scheme.molecules.clear();
     scheme.mol_roles.clear();
@@ -241,7 +247,9 @@ fn import_reaction_smiles(scheme: &mut ReactionScheme, center: Pos2) {
     let n_r = rxn.reactants.len();
     let n_p = rxn.products.len();
     let total = n_r + n_p;
-    if total == 0 { return; }
+    if total == 0 {
+        return;
+    }
 
     let spacing = 160.0f32;
     let start_x = center.x - spacing * (total as f32 - 1.0) / 2.0;
@@ -263,7 +271,7 @@ fn import_reaction_smiles(scheme: &mut ReactionScheme, center: Pos2) {
     // Add a forward reaction arrow between last reactant and first product
     if n_r > 0 && n_p > 0 {
         let arrow_from = Pos2::new(start_x + spacing * (n_r as f32 - 1.0) + 60.0, center.y);
-        let arrow_to   = Pos2::new(start_x + spacing * n_r as f32 - 60.0, center.y);
+        let arrow_to = Pos2::new(start_x + spacing * n_r as f32 - 60.0, center.y);
         let id = scheme.next_id();
         scheme.arrows.push(ReactionArrow {
             id,
@@ -279,7 +287,9 @@ fn import_reaction_smiles(scheme: &mut ReactionScheme, center: Pos2) {
 /// Export the current scheme as a reaction SVG string using chematic's depiction engine.
 pub fn reaction_to_svg(scheme: &ReactionScheme) -> Option<String> {
     let rxn_smiles = export_reaction_smiles(scheme);
-    if rxn_smiles == ">>" { return None; }
+    if rxn_smiles == ">>" {
+        return None;
+    }
     // Parse back to Reaction for the depict engine
     let rxn = chematic::rxn::parse_reaction(&rxn_smiles).ok()?;
     Some(chematic::depict::depict_reaction_svg(&rxn))
@@ -288,7 +298,9 @@ pub fn reaction_to_svg(scheme: &ReactionScheme) -> Option<String> {
 /// Export the current scheme as an MDL RXN file string.
 pub fn reaction_to_rxn_file(scheme: &ReactionScheme) -> Option<String> {
     let rxn_smiles = export_reaction_smiles(scheme);
-    if rxn_smiles == ">>" { return None; }
+    if rxn_smiles == ">>" {
+        return None;
+    }
     let rxn = chematic::rxn::parse_reaction(&rxn_smiles).ok()?;
     Some(chematic::mol::write_rxn_file(&rxn))
 }
@@ -300,19 +312,25 @@ fn export_reaction_smiles(scheme: &ReactionScheme) -> String {
         canvas_to_chem(mol).map(|m| chematic::smiles::write(&m))
     };
 
-    let reactant_smiles: Vec<String> = scheme.molecules.iter()
+    let reactant_smiles: Vec<String> = scheme
+        .molecules
+        .iter()
         .zip(scheme.mol_roles.iter().chain(std::iter::repeat(&false)))
         .filter(|&(_, &is_product)| !is_product)
         .filter_map(|(mol, _)| to_smiles(mol))
         .collect();
 
-    let product_smiles: Vec<String> = scheme.molecules.iter()
+    let product_smiles: Vec<String> = scheme
+        .molecules
+        .iter()
         .zip(scheme.mol_roles.iter().chain(std::iter::repeat(&false)))
         .filter(|&(_, &is_product)| is_product)
         .filter_map(|(mol, _)| to_smiles(mol))
         .collect();
 
-    format!("{}>>{}",
+    format!(
+        "{}>>{}",
         reactant_smiles.join("."),
-        product_smiles.join("."))
+        product_smiles.join(".")
+    )
 }

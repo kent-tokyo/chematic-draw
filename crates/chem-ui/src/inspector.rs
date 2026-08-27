@@ -6,12 +6,16 @@ use crate::export::canvas_to_canonical_smiles;
 use crate::export::canvas_to_smiles;
 use crate::i18n::I18n;
 use crate::iupac::IupacState;
-use crate::theme::{Tokens, SPACING_SM};
+use crate::theme::{SPACING_SM, Tokens};
 
 pub struct Inspector;
 
 impl Inspector {
     /// Returns `Some(new_molecule)` when the user commits an edited SMILES.
+    // ponytail: 8 params, one over clippy's default threshold; grouping them into a
+    // params struct is a real API change best done together with v0.3.0's shared
+    // document model, not as a standalone lint fix.
+    #[allow(clippy::too_many_arguments)]
     pub fn show(
         ui: &mut Ui,
         mol: &mut CanvasMolecule,
@@ -23,10 +27,18 @@ impl Inspector {
         smiles_edit_error: &mut bool,
     ) -> Option<CanvasMolecule> {
         let mut result: Option<CanvasMolecule> = None;
-        let selected_atoms: Vec<usize> =
-            mol.atoms.iter().filter(|a| a.selected).map(|a| a.id).collect();
-        let selected_bonds: Vec<usize> =
-            mol.bonds.iter().filter(|b| b.selected).map(|b| b.id).collect();
+        let selected_atoms: Vec<usize> = mol
+            .atoms
+            .iter()
+            .filter(|a| a.selected)
+            .map(|a| a.id)
+            .collect();
+        let selected_bonds: Vec<usize> = mol
+            .bonds
+            .iter()
+            .filter(|b| b.selected)
+            .map(|b| b.id)
+            .collect();
 
         // Inspector header — compact macOS style
         ui.add_space(8.0);
@@ -35,7 +47,7 @@ impl Inspector {
                 egui::RichText::new(i18n.t("inspector.title").to_uppercase())
                     .size(13.0)
                     .strong()
-                    .color(tokens.sidebar_title)
+                    .color(tokens.sidebar_title),
             );
         });
         ui.add_space(6.0);
@@ -50,13 +62,14 @@ impl Inspector {
                 egui::RichText::new(i18n.t("inspector.molecule").to_uppercase())
                     .size(10.0)
                     .strong()
-                    .color(tokens.sidebar_title.gamma_multiply(0.62))
+                    .color(tokens.sidebar_title.gamma_multiply(0.62)),
             );
             ui.add_space(4.0);
 
             let chem_mol_opt = canvas_to_chem(mol);
 
-            let formula = chem_mol_opt.as_ref()
+            let formula = chem_mol_opt
+                .as_ref()
                 .map(|m| {
                     let f = m.total_formula();
                     if f.is_empty() { "—".to_string() } else { f }
@@ -65,8 +78,18 @@ impl Inspector {
 
             // Property rows — compact 2-column layout
             Self::prop_row(ui, tokens, i18n.t("inspector.formula"), &formula);
-            Self::prop_row(ui, tokens, i18n.t("inspector.atoms"), &mol.atoms.len().to_string());
-            Self::prop_row(ui, tokens, i18n.t("inspector.bonds"), &mol.bonds.len().to_string());
+            Self::prop_row(
+                ui,
+                tokens,
+                i18n.t("inspector.atoms"),
+                &mol.atoms.len().to_string(),
+            );
+            Self::prop_row(
+                ui,
+                tokens,
+                i18n.t("inspector.bonds"),
+                &mol.bonds.len().to_string(),
+            );
 
             if let Some(ref chem_mol) = chem_mol_opt {
                 // Valence validation
@@ -74,20 +97,27 @@ impl Inspector {
                 for e in &valence_errors {
                     ui.colored_label(
                         tokens.error,
-                        format!("⚠ Valence error: atom #{} has {} bonds (allowed: {:?})",
-                            e.atom.0, e.actual, e.allowed),
+                        format!(
+                            "⚠ Valence error: atom #{} has {} bonds (allowed: {:?})",
+                            e.atom.0, e.actual, e.allowed
+                        ),
                     );
                 }
 
                 let mw = chematic::chem::molecular_weight(chem_mol);
-                Self::prop_row(ui, tokens, i18n.t("inspector.mw"), &format!("{:.3} g/mol", mw));
+                Self::prop_row(
+                    ui,
+                    tokens,
+                    i18n.t("inspector.mw"),
+                    &format!("{:.3} g/mol", mw),
+                );
 
                 // Physicochemical properties (collapsed by default)
                 ui.add_space(SPACING_SM);
                 egui::CollapsingHeader::new(
                     egui::RichText::new(i18n.t("inspector.properties"))
                         .small()
-                        .color(tokens.sidebar_title.gamma_multiply(0.66))
+                        .color(tokens.sidebar_title.gamma_multiply(0.66)),
                 )
                 .default_open(false)
                 .show(ui, |ui| {
@@ -109,14 +139,26 @@ impl Inspector {
 
             // SMILES — editable on click (§5)
             let current_smiles = canvas_to_canonical_smiles(mol);
-            ui.label(egui::RichText::new("SMILES").small().color(tokens.sidebar_title.gamma_multiply(0.66)));
+            ui.label(
+                egui::RichText::new("SMILES")
+                    .small()
+                    .color(tokens.sidebar_title.gamma_multiply(0.66)),
+            );
             if let Some(buf) = smiles_edit {
                 // Editing mode
-                let border_color = if *smiles_edit_error { tokens.error } else { tokens.accent };
+                let border_color = if *smiles_edit_error {
+                    tokens.error
+                } else {
+                    tokens.accent
+                };
                 let resp = ui.add(
                     egui::TextEdit::singleline(buf)
                         .desired_width(f32::INFINITY)
-                        .text_color(if *smiles_edit_error { tokens.error } else { tokens.sidebar_title })
+                        .text_color(if *smiles_edit_error {
+                            tokens.error
+                        } else {
+                            tokens.sidebar_title
+                        }),
                 );
                 if *smiles_edit_error {
                     ui.colored_label(tokens.error, "Invalid SMILES");
@@ -154,33 +196,36 @@ impl Inspector {
                 let resp = ui.add(
                     egui::TextEdit::singleline(&mut display.clone())
                         .desired_width(f32::INFINITY)
-                        .interactive(false)
+                        .interactive(false),
                 );
                 if resp.clicked() {
                     *smiles_edit = Some(current_smiles.clone().unwrap_or_default());
                     *smiles_edit_error = false;
                 }
                 resp.on_hover_text("Click to edit SMILES");
-                if let Some(ref smiles) = current_smiles {
-                    if ui.small_button(i18n.t("inspector.copy_smiles")).clicked() {
-                        let _ = crate::paste::copy_smiles(smiles);
-                        ui.ctx().copy_text(smiles.clone());
-                    }
+                if let Some(ref smiles) = current_smiles
+                    && ui.small_button(i18n.t("inspector.copy_smiles")).clicked()
+                {
+                    let _ = crate::paste::copy_smiles(smiles);
+                    ui.ctx().copy_text(smiles.clone());
                 }
             }
 
             ui.add_space(SPACING_SM);
 
             // IUPAC name (offline, via chematic::iupac)
-            ui.label(egui::RichText::new("IUPAC").small().color(tokens.sidebar_title.gamma_multiply(0.66)));
+            ui.label(
+                egui::RichText::new("IUPAC")
+                    .small()
+                    .color(tokens.sidebar_title.gamma_multiply(0.66)),
+            );
             match &iupac.status {
                 crate::iupac::IupacStatus::Idle => {
-                    if ui.button(i18n.t("inspector.fetch_iupac")).clicked() {
-                        if let (Some(chem_mol), Some(smiles)) =
+                    if ui.button(i18n.t("inspector.fetch_iupac")).clicked()
+                        && let (Some(chem_mol), Some(smiles)) =
                             (&chem_mol_opt, canvas_to_smiles(mol))
-                        {
-                            iupac.compute(chem_mol, &smiles);
-                        }
+                    {
+                        iupac.compute(chem_mol, &smiles);
                     }
                 }
                 crate::iupac::IupacStatus::Done(name) => {
@@ -191,13 +236,20 @@ impl Inspector {
                     }
                 }
                 crate::iupac::IupacStatus::NotSupported => {
-                    ui.colored_label(tokens.sidebar_title.gamma_multiply(0.60), "— (structure not supported)");
-                    if ui.small_button("↺").clicked() { iupac.reset(); }
+                    ui.colored_label(
+                        tokens.sidebar_title.gamma_multiply(0.60),
+                        "— (structure not supported)",
+                    );
+                    if ui.small_button("↺").clicked() {
+                        iupac.reset();
+                    }
                 }
                 crate::iupac::IupacStatus::Error(e) => {
                     let e = e.clone();
                     ui.colored_label(tokens.error, format!("⚠ {e}"));
-                    if ui.small_button("↺").clicked() { iupac.reset(); }
+                    if ui.small_button("↺").clicked() {
+                        iupac.reset();
+                    }
                 }
             }
 
@@ -205,11 +257,17 @@ impl Inspector {
             ui.add_space(8.0);
             ui.separator();
             ui.add_space(6.0);
-            ui.label(egui::RichText::new(i18n.t("inspector.smarts_search")).small().color(tokens.sidebar_title.gamma_multiply(0.66)));
+            ui.label(
+                egui::RichText::new(i18n.t("inspector.smarts_search"))
+                    .small()
+                    .color(tokens.sidebar_title.gamma_multiply(0.66)),
+            );
             ui.horizontal(|ui| {
-                ui.add(egui::TextEdit::singleline(smarts_buf)
-                    .hint_text("e.g. c1ccccc1")
-                    .desired_width(f32::INFINITY));
+                ui.add(
+                    egui::TextEdit::singleline(smarts_buf)
+                        .hint_text("e.g. c1ccccc1")
+                        .desired_width(f32::INFINITY),
+                );
             });
             if ui.button(i18n.t("inspector.smarts_find")).clicked() && !smarts_buf.is_empty() {
                 run_smarts_search(mol, smarts_buf, tokens);
@@ -226,7 +284,7 @@ impl Inspector {
                 egui::RichText::new(i18n.t("inspector.atom").to_uppercase())
                     .size(10.0)
                     .strong()
-                    .color(tokens.sidebar_title.gamma_multiply(0.62))
+                    .color(tokens.sidebar_title.gamma_multiply(0.62)),
             );
             ui.add_space(4.0);
 
@@ -249,7 +307,9 @@ impl Inspector {
                 });
                 ui.label(format!(
                     "{}: ({:.1}, {:.1})",
-                    i18n.t("inspector.position"), atom.pos.x, atom.pos.y
+                    i18n.t("inspector.position"),
+                    atom.pos.x,
+                    atom.pos.y
                 ));
             }
         }
@@ -257,38 +317,94 @@ impl Inspector {
         // ── Multiple selection info ──
         if selected_atoms.len() >= 2 {
             ui.add_space(SPACING_SM);
-            ui.label(egui::RichText::new(
-                format!("{} atoms selected", selected_atoms.len())
-            ).small().color(tokens.accent));
+            ui.label(
+                egui::RichText::new(format!("{} atoms selected", selected_atoms.len()))
+                    .small()
+                    .color(tokens.accent),
+            );
             ui.horizontal(|ui| {
                 if ui.small_button("⫤L").on_hover_text("Align Left").clicked() {
-                    let min_x = mol.atoms.iter().filter(|a| a.selected).map(|a| a.pos.x).fold(f32::MAX, f32::min);
-                    for a in mol.atoms.iter_mut().filter(|a| a.selected) { a.pos.x = min_x; }
+                    let min_x = mol
+                        .atoms
+                        .iter()
+                        .filter(|a| a.selected)
+                        .map(|a| a.pos.x)
+                        .fold(f32::MAX, f32::min);
+                    for a in mol.atoms.iter_mut().filter(|a| a.selected) {
+                        a.pos.x = min_x;
+                    }
                 }
-                if ui.small_button("⫡C").on_hover_text("Center Horizontal").clicked() {
-                    let xs: Vec<f32> = mol.atoms.iter().filter(|a| a.selected).map(|a| a.pos.x).collect();
+                if ui
+                    .small_button("⫡C")
+                    .on_hover_text("Center Horizontal")
+                    .clicked()
+                {
+                    let xs: Vec<f32> = mol
+                        .atoms
+                        .iter()
+                        .filter(|a| a.selected)
+                        .map(|a| a.pos.x)
+                        .collect();
                     let cx = xs.iter().sum::<f32>() / xs.len() as f32;
-                    for a in mol.atoms.iter_mut().filter(|a| a.selected) { a.pos.x = cx; }
+                    for a in mol.atoms.iter_mut().filter(|a| a.selected) {
+                        a.pos.x = cx;
+                    }
                 }
                 if ui.small_button("⊣R").on_hover_text("Align Right").clicked() {
-                    let max_x = mol.atoms.iter().filter(|a| a.selected).map(|a| a.pos.x).fold(f32::MIN, f32::max);
-                    for a in mol.atoms.iter_mut().filter(|a| a.selected) { a.pos.x = max_x; }
+                    let max_x = mol
+                        .atoms
+                        .iter()
+                        .filter(|a| a.selected)
+                        .map(|a| a.pos.x)
+                        .fold(f32::MIN, f32::max);
+                    for a in mol.atoms.iter_mut().filter(|a| a.selected) {
+                        a.pos.x = max_x;
+                    }
                 }
                 ui.add_space(2.0);
                 ui.separator();
                 ui.add_space(2.0);
                 if ui.small_button("⊤T").on_hover_text("Align Top").clicked() {
-                    let min_y = mol.atoms.iter().filter(|a| a.selected).map(|a| a.pos.y).fold(f32::MAX, f32::min);
-                    for a in mol.atoms.iter_mut().filter(|a| a.selected) { a.pos.y = min_y; }
+                    let min_y = mol
+                        .atoms
+                        .iter()
+                        .filter(|a| a.selected)
+                        .map(|a| a.pos.y)
+                        .fold(f32::MAX, f32::min);
+                    for a in mol.atoms.iter_mut().filter(|a| a.selected) {
+                        a.pos.y = min_y;
+                    }
                 }
-                if ui.small_button("⊥M").on_hover_text("Center Vertical").clicked() {
-                    let ys: Vec<f32> = mol.atoms.iter().filter(|a| a.selected).map(|a| a.pos.y).collect();
+                if ui
+                    .small_button("⊥M")
+                    .on_hover_text("Center Vertical")
+                    .clicked()
+                {
+                    let ys: Vec<f32> = mol
+                        .atoms
+                        .iter()
+                        .filter(|a| a.selected)
+                        .map(|a| a.pos.y)
+                        .collect();
                     let cy = ys.iter().sum::<f32>() / ys.len() as f32;
-                    for a in mol.atoms.iter_mut().filter(|a| a.selected) { a.pos.y = cy; }
+                    for a in mol.atoms.iter_mut().filter(|a| a.selected) {
+                        a.pos.y = cy;
+                    }
                 }
-                if ui.small_button("⊥B").on_hover_text("Align Bottom").clicked() {
-                    let max_y = mol.atoms.iter().filter(|a| a.selected).map(|a| a.pos.y).fold(f32::MIN, f32::max);
-                    for a in mol.atoms.iter_mut().filter(|a| a.selected) { a.pos.y = max_y; }
+                if ui
+                    .small_button("⊥B")
+                    .on_hover_text("Align Bottom")
+                    .clicked()
+                {
+                    let max_y = mol
+                        .atoms
+                        .iter()
+                        .filter(|a| a.selected)
+                        .map(|a| a.pos.y)
+                        .fold(f32::MIN, f32::max);
+                    for a in mol.atoms.iter_mut().filter(|a| a.selected) {
+                        a.pos.y = max_y;
+                    }
                 }
             });
         }
@@ -297,7 +413,11 @@ impl Inspector {
         if selected_bonds.len() == 1 {
             let bond_id = selected_bonds[0];
             ui.add_space(SPACING_SM);
-            ui.label(egui::RichText::new(i18n.t("inspector.bond")).strong().color(tokens.sidebar_title));
+            ui.label(
+                egui::RichText::new(i18n.t("inspector.bond"))
+                    .strong()
+                    .color(tokens.sidebar_title),
+            );
             ui.add_space(SPACING_SM);
 
             if let Some(bond) = mol.bonds.iter_mut().find(|b| b.id == bond_id) {
@@ -306,9 +426,9 @@ impl Inspector {
                     egui::ComboBox::from_id_salt("bond_order")
                         .selected_text(bond_order_label(bond.order))
                         .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut bond.order, BondOrder::Single,   "Single");
-                            ui.selectable_value(&mut bond.order, BondOrder::Double,   "Double");
-                            ui.selectable_value(&mut bond.order, BondOrder::Triple,   "Triple");
+                            ui.selectable_value(&mut bond.order, BondOrder::Single, "Single");
+                            ui.selectable_value(&mut bond.order, BondOrder::Double, "Double");
+                            ui.selectable_value(&mut bond.order, BondOrder::Triple, "Triple");
                             ui.selectable_value(&mut bond.order, BondOrder::Aromatic, "Aromatic");
                         });
                 });
@@ -317,9 +437,17 @@ impl Inspector {
                     egui::ComboBox::from_id_salt("bond_stereo")
                         .selected_text(bond_stereo_label(bond.stereo))
                         .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut bond.stereo, BondStereo::None,      "None");
-                            ui.selectable_value(&mut bond.stereo, BondStereo::WedgeUp,   "Wedge Up (▲)");
-                            ui.selectable_value(&mut bond.stereo, BondStereo::WedgeDown, "Wedge Down (▽)");
+                            ui.selectable_value(&mut bond.stereo, BondStereo::None, "None");
+                            ui.selectable_value(
+                                &mut bond.stereo,
+                                BondStereo::WedgeUp,
+                                "Wedge Up (▲)",
+                            );
+                            ui.selectable_value(
+                                &mut bond.stereo,
+                                BondStereo::WedgeDown,
+                                "Wedge Down (▽)",
+                            );
                         });
                 });
             }
@@ -334,29 +462,33 @@ impl Inspector {
             ui.label(
                 egui::RichText::new(label)
                     .size(12.0)
-                    .color(tokens.sidebar_title.gamma_multiply(0.62))
+                    .color(tokens.sidebar_title.gamma_multiply(0.62)),
             );
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.add_space(4.0);  // Right padding before value
+                ui.add_space(4.0); // Right padding before value
                 ui.label(
                     egui::RichText::new(value)
                         .size(12.0)
-                        .color(tokens.sidebar_title)
+                        .color(tokens.sidebar_title),
                 );
             });
         });
-        ui.add_space(2.0);  // Vertical padding between rows
+        ui.add_space(2.0); // Vertical padding between rows
     }
 }
 
 /// Run a SMARTS search and select matching atoms in the canvas molecule.
 fn run_smarts_search(mol: &mut CanvasMolecule, pattern: &str, _tokens: &Tokens) {
-    let Ok(query) = chematic::smarts::parse_smarts(pattern) else { return };
-    let Some(chem_mol) = canvas_to_chem(mol) else { return };
+    let Ok(query) = chematic::smarts::parse_smarts(pattern) else {
+        return;
+    };
+    let Some(chem_mol) = canvas_to_chem(mol) else {
+        return;
+    };
     let matches = chematic::smarts::find_matches(&query, &chem_mol);
     mol.deselect_all();
     for hit in &matches {
-        for (_, atom_idx) in hit {
+        for atom_idx in hit.values() {
             if let Some(a) = mol.atoms.get_mut(atom_idx.0 as usize) {
                 a.selected = true;
             }
@@ -373,30 +505,38 @@ fn molecule_formula(mol: &CanvasMolecule) -> String {
     for elem in ["C", "H"] {
         if let Some(&n) = counts.get(elem) {
             formula.push_str(elem);
-            if n > 1 { formula.push_str(&n.to_string()); }
+            if n > 1 {
+                formula.push_str(&n.to_string());
+            }
             counts.remove(elem);
         }
     }
     for (elem, &n) in &counts {
         formula.push_str(elem);
-        if n > 1 { formula.push_str(&n.to_string()); }
+        if n > 1 {
+            formula.push_str(&n.to_string());
+        }
     }
-    if formula.is_empty() { "—".to_string() } else { formula }
+    if formula.is_empty() {
+        "—".to_string()
+    } else {
+        formula
+    }
 }
 
 fn bond_order_label(order: BondOrder) -> &'static str {
     match order {
-        BondOrder::Single   => "Single",
-        BondOrder::Double   => "Double",
-        BondOrder::Triple   => "Triple",
+        BondOrder::Single => "Single",
+        BondOrder::Double => "Double",
+        BondOrder::Triple => "Triple",
         BondOrder::Aromatic => "Aromatic",
     }
 }
 
 fn bond_stereo_label(stereo: BondStereo) -> &'static str {
     match stereo {
-        BondStereo::None      => "None",
-        BondStereo::WedgeUp   => "Wedge Up",
+        BondStereo::None => "None",
+        BondStereo::WedgeUp => "Wedge Up",
         BondStereo::WedgeDown => "Wedge Down",
     }
 }

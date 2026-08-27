@@ -1,62 +1,37 @@
 use crate::canvas::CanvasMolecule;
-use crate::export::{canvas_to_cml, canvas_to_mol, canvas_to_mol_v3000, canvas_to_sdf, canvas_to_canonical_smiles, canvas_to_svg};
-use crate::reaction::ReactionScheme;
+use crate::export::{
+    canvas_to_canonical_smiles, canvas_to_cml, canvas_to_mol, canvas_to_mol_v3000, canvas_to_sdf,
+    canvas_to_svg,
+};
 use crate::i18n::{I18n, Language};
 use crate::paste::paste_from_clipboard;
-use crate::theme::{apply as apply_theme, Theme};
+use crate::reaction::ReactionScheme;
+use crate::theme::{Theme, apply as apply_theme};
 
+#[derive(Default)]
 pub struct MenuActions {
-    pub request_open:     bool,
-    pub request_save:     bool,
-    pub request_new:      bool,
-    pub request_quit:     bool,
-    pub request_3d:       bool,
-    pub request_undo:     bool,
-    pub request_redo:     bool,
-    pub request_clean:    bool,
-    pub request_flip_h:   bool,
-    pub request_flip_v:   bool,
+    pub request_open: bool,
+    pub request_save: bool,
+    pub request_new: bool,
+    pub request_quit: bool,
+    pub request_3d: bool,
+    pub request_undo: bool,
+    pub request_redo: bool,
+    pub request_clean: bool,
+    pub request_flip_h: bool,
+    pub request_flip_v: bool,
     pub request_rotate90: bool,
-    pub request_fit:      bool,
+    pub request_fit: bool,
     pub request_templates: bool,
-    pub request_chat:      bool,
-    pub request_settings:  bool,
-    pub request_about:     bool,
-    pub request_palette:   bool,
+    pub request_chat: bool,
+    pub request_settings: bool,
+    pub request_about: bool,
+    pub request_palette: bool,
     pub request_undo_history: bool,
     pub request_focus_mode: bool,
-    pub request_key_ref:   bool,
-    pub request_pubchem:   bool,
-    pub paste_error:      Option<String>,
-}
-
-impl Default for MenuActions {
-    fn default() -> Self {
-        Self {
-            request_open:     false,
-            request_save:     false,
-            request_new:      false,
-            request_quit:     false,
-            request_3d:       false,
-            request_undo:     false,
-            request_redo:     false,
-            request_clean:    false,
-            request_flip_h:   false,
-            request_flip_v:   false,
-            request_rotate90: false,
-            request_fit:      false,
-            request_templates: false,
-            request_chat:      false,
-            request_settings:  false,
-            request_about:     false,
-            request_palette:   false,
-            request_undo_history: false,
-            request_focus_mode: false,
-            request_key_ref:   false,
-            request_pubchem:   false,
-            paste_error:      None,
-        }
-    }
+    pub request_key_ref: bool,
+    pub request_pubchem: bool,
+    pub paste_error: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -83,9 +58,7 @@ impl MenuBar {
     ) {
         let ctx = ui.ctx().clone();
         // Global Ctrl+V paste
-        let paste_triggered = ctx.input(|i| {
-            i.key_pressed(egui::Key::V) && i.modifiers.ctrl
-        });
+        let paste_triggered = ctx.input(|i| i.key_pressed(egui::Key::V) && i.modifiers.ctrl);
         if paste_triggered {
             let center = ctx.input(|i| i.viewport_rect()).center();
             match paste_from_clipboard(center) {
@@ -99,11 +72,17 @@ impl MenuBar {
                 // ── File ──
                 let file_label = i18n.t("menu.file").to_owned();
                 Self::hover_menu(ui, active_menu, TopMenu::File, file_label, |ui| {
-                    if ui.button(format!("{} (Ctrl+N)", i18n.t("menu.file.new"))).clicked() {
+                    if ui
+                        .button(format!("{} (Ctrl+N)", i18n.t("menu.file.new")))
+                        .clicked()
+                    {
                         actions.request_new = true;
                         ui.close();
                     }
-                    if ui.button(format!("{} (Ctrl+O)", i18n.t("menu.file.open"))).clicked() {
+                    if ui
+                        .button(format!("{} (Ctrl+O)", i18n.t("menu.file.open")))
+                        .clicked()
+                    {
                         actions.request_open = true;
                         ui.close();
                     }
@@ -112,7 +91,10 @@ impl MenuBar {
                         ui.close();
                     }
                     ui.separator();
-                    if ui.button(format!("{} (Ctrl+S)", i18n.t("menu.file.save"))).clicked() {
+                    if ui
+                        .button(format!("{} (Ctrl+S)", i18n.t("menu.file.save")))
+                        .clicked()
+                    {
                         actions.request_save = true;
                         ui.close();
                     }
@@ -127,47 +109,75 @@ impl MenuBar {
                             ui.close();
                         }
                         if ui.button("As MOL V2000…").clicked() {
-                            if let Some(s) = canvas_to_mol(mol) {
-                                if let Err(e) = save_text_file("molecule.mol", &s) { actions.paste_error = Some(e); }
+                            if let Some(s) = canvas_to_mol(mol)
+                                && let Err(e) = save_text_file("molecule.mol", &s)
+                            {
+                                actions.paste_error = Some(e);
                             }
                             ui.close();
                         }
                         if ui.button("As MOL V3000…").clicked() {
-                            if let Some(s) = canvas_to_mol_v3000(mol) {
-                                if let Err(e) = save_text_file("molecule_v3000.mol", &s) { actions.paste_error = Some(e); }
+                            if let Some(s) = canvas_to_mol_v3000(mol)
+                                && let Err(e) = save_text_file("molecule_v3000.mol", &s)
+                            {
+                                actions.paste_error = Some(e);
                             }
                             ui.close();
                         }
                         if ui.button("As SDF…").clicked() {
-                            if let Some(s) = canvas_to_sdf(mol) {
-                                if let Err(e) = save_text_file("molecules.sdf", &s) { actions.paste_error = Some(e); }
+                            if let Some(s) = canvas_to_sdf(mol)
+                                && let Err(e) = save_text_file("molecules.sdf", &s)
+                            {
+                                actions.paste_error = Some(e);
                             }
                             ui.close();
                         }
                         if ui.button("As CML…").clicked() {
-                            if let Some(s) = canvas_to_cml(mol) {
-                                if let Err(e) = save_text_file("molecule.cml", &s) { actions.paste_error = Some(e); }
+                            if let Some(s) = canvas_to_cml(mol)
+                                && let Err(e) = save_text_file("molecule.cml", &s)
+                            {
+                                actions.paste_error = Some(e);
                             }
                             ui.close();
                         }
                         if ui.button("As SVG…").clicked() {
                             if let Some(svg) = canvas_to_svg(mol) {
-                                if let Err(e) = save_text_file("molecule.svg", &svg) { actions.paste_error = Some(e); }
+                                if let Err(e) = save_text_file("molecule.svg", &svg) {
+                                    actions.paste_error = Some(e);
+                                }
                             } else {
-                                actions.paste_error = Some("Export failed: unknown element symbol.".to_string());
+                                actions.paste_error =
+                                    Some("Export failed: unknown element symbol.".to_string());
                             }
                             ui.close();
                         }
                         // PNG submenu with resolution options
                         ui.menu_button("As PNG…", |ui| {
-                            for (label, scale) in [("1× (72 dpi)", 1.0f32), ("2× (144 dpi)", 2.0), ("4× (288 dpi)", 4.0)] {
+                            for (label, scale) in [
+                                ("1× (72 dpi)", 1.0f32),
+                                ("2× (144 dpi)", 2.0),
+                                ("4× (288 dpi)", 4.0),
+                            ] {
                                 if ui.button(label).clicked() {
                                     match canvas_to_svg(mol) {
-                                        Some(svg) => match chem_io::export_png::svg_to_png_scaled(&svg, scale) {
-                                            Ok(png) => { if let Err(e) = save_binary_file("molecule.png", &png) { actions.paste_error = Some(e); } }
-                                            Err(e)  => { actions.paste_error = Some(e.to_string()); }
+                                        Some(svg) => match chem_io::export_png::svg_to_png_scaled(
+                                            &svg, scale,
+                                        ) {
+                                            Ok(png) => {
+                                                if let Err(e) =
+                                                    save_binary_file("molecule.png", &png)
+                                                {
+                                                    actions.paste_error = Some(e);
+                                                }
+                                            }
+                                            Err(e) => {
+                                                actions.paste_error = Some(e.to_string());
+                                            }
                                         },
-                                        None => { actions.paste_error = Some("Export failed: unknown element.".to_string()); }
+                                        None => {
+                                            actions.paste_error =
+                                                Some("Export failed: unknown element.".to_string());
+                                        }
                                     }
                                     ui.close();
                                 }
@@ -176,27 +186,48 @@ impl MenuBar {
                         // Reaction exports
                         ui.separator();
                         if ui.button("Reaction SVG…").clicked() {
-                            if let Some(svg) = crate::reaction::reaction_to_svg(reaction) {
-                                if let Err(e) = save_text_file("reaction.svg", &svg) { actions.paste_error = Some(e); }
+                            if let Some(svg) = crate::reaction::reaction_to_svg(reaction)
+                                && let Err(e) = save_text_file("reaction.svg", &svg)
+                            {
+                                actions.paste_error = Some(e);
                             }
                             ui.close();
                         }
                         if ui.button("As RXN file…").clicked() {
-                            if let Some(rxn) = crate::reaction::reaction_to_rxn_file(reaction) {
-                                if let Err(e) = save_text_file("reaction.rxn", &rxn) { actions.paste_error = Some(e); }
+                            if let Some(rxn) = crate::reaction::reaction_to_rxn_file(reaction)
+                                && let Err(e) = save_text_file("reaction.rxn", &rxn)
+                            {
+                                actions.paste_error = Some(e);
                             }
                             ui.close();
                         }
                         // JPEG submenu
                         ui.menu_button("As JPEG…", |ui| {
-                            for (label, scale, quality) in [("Low quality", 1.0f32, 60u8), ("Medium quality", 1.0, 85), ("High quality (2×)", 2.0, 95)] {
+                            for (label, scale, quality) in [
+                                ("Low quality", 1.0f32, 60u8),
+                                ("Medium quality", 1.0, 85),
+                                ("High quality (2×)", 2.0, 95),
+                            ] {
                                 if ui.button(label).clicked() {
                                     match canvas_to_svg(mol) {
-                                        Some(svg) => match chem_io::export_png::svg_to_jpeg(&svg, scale, quality) {
-                                            Ok(jpg) => { if let Err(e) = save_binary_file("molecule.jpg", &jpg) { actions.paste_error = Some(e); } }
-                                            Err(e)  => { actions.paste_error = Some(e.to_string()); }
+                                        Some(svg) => match chem_io::export_png::svg_to_jpeg(
+                                            &svg, scale, quality,
+                                        ) {
+                                            Ok(jpg) => {
+                                                if let Err(e) =
+                                                    save_binary_file("molecule.jpg", &jpg)
+                                                {
+                                                    actions.paste_error = Some(e);
+                                                }
+                                            }
+                                            Err(e) => {
+                                                actions.paste_error = Some(e.to_string());
+                                            }
                                         },
-                                        None => { actions.paste_error = Some("Export failed: unknown element.".to_string()); }
+                                        None => {
+                                            actions.paste_error =
+                                                Some("Export failed: unknown element.".to_string());
+                                        }
                                     }
                                     ui.close();
                                 }
@@ -213,16 +244,25 @@ impl MenuBar {
                 // ── Edit ──
                 let edit_label = i18n.t("menu.edit").to_owned();
                 Self::hover_menu(ui, active_menu, TopMenu::Edit, edit_label, |ui| {
-                    if ui.button(format!("{} (Ctrl+Z)", i18n.t("menu.edit.undo"))).clicked() {
+                    if ui
+                        .button(format!("{} (Ctrl+Z)", i18n.t("menu.edit.undo")))
+                        .clicked()
+                    {
                         actions.request_undo = true;
                         ui.close();
                     }
-                    if ui.button(format!("{} (Ctrl+Shift+Z)", i18n.t("menu.edit.redo"))).clicked() {
+                    if ui
+                        .button(format!("{} (Ctrl+Shift+Z)", i18n.t("menu.edit.redo")))
+                        .clicked()
+                    {
                         actions.request_redo = true;
                         ui.close();
                     }
                     ui.separator();
-                    if ui.button(format!("{} (Ctrl+V)", i18n.t("menu.edit.paste_smiles"))).clicked() {
+                    if ui
+                        .button(format!("{} (Ctrl+V)", i18n.t("menu.edit.paste_smiles")))
+                        .clicked()
+                    {
                         let center = ui.ctx().input(|i| i.viewport_rect()).center();
                         match paste_from_clipboard(center) {
                             Ok(new_mol) => *mol = new_mol,
@@ -231,11 +271,19 @@ impl MenuBar {
                         ui.close();
                     }
                     ui.separator();
-                    if ui.button(format!("{} (Ctrl+A)", i18n.t("menu.edit.select_all"))).clicked() {
-                        for a in &mut mol.atoms { a.selected = true; }
+                    if ui
+                        .button(format!("{} (Ctrl+A)", i18n.t("menu.edit.select_all")))
+                        .clicked()
+                    {
+                        for a in &mut mol.atoms {
+                            a.selected = true;
+                        }
                         ui.close();
                     }
-                    if ui.button(format!("{} (Ctrl+L)", i18n.t("menu.edit.clean"))).clicked() {
+                    if ui
+                        .button(format!("{} (Ctrl+L)", i18n.t("menu.edit.clean")))
+                        .clicked()
+                    {
                         actions.request_clean = true;
                         ui.close();
                     }
@@ -365,9 +413,7 @@ impl MenuBar {
             .layout(egui::Layout::top_down_justified(egui::Align::Min))
             .show(add_contents);
 
-        let popup_hovered = popup
-            .as_ref()
-            .is_some_and(|inner| inner.response.hovered());
+        let popup_hovered = popup.as_ref().is_some_and(|inner| inner.response.hovered());
         let popup_requested_close = popup
             .as_ref()
             .is_some_and(|inner| inner.response.should_close());
@@ -401,7 +447,10 @@ fn save_binary_file(suggested: &str, data: &[u8]) -> Result<bool, String> {
 /// Open a chemical file using a native file dialog. Returns the file contents or None.
 pub fn open_file_dialog() -> Option<(String, String)> {
     let path = rfd::FileDialog::new()
-        .add_filter("Chemical files", &["mol", "sdf", "cml", "cdxml", "smiles", "rxn", "txt"])
+        .add_filter(
+            "Chemical files",
+            &["mol", "sdf", "cml", "cdxml", "smiles", "rxn", "txt"],
+        )
         .pick_file()?;
     let content = std::fs::read_to_string(&path).ok()?;
     let filename = path.file_name()?.to_string_lossy().into_owned();

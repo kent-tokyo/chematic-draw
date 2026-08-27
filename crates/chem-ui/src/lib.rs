@@ -1,9 +1,9 @@
 pub mod ai_chat;
 pub mod app;
 pub mod bridge;
-pub mod fonts;
 pub mod canvas;
 pub mod export;
+pub mod fonts;
 pub mod i18n;
 pub mod inspector;
 pub mod iupac;

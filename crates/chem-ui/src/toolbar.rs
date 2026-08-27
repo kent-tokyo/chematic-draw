@@ -1,12 +1,14 @@
 use egui::{Color32, Pos2, Rect, Response, Sense, Stroke, Ui, Vec2};
 
 use crate::i18n::I18n;
-use crate::theme::{alpha, Tokens, SPACING_SM, SPACING_XS, TOOLBAR_WIDTH};
+use crate::theme::{SPACING_SM, SPACING_XS, TOOLBAR_WIDTH, Tokens, alpha};
 
 /// Activity bar panel selection (VS Code pattern).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum ActivityPanel {
+    #[default]
     Tools,
     Inspector,
     Templates,
@@ -14,15 +16,10 @@ pub enum ActivityPanel {
     Settings,
 }
 
-impl Default for ActivityPanel {
-    fn default() -> Self {
-        Self::Tools
-    }
-}
-
 /// Active drawing tool.
-#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default)]
 pub enum Tool {
+    #[default]
     Select,
     // Atoms
     Carbon,
@@ -56,12 +53,6 @@ pub enum Tool {
     FragmentSelect,
     // Temporary pan (activated by Space hold, not shown in toolbar)
     Pan,
-}
-
-impl Default for Tool {
-    fn default() -> Self {
-        Self::Select
-    }
 }
 
 impl Tool {
@@ -129,25 +120,25 @@ impl Tool {
 
     pub fn shortcut(self) -> Option<&'static str> {
         match self {
-            Self::Select     => Some("Esc"),
-            Self::Carbon     => Some("C"),
-            Self::Nitrogen   => Some("N"),
-            Self::Oxygen     => Some("O"),
-            Self::Sulfur     => Some("S"),
+            Self::Select => Some("Esc"),
+            Self::Carbon => Some("C"),
+            Self::Nitrogen => Some("N"),
+            Self::Oxygen => Some("O"),
+            Self::Sulfur => Some("S"),
             Self::Phosphorus => Some("P"),
-            Self::Fluorine   => Some("F"),
-            Self::Hydrogen   => Some("H"),
-            Self::Single     => Some("1"),
-            Self::Double     => Some("2"),
-            Self::Triple     => Some("3"),
-            Self::Aromatic   => Some("4"),
-            Self::WedgeUp    => Some("W"),
-            Self::WedgeDown  => Some("D"),
-            Self::Benzene    => Some("B"),
-            Self::Rgroup     => Some("R"),
-            Self::Eraser     => Some("Del"),
+            Self::Fluorine => Some("F"),
+            Self::Hydrogen => Some("H"),
+            Self::Single => Some("1"),
+            Self::Double => Some("2"),
+            Self::Triple => Some("3"),
+            Self::Aromatic => Some("4"),
+            Self::WedgeUp => Some("W"),
+            Self::WedgeDown => Some("D"),
+            Self::Benzene => Some("B"),
+            Self::Rgroup => Some("R"),
+            Self::Eraser => Some("Del"),
             Self::FragmentSelect => None,
-            Self::Pan        => None,
+            Self::Pan => None,
             _ => None,
         }
     }
@@ -155,37 +146,52 @@ impl Tool {
     /// Proactive status-bar tip for this tool (§3.2 / Appendix C).
     pub fn tip(self) -> Option<&'static str> {
         match self {
-            Self::Select        => Some("Shift+click: add  Alt+drag: lasso"),
+            Self::Select => Some("Shift+click: add  Alt+drag: lasso"),
             Self::FragmentSelect => Some("Click bond → select one side"),
-            Self::Single | Self::Double | Self::Triple | Self::Aromatic
-                                => Some("Alt: free angle  Ctrl: snap off"),
-            Self::WedgeUp | Self::WedgeDown
-                                => Some("Click stereo bond to flip direction"),
+            Self::Single | Self::Double | Self::Triple | Self::Aromatic => {
+                Some("Alt: free angle  Ctrl: snap off")
+            }
+            Self::WedgeUp | Self::WedgeDown => Some("Click stereo bond to flip direction"),
             t if t.is_atom_tool() => Some("Click existing atom to change element"),
-            Self::Benzene | Self::Cyclohexane | Self::Cyclopentane
-                                => Some("Hover bond for red fusion preview"),
-            Self::Eraser        => Some("Click atom removes all its bonds"),
-            Self::Pan           => Some("Release Space to return to prior tool"),
+            Self::Benzene | Self::Cyclohexane | Self::Cyclopentane => {
+                Some("Hover bond for red fusion preview")
+            }
+            Self::Eraser => Some("Click atom removes all its bonds"),
+            Self::Pan => Some("Release Space to return to prior tool"),
             Self::ReactionArrow => Some("Drag to place arrow between molecules"),
-            Self::CurlyArrow    => Some("Drag to place electron-push arrow"),
+            Self::CurlyArrow => Some("Drag to place electron-push arrow"),
             _ => None,
         }
     }
 
     /// Returns true if this tool places/modifies atoms.
     pub fn is_atom_tool(self) -> bool {
-        matches!(self,
-            Self::Carbon | Self::Nitrogen | Self::Oxygen | Self::Sulfur
-            | Self::Phosphorus | Self::Fluorine | Self::Chlorine
-            | Self::Bromine | Self::Iodine | Self::Hydrogen | Self::Rgroup
+        matches!(
+            self,
+            Self::Carbon
+                | Self::Nitrogen
+                | Self::Oxygen
+                | Self::Sulfur
+                | Self::Phosphorus
+                | Self::Fluorine
+                | Self::Chlorine
+                | Self::Bromine
+                | Self::Iodine
+                | Self::Hydrogen
+                | Self::Rgroup
         )
     }
 
     /// Returns true if this tool draws bonds.
     pub fn is_bond_tool(self) -> bool {
-        matches!(self,
-            Self::Single | Self::Double | Self::Triple | Self::Aromatic
-            | Self::WedgeUp | Self::WedgeDown
+        matches!(
+            self,
+            Self::Single
+                | Self::Double
+                | Self::Triple
+                | Self::Aromatic
+                | Self::WedgeUp
+                | Self::WedgeDown
         )
     }
 
@@ -197,17 +203,17 @@ impl Tool {
     /// CPK-inspired label color for atom tools; None for non-atom tools.
     fn atom_color(self, tokens: &Tokens) -> Option<Color32> {
         match self {
-            Self::Carbon     => Some(tokens.sidebar_title),
-            Self::Nitrogen   => Some(tokens.elem_n),
-            Self::Oxygen     => Some(tokens.elem_o),
-            Self::Sulfur     => Some(tokens.elem_s),
+            Self::Carbon => Some(tokens.sidebar_title),
+            Self::Nitrogen => Some(tokens.elem_n),
+            Self::Oxygen => Some(tokens.elem_o),
+            Self::Sulfur => Some(tokens.elem_s),
             Self::Phosphorus => Some(tokens.elem_p),
-            Self::Fluorine   => Some(tokens.elem_f),
-            Self::Chlorine   => Some(tokens.elem_cl),
-            Self::Bromine    => Some(tokens.elem_br),
-            Self::Iodine     => Some(tokens.elem_i),
-            Self::Hydrogen   => Some(tokens.sidebar_title.gamma_multiply(0.65)),
-            Self::Rgroup     => Some(tokens.snap_indicator),  // teal
+            Self::Fluorine => Some(tokens.elem_f),
+            Self::Chlorine => Some(tokens.elem_cl),
+            Self::Bromine => Some(tokens.elem_br),
+            Self::Iodine => Some(tokens.elem_i),
+            Self::Hydrogen => Some(tokens.sidebar_title.gamma_multiply(0.65)),
+            Self::Rgroup => Some(tokens.snap_indicator), // teal
             _ => None,
         }
     }
@@ -262,14 +268,19 @@ const GROUPS: &[Group] = &[
 
 // macOS HIG: 44pt minimum touch target
 const BTN_HEIGHT: f32 = 44.0;
-const BTN_FONT: f32   = 15.0;
-const ACCENT_BAR: f32 = 3.0;   // left accent indicator width
-const CORNER:     f32 = 6.0;   // button corner radius
+const BTN_FONT: f32 = 15.0;
+const ACCENT_BAR: f32 = 3.0; // left accent indicator width
+const CORNER: f32 = 6.0; // button corner radius
 
 pub struct ActivityBar;
 
 impl ActivityBar {
-    pub fn show(ui: &mut Ui, active: &mut ActivityPanel, sidebar_open: &mut bool, tokens: &Tokens) -> bool {
+    pub fn show(
+        ui: &mut Ui,
+        active: &mut ActivityPanel,
+        sidebar_open: &mut bool,
+        tokens: &Tokens,
+    ) -> bool {
         let toggle_settings = false;
         let activity_fg = Color32::from_rgb(0xF6, 0xF8, 0xFA);
         let buttons = [
@@ -288,13 +299,21 @@ impl ActivityBar {
 
                 // Background based on state
                 if is_active {
-                    ui.painter().rect_filled(rect.shrink(4.0), 6.0, tokens.sidebar_hover);
+                    ui.painter()
+                        .rect_filled(rect.shrink(4.0), 6.0, tokens.sidebar_hover);
                     ui.painter().line_segment(
-                        [rect.left_center() + Vec2::new(0.0, -12.0), rect.left_center() + Vec2::new(0.0, 12.0)],
+                        [
+                            rect.left_center() + Vec2::new(0.0, -12.0),
+                            rect.left_center() + Vec2::new(0.0, 12.0),
+                        ],
                         Stroke::new(2.5, tokens.accent),
                     );
                 } else if resp.hovered() {
-                    ui.painter().rect_filled(rect.shrink(4.0), 6.0, alpha(tokens.sidebar_hover, 170));
+                    ui.painter().rect_filled(
+                        rect.shrink(4.0),
+                        6.0,
+                        alpha(tokens.sidebar_hover, 170),
+                    );
                 }
 
                 // Icon color based on state
@@ -330,13 +349,18 @@ impl ActivityBar {
 
             // Background
             if settings_active {
-                ui.painter().rect_filled(rect.shrink(4.0), 6.0, tokens.sidebar_hover);
+                ui.painter()
+                    .rect_filled(rect.shrink(4.0), 6.0, tokens.sidebar_hover);
                 ui.painter().line_segment(
-                    [rect.left_center() + Vec2::new(0.0, -12.0), rect.left_center() + Vec2::new(0.0, 12.0)],
+                    [
+                        rect.left_center() + Vec2::new(0.0, -12.0),
+                        rect.left_center() + Vec2::new(0.0, 12.0),
+                    ],
                     Stroke::new(2.5, tokens.accent),
                 );
             } else if resp.hovered() {
-                ui.painter().rect_filled(rect.shrink(4.0), 6.0, alpha(tokens.sidebar_hover, 170));
+                ui.painter()
+                    .rect_filled(rect.shrink(4.0), 6.0, alpha(tokens.sidebar_hover, 170));
             }
 
             let settings_color = if settings_active {
@@ -484,9 +508,7 @@ impl Toolbar {
                 // Separator line between groups (not before the first)
                 if g_idx > 0 {
                     let sep_color = tokens.separator.gamma_multiply(0.6);
-                    let (rect, _) = ui.allocate_exact_size(
-                        Vec2::new(btn_w, 1.0), Sense::hover()
-                    );
+                    let (rect, _) = ui.allocate_exact_size(Vec2::new(btn_w, 1.0), Sense::hover());
                     ui.painter().rect_filled(rect, 0.0, sep_color);
                     ui.add_space(SPACING_XS);
                 }
@@ -546,10 +568,7 @@ impl Toolbar {
 
         // Left accent bar for active tool (VSCode / macOS sidebar style)
         if active {
-            let bar = Rect::from_min_size(
-                rect.min,
-                Vec2::new(ACCENT_BAR, rect.height()),
-            );
+            let bar = Rect::from_min_size(rect.min, Vec2::new(ACCENT_BAR, rect.height()));
             painter.rect_filled(bar, 0.0, tokens.accent);
         }
 
