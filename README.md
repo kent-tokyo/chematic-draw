@@ -1,7 +1,7 @@
 # chematic-draw
 
 An open-source chemical structure editor written in **Pure Rust**.  
-Aims to be a complete, lightweight drop-in replacement for ChemDraw, ChemDoodle, Ketcher, FreeChemDraw, and ChemSketch.
+An experimental, offline-first chemical drawing environment — not yet a drop-in replacement for ChemDraw, ChemDoodle, Ketcher, or ChemSketch, but built toward chemical correctness and interoperability first. See [ROADMAP.md](./ROADMAP.md) for the current positioning and priorities.
 
 ---
 
@@ -13,18 +13,20 @@ Legend: `Yes` = Full support · `Partial` = Limited / partial · `No` = Not supp
 
 | | chematic-draw | ChemDraw | ChemDoodle | Ketcher | FreeChemDraw | ChemSketch |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|
-| **License** | MIT / Apache 2.0 | Commercial | Free + paid desktop | Apache 2.0 | Proprietary free | Free (non-commercial) |
+| **License** | MIT / Apache 2.0 | Commercial | Free + paid desktop | Apache 2.0 | Proprietary free | Discontinued (Jan 2026) |
 | **Open source** | Yes | No | No | Yes | No | No |
-| **Cost** | Free | ~$1,500+/yr | Free / $15 one-time | Free | Free (limited) | Free |
-| **Windows** | Yes | Yes | Yes | Web only | Yes | Yes |
-| **macOS** | Yes | Yes | Yes | Web only | Yes | No |
-| **Linux** | Yes | No | Web only | Web only | No | No |
-| **Native desktop app** | Yes | Yes | Yes | No | Yes | Yes |
+| **Cost** | Free | Subscription only | $29/mo · $199/yr · $999 one-time | Free | Free | N/A (new users) |
+| **Windows** | Yes | Yes | Yes | Web only | Web only | Yes |
+| **macOS** | Yes | Yes | Yes | Web only | Web only | No |
+| **Linux** | Yes | No | Web only | Web only | Web only | No |
+| **Native desktop app** | Yes | Yes | Yes | No | No | Yes |
 | **No C/C++ dependencies** | Yes | No | No | No | No | No |
 | **Embeddable in web apps** | No | No | Yes | Yes | No | No |
 | **Programmable API** | Partial | Yes | Yes | Yes | No | No |
 | **WASM / browser build** | No | No | Yes | Yes | No | No |
 | **Command-line / batch** | No | Partial | No | Partial | No | No |
+
+> ChemDraw discontinued perpetual licenses in January 2025 and is now subscription-only. ACD/Labs (maker of ChemSketch) was acquired by Revvity — ChemDraw's parent company — in January 2026; ChemSketch is no longer offered to new users, though existing installations continue under prior license terms. FreeChemDraw is a browser-only web app unaffiliated with PerkinElmer/Revvity's ChemDraw.
 
 ### File format support
 
@@ -36,7 +38,7 @@ Legend: `Yes` = Full support · `Partial` = Limited / partial · `No` = Not supp
 | **SMILES** | Yes | Yes | Yes | Yes | Yes | Yes |
 | **Canonical SMILES** | Yes | Yes | Yes | Yes | Partial | No |
 | **Reaction SMILES** | Yes | Yes | Yes | Yes | No | No |
-| **CDXML (ChemDraw XML)** | Partial (read only) | Yes (native) | Partial (import) | No | Partial | No |
+| **CDXML (ChemDraw XML)** | Partial (read only) | Yes (native) | Partial (import) | Yes | Partial | No |
 | **CML** | Yes | Partial | Yes | Yes | No | No |
 | **RXN (MDL reaction)** | No | Yes | Partial | Yes | No | No |
 | **XYZ (3D coordinates)** | Yes | Partial | No | No | No | No |
@@ -55,7 +57,7 @@ Legend: `Yes` = Full support · `Partial` = Limited / partial · `No` = Not supp
 | **2D structure editor** | Yes | Yes | Yes | Yes | Yes | Yes |
 | **Reaction mechanism arrows** | Yes | Yes | Yes | Yes | Partial | Partial |
 | **Electron curly arrows** | Yes | Yes | Yes | No | No | No |
-| **3D viewer** | Yes | Yes (Chem3D) | Yes (WebGL) | No | No | Partial |
+| **3D viewer** | Yes | Yes (Chem3D) | Yes (WebGL) | Partial (view only) | No | Partial |
 | **3D coordinate generation** | Yes | Yes | Yes | No | No | No |
 | **Molecular weight / formula** | Yes | Yes | Yes | Yes | Partial | Yes |
 | **logP (Crippen)** | Yes | Yes | Yes | No | No | No |
@@ -77,7 +79,7 @@ Legend: `Yes` = Full support · `Partial` = Limited / partial · `No` = Not supp
 | **Polymer / S-group notation** | No | Yes | Partial | Partial | No | No |
 | **Markush structures** | No | Yes | No | Partial | No | No |
 | **NMR / spectra prediction** | No | Yes (add-on) | No | No | No | Partial |
-| **Undo / Redo** | No (planned) | Yes | Yes | Yes | Partial | Yes |
+| **Undo / Redo** | Yes | Yes | Yes | Yes | Partial | Yes |
 | **Structure validation** | No | Yes | Yes | Yes | No | No |
 | **Fully offline** | Yes (note 1) | Yes | Partial (note 2) | Partial (note 2) | Yes | Yes |
 
@@ -115,7 +117,7 @@ Legend: `Yes` = Full support · `Partial` = Limited / partial · `No` = Not supp
 | Molecular weight, logP, TPSA, QED calculation | Yes |
 | Reaction mechanism canvas (arrows, curly arrows) | Yes |
 | 3D molecular viewer (ball-and-stick, orthographic) | Yes |
-| ChemDraw XML (CDXML) read/write | Partial |
+| ChemDraw XML (CDXML) import (read only) | Partial |
 | Chemical Markup Language (CML) read/write | Yes |
 
 ---
@@ -129,7 +131,7 @@ Legend: `Yes` = Full support · `Partial` = Limited / partial · `No` = Not supp
 | `Ctrl+V` | Paste SMILES or MOL from clipboard |
 | `Del` | Delete selected atom |
 | `Ctrl+A` | Select all |
-| `Ctrl+Z` | Undo *(planned)* |
+| `Ctrl+Z` | Undo |
 | Scroll | Zoom in/out |
 | Middle-drag | Pan canvas |
 
