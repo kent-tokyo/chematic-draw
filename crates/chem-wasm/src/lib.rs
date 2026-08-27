@@ -777,6 +777,55 @@ pub fn get_fingerprint(mol_json: &JsValue) -> Result<String, JsValue> {
     Ok(bitvec_to_hex(&fp_bits))
 }
 
+/// Fingerprint plus the parameters that produced it. `radius`/`bit_length`/`mode`
+/// are read from `chematic::fp::EcfpConfig::default()` (what [`chematic::fp::ecfp4`]
+/// actually calls internally) rather than assumed from the "ECFP4" name — the "4" in
+/// RDKit-style ECFP naming is the diameter (2×radius), so it's not directly the
+/// `radius` field, and asserting it without checking the source would be exactly the
+/// kind of plausible-but-unsourced value this DTO exists to avoid.
+#[derive(Debug, Clone, Serialize)]
+pub struct FingerprintDto {
+    pub hex: String,
+    /// Algorithm identifier: "ECFP4" (radius=2, matching RDKit's ECFP4 naming).
+    pub kind: String,
+    pub radius: u32,
+    pub bit_length: u32,
+    /// "bit": each position is a 0/1 presence flag ([`chematic::fp::BitVec2048`]),
+    /// not an occurrence count.
+    pub mode: String,
+}
+
+/// Pure core of [`get_fingerprint_with_metadata`], kept free of the wasm/JsValue
+/// boundary so it's directly unit-testable.
+fn fingerprint_with_metadata(chem_mol: &chematic::core::Molecule) -> FingerprintDto {
+    use chematic::fp;
+
+    let fp_bits = fp::ecfp4(chem_mol);
+    let config = fp::EcfpConfig::default();
+    FingerprintDto {
+        hex: bitvec_to_hex(&fp_bits),
+        kind: "ECFP4".to_string(),
+        radius: config.radius,
+        bit_length: config.nbits as u32,
+        mode: "bit".to_string(),
+    }
+}
+
+/// Get the ECFP4 fingerprint together with its real algorithm parameters, for
+/// callers that need to know what they're comparing rather than just a hex blob.
+/// [`get_fingerprint`] is kept separate and unchanged so existing callers
+/// (`tanimoto_similarity`/`dice_similarity`, which take hex strings) aren't affected.
+#[wasm_bindgen]
+pub fn get_fingerprint_with_metadata(mol_json: &JsValue) -> Result<JsValue, JsValue> {
+    let dto: MoleculeDto = serde_wasm_bindgen::from_value(mol_json.clone())
+        .map_err(|e| JsValue::from_str(&format!("JSON decode failed: {e}")))?;
+
+    let chem_mol = dto_to_chem(&dto)?;
+
+    serde_wasm_bindgen::to_value(&fingerprint_with_metadata(&chem_mol))
+        .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
+}
+
 /// Pure core of [`tanimoto_similarity`]/[`dice_similarity`]'s shared hex decoding,
 /// kept free of the wasm/JsValue boundary so it's directly unit-testable: JsValue
 /// FFI stubs (e.g. `JsValue::from_str`) panic when called outside a real wasm32/JS
@@ -1193,6 +1242,27 @@ mod correctness_tests {
         let bits = chematic::fp::ecfp4(&mol("c1ccccc1O")); // phenol
         let round_tripped = hex_to_bitvec(&bitvec_to_hex(&bits)).expect("valid hex must decode");
         assert_eq!(bits, round_tripped);
+    }
+
+    #[test]
+    fn fingerprint_metadata_matches_ecfp4s_real_config_not_a_guess() {
+        // Sourced from chematic::fp::EcfpConfig::default() (what ecfp4() actually
+        // calls) rather than inferred from the "ECFP4" name: the "4" in RDKit-style
+        // ECFP naming is the diameter (2x radius), not the radius value directly.
+        let result = fingerprint_with_metadata(&mol("c1ccccc1O"));
+        assert_eq!(result.radius, chematic::fp::EcfpConfig::default().radius);
+        assert_eq!(
+            result.bit_length,
+            chematic::fp::EcfpConfig::default().nbits as u32
+        );
+        assert_eq!(result.mode, "bit");
+        assert_eq!(result.kind, "ECFP4");
+        assert_eq!(result.hex.len(), 512);
+        // And it must be the same bits get_fingerprint's hex-only path produces.
+        assert_eq!(
+            result.hex,
+            bitvec_to_hex(&chematic::fp::ecfp4(&mol("c1ccccc1O")))
+        );
     }
 
     #[test]

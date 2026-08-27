@@ -70,6 +70,23 @@ describe('WASM contract (real binary, not mocked)', () => {
     expect(wasm.dice_similarity(fp, fp)).toBe(1.0);
   });
 
+  it('fingerprint metadata reports real ECFP4 parameters, not a guess from the name', () => {
+    const withMeta = wasm.get_fingerprint_with_metadata(benzene) as {
+      hex: string;
+      kind: string;
+      radius: number;
+      bit_length: number;
+      mode: string;
+    };
+    expect(withMeta.kind).toBe('ECFP4');
+    expect(withMeta.radius).toBe(2);
+    expect(withMeta.bit_length).toBe(2048);
+    expect(withMeta.mode).toBe('bit');
+    expect(withMeta.hex).toHaveLength(512);
+    // Must be the same bits the hex-only accessor produces.
+    expect(withMeta.hex).toBe(wasm.get_fingerprint(benzene));
+  });
+
   it('malformed fingerprint hex throws a catchable JS exception, not a WASM trap', () => {
     // This is the exact scenario a raw `assert!`/`.expect()` in the Rust decoder
     // used to turn into an opaque "unreachable executed" trap instead of a

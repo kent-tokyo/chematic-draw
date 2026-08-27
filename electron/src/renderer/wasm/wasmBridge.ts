@@ -167,6 +167,30 @@ export function getFingerprint(mol: MoleculeDto): string {
 }
 
 /**
+ * Fingerprint plus the real algorithm parameters that produced it, sourced from
+ * chematic's own `EcfpConfig` (see chem-wasm's `FingerprintDto`) rather than
+ * assumed from the "ECFP4" name.
+ */
+export interface FingerprintDto {
+  hex: string;
+  /** Algorithm identifier, e.g. "ECFP4". */
+  kind: string;
+  radius: number;
+  bit_length: number;
+  /** "bit": each position is a 0/1 presence flag, not an occurrence count. */
+  mode: string;
+}
+
+/**
+ * Get the ECFP4 fingerprint together with its real algorithm parameters. Use this
+ * over `getFingerprint` when the caller needs to know/display what was actually
+ * computed (radius, bit length, bit-vs-count mode) rather than just a hex blob.
+ */
+export function getFingerprintWithMetadata(mol: MoleculeDto): FingerprintDto {
+  return wasmModule.get_fingerprint_with_metadata(mol) as FingerprintDto;
+}
+
+/**
  * Calculate Tanimoto similarity between two ECFP4 fingerprints (hex strings from
  * `getFingerprint`). Throws if either string isn't a valid 512-char fingerprint hex.
  */
