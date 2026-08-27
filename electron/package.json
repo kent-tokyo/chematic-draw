@@ -11,7 +11,7 @@
     "make": "electron-forge make",
     "publish": "electron-forge publish",
     "lint": "echo \"No linting configured\"",
-    "build:wasm:test": "cd .. && wasm-pack build crates/chem-wasm --target nodejs --out-dir electron/src/renderer/wasm/pkg-node --out-name chem_wasm",
+    "build:wasm:test": "cd .. && wasm-pack build crates/chem-wasm --target nodejs --out-dir ../../electron/src/renderer/wasm/pkg-node --out-name chem_wasm",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
