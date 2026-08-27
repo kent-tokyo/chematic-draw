@@ -1290,6 +1290,52 @@ mod correctness_tests {
         );
     }
 
+    #[test]
+    fn mcs_reports_no_match_for_molecules_sharing_no_element() {
+        // A single carbon and a single nitrogen atom cannot share any substructure.
+        let methane = mol("C");
+        let ammonia = mol("N");
+        let result = compute_mcs(&methane, &ammonia);
+        assert!(
+            result.common_atoms.is_empty(),
+            "expected no shared atoms between C and N, got {:?}",
+            result.common_atoms
+        );
+        assert_eq!(result.similarity, 0.0);
+    }
+
+    #[test]
+    fn mcs_handles_disconnected_fragments_in_the_input() {
+        // mol_a has two disconnected components (an ethanol-like fragment and an
+        // ethylamine-like fragment); mol_b is just the ethanol-like fragment. The
+        // search must still find that shared fragment rather than erroring or
+        // treating the multi-fragment input as unsupported.
+        let two_fragments = mol("CCO.CCN");
+        let ethanol = mol("CCO");
+        let result = compute_mcs(&two_fragments, &ethanol);
+        assert!(
+            result.common_atoms.len() >= 3,
+            "expected at least the 3-atom C-C-O fragment to match, got {}",
+            result.common_atoms.len()
+        );
+    }
+
+    #[test]
+    fn mcs_finds_shared_ring_between_aromatic_systems() {
+        // Benzene and pyridine share a 5-carbon aromatic chain (pyridine's ring
+        // swaps one CH for N), so the real MCS should be well above zero and
+        // below a full match, not an atom-count proxy that ignores aromaticity.
+        let benzene = mol("c1ccccc1");
+        let pyridine = mol("c1ccncc1");
+        let result = compute_mcs(&benzene, &pyridine);
+        assert!(
+            result.common_atoms.len() >= 4,
+            "expected at least 4 shared aromatic carbons, got {}",
+            result.common_atoms.len()
+        );
+        assert!(result.similarity > 0.0 && result.similarity < 1.0);
+    }
+
     // ── Reaction execution: real success/no-match/error states, never a fake product ──
 
     const CARBOXYLIC_ACID_TO_AMIDE: &str = "[C:1](=[O])[OH]>>[C:1](=[O])[NH2]";
