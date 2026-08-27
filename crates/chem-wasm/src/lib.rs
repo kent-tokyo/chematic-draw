@@ -26,8 +26,8 @@ pub struct BondDto {
     pub id: u32,
     pub from: u32,
     pub to: u32,
-    pub order: u8,     // 1=Single, 2=Double, 3=Triple, 4=Aromatic
-    pub stereo: u8,    // 0=None, 1=WedgeUp, 2=WedgeDown
+    pub order: u8,  // 1=Single, 2=Double, 3=Triple, 4=Aromatic
+    pub stereo: u8, // 0=None, 1=WedgeUp, 2=WedgeDown
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -83,8 +83,10 @@ pub struct Coords3dDto {
 /// Returns molecule with atoms and bonds as JSON. Returns error string on failure.
 #[wasm_bindgen]
 pub fn parse_any(text: &str) -> Result<JsValue, JsValue> {
-    parse_any_impl(text)
-        .and_then(|mol| serde_wasm_bindgen::to_value(&mol).map_err(|e| JsValue::from_str(&format!("Serialization error: {e}"))))
+    parse_any_impl(text).and_then(|mol| {
+        serde_wasm_bindgen::to_value(&mol)
+            .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
+    })
 }
 
 fn parse_any_impl(text: &str) -> Result<MoleculeDto, JsValue> {
@@ -97,7 +99,9 @@ fn parse_any_impl(text: &str) -> Result<MoleculeDto, JsValue> {
     if text.contains("<CDXML") {
         let fragments = mol::parse_cdxml_all(text)
             .map_err(|e| JsValue::from_str(&format!("CDXML parse failed: {e}")))?;
-        let (mol, coords) = fragments.into_iter().next()
+        let (mol, coords) = fragments
+            .into_iter()
+            .next()
             .ok_or_else(|| JsValue::from_str("CDXML: no molecules found"))?;
         return Ok(chem_to_dto(&mol, Some(&coords)));
     }
@@ -115,7 +119,9 @@ fn parse_any_impl(text: &str) -> Result<MoleculeDto, JsValue> {
     if text.contains("$$$$") {
         let records = mol::parse_sdf_with_coords(text)
             .map_err(|e| JsValue::from_str(&format!("SDF parse failed: {e}")))?;
-        let (mol, _meta, coords) = records.into_iter().next()
+        let (mol, _meta, coords) = records
+            .into_iter()
+            .next()
             .ok_or_else(|| JsValue::from_str("SDF: no records found"))?;
         return Ok(chem_to_dto(&mol, Some(&coords)));
     }
@@ -135,8 +141,8 @@ fn parse_any_impl(text: &str) -> Result<MoleculeDto, JsValue> {
     }
 
     // Fallback to SMILES
-    let mol = smiles::parse(text)
-        .map_err(|e| JsValue::from_str(&format!("SMILES parse failed: {e}")))?;
+    let mol =
+        smiles::parse(text).map_err(|e| JsValue::from_str(&format!("SMILES parse failed: {e}")))?;
     Ok(chem_to_dto(&mol, None))
 }
 
@@ -166,7 +172,9 @@ pub fn to_mol_v2000(mol_json: &JsValue) -> Result<String, JsValue> {
     let chem_mol = dto_to_chem(&mol)?;
     let coords = dto_to_coords(&mol);
     let meta = chematic::mol::MolMetadata::default();
-    Ok(chematic::mol::write_mol_with_coords(&chem_mol, &meta, &coords))
+    Ok(chematic::mol::write_mol_with_coords(
+        &chem_mol, &meta, &coords,
+    ))
 }
 
 /// Generate MOL V3000 string with coordinates (for >999 atoms).
@@ -222,8 +230,8 @@ pub fn to_svg(mol_json: &JsValue) -> Result<String, JsValue> {
 /// Returns updated MoleculeDto with new atom positions, preserving all other properties.
 #[wasm_bindgen]
 pub fn clean_layout(mol_json: &JsValue) -> Result<JsValue, JsValue> {
-    use chematic::depict::compute_layout;
     use chematic::core::AtomIdx;
+    use chematic::depict::compute_layout;
 
     let mol: MoleculeDto = serde_wasm_bindgen::from_value(mol_json.clone())
         .map_err(|e| JsValue::from_str(&format!("JSON decode failed: {e}")))?;
@@ -275,7 +283,12 @@ pub fn get_properties(mol_json: &JsValue) -> Result<JsValue, JsValue> {
 
     let valence_errors = perception::validate_valence(&chem_mol)
         .into_iter()
-        .map(|e| format!("Atom #{}: {} bonds (allowed: {:?})", e.atom.0, e.actual, e.allowed))
+        .map(|e| {
+            format!(
+                "Atom #{}: {} bonds (allowed: {:?})",
+                e.atom.0, e.actual, e.allowed
+            )
+        })
         .collect();
 
     let props = PropertiesDto {
@@ -324,7 +337,10 @@ pub fn smarts_search(mol_json: &JsValue, pattern: &str) -> Result<Vec<u32>, JsVa
     let result: Vec<u32> = matches
         .into_iter()
         .flat_map(|match_map| {
-            match_map.keys().map(|&idx| idx as u32).collect::<Vec<u32>>()
+            match_map
+                .keys()
+                .map(|&idx| idx as u32)
+                .collect::<Vec<u32>>()
         })
         .collect();
     Ok(result)
@@ -333,7 +349,7 @@ pub fn smarts_search(mol_json: &JsValue, pattern: &str) -> Result<Vec<u32>, JsVa
 /// Standardize molecule: neutralize charges, remove explicit H, apply canonical tautomer.
 #[wasm_bindgen]
 pub fn standardize_molecule(mol_json: &JsValue) -> Result<JsValue, JsValue> {
-    use chematic::chem::{standardize, StandardizeOptions};
+    use chematic::chem::{StandardizeOptions, standardize};
 
     let mol: MoleculeDto = serde_wasm_bindgen::from_value(mol_json.clone())
         .map_err(|e| JsValue::from_str(&format!("JSON decode failed: {e}")))?;
@@ -420,7 +436,9 @@ pub fn invert_stereocenter(mol_json: &JsValue, atom_id: u32) -> Result<JsValue, 
 /// Convert MoleculeDto to chematic::core::Molecule.
 /// Returns error if any element symbol is unrecognized.
 fn dto_to_chem(dto: &MoleculeDto) -> Result<chematic::core::Molecule, JsValue> {
-    use chematic::core::{Atom, AtomIdx, BondOrder as ChemBondOrder, Chirality, Element, MoleculeBuilder};
+    use chematic::core::{
+        Atom, AtomIdx, BondOrder as ChemBondOrder, Chirality, Element, MoleculeBuilder,
+    };
     use std::collections::HashMap;
 
     let mut builder = MoleculeBuilder::new();
@@ -429,7 +447,8 @@ fn dto_to_chem(dto: &MoleculeDto) -> Result<chematic::core::Molecule, JsValue> {
     for atom in &dto.atoms {
         let element = Element::from_symbol(&atom.element)
             .ok_or_else(|| JsValue::from_str(&format!("Unknown element: {}", atom.element)))?;
-        let is_rgroup = atom.element == "R" || atom.element.starts_with("R*")
+        let is_rgroup = atom.element == "R"
+            || atom.element.starts_with("R*")
             || (atom.element.starts_with('R') && atom.element[1..].parse::<u8>().is_ok());
 
         let chem_atom = Atom {
@@ -440,7 +459,11 @@ fn dto_to_chem(dto: &MoleculeDto) -> Result<chematic::core::Molecule, JsValue> {
             aromatic: false,
             chirality: Chirality::None,
             wildcard: is_rgroup,
-            atom_map: if atom.atom_map != 0 { Some(atom.atom_map) } else { None },
+            atom_map: if atom.atom_map != 0 {
+                Some(atom.atom_map)
+            } else {
+                None
+            },
             cip_code: None,
         };
         let idx = builder.add_atom(chem_atom);
@@ -448,8 +471,12 @@ fn dto_to_chem(dto: &MoleculeDto) -> Result<chematic::core::Molecule, JsValue> {
     }
 
     for bond in &dto.bonds {
-        let Some(&a) = id_to_idx.get(&bond.from) else { continue };
-        let Some(&b) = id_to_idx.get(&bond.to) else { continue };
+        let Some(&a) = id_to_idx.get(&bond.from) else {
+            continue;
+        };
+        let Some(&b) = id_to_idx.get(&bond.to) else {
+            continue;
+        };
 
         let order = match (bond.order, bond.stereo) {
             (_, 1) => ChemBondOrder::Up,
@@ -473,8 +500,10 @@ fn dto_to_chem(dto: &MoleculeDto) -> Result<chematic::core::Molecule, JsValue> {
 
     // Apply stereo from 2D coordinates if any stereo bonds
     if dto.bonds.iter().any(|b| b.stereo != 0) {
-        let coords: Vec<(f64, f64)> = dto.atoms.iter()
-            .map(|a| (a.x, -a.y))  // Y-down → Y-up
+        let coords: Vec<(f64, f64)> = dto
+            .atoms
+            .iter()
+            .map(|a| (a.x, -a.y)) // Y-down → Y-up
             .collect();
         chematic::perception::apply_stereo_from_2d(&mut mol, &coords);
     }
@@ -485,8 +514,8 @@ fn dto_to_chem(dto: &MoleculeDto) -> Result<chematic::core::Molecule, JsValue> {
 /// Convert chematic::core::Molecule to MoleculeDto with optional pre-existing coordinates.
 /// If no coords provided, uses compute_layout.
 fn chem_to_dto(mol: &chematic::core::Molecule, coords: Option<&[(f64, f64)]>) -> MoleculeDto {
-    use chematic::depict::compute_layout;
     use chematic::core::AtomIdx;
+    use chematic::depict::compute_layout;
 
     let atoms_vec: Vec<_> = if let Some(c) = coords {
         // Use provided coords (from CML/CDXML/MOL/SDF, chemistry Y-up convention)
@@ -499,7 +528,7 @@ fn chem_to_dto(mol: &chematic::core::Molecule, coords: Option<&[(f64, f64)]>) ->
                     id: i as u32,
                     element: chematic::depict::atom_display_label(mol, AtomIdx(i as u32)),
                     x: px,
-                    y: -py,  // chemistry Y-up → screen Y-down
+                    y: -py, // chemistry Y-up → screen Y-down
                     charge: atom.charge,
                     atom_map: atom.atom_map.unwrap_or(0),
                 }
@@ -516,7 +545,7 @@ fn chem_to_dto(mol: &chematic::core::Molecule, coords: Option<&[(f64, f64)]>) ->
                     id: i as u32,
                     element: chematic::depict::atom_display_label(mol, AtomIdx(i as u32)),
                     x: pt.x,
-                    y: pt.y,  // already screen Y-down
+                    y: pt.y, // already screen Y-down
                     charge: atom.charge,
                     atom_map: atom.atom_map.unwrap_or(0),
                 }
@@ -524,7 +553,8 @@ fn chem_to_dto(mol: &chematic::core::Molecule, coords: Option<&[(f64, f64)]>) ->
             .collect()
     };
 
-    let bonds_vec: Vec<_> = mol.bonds()
+    let bonds_vec: Vec<_> = mol
+        .bonds()
         .enumerate()
         .map(|(i, (_, bond))| {
             let (order, stereo) = chem_bond_order(bond.order);
@@ -580,7 +610,7 @@ pub fn validate_molecule(mol_json: &JsValue) -> Result<JsValue, JsValue> {
     let mut warnings = vec![];
 
     // Check for isolated atoms
-    if mol.atoms.len() > 0 && mol.bonds.is_empty() && mol.atoms.len() > 1 {
+    if mol.atoms.len() > 1 && mol.bonds.is_empty() {
         warnings.push("Disconnected atoms detected");
     }
 
@@ -685,7 +715,43 @@ pub fn get_extended_properties(mol_json: &JsValue) -> Result<JsValue, JsValue> {
         .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
 }
 
-/// Get ECFP4 fingerprint (as hex string for easy transmission).
+/// Encode a `BitVec2048` fingerprint as a 512-character hex string (2048 bits = 256 bytes).
+fn bitvec_to_hex(bv: &chematic::fp::BitVec2048) -> String {
+    let mut hex = String::with_capacity(512);
+    for byte_idx in 0..256 {
+        let mut byte = 0u8;
+        for bit_in_byte in 0..8 {
+            if bv.get(byte_idx * 8 + bit_in_byte) {
+                byte |= 1 << bit_in_byte;
+            }
+        }
+        hex.push_str(&format!("{byte:02x}"));
+    }
+    hex
+}
+
+/// Decode a fingerprint hex string produced by [`bitvec_to_hex`] back into its bits.
+fn hex_to_bitvec(hex: &str) -> chematic::fp::BitVec2048 {
+    assert_eq!(
+        hex.len(),
+        512,
+        "fingerprint hex must be 512 chars (2048 bits), got {}",
+        hex.len()
+    );
+    let mut bv = chematic::fp::BitVec2048::new();
+    for byte_idx in 0..256 {
+        let byte = u8::from_str_radix(&hex[byte_idx * 2..byte_idx * 2 + 2], 16)
+            .expect("fingerprint hex must be valid hex digits");
+        for bit_in_byte in 0..8 {
+            if (byte >> bit_in_byte) & 1 == 1 {
+                bv.set(byte_idx * 8 + bit_in_byte);
+            }
+        }
+    }
+    bv
+}
+
+/// Get ECFP4 fingerprint as a 512-char hex string encoding the real 2048-bit vector.
 #[wasm_bindgen]
 pub fn get_fingerprint(mol_json: &JsValue) -> Result<String, JsValue> {
     use chematic::fp;
@@ -696,66 +762,19 @@ pub fn get_fingerprint(mol_json: &JsValue) -> Result<String, JsValue> {
     let chem_mol = dto_to_chem(&dto)?;
 
     let fp_bits = fp::ecfp4(&chem_mol);
-    // Encode fingerprint as hex string for easy serialization and transmission
-    // BitVec2048 is backed by 32x u64, so we convert to hex representation
-    let hex_str = format!("{:?}", fp_bits);
-    Ok(hex_str)
+    Ok(bitvec_to_hex(&fp_bits))
 }
 
-/// Calculate Tanimoto similarity between two ECFP4 fingerprints (hex format).
-/// Fingerprints are expected to be hex debug output strings from get_fingerprint.
-/// Simplified implementation: counts matching hex characters as bit similarity.
+/// Calculate Tanimoto similarity between two ECFP4 fingerprints (hex format from `get_fingerprint`).
 #[wasm_bindgen]
 pub fn tanimoto_similarity(fp_a_hex: &str, fp_b_hex: &str) -> f64 {
-    // Exact match = maximum similarity
-    if fp_a_hex == fp_b_hex {
-        return 1.0;
-    }
-
-    // Simple character-based similarity as fallback
-    let mut matches = 0;
-
-    let chars_a: std::collections::HashSet<char> = fp_a_hex.chars().collect();
-    let chars_b: std::collections::HashSet<char> = fp_b_hex.chars().collect();
-
-    for c in &chars_a {
-        if chars_b.contains(c) {
-            matches += 1;
-        }
-    }
-
-    let total = chars_a.len() + chars_b.len() - matches;
-
-    if total == 0 {
-        return 1.0;
-    }
-
-    matches as f64 / total as f64
+    hex_to_bitvec(fp_a_hex).tanimoto(&hex_to_bitvec(fp_b_hex))
 }
 
-/// Calculate Dice similarity between two ECFP4 fingerprints (hex format).
+/// Calculate Dice similarity between two ECFP4 fingerprints (hex format from `get_fingerprint`).
 #[wasm_bindgen]
 pub fn dice_similarity(fp_a_hex: &str, fp_b_hex: &str) -> f64 {
-    if fp_a_hex == fp_b_hex {
-        return 1.0;
-    }
-
-    let chars_a: std::collections::HashSet<char> = fp_a_hex.chars().collect();
-    let chars_b: std::collections::HashSet<char> = fp_b_hex.chars().collect();
-
-    let mut matches = 0;
-    for c in &chars_a {
-        if chars_b.contains(c) {
-            matches += 1;
-        }
-    }
-
-    let total = chars_a.len() + chars_b.len();
-    if total == 0 {
-        return 1.0;
-    }
-
-    2.0 * matches as f64 / total as f64
+    hex_to_bitvec(fp_a_hex).dice(&hex_to_bitvec(fp_b_hex))
 }
 
 /// Identify functional groups in a molecule.
@@ -828,11 +847,59 @@ pub struct McsResultDto {
     pub similarity: f64,
 }
 
+/// Compute the maximum common substructure between two molecules, mapped onto
+/// molecule A's atom/bond indices, with an MCS-based Tanimoto similarity score.
+/// Pure Rust core of [`find_mcs`], kept free of the wasm/JsValue boundary so it's
+/// directly unit-testable.
+fn compute_mcs(
+    chem_mol_a: &chematic::core::Molecule,
+    chem_mol_b: &chematic::core::Molecule,
+) -> McsResultDto {
+    use chematic::smarts;
+
+    // find_mcs returns a QueryMolecule representing the common substructure as an
+    // abstract pattern; map it back onto molecule A's atom/bond indices via substructure
+    // matching so the UI can highlight the actual shared atoms/bonds.
+    let mcs_query = smarts::find_mcs(&[chem_mol_a, chem_mol_b]);
+    let matches_a = smarts::find_matches(&mcs_query, chem_mol_a);
+
+    let (common_atoms, common_bonds) = match matches_a.first() {
+        Some(atom_map) => {
+            let common_atoms: Vec<u32> = atom_map.values().map(|idx| idx.0).collect();
+            let common_bonds: Vec<u32> = mcs_query
+                .bonds
+                .iter()
+                .filter_map(|qb| {
+                    let a = *atom_map.get(&qb.atom1)?;
+                    let b = *atom_map.get(&qb.atom2)?;
+                    chem_mol_a
+                        .bond_between(a, b)
+                        .map(|(bond_idx, _)| bond_idx.0)
+                })
+                .collect();
+            (common_atoms, common_bonds)
+        }
+        None => (Vec::new(), Vec::new()),
+    };
+
+    // MCS-based Tanimoto similarity: |MCS| / (|A| + |B| - |MCS|), using the real
+    // common-substructure atom count rather than an atom-count-ratio proxy.
+    let a_count = chem_mol_a.atom_count() as f64;
+    let b_count = chem_mol_b.atom_count() as f64;
+    let mcs_count = common_atoms.len() as f64;
+    let denom = a_count + b_count - mcs_count;
+    let similarity = if denom <= 0.0 { 1.0 } else { mcs_count / denom };
+
+    McsResultDto {
+        common_atoms,
+        common_bonds,
+        similarity,
+    }
+}
+
 /// Find maximum common substructure (MCS) between two molecules.
 #[wasm_bindgen]
 pub fn find_mcs(mol_a_json: &JsValue, mol_b_json: &JsValue) -> Result<JsValue, JsValue> {
-    use chematic::smarts;
-
     let mol_a_dto: MoleculeDto = serde_wasm_bindgen::from_value(mol_a_json.clone())
         .map_err(|e| JsValue::from_str(&format!("JSON decode failed: {e}")))?;
 
@@ -842,32 +909,7 @@ pub fn find_mcs(mol_a_json: &JsValue, mol_b_json: &JsValue) -> Result<JsValue, J
     let chem_mol_a = dto_to_chem(&mol_a_dto)?;
     let chem_mol_b = dto_to_chem(&mol_b_dto)?;
 
-    // Find MCS scaffold by passing both molecules as a slice
-    // find_mcs returns a QueryMolecule representing the common substructure
-    let _mcs_query = smarts::find_mcs(&[&chem_mol_a, &chem_mol_b]);
-
-    // For now, return empty common atoms/bonds with similarity based on atom count matching
-    // A full implementation would require parsing the QueryMolecule structure
-    // which is complex and beyond the scope of this initial integration
-
-    // Calculate similarity as ratio of common atom count estimate
-    // Simplified: use atom count similarity
-    let a_count = mol_a_dto.atoms.len();
-    let b_count = mol_b_dto.atoms.len();
-    let min_count = std::cmp::min(a_count, b_count);
-    let max_count = std::cmp::max(a_count, b_count);
-
-    let similarity = if max_count > 0 {
-        min_count as f64 / max_count as f64
-    } else {
-        1.0
-    };
-
-    let result = McsResultDto {
-        common_atoms: Vec::new(),
-        common_bonds: Vec::new(),
-        similarity,
-    };
+    let result = compute_mcs(&chem_mol_a, &chem_mol_b);
 
     serde_wasm_bindgen::to_value(&result)
         .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
@@ -1008,4 +1050,93 @@ pub fn parse_pdb_text(text: &str) -> Result<JsValue, JsValue> {
 
     serde_wasm_bindgen::to_value(&coords_dto)
         .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
+}
+
+#[cfg(test)]
+mod correctness_tests {
+    use super::*;
+
+    fn mol(smiles: &str) -> chematic::core::Molecule {
+        chematic::smiles::parse(smiles).expect("test SMILES must parse")
+    }
+
+    // ── Fingerprint hex round-trip and real bit-vector similarity ──
+
+    #[test]
+    fn fingerprint_hex_round_trips_exactly() {
+        let bits = chematic::fp::ecfp4(&mol("c1ccccc1O")); // phenol
+        let round_tripped = hex_to_bitvec(&bitvec_to_hex(&bits));
+        assert_eq!(bits, round_tripped);
+    }
+
+    #[test]
+    fn tanimoto_and_dice_are_one_for_identical_molecules() {
+        let fp = bitvec_to_hex(&chematic::fp::ecfp4(&mol("CCO")));
+        assert_eq!(tanimoto_similarity(&fp, &fp), 1.0);
+        assert_eq!(dice_similarity(&fp, &fp), 1.0);
+    }
+
+    #[test]
+    fn tanimoto_and_dice_are_lower_for_dissimilar_molecules() {
+        let fp_ethanol = bitvec_to_hex(&chematic::fp::ecfp4(&mol("CCO")));
+        let fp_benzene = bitvec_to_hex(&chematic::fp::ecfp4(&mol("c1ccccc1")));
+        let tanimoto = tanimoto_similarity(&fp_ethanol, &fp_benzene);
+        let dice = dice_similarity(&fp_ethanol, &fp_benzene);
+        assert!(
+            (0.0..1.0).contains(&tanimoto),
+            "tanimoto out of range: {tanimoto}"
+        );
+        assert!((0.0..1.0).contains(&dice), "dice out of range: {dice}");
+    }
+
+    #[test]
+    fn similar_molecules_score_higher_than_dissimilar_ones() {
+        // Propan-1-ol shares far more structure with ethanol than benzene does.
+        let fp_ethanol = bitvec_to_hex(&chematic::fp::ecfp4(&mol("CCO")));
+        let fp_propanol = bitvec_to_hex(&chematic::fp::ecfp4(&mol("CCCO")));
+        let fp_benzene = bitvec_to_hex(&chematic::fp::ecfp4(&mol("c1ccccc1")));
+        let close = tanimoto_similarity(&fp_ethanol, &fp_propanol);
+        let far = tanimoto_similarity(&fp_ethanol, &fp_benzene);
+        assert!(
+            close > far,
+            "expected ethanol~propanol ({close}) > ethanol~benzene ({far})"
+        );
+    }
+
+    // ── MCS: real substructure match, not an atom-count proxy ──
+
+    #[test]
+    fn mcs_of_identical_molecules_is_the_whole_molecule() {
+        let m = mol("CCO");
+        let result = compute_mcs(&m, &m);
+        assert_eq!(result.common_atoms.len(), m.atom_count());
+        assert_eq!(result.similarity, 1.0);
+    }
+
+    #[test]
+    fn mcs_finds_shared_substructure_between_related_molecules() {
+        // Ethanol (C-C-O) is a substructure of propan-1-ol (C-C-C-O).
+        let ethanol = mol("CCO");
+        let propanol = mol("CCCO");
+        let result = compute_mcs(&ethanol, &propanol);
+        assert!(
+            result.common_atoms.len() >= 3,
+            "expected at least the 3-atom C-C-O chain, got {}",
+            result.common_atoms.len()
+        );
+        assert!(result.similarity > 0.0 && result.similarity < 1.0);
+    }
+
+    #[test]
+    fn mcs_similarity_is_lower_for_unrelated_molecules() {
+        let ethanol = mol("CCO");
+        let propanol = mol("CCCO");
+        let benzene = mol("c1ccccc1");
+        let related = compute_mcs(&ethanol, &propanol).similarity;
+        let unrelated = compute_mcs(&ethanol, &benzene).similarity;
+        assert!(
+            related > unrelated,
+            "expected ethanol~propanol ({related}) > ethanol~benzene ({unrelated})"
+        );
+    }
 }
