@@ -135,9 +135,14 @@ export interface AtomMapping {
   totalMappedAtoms: number;
 }
 
+/**
+ * Structural facts about a drawn reaction scheme (step count, arrow count) — not
+ * a mechanism classification. Distinguishing SN1/SN2/E1/E2/addition requires real
+ * analysis (bonds broken/formed, nucleophile/electrophile character, leaving
+ * groups); this app has no such analysis, so it doesn't claim one.
+ */
 export interface ReactionClassification {
-  type: 'sn1' | 'sn2' | 'e1' | 'e2' | 'electrophilic_addition' | 'nucleophilic_addition' | 'other';
-  confidence: number;
+  type: 'single_step' | 'multi_step' | 'unknown';
   indicators: string[];
 }
 

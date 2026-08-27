@@ -18,11 +18,15 @@ export function enumerateStereoisomers(mol: MoleculeDto): StereoisomerResult {
       description: `${isomers.length} stereoisomer${isomers.length !== 1 ? 's' : ''} found`,
     };
   } catch (e) {
+    // A real failure must not look like "found 1 real stereoisomer" — returning
+    // the unchanged input with count: 1 did exactly that; count/list must reflect
+    // that nothing was actually enumerated.
     console.error('Stereoisomer enumeration failed:', e);
+    const message = e instanceof Error ? e.message : String(e);
     return {
-      stereoisomers: [mol],
-      count: 1,
-      description: 'Enumeration unavailable',
+      stereoisomers: [],
+      count: 0,
+      description: `Enumeration failed: ${message}`,
     };
   }
 }
@@ -45,11 +49,13 @@ export function checkLipinski(props: any): LipinskiViolation[] {
   return violations;
 }
 
-// Phase 8: Property Prediction
+// Phase 8: Extended Property Calculation
+// Named "prediction" historically, but these are deterministic descriptor
+// calculations (chematic-chem), not statistical/ML predictions — there's no real
+// confidence interval to report, so this no longer fabricates one.
 export interface PropertyPrediction {
   property: string;
   predictedValue: number | string;
-  confidence: number;
   source: string;
 }
 
@@ -61,31 +67,26 @@ export function predictProperties(mol: MoleculeDto): PropertyPrediction[] {
       {
         property: 'Synthetic Accessibility Score',
         predictedValue: props.sa_score.toFixed(2),
-        confidence: 0.95,
         source: 'chematic-chem',
       },
       {
         property: 'ESOL Solubility (log S)',
         predictedValue: props.esol_solubility.toFixed(2),
-        confidence: 0.90,
         source: 'chematic-chem',
       },
       {
         property: 'Fraction sp3 carbons',
         predictedValue: props.fsp3.toFixed(3),
-        confidence: 1.0,
         source: 'chematic-chem',
       },
       {
         property: 'PAINS Alerts',
         predictedValue: props.pains_violations ? 'VIOLATED' : 'PASS',
-        confidence: 1.0,
         source: 'chematic-chem',
       },
       {
         property: 'Stereocenters',
         predictedValue: `${props.num_stereocenters} (${props.num_unspecified_stereocenters} unspecified)`,
-        confidence: 1.0,
         source: 'chematic-chem',
       },
     ];

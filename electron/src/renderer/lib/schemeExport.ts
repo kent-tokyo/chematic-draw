@@ -161,9 +161,8 @@ export function exportSchemeAsCSV(
   csv += `Steps,${scheme.steps.length}\n\n`;
 
   if (reactionClassification) {
-    csv += 'Classification\n';
+    csv += 'Reaction Structure\n';
     csv += `Type,"${reactionClassification.type}"\n`;
-    csv += `Confidence,"${Math.round(reactionClassification.confidence * 100)}%"\n`;
     csv += `Indicators,"${reactionClassification.indicators.join('; ')}"\n\n`;
   }
 
@@ -216,7 +215,7 @@ export function getReactionSummary(
   let summary = `${scheme.title || 'Reaction Scheme'}\n\n`;
 
   if (reactionClassification) {
-    summary += `Type: ${reactionClassification.type.toUpperCase()} (${Math.round(reactionClassification.confidence * 100)}% confidence)\n`;
+    summary += `Type: ${reactionClassification.type.toUpperCase()}\n`;
     summary += `Evidence: ${reactionClassification.indicators.join(', ')}\n\n`;
   }
 

@@ -401,7 +401,7 @@ export function ReactionPanel() {
         </div>
       )}
 
-      {/* Reaction Classification Panel */}
+      {/* Reaction Structure Summary — step/arrow counts, not a mechanism classification */}
       {reactionClassification && scheme && scheme.steps.length > 0 && (
         <div style={{
           padding: '12px',
@@ -411,13 +411,10 @@ export function ReactionPanel() {
           marginBottom: '12px',
         }}>
           <div style={{ fontSize: '12px', fontWeight: 'bold', color: isDark ? '#90caf9' : '#1976d2', marginBottom: '8px' }}>
-            Reaction Type
+            Reaction Structure
           </div>
-          <div style={{ fontSize: '13px', fontWeight: 'bold', color: textColor, marginBottom: '4px' }}>
-            {reactionClassification.type.toUpperCase()}
-          </div>
-          <div style={{ fontSize: '10px', color: labelColor, marginBottom: '6px' }}>
-            Confidence: {Math.round(reactionClassification.confidence * 100)}%
+          <div style={{ fontSize: '13px', fontWeight: 'bold', color: textColor, marginBottom: '6px' }}>
+            {reactionClassification.type === 'multi_step' ? 'MULTI-STEP' : reactionClassification.type === 'single_step' ? 'SINGLE-STEP' : 'UNKNOWN'}
           </div>
           {reactionClassification.indicators.map((ind, i) => (
             <div key={i} style={{ fontSize: '9px', color: labelColor }}>• {ind}</div>

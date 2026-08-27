@@ -73,7 +73,7 @@ export function PropertyPredictionPanel() {
         <div style={{ border: `1px solid ${borderColor}`, borderRadius: '4px', overflow: 'hidden' }}>
           <div style={{ padding: '8px', backgroundColor: inputBg, borderBottom: `1px solid ${borderColor}` }}>
             <div style={{ fontSize: '11px', fontWeight: 'bold', color: textColor }}>
-              Spectroscopic Predictions
+              Calculated Properties
             </div>
           </div>
 
@@ -85,7 +85,7 @@ export function PropertyPredictionPanel() {
                   {pred.predictedValue}
                 </div>
                 <div style={{ fontSize: '9px', color: labelColor, marginTop: '4px' }}>
-                  Confidence: {(pred.confidence * 100).toFixed(0)}% • {pred.source}
+                  {pred.source}
                 </div>
               </div>
             ))}
@@ -95,7 +95,7 @@ export function PropertyPredictionPanel() {
 
       {/* Info */}
       <div style={{ fontSize: '9px', color: labelColor, lineHeight: '1.4' }}>
-        Calculated from molecular structure using chematic engine. Predictions based on available models.
+        Calculated directly from molecular structure using the chematic engine (deterministic descriptors, not statistical predictions).
       </div>
     </div>
   );

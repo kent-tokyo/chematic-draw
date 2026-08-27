@@ -172,37 +172,28 @@ function assignAtomColors(entries: Map<number, AtomMapEntry>, scheme: ReactionSc
 }
 
 /**
- * Classify reaction type
+ * Summarize the structure of a drawn reaction scheme: step count and arrow count.
+ * This is NOT a mechanism classification — distinguishing SN1/SN2/E1/E2/addition
+ * requires real analysis (bonds broken/formed, nucleophile/electrophile character,
+ * leaving groups) that this app doesn't perform, so it doesn't guess one.
  */
 export function classifyReaction(scheme: ReactionSchemeContext): ReactionClassification {
-  const indicators: string[] = [];
-  let type: ReactionClassification['type'] = 'other';
-  let confidence = 0.5;
-
   if (!scheme || scheme.steps.length === 0) {
-    return { type: 'other', confidence: 0, indicators: [] };
+    return { type: 'unknown', indicators: [] };
   }
 
-  // Simple heuristics based on step count and arrow count
-  const firstStep = scheme.steps[0];
-  const hasMultipleSteps = scheme.steps.length > 1;
-  const arrowCount = firstStep.arrows.length;
+  const stepCount = scheme.steps.length;
+  const arrowCount = scheme.steps.reduce((sum, step) => sum + step.arrows.length, 0);
 
-  if (scheme.steps.length === 1 && arrowCount > 0) {
-    type = 'sn2'; // Single step, likely SN2
-    confidence = 0.6;
-    indicators.push('Single step mechanism');
-  } else if (hasMultipleSteps) {
-    type = 'sn1'; // Multi-step, likely SN1 or E1
-    confidence = 0.5;
-    indicators.push('Multi-step mechanism');
-  } else {
-    type = 'electrophilic_addition';
-    confidence = 0.4;
-    indicators.push('Addition-type mechanism');
-  }
+  const indicators: string[] = [
+    stepCount > 1 ? `${stepCount} steps` : 'Single step',
+    `${arrowCount} mechanism arrow${arrowCount !== 1 ? 's' : ''} drawn`,
+  ];
 
-  return { type, confidence, indicators };
+  return {
+    type: stepCount > 1 ? 'multi_step' : 'single_step',
+    indicators,
+  };
 }
 
 /**
