@@ -28,6 +28,9 @@
     "email": "ke.tanabe@gmail.com"
   },
   "license": "MIT",
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "devDependencies": {
     "@electron-forge/cli": "^7.11.2",
     "@electron-forge/maker-deb": "^7.11.2",
