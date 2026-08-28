@@ -25,6 +25,12 @@ export default defineConfig({
     },
   },
   server: {
+    // Fixed, not Vite's auto-increment-on-conflict default: playwright.config.ts's
+    // webServer.url/baseURL hardcode this port, so a silent drift to 5174+ would
+    // reproduce the exact "E2E tests time out waiting for the wrong port" bug
+    // this comment is next to the fix for.
+    port: 5173,
+    strictPort: true,
     fs: {
       allow: ['../..'],
     },
