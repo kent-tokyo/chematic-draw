@@ -66,6 +66,15 @@ jobs:
         working-directory: electron
         run: npm audit --audit-level=moderate
 
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      # cargo-audit isn't a stock cargo subcommand — it was never installed
+      # here, so this job has been failing on "no such subcommand: audit"
+      # since the day it was written, not from an actual finding.
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@cargo-audit
+
       - name: Run cargo audit
         run: cargo audit
 
@@ -77,10 +86,65 @@ jobs:
 
       - name: Check npm outdated
         working-directory: electron
-        run: npm outdated
+        run: npm outdated || true # npm outdated exits 1 whenever anything is outdated - informational, not a failure
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      # Same issue as cargo-audit above: cargo-outdated needs an explicit
+      # install, it isn't bundled with cargo.
+      - name: Install cargo-outdated
+        uses: taiki-e/install-action@cargo-outdated
+
       - name: Check Rust dependencies
-        run: cargo outdated
+        run: cargo outdated || true # informational, not a failure
+
+  # Reporting only, not a gate: generates an SBOM and a license inventory
+  # as workflow artifacts. Deciding which licenses are acceptable is a
+  # legal/policy call this workflow doesn't make — it surfaces what's in
+  # use so a human can.
+  sbom-and-license:
+    name: SBOM & License Report
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: electron/package-lock.json
+
+      - name: Install dependencies
+        working-directory: electron
+        run: npm ci
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: 'Generate SBOM (SPDX, whole repo: Cargo + npm)'
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      - name: Install cargo-license
+        uses: taiki-e/install-action@cargo-license
+
+      - name: Rust license report
+        run: cargo license --json > rust-licenses.json
+
+      - name: npm license report
+        working-directory: electron
+        run: npx --yes license-checker --json > ../npm-licenses.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom-and-licenses
+          path: |
+            sbom.spdx.json
+            rust-licenses.json
+            npm-licenses.json
+          retention-days: 90
