@@ -158,5 +158,10 @@ jobs:
             windows-binaries/**
           generate_release_notes: true
           draft: false
+          # A tag with a semver pre-release identifier (v1.2.3-rc.1,
+          # -beta, -alpha, ...) is a pre-release by definition - marking it
+          # otherwise on GitHub would present a release-candidate as
+          # stable/latest to anyone browsing releases.
+          prerelease: ${{ contains(github.ref_name, '-') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
