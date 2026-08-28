@@ -21,9 +21,20 @@ export function Viewer3DPanel() {
     zoom: 1.0,
   });
   const [coords3d, setCoords3d] = useState<Coords3dDto | null>(null);
+  const [generationError, setGenerationError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [lastMouse, setLastMouse] = useState({ x: 0, y: 0 });
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Clear any previously-generated 3D structure when the molecule changes —
+  // otherwise switching molecules (without re-clicking "3D 生成") keeps
+  // showing the PREVIOUS molecule's 3D structure indefinitely, and a
+  // generation failure on the new molecule could look like it succeeded.
+  useEffect(() => {
+    setCoords3d(null);
+    setGenerationError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [molecule]);
 
   const bgColor = theme === 'dark' ? '#1a1f2a' : '#ffffff';
   const textColor = theme === 'dark' ? '#d8deea' : '#1d2430';
@@ -35,11 +46,15 @@ export function Viewer3DPanel() {
     if (molecule.atoms.length === 0) return;
     try {
       setIsGenerating(true);
+      setGenerationError(null);
       const raw3d = wasmBridge.generate3dCoords(molecule);
       const optimized = wasmBridge.minimize3d(molecule, raw3d);
       setCoords3d(optimized);
     } catch (err) {
-      console.error('3D generation failed:', err);
+      // Clear any stale result rather than leaving a previous (possibly
+      // different molecule's) 3D structure displayed as if it were current.
+      setCoords3d(null);
+      setGenerationError(err instanceof Error ? err.message : String(err));
     } finally {
       setIsGenerating(false);
     }
@@ -258,6 +273,12 @@ export function Viewer3DPanel() {
           XYZ エクスポート
         </button>
       </div>
+
+      {generationError && (
+        <div style={{ fontSize: '10px', color: '#f26d6d', padding: '8px', backgroundColor: theme === 'dark' ? '#3a2a2a' : '#fdecea', borderRadius: '4px' }}>
+          3D 座標を生成できませんでした: {generationError}
+        </div>
+      )}
 
       {/* Info */}
       <div style={{ fontSize: '9px', color: labelColor, lineHeight: '1.4' }}>

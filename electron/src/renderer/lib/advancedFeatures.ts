@@ -92,8 +92,11 @@ export function predictProperties(mol: MoleculeDto): PropertyPrediction[] {
     ];
     return predictions;
   } catch (e) {
-    console.error('Property prediction failed:', e);
-    return [];
+    // Must not return [] here: an empty predictions array reads as "no
+    // properties to show," not "the calculation failed" — the caller
+    // (PropertyPredictionPanel) has an explicit error state for exactly
+    // this and needs the throw to reach it.
+    throw e instanceof Error ? e : new Error(String(e));
   }
 }
 

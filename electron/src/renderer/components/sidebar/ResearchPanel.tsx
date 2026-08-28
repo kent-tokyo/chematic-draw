@@ -12,32 +12,42 @@ interface Properties {
   rotatable_bonds?: number;
 }
 
+type ResearchState =
+  | { status: 'idle' | 'loading' }
+  | { status: 'success'; properties: Properties; iupacName: string }
+  | { status: 'error'; message: string };
+
 export function ResearchPanel() {
   const theme = useUIStore((s) => s.theme);
   const activeSidebarPanel = useUIStore((s) => s.activeSidebarPanel);
   const molecule = useMoleculeStore((s) => s.molecule);
   const molKey = `${molecule.atoms.length}:${molecule.bonds.length}`;
-  const [properties, setProperties] = useState<Properties | null>(null);
-  const [iupacName, setIupacName] = useState<string>('');
-  const [loading, setLoading] = useState(false);
+  const [state, setState] = useState<ResearchState>({ status: 'idle' });
 
+  // Switch to 'loading' before computing so a failure on a newly-selected
+  // molecule can never be mistaken for "no molecule loaded" (its own
+  // distinct, correct message) or for the previous molecule's result.
   useEffect(() => {
     if (activeSidebarPanel !== 'research') return;
-    setLoading(true);
+    setState({ status: 'loading' });
     try {
-      const props = wasmBridge.getProperties(molecule);
-      setProperties(props);
+      const properties = wasmBridge.getProperties(molecule);
+      let iupacName: string;
       try {
-        const name = wasmBridge.getIupacName(molecule);
-        setIupacName(name);
+        iupacName = wasmBridge.getIupacName(molecule);
       } catch (err) {
-        setIupacName('(unavailable)');
+        iupacName = '(unavailable)';
       }
+      setState({ status: 'success', properties, iupacName });
     } catch (err) {
-      setProperties(null);
+      setState({ status: 'error', message: err instanceof Error ? err.message : String(err) });
     }
-    setLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [molKey, activeSidebarPanel]);
+
+  const loading = state.status === 'loading' || state.status === 'idle';
+  const properties = state.status === 'success' ? state.properties : null;
+  const iupacName = state.status === 'success' ? state.iupacName : '';
 
   const textColor = theme === 'dark' ? '#d8deea' : '#1d2430';
   const labelColor = theme === 'dark' ? '#a0a8b8' : '#555555';
@@ -126,7 +136,14 @@ export function ResearchPanel() {
         </>
       )}
 
-      {!loading && !properties && (
+      {state.status === 'error' && (
+        <div style={{ color: '#f26d6d', fontSize: '12px', textAlign: 'center', padding: '20px 0' }}>
+          プロパティを計算できませんでした
+          <div style={{ fontSize: '10px', marginTop: '4px', opacity: 0.85 }}>{state.message}</div>
+        </div>
+      )}
+
+      {!loading && state.status !== 'error' && !properties && (
         <div style={{ color: labelColor, fontSize: '12px', textAlign: 'center', padding: '20px 0' }}>
           No molecule loaded
         </div>

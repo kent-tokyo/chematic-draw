@@ -1,15 +1,19 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
 import { predictProperties, PropertyPrediction } from '../../lib/advancedFeatures';
 import * as wasmBridge from '../../wasm/wasmBridge';
 
+type PredictionState =
+  | { status: 'idle' | 'loading' }
+  | { status: 'success'; molecularProps: Record<string, any>; predictions: PropertyPrediction[] }
+  | { status: 'error'; message: string };
+
 export function PropertyPredictionPanel() {
   const theme = useUIStore((s) => s.theme);
   const molecule = useMoleculeStore((s) => s.molecule);
 
-  const [predictions, setPredictions] = useState<PropertyPrediction[]>([]);
-  const [molecularProps, setMolecularProps] = useState<Record<string, any> | null>(null);
+  const [state, setState] = useState<PredictionState>({ status: 'idle' });
 
   const bgColor = theme === 'dark' ? '#2f3a47' : '#ffffff';
   const borderColor = theme === 'dark' ? '#3a4a57' : '#e0e0e0';
@@ -17,20 +21,42 @@ export function PropertyPredictionPanel() {
   const labelColor = theme === 'dark' ? '#a0a8b8' : '#555555';
   const inputBg = theme === 'dark' ? '#1e2530' : '#f9f9f9';
   const accentColor = '#4d8dff';
+  const errorColor = '#d94545';
 
-  useMemo(() => {
+  // Switch to 'loading' (clearing any prior success/error) before
+  // computing, so switching from a working molecule to a failing one can't
+  // leave the previous molecule's numbers rendered as if they were current.
+  useEffect(() => {
+    setState({ status: 'loading' });
     try {
-      const props = wasmBridge.getProperties(molecule);
-      setMolecularProps(props);
-      const preds = predictProperties(molecule);
-      setPredictions(preds);
+      const molecularProps = wasmBridge.getProperties(molecule);
+      const predictions = predictProperties(molecule);
+      setState({ status: 'success', molecularProps, predictions });
     } catch (err) {
-      console.error('Property prediction failed:', err);
+      setState({ status: 'error', message: err instanceof Error ? err.message : String(err) });
     }
   }, [molecule]);
 
+  const molecularProps = state.status === 'success' ? state.molecularProps : null;
+  const predictions = state.status === 'success' ? state.predictions : [];
+
   return (
     <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      {state.status === 'error' && (
+        <div
+          style={{
+            padding: '12px',
+            backgroundColor: errorColor,
+            color: 'white',
+            borderRadius: '4px',
+            fontSize: '11px',
+          }}
+        >
+          プロパティを計算できませんでした
+          <div style={{ fontSize: '9px', marginTop: '4px', opacity: 0.85 }}>{state.message}</div>
+        </div>
+      )}
+
       {/* Molecular Properties */}
       {molecularProps && (
         <div style={{ border: `1px solid ${borderColor}`, borderRadius: '4px', overflow: 'hidden' }}>
