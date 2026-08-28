@@ -51,7 +51,7 @@ describe('Viewer3DPanel', () => {
   it('should handle mouse drag for rotation', async () => {
     render(<Viewer3DPanel />);
 
-    const canvas = screen.getByRole('img', { hidden: true }) || document.querySelector('canvas');
+    const canvas = document.querySelector('canvas');
     if (!canvas) return;
 
     fireEvent.mouseDown(canvas, { clientX: 100, clientY: 100 });
@@ -66,7 +66,7 @@ describe('Viewer3DPanel', () => {
   it('should handle mouse wheel for zoom', async () => {
     render(<Viewer3DPanel />);
 
-    const canvas = screen.getByRole('img', { hidden: true }) || document.querySelector('canvas');
+    const canvas = document.querySelector('canvas');
     if (!canvas) return;
 
     fireEvent.wheel(canvas, { deltaY: 100 });
