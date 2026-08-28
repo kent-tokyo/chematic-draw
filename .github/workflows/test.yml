@@ -20,6 +20,23 @@ jobs:
           cache: 'npm'
           cache-dependency-path: electron/package-lock.json
 
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: 'crates'
+
+      - name: Install wasm-pack
+        run: cargo install wasm-pack
+
+      - name: Build WASM
+        working-directory: electron
+        run: npm run build:wasm
+
       - name: Install dependencies
         working-directory: electron
         run: npm ci
@@ -127,6 +144,51 @@ jobs:
           path: electron/playwright-report/
           retention-days: 30
 
+  electron-smoke:
+    name: Electron Smoke Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: electron/package-lock.json
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: 'crates'
+
+      - name: Install wasm-pack
+        run: cargo install wasm-pack
+
+      - name: Build WASM
+        working-directory: electron
+        run: npm run build:wasm
+
+      - name: Install JavaScript dependencies
+        working-directory: electron
+        run: npm ci
+
+      - name: Package the app
+        working-directory: electron
+        run: npm run package
+
+      - name: Install Xvfb (Electron needs a display server on Linux, even headless)
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      - name: Run Electron Smoke Test
+        working-directory: electron
+        run: xvfb-run -a npm run test:e2e:electron
+
   performance:
     name: Performance Benchmarks
     runs-on: ubuntu-latest
@@ -168,7 +230,7 @@ jobs:
   summary:
     name: Test Summary
     runs-on: ubuntu-latest
-    needs: [lint, unit-tests, e2e-tests, performance]
+    needs: [lint, unit-tests, e2e-tests, electron-smoke, performance]
     if: always()
     steps:
       - name: Check test status
@@ -176,5 +238,6 @@ jobs:
           if [ "${{ needs.lint.result }}" != "success" ]; then exit 1; fi
           if [ "${{ needs.unit-tests.result }}" != "success" ]; then exit 1; fi
           if [ "${{ needs.e2e-tests.result }}" != "success" ]; then exit 1; fi
+          if [ "${{ needs.electron-smoke.result }}" != "success" ]; then exit 1; fi
           if [ "${{ needs.performance.result }}" != "success" ]; then exit 1; fi
           echo "All tests passed!"
