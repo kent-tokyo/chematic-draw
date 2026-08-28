@@ -44,21 +44,32 @@ if (typeof HTMLCanvasElement !== 'undefined') {
   HTMLCanvasElement.prototype.getContext = jest.fn(() => mockContext2D) as unknown as typeof HTMLCanvasElement.prototype.getContext;
 }
 
-// Mock WASM module
-jest.mock('./renderer/wasm/pkg', () => ({
-  parse_any: jest.fn(),
-  to_smiles: jest.fn(),
-  to_canonical_smiles: jest.fn(),
-  get_properties: jest.fn(),
-  generate_3d_coords: jest.fn(),
-  minimize_3d_uff: jest.fn(),
-  get_fingerprint: jest.fn(),
-  get_fingerprint_with_metadata: jest.fn(),
-  tanimoto_similarity: jest.fn(),
-  dice_similarity: jest.fn(),
-  find_mcs: jest.fn(),
-  run_reactants: jest.fn(),
-}));
+// Mock WASM module. `{ virtual: true }` because this setup file runs before
+// EVERY test file (setupFilesAfterEach), including .bench.ts real-WASM
+// suites that never import wasmBridge and run in jobs (e.g. CI's
+// Performance job) that only build the nodejs-target pkg-node/ output, not
+// this web-target pkg/ — without `virtual: true`, jest.mock still tries to
+// resolve './renderer/wasm/pkg' on disk to register the mock (even though
+// it's never required by those files) and fails outright if pkg/ doesn't
+// exist, per https://jestjs.io/docs/jest-object#jestmockmodulename-factory-options.
+jest.mock(
+  './renderer/wasm/pkg',
+  () => ({
+    parse_any: jest.fn(),
+    to_smiles: jest.fn(),
+    to_canonical_smiles: jest.fn(),
+    get_properties: jest.fn(),
+    generate_3d_coords: jest.fn(),
+    minimize_3d_uff: jest.fn(),
+    get_fingerprint: jest.fn(),
+    get_fingerprint_with_metadata: jest.fn(),
+    tanimoto_similarity: jest.fn(),
+    dice_similarity: jest.fn(),
+    find_mcs: jest.fn(),
+    run_reactants: jest.fn(),
+  }),
+  { virtual: true }
+);
 
 // Mock Zustand stores
 jest.mock('./renderer/store/moleculeStore', () => ({
