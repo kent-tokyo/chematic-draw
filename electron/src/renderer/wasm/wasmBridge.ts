@@ -1,15 +1,70 @@
 import * as wasmModule from './pkg';
 import { MoleculeDto } from '../store/types';
 
-let initialized = false;
+/**
+ * WASM module lifecycle. Every WASM-calling function in this file assumes
+ * `ready` — nothing here checks readiness per call (see the app-level
+ * startup boundary in renderer.tsx, which is what actually enforces this:
+ * WASM-dependent UI isn't mounted until `getWasmStatus() === 'ready'`).
+ * This state machine exists so that boundary — and callers of initWasm()
+ * from more than one place — have one real, race-free source of truth
+ * instead of the previous single `initialized` boolean, which (a) had no
+ * failure state at all (a failed init left `initialized` false forever,
+ * indistinguishable from "hasn't started yet"), and (b) had no protection
+ * against concurrent callers: two calls to initWasm() before the first one
+ * resolved would both see `initialized === false` and both call
+ * `wasmModule.default()`.
+ */
+export type WasmStatus = 'idle' | 'loading' | 'ready' | 'failed';
 
-export async function initWasm(): Promise<void> {
-  if (initialized) return;
-  // wasm-pack build outputs an init function; call it if available
-  if (wasmModule.default) {
-    await wasmModule.default();
-  }
-  initialized = true;
+let status: WasmStatus = 'idle';
+let initPromise: Promise<void> | null = null;
+let initError: Error | null = null;
+
+export function getWasmStatus(): WasmStatus {
+  return status;
+}
+
+export function getWasmInitializationError(): Error | null {
+  return initError;
+}
+
+/**
+ * Start WASM initialization if it hasn't started yet, and resolve once it's
+ * ready — or reject with the real init error if it failed. Concurrent
+ * callers (e.g. two components mounting at once) all share the same
+ * in-flight promise rather than each re-triggering `wasmModule.default()`.
+ * Calling this again after a failure retries initialization (status only
+ * ever reaches 'ready' on genuine success — never silently after a failure).
+ */
+export function initWasm(): Promise<void> {
+  if (status === 'ready') return Promise.resolve();
+  if (status === 'loading' && initPromise) return initPromise;
+
+  status = 'loading';
+  initError = null;
+  initPromise = (async () => {
+    try {
+      // wasm-pack build outputs an init function; call it if available
+      if (wasmModule.default) {
+        await wasmModule.default();
+      }
+      status = 'ready';
+    } catch (err) {
+      status = 'failed';
+      initError = err instanceof Error ? err : new Error(String(err));
+      initPromise = null;
+      throw initError;
+    }
+  })();
+  return initPromise;
+}
+
+/** Alias for initWasm() — same shared-promise behavior, named for call
+ * sites that want to express "make sure WASM is usable" rather than "kick
+ * off loading". */
+export function ensureWasmReady(): Promise<void> {
+  return initWasm();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

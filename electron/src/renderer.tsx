@@ -15,7 +15,9 @@ import { Tool } from './renderer/store/types';
 import * as wasmBridge from './renderer/wasm/wasmBridge';
 
 function App() {
-  const [wasmLoaded, setWasmLoaded] = useState(false);
+  const [wasmStatus, setWasmStatus] = useState<wasmBridge.WasmStatus>('idle');
+  const [wasmError, setWasmError] = useState<string | null>(null);
+  const wasmLoaded = wasmStatus === 'ready';
   const [filePath, setFilePath] = useState<string | null>(null);
   const theme = useUIStore((s) => s.theme);
   const setTheme = useUIStore((s) => s.setTheme);
@@ -34,11 +36,22 @@ function App() {
   const showBatchDialog = useUIStore((s) => s.showBatchDialog);
   const addBatchResult = useUIStore((s) => s.addBatchResult);
 
-  // Initialize WASM and hydrate settings
+  // Initialize WASM and hydrate settings. This is the app's startup
+  // boundary: WASM-dependent UI (MoleculeCanvas/Sidebar, below) isn't
+  // mounted until wasmStatus reaches 'ready', so no individual panel needs
+  // to guard its own WASM calls against "not loaded yet" — this replaces
+  // per-panel try/catch guessing with one real precondition.
   useEffect(() => {
+    setWasmStatus('loading');
     const init = async () => {
-      await wasmBridge.initWasm();
-      setWasmLoaded(true);
+      try {
+        await wasmBridge.initWasm();
+      } catch (err) {
+        setWasmStatus('failed');
+        setWasmError(err instanceof Error ? err.message : String(err));
+        return;
+      }
+      setWasmStatus('ready');
 
       // Hydrate settings from IPC
       if (typeof window !== 'undefined' && (window as any).electronAPI) {
@@ -265,6 +278,7 @@ function App() {
     <div
       data-testid="app-root"
       data-ready={wasmLoaded}
+      data-wasm-status={wasmStatus}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -332,15 +346,64 @@ function App() {
           {molecule.atoms.length}a • {molecule.bonds.length}b • {zoom.toFixed(0)}%
         </div>
 
-        {!wasmLoaded && (
+        {wasmStatus === 'loading' && (
           <span style={{ color: '#ff6b6b', marginLeft: '12px', fontSize: '12px' }}>⚠️ WASM Loading...</span>
+        )}
+        {wasmStatus === 'failed' && (
+          <span style={{ color: '#ff6b6b', marginLeft: '12px', fontSize: '12px' }}>✕ WASM failed to load</span>
         )}
       </div>
 
-      {/* Canvas Area with Sidebar */}
+      {/* Canvas Area with Sidebar — not mounted until WASM is actually ready,
+          so no individual panel needs to guess whether it's safe to call
+          wasmBridge yet. */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        <MoleculeCanvas />
-        <Sidebar />
+        {wasmStatus === 'ready' && (
+          <>
+            <MoleculeCanvas />
+            <Sidebar />
+          </>
+        )}
+        {(wasmStatus === 'idle' || wasmStatus === 'loading') && (
+          <div
+            data-testid="wasm-loading"
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '14px',
+              opacity: 0.7,
+            }}
+          >
+            Loading chemistry engine…
+          </div>
+        )}
+        {wasmStatus === 'failed' && (
+          <div
+            data-testid="wasm-failed"
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '12px',
+              padding: '24px',
+              textAlign: 'center',
+            }}
+          >
+            <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#ff6b6b' }}>
+              Failed to load the chemistry engine
+            </div>
+            <div style={{ fontSize: '12px', opacity: 0.8, maxWidth: '480px' }}>
+              {wasmError ?? 'Unknown error.'}
+            </div>
+            <div style={{ fontSize: '11px', opacity: 0.6 }}>
+              Try restarting the app. If this keeps happening, please file an issue.
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Status Bar */}
