@@ -1,9 +1,15 @@
 /**
- * Performance benchmarks for P0-P3 implementations
- * Run with: npm run bench (once script is added)
+ * JS-level overhead smoke checks — NOT a chemistry performance benchmark.
+ * Every measurement below is array copies, Math.random(), and trigonometry
+ * simulating layout/rendering math; none of it calls real WASM. It used to
+ * be named performance.bench.ts and run under a "Performance Benchmarks" CI
+ * job, which implied it measured chemistry operation speed. It does not —
+ * see wasmPerformance.bench.ts for the real-WASM benchmark suite that
+ * replaced it for that purpose. This file stays only as a cheap, generic
+ * "the JS runtime and JIT aren't doing something pathological" smoke check,
+ * and now runs as part of the regular Unit Tests job rather than a
+ * dedicated Performance job.
  */
-
-import * as wasmBridge from '../renderer/wasm/wasmBridge';
 
 // Generate large molecules for testing
 function generateLargeMolecule(atomCount: number) {
@@ -27,7 +33,7 @@ function generateLargeMolecule(atomCount: number) {
   return { atoms, bonds };
 }
 
-describe('Performance Benchmarks', () => {
+describe('JS overhead smoke checks (not a chemistry benchmark)', () => {
   describe('3D Coordinate Generation', () => {
     it('should generate 3D coords for small molecule (<50 atoms) in <500ms', () => {
       const mol = generateLargeMolecule(30);

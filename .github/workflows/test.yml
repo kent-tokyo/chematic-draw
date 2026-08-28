@@ -215,17 +215,26 @@ jobs:
       - name: Install wasm-pack
         run: cargo install wasm-pack
 
-      - name: Build WASM (Release)
-        working-directory: electron
-        run: npm run build:wasm:release
-
       - name: Install JavaScript dependencies
         working-directory: electron
         run: npm ci
 
-      - name: Run Performance Benchmarks
+      - name: Build WASM (nodejs target, for real-WASM performance benchmarks)
+        working-directory: electron
+        run: npm run build:wasm:test
+
+      - name: Run Performance Benchmarks (real WASM smoke gate + non-blocking report)
         working-directory: electron
         run: npm run test:perf
+
+      - name: Upload Performance Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: perf-report
+          path: electron/perf-report.json
+          if-no-files-found: warn
+          retention-days: 90
 
   summary:
     name: Test Summary

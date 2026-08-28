@@ -94,3 +94,7 @@ out/
 # Playwright
 playwright-report/
 test-results/
+
+# Real-WASM performance benchmark report (regenerated each run; see
+# wasmPerformance.bench.ts and the CI artifact upload step)
+perf-report.json

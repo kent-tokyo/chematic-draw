@@ -229,4 +229,23 @@ describe('WASM contract (real binary, not mocked)', () => {
     ) as { status: string };
     expect(outcome.status).toBe('no_match');
   });
+
+  // BLOCKED, not merely unwritten: chem_to_dto (used by parse_any) fills
+  // AtomDto.element with a depiction label (e.g. "" for a skeletal aromatic
+  // carbon), not a real element symbol; dto_to_chem (used by
+  // get_fingerprint and almost every other DTO-consuming function) requires
+  // Element::from_symbol() to succeed on that same field, so it throws
+  // "Unknown element: <label>" on every parse_any() result today. See
+  // internal_docs/ROADMAP.md for the tracked fix (AtomDto needs to carry a
+  // real symbol separately from its depiction label — confirmed benzene's
+  // label comes back as "", so there is no way to recover the symbol from
+  // the label string alone). Un-skip once that lands; until then this is
+  // deliberately not asserted as either passing or throwing, so it can't be
+  // mistaken for accepted behavior.
+  it.skip('real WASM parse -> fingerprint -> similarity succeeds (blocked: parse_any output cannot round-trip)', () => {
+    const parsed = wasm.parse_any('c1ccccc1');
+    const fp = wasm.get_fingerprint(parsed);
+    expect(fp).toHaveLength(512);
+    expect(wasm.tanimoto_similarity(fp, fp)).toBe(1.0);
+  });
 });
