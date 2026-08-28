@@ -161,30 +161,55 @@ describe('Performance Benchmarks', () => {
   });
 
   describe('Scaling Analysis', () => {
-    it('should demonstrate O(n) scaling for small to medium molecules', () => {
-      const sizes = [50, 100, 200];
-      const times: number[] = [];
+    // A lower-bound assertion on wall-clock ratios (e.g. "200 atoms must take
+    // at least 1.5x as long as 100 atoms") isn't a real performance
+    // guarantee — for a sub-millisecond operation, JIT warmup, GC pauses, and
+    // OS scheduling noise can easily make the *smaller* input measure slower
+    // than the larger one on a given run, with nothing actually regressing.
+    // Rigorous complexity analysis belongs in a real benchmark harness
+    // (Rust-side Criterion against the actual WASM operations, not this
+    // mocked JS array-spread stand-in) — not a CI-blocking assertion here.
+    //
+    // This test keeps exactly one blocking check: a generous upper bound
+    // that only fires on a genuine, severe regression (e.g. an accidental
+    // O(n²) change), using warm-up + repeated median-of-N measurement to
+    // damp out noise. The full per-size timing is logged, not asserted on,
+    // so a human can still eyeball the scaling trend.
+    it('should not regress severely as molecule size grows', () => {
+      const median = (values: number[]): number => {
+        const sorted = [...values].sort((a, b) => a - b);
+        return sorted[Math.floor(sorted.length / 2)];
+      };
 
-      for (const size of sizes) {
+      const measure = (size: number): number => {
         const mol = generateLargeMolecule(size);
-        const start = performance.now();
+        // Warm-up: let the JIT settle before the timed repetitions.
+        for (let i = 0; i < 3; i++) {
+          mol.atoms.map((a) => ({ ...a, z: Math.random() }));
+        }
+        const samples: number[] = [];
+        for (let i = 0; i < 7; i++) {
+          const start = performance.now();
+          mol.atoms.map((a) => ({ ...a, z: Math.random() }));
+          samples.push(performance.now() - start);
+        }
+        return median(samples);
+      };
 
-        const coords = {
-          atoms: mol.atoms.map((a) => ({ ...a, z: Math.random() })),
-        };
+      // Larger sizes than the old test (500 atoms is already an order of
+      // magnitude past this app's documented ">500 atoms" tier) so the
+      // per-size time is large enough for `performance.now()`'s resolution
+      // to actually distinguish it from noise.
+      const sizes = [500, 2000, 8000];
+      const times = sizes.map(measure);
+      // eslint-disable-next-line no-console
+      console.log('Scaling Analysis (median of 7, ms):', sizes.map((s, i) => `${s} atoms: ${times[i].toFixed(3)}`).join(', '));
 
-        const elapsed = performance.now() - start;
-        times.push(elapsed);
-      }
-
-      // Check approximate linear scaling
-      // time(200) should be roughly 2x time(100), 4x time(50)
-      const ratio1 = times[1] / times[0];
-      const ratio2 = times[2] / times[1];
-
-      // Allow 50% variance due to measurement noise
-      expect(ratio1).toBeGreaterThan(1.5);
-      expect(ratio1).toBeLessThan(3);
+      // Generous upper bound: true O(n) would put the 8000-atom run at ~16x
+      // the 500-atom run; this only fails on a drastic regression (e.g. an
+      // accidental O(n²)), not on ordinary measurement noise.
+      const scaleFactor = sizes[2] / sizes[0];
+      expect(times[2]).toBeLessThan(Math.max(times[0], 1) * scaleFactor * 5);
     });
   });
 
