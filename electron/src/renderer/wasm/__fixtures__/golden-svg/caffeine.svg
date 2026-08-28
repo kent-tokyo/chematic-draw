@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="217" height="192" viewBox="-20.00 -115.30 217.38 192.17">
+  <rect x="-20.00" y="-115.30" width="217.38" height="192.17" fill="white"/>
+  <circle cx="157.38" cy="-27.53" r="16" fill="#3050F8" opacity="0.5"/>
+  <circle cx="137.38" cy="34.03" r="16" fill="#3050F8" opacity="0.5"/>
+  <circle cx="102.97" cy="-95.30" r="16" fill="#FF0D0D" opacity="0.5"/>
+  <circle cx="51.49" cy="-48.94" r="16" fill="#3050F8" opacity="0.5"/>
+  <circle cx="0.00" cy="-2.58" r="16" fill="#FF0D0D" opacity="0.5"/>
+  <circle cx="65.89" cy="18.83" r="16" fill="#3050F8" opacity="0.5"/>
+  <line x1="177.38" y1="-62.17" x2="157.38" y2="-27.53" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="157.38" y1="-27.53" x2="169.74" y2="10.51" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="170.91" y1="12.13" x2="138.55" y2="35.64" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="168.56" y1="8.90" x2="136.20" y2="32.41" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="137.38" y1="34.03" x2="105.02" y2="10.51" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="103.11" y1="9.90" x2="115.48" y2="-28.15" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="106.92" y1="11.13" x2="119.28" y2="-26.91" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="157.38" y1="-27.53" x2="117.38" y2="-27.53" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="117.38" y1="-27.53" x2="90.61" y2="-57.25" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="88.71" y1="-57.87" x2="101.07" y2="-95.91" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="92.51" y1="-56.64" x2="104.88" y2="-94.68" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="90.61" y1="-57.25" x2="51.49" y2="-48.94" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="51.49" y1="-48.94" x2="39.13" y2="-10.89" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="39.54" y1="-8.94" x2="0.42" y2="-0.62" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="38.71" y1="-12.85" x2="-0.42" y2="-4.53" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="39.13" y1="-10.89" x2="65.89" y2="18.83" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="105.02" y1="10.51" x2="65.89" y2="18.83" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="65.89" y1="18.83" x2="53.53" y2="56.87" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="51.49" y1="-48.94" x2="24.72" y2="-78.66" stroke="black" stroke-width="1.5" fill="none"/>
+  <rect x="149.38" y="-34.53" width="16.00" height="14.00" fill="white"/>
+  <text x="157.38" y="-27.53" font-family="sans-serif" font-size="12" text-anchor="middle" dominant-baseline="central" fill="#3050F8">N</text>
+  <rect x="129.38" y="27.03" width="16.00" height="14.00" fill="white"/>
+  <text x="137.38" y="34.03" font-family="sans-serif" font-size="12" text-anchor="middle" dominant-baseline="central" fill="#3050F8">N</text>
+  <rect x="94.97" y="-102.30" width="16.00" height="14.00" fill="white"/>
+  <text x="102.97" y="-95.30" font-family="sans-serif" font-size="12" text-anchor="middle" dominant-baseline="central" fill="#FF0D0D">O</text>
+  <rect x="43.49" y="-55.94" width="16.00" height="14.00" fill="white"/>
+  <text x="51.49" y="-48.94" font-family="sans-serif" font-size="12" text-anchor="middle" dominant-baseline="central" fill="#3050F8">N</text>
+  <rect x="-8.00" y="-9.58" width="16.00" height="14.00" fill="white"/>
+  <text x="0.00" y="-2.58" font-family="sans-serif" font-size="12" text-anchor="middle" dominant-baseline="central" fill="#FF0D0D">O</text>
+  <rect x="57.89" y="11.83" width="16.00" height="14.00" fill="white"/>
+  <text x="65.89" y="18.83" font-family="sans-serif" font-size="12" text-anchor="middle" dominant-baseline="central" fill="#3050F8">N</text>
+</svg>

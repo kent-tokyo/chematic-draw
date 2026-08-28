@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="333" height="333" viewBox="-20.00 -273.21 333.21 333.21">
+  <rect x="-20.00" y="-273.21" width="333.21" height="333.21" fill="white"/>
+  <line x1="259.56" y1="-41.73" x2="294.21" y2="-21.73" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="257.56" y1="-38.27" x2="292.21" y2="-18.27" stroke="black" stroke-width="1.5" fill="none" stroke-dasharray="4,3"/>
+  <line x1="295.21" y1="-20.00" x2="295.21" y2="20.00" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="291.21" y1="-20.00" x2="291.21" y2="20.00" stroke="black" stroke-width="1.5" fill="none" stroke-dasharray="4,3"/>
+  <line x1="294.21" y1="21.73" x2="259.56" y2="41.73" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="292.21" y1="18.27" x2="257.56" y2="38.27" stroke="black" stroke-width="1.5" fill="none" stroke-dasharray="4,3"/>
+  <line x1="257.56" y1="41.73" x2="222.92" y2="21.73" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="259.56" y1="38.27" x2="224.92" y2="18.27" stroke="black" stroke-width="1.5" fill="none" stroke-dasharray="4,3"/>
+  <line x1="221.92" y1="20.00" x2="221.92" y2="-20.00" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="225.92" y1="20.00" x2="225.92" y2="-20.00" stroke="black" stroke-width="1.5" fill="none" stroke-dasharray="4,3"/>
+  <line x1="259.56" y1="-38.27" x2="224.92" y2="-18.27" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="257.56" y1="-41.73" x2="222.92" y2="-21.73" stroke="black" stroke-width="1.5" fill="none" stroke-dasharray="4,3"/>
+  <line x1="223.92" y1="-20.00" x2="189.28" y2="-40.00" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="189.28" y1="-40.00" x2="169.28" y2="-74.64" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="169.28" y1="-74.64" x2="134.64" y2="-94.64" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="134.64" y1="-94.64" x2="114.64" y2="-129.28" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="114.64" y1="-129.28" x2="80.00" y2="-149.28" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="80.00" y1="-149.28" x2="60.00" y2="-183.92" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="58.27" y1="-184.92" x2="78.27" y2="-219.56" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="61.73" y1="-182.92" x2="81.73" y2="-217.56" stroke="black" stroke-width="1.5" fill="none" stroke-dasharray="4,3"/>
+  <line x1="78.27" y1="-217.56" x2="58.27" y2="-252.21" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="81.73" y1="-219.56" x2="61.73" y2="-254.21" stroke="black" stroke-width="1.5" fill="none" stroke-dasharray="4,3"/>
+  <line x1="60.00" y1="-251.21" x2="20.00" y2="-251.21" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="60.00" y1="-255.21" x2="20.00" y2="-255.21" stroke="black" stroke-width="1.5" fill="none" stroke-dasharray="4,3"/>
+  <line x1="21.73" y1="-252.21" x2="1.73" y2="-217.56" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="18.27" y1="-254.21" x2="-1.73" y2="-219.56" stroke="black" stroke-width="1.5" fill="none" stroke-dasharray="4,3"/>
+  <line x1="1.73" y1="-219.56" x2="21.73" y2="-184.92" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="-1.73" y1="-217.56" x2="18.27" y2="-182.92" stroke="black" stroke-width="1.5" fill="none" stroke-dasharray="4,3"/>
+  <line x1="60.00" y1="-181.92" x2="20.00" y2="-181.92" stroke="black" stroke-width="1.5" fill="none"/>
+  <line x1="60.00" y1="-185.92" x2="20.00" y2="-185.92" stroke="black" stroke-width="1.5" fill="none" stroke-dasharray="4,3"/>
+</svg>
