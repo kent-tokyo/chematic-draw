@@ -66,16 +66,24 @@ jobs:
         working-directory: electron
         run: npm audit --audit-level=moderate
 
+      # if: always() below so a real npm audit finding (above) doesn't hide
+      # whether cargo audit itself runs cleanly - without it, a step
+      # failure stops the rest of the job and this would never be exercised.
       - name: Setup Rust
+        if: always()
         uses: dtolnay/rust-toolchain@stable
 
       # cargo-audit isn't a stock cargo subcommand — it was never installed
       # here, so this job has been failing on "no such subcommand: audit"
       # since the day it was written, not from an actual finding.
       - name: Install cargo-audit
-        uses: taiki-e/install-action@cargo-audit
+        if: always()
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
 
       - name: Run cargo audit
+        if: always()
         run: cargo audit
 
   dependency-check:
@@ -94,7 +102,9 @@ jobs:
       # Same issue as cargo-audit above: cargo-outdated needs an explicit
       # install, it isn't bundled with cargo.
       - name: Install cargo-outdated
-        uses: taiki-e/install-action@cargo-outdated
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-outdated
 
       - name: Check Rust dependencies
         run: cargo outdated || true # informational, not a failure
@@ -131,7 +141,9 @@ jobs:
           output-file: sbom.spdx.json
 
       - name: Install cargo-license
-        uses: taiki-e/install-action@cargo-license
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-license
 
       - name: Rust license report
         run: cargo license --json > rust-licenses.json
