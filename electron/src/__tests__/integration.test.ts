@@ -1,5 +1,4 @@
 import * as wasmBridge from '../renderer/wasm/wasmBridge';
-import { advancedFeatures } from '../renderer/lib/advancedFeatures';
 
 jest.mock('../renderer/wasm/wasmBridge');
 

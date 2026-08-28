@@ -16,7 +16,7 @@ export function hitTestAtom(
   molecule: MoleculeDto,
   screenX: number,
   screenY: number,
-  state: CanvasState
+  state: Pick<CanvasState, 'offset' | 'zoom'>
 ): number | null {
   for (const atom of molecule.atoms) {
     const x = atom.x * state.zoom + state.offset.x;
@@ -36,7 +36,7 @@ export function hitTestBond(
   molecule: MoleculeDto,
   screenX: number,
   screenY: number,
-  state: CanvasState
+  state: Pick<CanvasState, 'offset' | 'zoom'>
 ): number | null {
   for (const bond of molecule.bonds) {
     const from = molecule.atoms.find((a) => a.id === bond.from);

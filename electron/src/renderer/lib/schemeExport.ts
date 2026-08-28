@@ -46,7 +46,8 @@ export function importSchemeFromJSON(jsonString: string): ReactionSchemeContext 
 export function exportSchemeAsSVG(
   scheme: ReactionSchemeContext,
   schemeLayout: SchemeLayout,
-  atomMappings: AtomMapping | null
+  atomMappings: AtomMapping | null,
+  greenMetrics: GreenChemistryMetrics | null
 ): string {
   const width = schemeLayout.canvasWidth + 40;
   const height = schemeLayout.canvasHeight + 200;

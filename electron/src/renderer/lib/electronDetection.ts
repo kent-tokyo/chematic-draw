@@ -16,7 +16,7 @@ interface AtomProperties {
 function getAtomProperties(atom: AtomDto, molecule: MoleculeDto): AtomProperties {
   // Count bonds connected to this atom
   const bondCount = molecule.bonds.filter(
-    (b) => b.source_id === atom.id || b.target_id === atom.id
+    (b) => b.from === atom.id || b.to === atom.id
   ).length;
 
   // Get max valence for element
@@ -29,8 +29,8 @@ function getAtomProperties(atom: AtomDto, molecule: MoleculeDto): AtomProperties
   // Estimate lone pairs: (maxValence - bondCount) / 2
   // This is simplified; real calculation depends on formal charge
   let estimatedLonePairs = (maxValence - bondCount) / 2;
-  if (atom.formal_charge) {
-    estimatedLonePairs += atom.formal_charge;
+  if (atom.charge) {
+    estimatedLonePairs += atom.charge;
   }
   estimatedLonePairs = Math.max(0, Math.round(estimatedLonePairs));
 
@@ -51,8 +51,8 @@ function scoreAsSource(atom: AtomDto, molecule: MoleculeDto): number {
   let score = 0;
 
   // Negative formal charge is strong source indicator
-  if (atom.formal_charge && atom.formal_charge < 0) {
-    score += 0.8 + Math.abs(atom.formal_charge) * 0.05;
+  if (atom.charge && atom.charge < 0) {
+    score += 0.8 + Math.abs(atom.charge) * 0.05;
   }
 
   // Heteroatoms with lone pairs
@@ -69,7 +69,7 @@ function scoreAsSource(atom: AtomDto, molecule: MoleculeDto): number {
 
   // Aromatic/π-rich atoms (simplified: bonded to C=C or C≡C)
   const hasDoubleBond = molecule.bonds.some(
-    (b) => (b.source_id === atom.id || b.target_id === atom.id) && b.bond_type === 'Double'
+    (b) => (b.from === atom.id || b.to === atom.id) && b.order === 2
   );
   if (hasDoubleBond) {
     score += 0.2;
@@ -86,8 +86,8 @@ function scoreAsSink(atom: AtomDto, molecule: MoleculeDto): number {
   let score = 0;
 
   // Positive formal charge is strong sink indicator
-  if (atom.formal_charge && atom.formal_charge > 0) {
-    score += 0.8 + atom.formal_charge * 0.05;
+  if (atom.charge && atom.charge > 0) {
+    score += 0.8 + atom.charge * 0.05;
   }
 
   // Electrophilic carbon (esp. with leaving group)
@@ -101,7 +101,7 @@ function scoreAsSink(atom: AtomDto, molecule: MoleculeDto): number {
 
     // Carbon bonded to halogen (good leaving group)
     const hasHalogenNeighbor = molecule.bonds.some((b) => {
-      const otherId = b.source_id === atom.id ? b.target_id : b.source_id;
+      const otherId = b.from === atom.id ? b.to : b.from;
       const otherAtom = molecule.atoms.find((a) => a.id === otherId);
       return otherAtom && ['F', 'Cl', 'Br', 'I'].includes(otherAtom.element);
     });
@@ -111,8 +111,8 @@ function scoreAsSink(atom: AtomDto, molecule: MoleculeDto): number {
 
     // Carbon in carbonyl (C=O is electrophilic)
     const hasOxygenDouble = molecule.bonds.some((b) => {
-      if (b.bond_type !== 'Double') return false;
-      const otherId = b.source_id === atom.id ? b.target_id : b.source_id;
+      if (b.order !== 2) return false;
+      const otherId = b.from === atom.id ? b.to : b.from;
       const otherAtom = molecule.atoms.find((a) => a.id === otherId);
       return otherAtom && otherAtom.element === 'O';
     });
@@ -134,8 +134,8 @@ export function detectElectronSources(molecule: MoleculeDto) {
       element: atom.element,
       type: 'source' as const,
       confidence: scoreAsSource(atom, molecule),
-      reason: atom.formal_charge && atom.formal_charge < 0
-        ? `${atom.element}⁻ (formal charge: ${atom.formal_charge})`
+      reason: atom.charge && atom.charge < 0
+        ? `${atom.element}⁻ (formal charge: ${atom.charge})`
         : `${atom.element} (lone pair potential)`,
     }))
     .filter((c) => c.confidence > 0.15)
@@ -152,8 +152,8 @@ export function detectElectronSinks(molecule: MoleculeDto) {
       element: atom.element,
       type: 'sink' as const,
       confidence: scoreAsSink(atom, molecule),
-      reason: atom.formal_charge && atom.formal_charge > 0
-        ? `${atom.element}⁺ (formal charge: +${atom.formal_charge})`
+      reason: atom.charge && atom.charge > 0
+        ? `${atom.element}⁺ (formal charge: +${atom.charge})`
         : `${atom.element} (electrophilic)`,
     }))
     .filter((c) => c.confidence > 0.15)

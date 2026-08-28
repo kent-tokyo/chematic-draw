@@ -1,4 +1,4 @@
-import { MoleculeDto, MechanismArrow } from '../store/types';
+import { MoleculeDto, MechanismStep } from '../store/types';
 import * as wasmBridge from '../wasm/wasmBridge';
 
 // Phase 6: Stereoisomer Enumeration
@@ -98,14 +98,6 @@ export function predictProperties(mol: MoleculeDto): PropertyPrediction[] {
 }
 
 // Phase 9: Reaction Mechanism Drawing
-export interface MechanismStep {
-  id: string;
-  reactants: MoleculeDto[];
-  products: MoleculeDto[];
-  arrows: MechanismArrow[];
-  mechanismType: 'sn2' | 'sn1' | 'e1' | 'e2' | 'electrophilic_addition';
-}
-
 export function createMechanismStep(id: string): MechanismStep {
   // Framework: Reaction mechanism visualization tool
   return {

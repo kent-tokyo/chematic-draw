@@ -51,7 +51,7 @@ export function useCanvas() {
     pan: useCanvasStore((s) => s.pan),
     setZoom: useCanvasStore((s) => s.setZoom),
     activeTool: useCanvasStore((s) => s.activeTool),
-    setActiveTool: useCanvasStore((s) => s.setActiveTool),
+    setActiveTool: useCanvasStore((s) => s.setTool),
     screenToWorld: useCanvasStore((s) => s.screenToWorld),
     worldToScreen: useCanvasStore((s) => s.worldToScreen),
     hoverAtomId: useCanvasStore((s) => s.hoverAtomId),

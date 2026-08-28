@@ -220,29 +220,6 @@ export function InspectorPanel() {
             </div>
           </div>
 
-          <div>
-            <label style={{ fontSize: '11px', color: labelColor }}>Explicit H</label>
-            <select
-              value={selectedAtom.explicit_h ?? 0}
-              onChange={(e) => handleAtomUpdate('explicit_h', parseInt(e.target.value))}
-              style={{
-                width: '100%',
-                padding: '6px',
-                border: `1px solid ${inputBorder}`,
-                borderRadius: '3px',
-                backgroundColor: inputBg,
-                color: textColor,
-                fontSize: '11px',
-                boxSizing: 'border-box',
-              }}
-            >
-              {[0, 1, 2, 3, 4].map((h) => (
-                <option key={h} value={h}>
-                  {h === 0 ? 'Auto' : h}
-                </option>
-              ))}
-            </select>
-          </div>
 
           <div style={{ fontSize: '10px', color: labelColor, padding: '8px', backgroundColor: theme === 'dark' ? '#2f3a47' : '#f3f5f8', borderRadius: '3px' }}>
             <strong>Atom ID:</strong> {selectedAtom.id}

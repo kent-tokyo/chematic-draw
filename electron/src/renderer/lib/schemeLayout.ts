@@ -1,5 +1,5 @@
 import { ReactionSchemeContext, MoleculeDto } from '../store/types';
-import { MechanismStep } from './advancedFeatures';
+import { MechanismStep } from '../store/types';
 
 /**
  * Represents a step box in the scheme layout

@@ -11,6 +11,7 @@ import { Tool } from '../../store/types';
 import { mergeTemplateIntoMolecule } from '../../lib/templateMerge';
 import { calculateArrowPath, distanceToCurve } from '../../lib/arrowGeometry';
 import { useReactionSchemeStore } from '../../store/reactionSchemeStore';
+import * as wasmBridge from '../../wasm/wasmBridge';
 
 export function MoleculeCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);

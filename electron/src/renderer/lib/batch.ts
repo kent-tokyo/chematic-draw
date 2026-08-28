@@ -26,7 +26,7 @@ export async function processBatch(molecules: MoleculeDto[], task: BatchTask): P
 
   for (const mol of molecules) {
     try {
-      let processed = mol;
+      let processed: MoleculeDto & Partial<{ properties: any }> = mol;
 
       if (task.operation === 'standardize') {
         processed = wasmBridge.standardizeMolecule(mol);

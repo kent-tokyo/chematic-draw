@@ -15,6 +15,8 @@ export interface RenderOptions {
   selectedBondIds?: number[];
   bondDragFrom?: number | null;
   bondDragPos?: { x: number; y: number } | null;
+  selectedArrowId?: string | null;
+  hoverArrowId?: string | null;
 }
 
 const ATOM_RADIUS = 8;
@@ -59,7 +61,7 @@ export class CanvasRenderer {
     this.ctx.fillRect(0, 0, this.width, this.height);
   }
 
-  drawGrid(state: CanvasState, theme: 'dark' | 'light') {
+  drawGrid(state: Pick<CanvasState, 'offset' | 'zoom'>, theme: 'dark' | 'light') {
     const colors = COLORS[theme];
     const gridSize = GRID_SIZE * state.zoom;
 
@@ -88,7 +90,7 @@ export class CanvasRenderer {
 
   drawMolecule(
     molecule: MoleculeDto,
-    state: CanvasState,
+    state: Pick<CanvasState, 'offset' | 'zoom'>,
     options: RenderOptions
   ) {
     const colors = COLORS[options.theme];
@@ -141,7 +143,7 @@ export class CanvasRenderer {
     }
   }
 
-  private drawBond(from: AtomDto, to: AtomDto, bond: BondDto, state: CanvasState) {
+  private drawBond(from: AtomDto, to: AtomDto, bond: BondDto, state: Pick<CanvasState, 'offset' | 'zoom'>) {
     const x1 = from.x * state.zoom + state.offset.x;
     const y1 = from.y * state.zoom + state.offset.y;
     const x2 = to.x * state.zoom + state.offset.x;
@@ -277,7 +279,7 @@ export class CanvasRenderer {
 
   private drawAtom(
     atom: AtomDto,
-    state: CanvasState,
+    state: Pick<CanvasState, 'offset' | 'zoom'>,
     options: { theme: 'dark' | 'light'; selected: boolean; hover: boolean }
   ) {
     const colors = COLORS[options.theme];
@@ -325,8 +327,8 @@ export class CanvasRenderer {
       const path = calculateArrowPath(molecule, arrow, state);
       if (!path) continue;
 
-      const isSelected = (options as any).selectedArrowId === arrow.id;
-      const isHover = (options as any).hoverArrowId === arrow.id;
+      const isSelected = options.selectedArrowId === arrow.id;
+      const isHover = options.hoverArrowId === arrow.id;
 
       let arrowColor = colors.bond;
       if (arrow.type === 'forward') {

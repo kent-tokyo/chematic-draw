@@ -89,6 +89,14 @@ export interface MechanismState {
   hoverArrowId: string | null;
 }
 
+export interface MechanismStep {
+  id: string;
+  reactants: MoleculeDto[];
+  products: MoleculeDto[];
+  arrows: MechanismArrow[];
+  mechanismType: 'sn2' | 'sn1' | 'e1' | 'e2' | 'electrophilic_addition';
+}
+
 // Electron detection types for mechanism arrow suggestions
 export interface ElectronCandidate {
   atomId: number;

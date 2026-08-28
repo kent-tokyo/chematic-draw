@@ -1,6 +1,6 @@
 import React from 'react';
 import { useUIStore } from '../../store/uiStore';
-import { Icon } from '../common/Icon';
+import { Icon, IconName } from '../common/Icon';
 import { InspectorPanel } from './InspectorPanel';
 import { TemplatesPanel } from './TemplatesPanel';
 import { ResearchPanel } from './ResearchPanel';
@@ -26,20 +26,27 @@ export function Sidebar() {
 
   const batchResults = useUIStore((s) => s.batchResults);
 
-  const tabs = [
-    { id: 'inspector', label: 'Inspector', icon: 'search' as const },
-    { id: 'templates', label: 'Templates', icon: 'templates' as const },
-    { id: 'reactions', label: 'Reactions', icon: 'reactions' as const },
-    { id: 'batch-results', label: 'Batch', icon: 'batch' as const, badge: batchResults.length > 0 ? batchResults.length : undefined },
-    { id: 'stereoisomers', label: 'Stereo', icon: 'stereoisomers' as const },
-    { id: 'lipinski', label: 'Lipinski', icon: 'lipinski' as const },
-    { id: 'properties', label: 'Props', icon: 'properties' as const },
-    { id: 'mechanism', label: 'Mech', icon: 'mechanism' as const },
-    { id: '3d', label: '3D', icon: 'database' as const },
-    { id: 'database', label: 'DB', icon: 'database' as const },
-    { id: 'research', label: 'Research', icon: 'research' as const },
-    { id: 'chat', label: 'Chat', icon: 'chat' as const },
-  ] as const;
+  interface SidebarTab {
+    id: string;
+    label: string;
+    icon: IconName;
+    badge?: number;
+  }
+
+  const tabs: SidebarTab[] = [
+    { id: 'inspector', label: 'Inspector', icon: 'search' },
+    { id: 'templates', label: 'Templates', icon: 'templates' },
+    { id: 'reactions', label: 'Reactions', icon: 'reactions' },
+    { id: 'batch-results', label: 'Batch', icon: 'batch', badge: batchResults.length > 0 ? batchResults.length : undefined },
+    { id: 'stereoisomers', label: 'Stereo', icon: 'stereoisomers' },
+    { id: 'lipinski', label: 'Lipinski', icon: 'lipinski' },
+    { id: 'properties', label: 'Props', icon: 'properties' },
+    { id: 'mechanism', label: 'Mech', icon: 'mechanism' },
+    { id: '3d', label: '3D', icon: 'database' },
+    { id: 'database', label: 'DB', icon: 'database' },
+    { id: 'research', label: 'Research', icon: 'research' },
+    { id: 'chat', label: 'Chat', icon: 'chat' },
+  ];
 
   const bgColor = theme === 'dark' ? '#21252c' : '#f3f5f8';
   const borderColor = theme === 'dark' ? '#3a3a3a' : '#e0e0e0';

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
 import { ReactionScheme, ReactionStep, ReactionCondition, createReactionStep, addStep, removeStep, updateConditions, executeReaction, SMIRKS_TEMPLATES } from '../../lib/reactions';
-import { useReactionSchemeStore, ReactionSchemeContext } from '../../store/reactionSchemeStore';
+import { useReactionSchemeStore } from '../../store/reactionSchemeStore';
 import { validateReactionScheme, getIntermediates, getExternalReagents } from '../../lib/reactionSchemeUtils';
 import { exportSchemeAsJSON, importSchemeFromJSON, exportSchemeAsSVG, exportSchemeAsCSV } from '../../lib/schemeExport';
 
@@ -137,38 +137,43 @@ export function ReactionPanel() {
     URL.revokeObjectURL(url);
   };
 
-  // Export/Import handlers
+  // Export/Import handlers.
+  // These export the mechanism-drawing scheme (schemeStoreScheme: ReactionSchemeContext,
+  // with atom mappings/green metrics/mechanism arrows), not the molecule-level `scheme`
+  // (ReactionScheme, the SMIRKS-applied reaction steps) — the two are different concepts
+  // that happen to share the name "scheme".
   const handleExportJSON = () => {
-    if (!scheme) return;
+    if (!schemeStoreScheme) return;
     const json = exportSchemeAsJSON(
-      scheme,
+      schemeStoreScheme,
       useReactionSchemeStore.getState().atomMappings,
       useReactionSchemeStore.getState().reactionClassification,
       useReactionSchemeStore.getState().greenMetrics
     );
-    downloadFile(json, `${scheme.title || 'scheme'}_export.json`, 'application/json');
+    downloadFile(json, `${schemeStoreScheme.title || 'scheme'}_export.json`, 'application/json');
     setStatus('Exported as JSON');
   };
 
   const handleExportSVG = () => {
-    if (!scheme || !schemeLayout) return;
+    if (!schemeStoreScheme || !schemeLayout) return;
     const svg = exportSchemeAsSVG(
-      scheme,
+      schemeStoreScheme,
       schemeLayout,
-      useReactionSchemeStore.getState().atomMappings
+      useReactionSchemeStore.getState().atomMappings,
+      useReactionSchemeStore.getState().greenMetrics
     );
-    downloadFile(svg, `${scheme.title || 'scheme'}_diagram.svg`, 'image/svg+xml');
+    downloadFile(svg, `${schemeStoreScheme.title || 'scheme'}_diagram.svg`, 'image/svg+xml');
     setStatus('Exported as SVG');
   };
 
   const handleExportCSV = () => {
-    if (!scheme) return;
+    if (!schemeStoreScheme) return;
     const csv = exportSchemeAsCSV(
-      scheme,
+      schemeStoreScheme,
       useReactionSchemeStore.getState().reactionClassification,
       useReactionSchemeStore.getState().greenMetrics
     );
-    downloadFile(csv, `${scheme.title || 'scheme'}_report.csv`, 'text/csv');
+    downloadFile(csv, `${schemeStoreScheme.title || 'scheme'}_report.csv`, 'text/csv');
     setStatus('Exported as CSV');
   };
 

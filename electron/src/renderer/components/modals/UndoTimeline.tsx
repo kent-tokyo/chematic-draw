@@ -15,10 +15,19 @@ export function UndoTimelineModal() {
   if (!showUndoModal) return null;
 
   const currentIdx = undoStack.length;
-  const allStates = [
-    ...undoStack,
+  // undoStack/redoStack only ever store raw MoleculeDto snapshots (see
+  // moleculeStore.ts's pushUndo) — there's no real per-edit description or
+  // timestamp to show, so label by position instead of fabricating one.
+  const allStates: Array<{ description: string; timestamp: number | null }> = [
+    ...undoStack.map((_, i) => ({
+      description: `Undo step ${undoStack.length - i}`,
+      timestamp: null,
+    })),
     { description: 'Current', timestamp: Date.now() },
-    ...[...redoStack].reverse(),
+    ...[...redoStack].reverse().map((_, i) => ({
+      description: `Redo step ${i + 1}`,
+      timestamp: null,
+    })),
   ];
 
   const bgColor = theme === 'dark' ? '#2f3a47' : '#ffffff';
@@ -92,9 +101,9 @@ export function UndoTimelineModal() {
                 <div style={{ fontWeight: idx === currentIdx ? 'bold' : 'normal' }}>
                   {idx === currentIdx ? '● ' : '  '}{state.description}
                 </div>
-                {state.description !== 'Current' && (
+                {state.timestamp !== null && (
                   <div style={{ fontSize: '10px', opacity: 0.6, marginTop: '4px' }}>
-                    {new Date((state as any).timestamp).toLocaleTimeString()}
+                    {new Date(state.timestamp).toLocaleTimeString()}
                   </div>
                 )}
               </button>

@@ -7,7 +7,7 @@ import {
   ReactionClassification,
   GreenChemistryMetrics,
 } from '../store/types';
-import { MechanismStep } from './advancedFeatures';
+import { MechanismStep } from '../store/types';
 
 const ATOM_MATCH_THRESHOLD = 0.75;
 const COLORS = {
