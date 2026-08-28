@@ -19,6 +19,12 @@
  * wasm-bindgen output uses real Node globals (TextDecoder/TextEncoder) that jsdom's
  * simulated environment doesn't provide, and this file never touches the DOM anyway.
  */
+// No top-level import/export otherwise in this file — without one, TS treats
+// it as a global script rather than a module, so `let wasm` below leaks into
+// the shared global scope and collides with any sibling test file doing the
+// same (e.g. parseAnyContract.test.ts). This export makes it a real module.
+export {};
+
 // The `--target nodejs` wasm-pack output is a plain CommonJS module; requiring it
 // (rather than `import`) sidesteps TypeScript module-resolution entirely, which
 // this project has no tsconfig.json to configure for a generated, non-node_modules
@@ -230,19 +236,15 @@ describe('WASM contract (real binary, not mocked)', () => {
     expect(outcome.status).toBe('no_match');
   });
 
-  // BLOCKED, not merely unwritten: chem_to_dto (used by parse_any) fills
-  // AtomDto.element with a depiction label (e.g. "" for a skeletal aromatic
-  // carbon), not a real element symbol; dto_to_chem (used by
-  // get_fingerprint and almost every other DTO-consuming function) requires
-  // Element::from_symbol() to succeed on that same field, so it throws
-  // "Unknown element: <label>" on every parse_any() result today. See
-  // internal_docs/ROADMAP.md for the tracked fix (AtomDto needs to carry a
-  // real symbol separately from its depiction label — confirmed benzene's
-  // label comes back as "", so there is no way to recover the symbol from
-  // the label string alone). Un-skip once that lands; until then this is
-  // deliberately not asserted as either passing or throwing, so it can't be
-  // mistaken for accepted behavior.
-  it.skip('real WASM parse -> fingerprint -> similarity succeeds (blocked: parse_any output cannot round-trip)', () => {
+  // Formerly blocked: chem_to_dto (used by parse_any) used to fill
+  // AtomDto.element with a depiction label ("" for a skeletal aromatic
+  // carbon) instead of a real element symbol, which dto_to_chem (used by
+  // get_fingerprint and almost every other DTO-consuming function) rejected
+  // with "Unknown element: <label>". Fixed — element is now always a real
+  // symbol, and depiction labels moved to their own display_label field.
+  // See internal_docs/ROADMAP.md and parseAnyContract.test.ts for the full
+  // round-trip contract this fix restored.
+  it('real WASM parse -> fingerprint -> similarity succeeds', () => {
     const parsed = wasm.parse_any('c1ccccc1');
     const fp = wasm.get_fingerprint(parsed);
     expect(fp).toHaveLength(512);

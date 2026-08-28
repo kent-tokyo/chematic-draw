@@ -36,10 +36,10 @@ module.exports = {
       statements: 56,
     },
     'src/renderer/components/sidebar/Viewer3DPanel.tsx': {
-      branches: 63,
+      branches: 64,
       functions: 94,
-      lines: 85,
-      statements: 84,
+      lines: 87,
+      statements: 85,
     },
   },
 };
