@@ -55,6 +55,7 @@ export function Sidebar() {
 
   return (
     <div
+      data-testid="sidebar"
       style={{
         width: `${sidebarWidth}px`,
         height: '100%',
@@ -77,6 +78,8 @@ export function Sidebar() {
         {tabs.map((tab) => (
           <button
             key={tab.id}
+            data-testid={`sidebar-tab-${tab.id}`}
+            aria-pressed={activeSidebarPanel === tab.id}
             onClick={() => setActiveSidebarPanel(tab.id as any)}
             style={{
               flex: 1,
@@ -138,7 +141,7 @@ export function Sidebar() {
       </div>
 
       {/* Content Panel */}
-      <div style={{ flex: 1, overflow: 'auto', padding: '12px' }}>
+      <div data-testid={`sidebar-panel-${activeSidebarPanel}`} style={{ flex: 1, overflow: 'auto', padding: '12px' }}>
         {activeSidebarPanel === 'inspector' && <InspectorPanel />}
         {activeSidebarPanel === 'templates' && <TemplatesPanel />}
         {activeSidebarPanel === 'reactions' && <ReactionPanel />}

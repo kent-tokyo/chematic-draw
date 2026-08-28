@@ -207,6 +207,7 @@ export function Viewer3DPanel() {
       >
         <canvas
           ref={canvasRef}
+          data-testid="viewer-3d-canvas"
           width={400}
           height={300}
           onMouseDown={handleCanvasMouseDown}

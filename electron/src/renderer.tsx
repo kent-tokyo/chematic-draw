@@ -263,6 +263,8 @@ function App() {
 
   return (
     <div
+      data-testid="app-root"
+      data-ready={wasmLoaded}
       style={{
         display: 'flex',
         flexDirection: 'column',

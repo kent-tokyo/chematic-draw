@@ -20,7 +20,9 @@
     "test:watch": "jest --watch --testPathIgnorePatterns='\\.bench\\.ts$'",
     "test:coverage": "jest --coverage --testPathIgnorePatterns='\\.bench\\.ts$'",
     "test:perf": "jest --testPathPatterns='\\.bench\\.ts$'",
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright test --project=renderer-e2e",
+    "test:e2e:electron": "playwright test --project=electron-smoke",
+    "test:e2e:all": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug"
   },

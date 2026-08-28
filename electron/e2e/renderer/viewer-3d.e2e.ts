@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { waitForAppReady } from './helpers';
 
 test.describe('3D Molecular Viewer', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await waitForAppReady(page);
 
     // Load benzene molecule via SMILES (simplified: assume it loads)
     // In real test, we'd use the UI to load it
@@ -11,18 +12,18 @@ test.describe('3D Molecular Viewer', () => {
 
   test('should open 3D viewer panel', async ({ page }) => {
     // Click 3D tab
-    const viewer3dTab = page.locator('button:has-text("3D")');
+    const viewer3dTab = page.getByTestId('sidebar-tab-3d');
     await expect(viewer3dTab).toBeVisible();
     await viewer3dTab.click();
 
     // Check panel opens
-    const panel = page.locator('[class*="panel"]').filter({ hasText: /生成/ });
+    const panel = page.getByTestId('sidebar-panel-3d');
     await expect(panel).toBeVisible({ timeout: 5000 });
   });
 
   test('should display 3D generation button', async ({ page }) => {
     // Navigate to 3D panel
-    const viewer3dTab = page.locator('button:has-text("3D")');
+    const viewer3dTab = page.getByTestId('sidebar-tab-3d');
     await viewer3dTab.click();
 
     // Check for generate button
@@ -33,7 +34,7 @@ test.describe('3D Molecular Viewer', () => {
 
   test('should generate 3D coordinates and display canvas', async ({ page }) => {
     // Load 3D panel
-    const viewer3dTab = page.locator('button:has-text("3D")');
+    const viewer3dTab = page.getByTestId('sidebar-tab-3d');
     await viewer3dTab.click();
 
     // Click generate button
@@ -44,14 +45,14 @@ test.describe('3D Molecular Viewer', () => {
     await page.waitForTimeout(2000);
 
     // Check if canvas is displayed in the panel
-    const canvas = page.locator('canvas');
+    const canvas = page.getByTestId('viewer-3d-canvas');
     const count = await canvas.count();
     expect(count).toBeGreaterThan(0);
   });
 
   test('should enable export button after 3D generation', async ({ page }) => {
     // Navigate to 3D panel
-    const viewer3dTab = page.locator('button:has-text("3D")');
+    const viewer3dTab = page.getByTestId('sidebar-tab-3d');
     await viewer3dTab.click();
 
     // Initially disabled
@@ -68,10 +69,10 @@ test.describe('3D Molecular Viewer', () => {
   });
 
   test('should handle mouse interactions on 3D canvas', async ({ page }) => {
-    const viewer3dTab = page.locator('button:has-text("3D")');
+    const viewer3dTab = page.getByTestId('sidebar-tab-3d');
     await viewer3dTab.click();
 
-    const canvas = page.locator('canvas').first();
+    const canvas = page.getByTestId('viewer-3d-canvas');
     const box = await canvas.boundingBox();
 
     if (box) {
@@ -94,10 +95,10 @@ test.describe('3D Molecular Viewer', () => {
   });
 
   test('should handle wheel scroll for zoom', async ({ page }) => {
-    const viewer3dTab = page.locator('button:has-text("3D")');
+    const viewer3dTab = page.getByTestId('sidebar-tab-3d');
     await viewer3dTab.click();
 
-    const canvas = page.locator('canvas').first();
+    const canvas = page.getByTestId('viewer-3d-canvas');
     const box = await canvas.boundingBox();
 
     if (box) {
@@ -112,7 +113,7 @@ test.describe('3D Molecular Viewer', () => {
   });
 
   test('should display instructions on 3D canvas', async ({ page }) => {
-    const viewer3dTab = page.locator('button:has-text("3D")');
+    const viewer3dTab = page.getByTestId('sidebar-tab-3d');
     await viewer3dTab.click();
 
     // Generate 3D first
@@ -122,7 +123,7 @@ test.describe('3D Molecular Viewer', () => {
     await page.waitForTimeout(1000);
 
     // Check if canvas has text (instructions)
-    const canvas = page.locator('canvas').first();
+    const canvas = page.getByTestId('viewer-3d-canvas');
     await expect(canvas).toBeVisible();
   });
 });
