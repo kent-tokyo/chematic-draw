@@ -300,12 +300,20 @@ export class CanvasRenderer {
       this.ctx.stroke();
     }
 
-    // Draw element label
+    // Draw element label. `display_label` is the cosmetic, derived form
+    // (e.g. "" to suppress a skeletal interior carbon's label entirely) —
+    // an explicit "" must be respected as-is, not treated as "no label" and
+    // replaced by `element` (which is now always a real symbol like "C",
+    // so `?? element` would print "C" on every carbon in the molecule).
+    // Only undefined/null (no label info at all) falls back to `element`.
+    const label = atom.display_label === undefined || atom.display_label === null
+      ? atom.element
+      : atom.display_label;
     this.ctx.fillStyle = colors.atomLabel;
     this.ctx.font = `bold ${12 * state.zoom}px Arial`;
     this.ctx.textAlign = 'center';
     this.ctx.textBaseline = 'middle';
-    this.ctx.fillText(atom.element, x, y);
+    this.ctx.fillText(label, x, y);
 
     // Draw charge if present
     if (atom.charge !== 0) {

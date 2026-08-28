@@ -1,11 +1,28 @@
 // DTO types matching chem-wasm output
 export interface AtomDto {
   id: number;
+  /** Always a real periodic-table symbol ("C", "N", "Cl", ...) — never a
+   * depiction label and never an R-group token. See `display_label` for
+   * the cosmetic rendering form, and `wildcard` before trusting this field
+   * for an R-group atom (chematic has no real element for those; this will
+   * be a meaningless placeholder). */
   element: string;
   x: number;
   y: number;
   charge: number;
   atom_map: number;
+  /** Explicit hydrogen count. Present on any DTO chem-wasm produced;
+   * `undefined` only for older/hand-built DTOs that predate this field. */
+  hydrogen_count?: number;
+  /** True for an R-group/variable-attachment atom. `element` is a
+   * meaningless placeholder when this is true. */
+  wildcard?: boolean;
+  /** Condensed 2D rendering label ("CH3", "OH", "" to suppress the label
+   * entirely for a skeletal interior carbon). Derived and cosmetic only —
+   * never use this as chemistry input. `undefined`/`null` means no label
+   * info is available; fall back to `element`. An explicit `""` means
+   * "deliberately show nothing," not "no data." */
+  display_label?: string | null;
 }
 
 export interface BondDto {
