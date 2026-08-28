@@ -11,6 +11,26 @@ use wasm_bindgen::prelude::*;
 // DTO Types (serialized between WASM and JS via serde_wasm_bindgen::to_value)
 // ─────────────────────────────────────────────────────────────────────────────────
 
+/// `element` is ALWAYS a real periodic-table symbol ("C", "N", "Cl", ...) —
+/// never a depiction label ("CH3", "OH", "") and never an R-group token
+/// ("R", "R1", "*"). It is the chemical meaning of the atom and is what
+/// every WASM function that takes a `MoleculeDto` as input requires.
+///
+/// `display_label` is a separate, purely cosmetic field: the condensed
+/// label a 2D renderer would show (e.g. "CH3" for a terminal methyl, ""
+/// to suppress the label entirely for a skeletal interior carbon). It is a
+/// derived value — it depends on bonding, implicit H, and aromaticity, so
+/// it goes stale the instant the structure is edited — and must never be
+/// used as input to chemistry: nothing in this file parses it, and no
+/// caller should either.
+///
+/// `wildcard` marks an R-group/variable-attachment atom. When true,
+/// `element` is a meaningless placeholder (chematic-core itself has no
+/// concept of a "real" element for a wildcard atom); check `wildcard`
+/// before trusting `element`. There is deliberately no `rgroup_label`
+/// field: `chematic::core::Atom` has no backing storage for R-group
+/// numbering, so a field this bridge can't honestly populate would be
+/// worse than its absence.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AtomDto {
     pub id: u32,
@@ -19,6 +39,20 @@ pub struct AtomDto {
     pub y: f64,
     pub charge: i8,
     pub atom_map: u16,
+    /// Explicit hydrogen count. Required to correctly round-trip an
+    /// aromatic heteroatom whose implicit-H count can't be inferred from
+    /// ring topology alone (e.g. pyrrole-type N, which donates its lone
+    /// pair and carries an H, vs. pyridine-type N, which doesn't) — see
+    /// `chem_to_dto`/`dto_to_chem`. `#[serde(default)]` so DTOs built
+    /// before this field existed (tests, hand-built fixtures) still
+    /// deserialize; `None` means "let chematic infer it," which is only
+    /// correct when there's no aromatic-heteroatom ambiguity to resolve.
+    #[serde(default)]
+    pub hydrogen_count: Option<u8>,
+    #[serde(default)]
+    pub wildcard: bool,
+    #[serde(default)]
+    pub display_label: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -93,11 +127,23 @@ fn parse_any_impl(text: &str) -> Result<MoleculeDto, JsValue> {
     use chematic::mol;
     use chematic::smiles;
 
-    let text = text.trim();
+    // `sniff` (trimmed) is ONLY for format detection below, never for the
+    // actual parse calls on MOL/SDF/V3000: those formats' first three lines
+    // (title/program/comment) are POSITIONAL, and an empty title — entirely
+    // legitimate, and exactly what this bridge's own to_mol_v2000/to_sdf
+    // writers produce — starts with a blank line. Trimming that blank line
+    // away shifts every subsequent line up by one, so the parser reads what
+    // was really the first atom line as the counts line and fails with
+    // "missing V2000 version tag". (Found via this bridge's own write/parse
+    // round-trip failing on its own output — see internal_docs/ROADMAP.md.)
+    // CDXML/CML (XML, whitespace-insensitive) and the SMILES fallback
+    // (single-line) have no such positional sensitivity, so they use the
+    // trimmed form for robustness against incidentally pasted whitespace.
+    let sniff = text.trim();
 
     // Try CDXML
-    if text.contains("<CDXML") {
-        let fragments = mol::parse_cdxml_all(text)
+    if sniff.contains("<CDXML") {
+        let fragments = mol::parse_cdxml_all(sniff)
             .map_err(|e| JsValue::from_str(&format!("CDXML parse failed: {e}")))?;
         let (mol, coords) = fragments
             .into_iter()
@@ -107,16 +153,16 @@ fn parse_any_impl(text: &str) -> Result<MoleculeDto, JsValue> {
     }
 
     // Try CML
-    if (text.starts_with("<?xml") || text.starts_with("<molecule") || text.contains("<cml"))
-        && text.contains("elementType")
+    if (sniff.starts_with("<?xml") || sniff.starts_with("<molecule") || sniff.contains("<cml"))
+        && sniff.contains("elementType")
     {
-        let (mol, coords) = mol::parse_cml(text)
+        let (mol, coords) = mol::parse_cml(sniff)
             .map_err(|e| JsValue::from_str(&format!("CML parse failed: {e}")))?;
         return Ok(chem_to_dto(&mol, Some(&coords)));
     }
 
-    // Try SDF
-    if text.contains("$$$$") {
+    // Try SDF (positional header, like MOL — do not trim)
+    if sniff.contains("$$$$") {
         let records = mol::parse_sdf_with_coords(text)
             .map_err(|e| JsValue::from_str(&format!("SDF parse failed: {e}")))?;
         let (mol, _meta, coords) = records
@@ -126,23 +172,23 @@ fn parse_any_impl(text: &str) -> Result<MoleculeDto, JsValue> {
         return Ok(chem_to_dto(&mol, Some(&coords)));
     }
 
-    // Try MOL V3000 (must come before V2000)
-    if text.contains("V3000") {
+    // Try MOL V3000 (must come before V2000; positional header, do not trim)
+    if sniff.contains("V3000") {
         let (mol, _meta, coords) = mol::parse_mol_v3000_with_coords(text)
             .map_err(|e| JsValue::from_str(&format!("MOL V3000 parse failed: {e}")))?;
         return Ok(chem_to_dto(&mol, Some(&coords)));
     }
 
-    // Try MOL V2000
-    if text.contains("M  END") {
+    // Try MOL V2000 (positional header, do not trim)
+    if sniff.contains("M  END") {
         let (mol, _meta, coords) = mol::parse_mol_with_coords(text)
             .map_err(|e| JsValue::from_str(&format!("MOL V2000 parse failed: {e}")))?;
         return Ok(chem_to_dto(&mol, Some(&coords)));
     }
 
     // Fallback to SMILES
-    let mol =
-        smiles::parse(text).map_err(|e| JsValue::from_str(&format!("SMILES parse failed: {e}")))?;
+    let mol = smiles::parse(sniff)
+        .map_err(|e| JsValue::from_str(&format!("SMILES parse failed: {e}")))?;
     Ok(chem_to_dto(&mol, None))
 }
 
@@ -440,31 +486,62 @@ pub fn invert_stereocenter(mol_json: &JsValue, atom_id: u32) -> Result<JsValue, 
 // ─────────────────────────────────────────────────────────────────────────────────
 
 /// Convert MoleculeDto to chematic::core::Molecule.
-/// Returns error if any element symbol is unrecognized.
+/// Returns error if a non-wildcard atom's element symbol is unrecognized.
 fn dto_to_chem(dto: &MoleculeDto) -> Result<chematic::core::Molecule, JsValue> {
     use chematic::core::{
         Atom, AtomIdx, BondOrder as ChemBondOrder, Chirality, Element, MoleculeBuilder,
     };
-    use std::collections::HashMap;
+    use std::collections::{HashMap, HashSet};
+
+    // Aromaticity must be set on each Atom AT CONSTRUCTION TIME, not derived
+    // afterward: chematic-core exposes no public setter for `Atom.aromatic`,
+    // and calling `perception::apply_aromaticity` on a molecule whose bonds
+    // are ALREADY BondOrder::Aromatic (rather than a Kekulized single/double
+    // structure, which is what that perception pass expects as input) is a
+    // no-op — it leaves every atom's `aromatic` flag false. That silently
+    // broke ring perception for any DTO round-trip of an aromatic molecule,
+    // and specifically broke aromatic-heteroatom implicit-H inference below
+    // (confirmed via a native chematic probe: pyrrole's `c1cc[nH]c1` came
+    // back from this bridge as the non-aromatic-perceived, wrong-formula
+    // "C4H4N" instead of the correct "C4H5N" until this was fixed).
+    let aromatic_atom_ids: HashSet<u32> = dto
+        .bonds
+        .iter()
+        .filter(|b| b.order == 4)
+        .flat_map(|b| [b.from, b.to])
+        .collect();
 
     let mut builder = MoleculeBuilder::new();
     let mut id_to_idx: HashMap<u32, AtomIdx> = HashMap::new();
 
     for atom in &dto.atoms {
-        let element = Element::from_symbol(&atom.element)
-            .ok_or_else(|| JsValue::from_str(&format!("Unknown element: {}", atom.element)))?;
-        let is_rgroup = atom.element == "R"
-            || atom.element.starts_with("R*")
-            || (atom.element.starts_with('R') && atom.element[1..].parse::<u8>().is_ok());
+        // Wildcard/R-group atoms carry no real chemical element — chematic-core
+        // itself has no dedicated "wildcard element," `Atom::wildcard()` just
+        // uses Carbon as an placeholder callers are told to ignore. Trust the
+        // explicit `wildcard` flag instead of guessing from the (meaningless,
+        // for these atoms) `element` string, and skip `Element::from_symbol`
+        // entirely so a wildcard atom can never trigger "Unknown element."
+        let element = if atom.wildcard {
+            Element::C
+        } else {
+            Element::from_symbol(&atom.element)
+                .ok_or_else(|| JsValue::from_str(&format!("Unknown element: {}", atom.element)))?
+        };
 
         let chem_atom = Atom {
             element,
             isotope: None,
             charge: atom.charge,
-            hydrogen_count: None,
-            aromatic: false,
+            // Explicit H count from the DTO, not inferred: ring topology
+            // alone can't distinguish e.g. pyrrole-type N (donates its lone
+            // pair, carries an H) from pyridine-type N (doesn't) — only the
+            // originating parse (or an explicit edit) knows which one this
+            // is. `None` falls back to chematic's own valence-based
+            // inference, correct only when there's no such ambiguity.
+            hydrogen_count: atom.hydrogen_count,
+            aromatic: aromatic_atom_ids.contains(&atom.id),
             chirality: Chirality::None,
-            wildcard: is_rgroup,
+            wildcard: atom.wildcard,
             atom_map: if atom.atom_map != 0 {
                 Some(atom.atom_map)
             } else {
@@ -499,11 +576,6 @@ fn dto_to_chem(dto: &MoleculeDto) -> Result<chematic::core::Molecule, JsValue> {
 
     let mut mol = builder.build();
 
-    // Apply aromaticity if any aromatic bonds
-    if dto.bonds.iter().any(|b| b.order == 4) {
-        mol = chematic::perception::apply_aromaticity(&mol);
-    }
-
     // Apply stereo from 2D coordinates if any stereo bonds
     if dto.bonds.iter().any(|b| b.stereo != 0) {
         let coords: Vec<(f64, f64)> = dto
@@ -523,6 +595,13 @@ fn chem_to_dto(mol: &chematic::core::Molecule, coords: Option<&[(f64, f64)]>) ->
     use chematic::core::AtomIdx;
     use chematic::depict::compute_layout;
 
+    // `display_label` is always populated (even as `Some("")` for a
+    // skeletal interior carbon) since chem_to_dto always has a real
+    // molecule to compute it from — `None` is reserved for DTOs that never
+    // went through this function (hand-built fixtures, older callers),
+    // which is exactly when a consumer should fall back to `element`.
+    let display_label = |idx: AtomIdx| Some(chematic::depict::atom_display_label(mol, idx));
+
     let atoms_vec: Vec<_> = if let Some(c) = coords {
         // Use provided coords (from CML/CDXML/MOL/SDF, chemistry Y-up convention)
         // Negate Y to convert to screen space (Y-down)
@@ -532,11 +611,14 @@ fn chem_to_dto(mol: &chematic::core::Molecule, coords: Option<&[(f64, f64)]>) ->
                 let (px, py) = c.get(i).copied().unwrap_or((0.0, 0.0));
                 AtomDto {
                     id: i as u32,
-                    element: chematic::depict::atom_display_label(mol, AtomIdx(i as u32)),
+                    element: atom.element.symbol().to_string(),
                     x: px,
                     y: -py, // chemistry Y-up → screen Y-down
                     charge: atom.charge,
                     atom_map: atom.atom_map.unwrap_or(0),
+                    hydrogen_count: Some(chematic::core::implicit_hcount(mol, AtomIdx(i as u32))),
+                    wildcard: atom.wildcard,
+                    display_label: display_label(AtomIdx(i as u32)),
                 }
             })
             .collect()
@@ -549,11 +631,14 @@ fn chem_to_dto(mol: &chematic::core::Molecule, coords: Option<&[(f64, f64)]>) ->
                 let pt = layout.get(AtomIdx(i as u32));
                 AtomDto {
                     id: i as u32,
-                    element: chematic::depict::atom_display_label(mol, AtomIdx(i as u32)),
+                    element: atom.element.symbol().to_string(),
                     x: pt.x,
                     y: pt.y, // already screen Y-down
                     charge: atom.charge,
                     atom_map: atom.atom_map.unwrap_or(0),
+                    hydrogen_count: Some(chematic::core::implicit_hcount(mol, AtomIdx(i as u32))),
+                    wildcard: atom.wildcard,
+                    display_label: display_label(AtomIdx(i as u32)),
                 }
             })
             .collect()
