@@ -43,12 +43,14 @@ const createWindow = () => {
   // and load the index.html of the app.
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+    // Only auto-open DevTools in dev mode — a packaged/production build
+    // shouldn't launch with DevTools already open. This was previously
+    // unconditional, which also meant DevTools' own window could be the
+    // first BrowserWindow Playwright's _electron.firstWindow() observed.
+    mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
   }
-
-  // Open the DevTools.
-  mainWindow.webContents.openDevTools();
 };
 
 // Create application menu

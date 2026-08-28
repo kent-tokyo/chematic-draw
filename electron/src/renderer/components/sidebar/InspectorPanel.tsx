@@ -17,11 +17,15 @@ export function InspectorPanel() {
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [functionalGroups, setFunctionalGroups] = useState<string[]>([]);
 
-  // Validate molecule
+  // Validate molecule. Guarded against a malformed/not-yet-ready result (the
+  // app renders MoleculeCanvas/Sidebar immediately, before wasmBridge.initWasm()
+  // resolves — see renderer.tsx's wasmLoaded flag — so this can genuinely run
+  // before the real WASM export is callable) rather than crashing the whole
+  // panel on `undefined.length`.
   useEffect(() => {
     try {
       const result = wasmBridge.validateMolecule(molecule);
-      setValidationErrors(result.errors);
+      setValidationErrors(result?.errors ?? []);
     } catch (err) {
       setValidationErrors(['Validation error']);
     }

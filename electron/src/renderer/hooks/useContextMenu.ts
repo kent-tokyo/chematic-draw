@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useMoleculeStore } from '../store/moleculeStore';
 import { useCanvasStore } from '../store/canvasStore';
 import { useUIStore } from '../store/uiStore';
@@ -6,7 +6,14 @@ import { hitTestAtom, hitTestBond } from '../lib/geometry';
 
 export function useContextMenu() {
   const molecule = useMoleculeStore((s) => s.molecule);
-  const canvasState = useCanvasStore((s) => ({ offset: s.offset, zoom: s.zoom }));
+  // Select offset/zoom separately (stable primitives), not as a selector that
+  // returns `{offset, zoom}` — a Zustand selector returning a fresh object
+  // literal on every call breaks useSyncExternalStore's snapshot caching and
+  // causes an infinite render loop ("Maximum update depth exceeded"), not
+  // just a wasted render.
+  const offset = useCanvasStore((s) => s.offset);
+  const zoom = useCanvasStore((s) => s.zoom);
+  const canvasState = useMemo(() => ({ offset, zoom }), [offset, zoom]);
   const showContextMenu = useUIStore((s) => s.showContextMenu);
   const setSelectedAtomForInspector = useUIStore((s) => s.setSelectedAtomForInspector);
   const setSelectedBondForInspector = useUIStore((s) => s.setSelectedBondForInspector);

@@ -219,8 +219,17 @@ export function MoleculeCanvas() {
   return (
     <canvas
       ref={canvasRef}
+      data-testid="molecule-canvas"
       style={{
         flex: 1,
+        // Canvas is a replaced element — its `width`/`height` attributes (set
+        // in the resize handler below) become its intrinsic size, and flex
+        // items default to `min-width: auto`, which for replaced elements
+        // resolves to that intrinsic size. Without this override, the canvas
+        // refuses to shrink below whatever width it was last resized to,
+        // squeezing the sidebar down to ~0px instead of its real width.
+        minWidth: 0,
+        minHeight: 0,
         cursor: getCursor(),
         backgroundColor: theme === 'dark' ? '#1e1e1e' : '#ffffff',
       }}
