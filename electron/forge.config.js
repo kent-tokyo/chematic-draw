@@ -4,6 +4,14 @@ const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 module.exports = {
   packagerConfig: {
     asar: true,
+    // Explicit and stable, decoupled from productName ("Chematic Draw",
+    // used for the window title / Finder / Start Menu display, which has a
+    // space in it). maker-deb/maker-rpm look for the packaged binary using
+    // this name specifically, and Linux package-manager conventions don't
+    // tolerate spaces well - without this, they fail with "could not find
+    // the Electron app binary" once productName stopped being a bare,
+    // space-free identifier that happened to double as the executable name.
+    executableName: 'chematic-draw',
   },
   rebuildConfig: {},
   makers: [
