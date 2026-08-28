@@ -5,6 +5,16 @@ import topLevelAwait from 'vite-plugin-top-level-await';
 // https://vitejs.dev/config
 export default defineConfig({
   plugins: [topLevelAwait(), wasm()],
+  build: {
+    // vite-plugin-top-level-await's esbuild transform falls back to a stale
+    // default target (chrome87/edge88/es2020/firefox78/safari14) when
+    // build.target isn't set explicitly, rather than Vite 7's own newer
+    // default — and can't downlevel-transform some destructuring syntax to
+    // that old a target at all. Electron 44's renderer runs on Chromium 152,
+    // so there's no need to transform for old browsers; naming the real
+    // runtime is more precise than a generic 'esnext'.
+    target: 'chrome152',
+  },
   resolve: {
     alias: {
       '@': '/src',
