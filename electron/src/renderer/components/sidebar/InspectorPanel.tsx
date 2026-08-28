@@ -17,11 +17,14 @@ export function InspectorPanel() {
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [functionalGroups, setFunctionalGroups] = useState<string[]>([]);
 
-  // Validate molecule. Guarded against a malformed/not-yet-ready result (the
-  // app renders MoleculeCanvas/Sidebar immediately, before wasmBridge.initWasm()
-  // resolves — see renderer.tsx's wasmLoaded flag — so this can genuinely run
-  // before the real WASM export is callable) rather than crashing the whole
-  // panel on `undefined.length`.
+  // Validate molecule. `result?.errors ?? []` used to silently mask a real
+  // bug: validate_molecule returned a serde_json::json!() Value, which
+  // serde_wasm_bindgen serializes as a JS Map, so `.errors` was always
+  // undefined regardless of the actual validation outcome — the fallback
+  // fired on every call, not just during startup. Fixed on the Rust side
+  // (ValidationResultDto, a concrete #[derive(Serialize)] struct, serializes
+  // as a plain object). The `?? []`/try-catch stays as a defensive guard,
+  // not a workaround for anything currently broken.
   useEffect(() => {
     try {
       const result = wasmBridge.validateMolecule(molecule);

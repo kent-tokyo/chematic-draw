@@ -606,6 +606,13 @@ fn chem_bond_order(order: chematic::core::BondOrder) -> (u8, u8) {
     }
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct ValidationResultDto {
+    pub valid: bool,
+    pub errors: Vec<String>,
+    pub warnings: Vec<String>,
+}
+
 /// Validate molecule: check for basic errors
 #[wasm_bindgen]
 pub fn validate_molecule(mol_json: &JsValue) -> Result<JsValue, JsValue> {
@@ -617,7 +624,7 @@ pub fn validate_molecule(mol_json: &JsValue) -> Result<JsValue, JsValue> {
 
     // Check for isolated atoms
     if mol.atoms.len() > 1 && mol.bonds.is_empty() {
-        warnings.push("Disconnected atoms detected");
+        warnings.push("Disconnected atoms detected".to_string());
     }
 
     // Check for invalid bonds
@@ -630,11 +637,11 @@ pub fn validate_molecule(mol_json: &JsValue) -> Result<JsValue, JsValue> {
         }
     }
 
-    let result = serde_json::json!({
-        "valid": errors.is_empty(),
-        "errors": errors,
-        "warnings": warnings
-    });
+    let result = ValidationResultDto {
+        valid: errors.is_empty(),
+        errors,
+        warnings,
+    };
 
     serde_wasm_bindgen::to_value(&result)
         .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
