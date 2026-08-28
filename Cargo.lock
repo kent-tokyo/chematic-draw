@@ -677,7 +677,7 @@ dependencies = [
 
 [[package]]
 name = "chem-wasm"
-version = "0.2.0"
+version = "0.2.2-rc.1"
 dependencies = [
  "chematic",
  "chematic-inchi",
