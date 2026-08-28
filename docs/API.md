@@ -29,20 +29,27 @@ interface MoleculeDto {
 
 interface AtomDto {
   id: number;
-  element: string;           // "C", "N", "O", "H", etc.
-  x: number;                 // 2D X coordinate
-  y: number;                 // 2D Y coordinate
-  charge: number;            // Formal charge (-2 to +2)
-  atom_map?: number;         // For reaction mechanisms
-  implicit_h?: number;       // Implicit hydrogen count
+  // Always a real periodic-table symbol ("C", "N", "Cl", ...) — never a
+  // depiction label and never an R-group token. See `wildcard` before
+  // trusting this for an R-group atom (chematic has no real element for
+  // those; this will be a meaningless placeholder).
+  element: string;
+  x: number;                    // 2D X coordinate (screen space, Y-down)
+  y: number;                    // 2D Y coordinate (screen space, Y-down)
+  charge: number;                // Formal charge
+  atom_map: number;              // Reaction atom mapping; 0 = unmapped
+  hydrogen_count?: number;       // Explicit H count; undefined = infer from valence
+  wildcard?: boolean;            // R-group/variable-attachment atom
+  display_label?: string | null; // Cosmetic 2D label ("CH3", "" to suppress);
+                                  // never chemistry input, undefined/null = fall back to `element`
 }
 
 interface BondDto {
   id: number;
   from: number;              // Atom ID
   to: number;                // Atom ID
-  order: number;             // 1=single, 2=double, 3=triple
-  stereo?: number;           // 0=none, 1=up, 4=down, 6=either
+  order: number;             // 1=single, 2=double, 3=triple, 4=aromatic
+  stereo: number;            // 0=none, 1=wedge up, 2=wedge down
 }
 ```
 
@@ -50,12 +57,12 @@ interface BondDto {
 ```typescript
 const benzene: MoleculeDto = {
   atoms: [
-    { id: 0, element: "C", x: 0, y: 0, charge: 0 },
-    { id: 1, element: "C", x: 1, y: 0, charge: 0 },
+    { id: 0, element: "C", x: 0, y: 0, charge: 0, atom_map: 0 },
+    { id: 1, element: "C", x: 1, y: 0, charge: 0, atom_map: 0 },
     // ... 6 total carbons
   ],
   bonds: [
-    { id: 0, from: 0, to: 1, order: 2 },  // aromatic double
+    { id: 0, from: 0, to: 1, order: 4, stereo: 0 },  // aromatic
     // ... 5 more bonds
   ]
 };
@@ -88,16 +95,28 @@ console.log(aspirin.bonds.length);  // 13
 
 ### validateMolecule(mol: MoleculeDto): ValidationResult
 
-Check molecule *structural* validity: bonds referencing atom IDs that don't
-exist (error), and atoms with no bonds when the molecule has more than one atom
-(warning). **Does not check valence** — that's a separate check, only run as
-part of `getProperties()`'s `valence_errors` field.
+Structural checks plus real chemistry, via chematic-core/chematic-perception:
+
+- **Errors** (`valid` is `false` if any are present): bonds referencing atom
+  IDs that don't exist; an unrecognized element symbol; real valence
+  violations (`chematic::core::validate_valence` — e.g. a 5-bonded carbon).
+- **Warnings** (don't affect `valid`): a disconnected structure (real
+  connected-component count, not just "zero bonds total"); an antiaromatic
+  ring (4n π electrons).
+
+Deliberately **not** checked: unspecified-stereocenter detection.
+chematic's `num_unspecified_stereocenters` identifies *candidate* positions
+(sp3 carbons with 4 total connections) without checking whether those 4
+substituents are actually distinct — the real definition of a stereocenter.
+Confirmed empirically: ethanol (zero real stereocenters) reports 2. The
+false-positive rate is severe enough on ordinary molecules that surfacing
+it as a warning here would be noise, not signal.
 
 ```typescript
 interface ValidationResult {
   valid: boolean;
-  errors: string[];        // e.g. "bond references missing atom id"
-  warnings: string[];      // e.g. "N disconnected atom(s)"
+  errors: string[];        // e.g. "atom 3 has valence 5 (allowed: [4])"
+  warnings: string[];      // e.g. "Disconnected structure: 2 separate fragments"
 }
 
 const result = wasmBridge.validateMolecule(mol);
@@ -516,10 +535,10 @@ try {
 
 ## Version Support
 
-- **chematic**: 0.1.40+
-- **wasm-bindgen**: Latest
-- **Node.js**: 18+
-- **Browsers**: Chrome/Edge 90+, Firefox 87+, Safari 14+
+- **chematic**: 0.20.1 (`crates/chem-wasm/Cargo.toml` pins the exact version workspace-wide)
+- **wasm-bindgen**: 0.2.x
+- **Node.js**: 24+ (`electron/package.json`'s `engines.node`; matches CI)
+- **Browsers**: whatever Chromium ships in the pinned Electron version (see `electron/package.json`'s `electron` devDependency) — this app runs inside Electron, not an arbitrary browser
 
 ---
 

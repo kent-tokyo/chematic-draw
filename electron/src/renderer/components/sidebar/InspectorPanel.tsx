@@ -15,6 +15,7 @@ export function InspectorPanel() {
   const [smartsPattern, setSmartsPattern] = useState('');
   const [smartsMatches, setSmartsMatches] = useState<number[]>([]);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
   const [functionalGroups, setFunctionalGroups] = useState<string[]>([]);
 
   // Validate molecule. `result?.errors ?? []` used to silently mask a real
@@ -29,8 +30,10 @@ export function InspectorPanel() {
     try {
       const result = wasmBridge.validateMolecule(molecule);
       setValidationErrors(result?.errors ?? []);
+      setValidationWarnings(result?.warnings ?? []);
     } catch (err) {
       setValidationErrors(['Validation error']);
+      setValidationWarnings([]);
     }
   }, [molecule]);
 
@@ -122,6 +125,13 @@ export function InspectorPanel() {
         <div style={{ fontSize: '10px', color: '#f26d6d' }}>
           {validationErrors.map((err, i) => (
             <div key={i}>{err}</div>
+          ))}
+        </div>
+      )}
+      {validationWarnings.length > 0 && (
+        <div style={{ fontSize: '10px', color: '#e0a030', marginTop: '6px' }}>
+          {validationWarnings.map((warning, i) => (
+            <div key={i}>⚠ {warning}</div>
           ))}
         </div>
       )}

@@ -250,4 +250,80 @@ describe('WASM contract (real binary, not mocked)', () => {
     expect(fp).toHaveLength(512);
     expect(wasm.tanimoto_similarity(fp, fp)).toBe(1.0);
   });
+
+  // v0.3 reliability round: validate_molecule extended from JSON-shape-only
+  // checks to real chemistry (chematic-core's validate_valence,
+  // Molecule::is_connected/fragments, chematic-perception's
+  // assign_aromaticity) - see chem-wasm's validate_molecule for why
+  // "unspecified stereocenter" detection is deliberately NOT included
+  // (chematic's num_unspecified_stereocenters has no substituent-uniqueness
+  // check and false-positives on nearly every sp3 carbon; confirmed
+  // ethanol, with zero real stereocenters, reports 2).
+  describe('validate_molecule: real chemistry, not just JSON shape', () => {
+    it('a structurally sound molecule has no errors or warnings', () => {
+      const result = wasm.validate_molecule(wasm.parse_any('CCO'));
+      expect(result.valid).toBe(true);
+      expect(result.errors).toEqual([]);
+      expect(result.warnings).toEqual([]);
+    });
+
+    it('an over-valenced atom is a real, specific error (not just bond-reference sanity)', () => {
+      // A carbon with 5 single bonds - chemically impossible, not just a
+      // malformed-JSON case the old bond-reference-only check would miss.
+      const overvalent = {
+        atoms: [0, 1, 2, 3, 4, 5].map((i) => ({ id: i, element: 'C', x: i * 10, y: 0, charge: 0, atom_map: 0 })),
+        bonds: [1, 2, 3, 4, 5].map((to, i) => ({ id: 6 + i, from: 0, to, order: 1, stereo: 0 })),
+      };
+      const result = wasm.validate_molecule(overvalent);
+      expect(result.valid).toBe(false);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toContain('valence 5');
+    });
+
+    it('a multi-fragment molecule is a warning, not an error, with the real fragment count', () => {
+      const result = wasm.validate_molecule(wasm.parse_any('CCO.c1ccccc1'));
+      expect(result.valid).toBe(true);
+      expect(result.warnings).toEqual(['Disconnected structure: 2 separate fragments']);
+    });
+
+    it('a real antiaromatic ring (cyclobutadiene) is flagged as a warning', () => {
+      const result = wasm.validate_molecule(wasm.parse_any('C1=CC=C1'));
+      expect(result.valid).toBe(true);
+      expect(result.warnings.some((w: string) => w.includes('antiaromatic'))).toBe(true);
+    });
+
+    it('an unrecognized element symbol is a validation error, not a thrown exception', () => {
+      // validate_molecule's whole purpose is reporting on validity - a
+      // dto_to_chem failure must become a finding in the result, not an
+      // unhandled throw that leaves the caller with nothing.
+      const badElement = {
+        atoms: [{ id: 0, element: 'Xx', x: 0, y: 0, charge: 0, atom_map: 0 }],
+        bonds: [],
+      };
+      expect(() => wasm.validate_molecule(badElement)).not.toThrow();
+      const result = wasm.validate_molecule(badElement);
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toContain('Unknown element');
+    });
+  });
+
+  // BLOCKED, not merely unwritten: see docs/INTEROP.md's "Known lossy
+  // conversions" table. Confirmed empirically that a wildcard atom
+  // silently degrades to a plain carbon (wildcard: false, element: "C")
+  // when written to and re-parsed from any of these formats, with no error
+  // or warning. Deliberately not asserted as either passing or throwing
+  // (see this file's other it.skip above for why), so a future fix isn't
+  // accidentally hidden by a stale "expected to fail" assertion. Un-skip
+  // once chem_to_dto/dto_to_chem or the underlying chematic-mol writers
+  // preserve the wildcard flag through these formats.
+  it.skip.each(['to_mol_v2000', 'to_mol_v3000', 'to_sdf', 'to_cml'])(
+    'a wildcard atom survives a round-trip through %s (blocked: currently degrades to plain carbon)',
+    (writerName) => {
+      const mol = wasm.parse_any('[*]CC');
+      const text = wasm[writerName](mol);
+      const reparsed = wasm.parse_any(text);
+      const wildcardAtom = reparsed.atoms.find((a: { wildcard?: boolean }) => a.wildcard);
+      expect(wildcardAtom).toBeDefined();
+    }
+  );
 });

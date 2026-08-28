@@ -698,7 +698,9 @@ pub struct ValidationResultDto {
     pub warnings: Vec<String>,
 }
 
-/// Validate molecule: check for basic errors
+/// Validate molecule: structural checks plus real chemistry (valence,
+/// connectivity, aromaticity, stereo completeness) via chematic-core/
+/// chematic-perception/chematic-chem — not just JSON shape.
 #[wasm_bindgen]
 pub fn validate_molecule(mol_json: &JsValue) -> Result<JsValue, JsValue> {
     let mol: MoleculeDto = serde_wasm_bindgen::from_value(mol_json.clone())
@@ -707,11 +709,6 @@ pub fn validate_molecule(mol_json: &JsValue) -> Result<JsValue, JsValue> {
     let mut errors = vec![];
     let mut warnings = vec![];
 
-    // Check for isolated atoms
-    if mol.atoms.len() > 1 && mol.bonds.is_empty() {
-        warnings.push("Disconnected atoms detected".to_string());
-    }
-
     // Check for invalid bonds
     for bond in &mol.bonds {
         if !mol.atoms.iter().any(|a| a.id == bond.from) {
@@ -719,6 +716,53 @@ pub fn validate_molecule(mol_json: &JsValue) -> Result<JsValue, JsValue> {
         }
         if !mol.atoms.iter().any(|a| a.id == bond.to) {
             errors.push(format!("Bond to atom {} not found", bond.to));
+        }
+    }
+
+    // Chemistry-level checks need a real chematic::core::Molecule. A
+    // dto_to_chem failure (e.g. an unrecognized element symbol) is itself a
+    // real validation error — validate_molecule's whole purpose is to
+    // report on validity, so this is caught and reported like any other
+    // finding rather than propagated as a thrown JsValue, which would stop
+    // the caller from getting a result at all.
+    match dto_to_chem(&mol) {
+        Ok(chem_mol) => {
+            for err in chematic::core::validate_valence(&chem_mol) {
+                errors.push(err.to_string());
+            }
+
+            if mol.atoms.len() > 1 && !chem_mol.is_connected() {
+                warnings.push(format!(
+                    "Disconnected structure: {} separate fragments",
+                    chem_mol.fragments().len()
+                ));
+            }
+
+            let aromaticity = chematic::perception::assign_aromaticity(&chem_mol);
+            if aromaticity.has_antiaromaticity() {
+                warnings.push(format!(
+                    "{} antiaromatic ring(s) detected (4n \u{3c0} electrons)",
+                    aromaticity.antiaromatic_rings().len()
+                ));
+            }
+
+            // NOT surfaced here, deliberately: chematic::chem::num_unspecified_stereocenters
+            // (also used by enumerate_stereoisomers) identifies CANDIDATES —
+            // sp3 carbons with 4 total connections — without checking
+            // whether those 4 substituents are actually distinct, which is
+            // the real definition of a stereocenter. Confirmed empirically:
+            // ethanol (CH3-CH2-OH, zero real stereocenters) reports 2. For
+            // enumerate_stereoisomers this is harmless (false-positive
+            // "isomers" collapse via canonical-SMILES dedup); for a warning
+            // count with no such correction, the false-positive rate is
+            // severe enough (fires on nearly every sp3-containing molecule)
+            // that showing it would be alarm-fatigue noise, not signal. A
+            // real check needs actual substituent-uniqueness comparison
+            // (e.g. via chematic-cip's ranking) — not attempted here.
+        }
+        Err(err) => {
+            let message = err.as_string().unwrap_or_else(|| format!("{err:?}"));
+            errors.push(message);
         }
     }
 
