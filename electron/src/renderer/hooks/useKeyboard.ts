@@ -177,5 +177,24 @@ export function useKeyboard() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [
+    setTool,
+    setZoom,
+    zoom,
+    undo,
+    redo,
+    pushUndo,
+    removeAtom,
+    removeBond,
+    selectAll,
+    deselectAll,
+    getSelectedAtoms,
+    getSelectedBonds,
+    setFocusMode,
+    focusMode,
+    showModal,
+    molecule,
+    setMolecule,
+    setStatus,
+  ]);
 }
