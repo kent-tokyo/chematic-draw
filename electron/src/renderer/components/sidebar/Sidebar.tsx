@@ -21,10 +21,9 @@ export function Sidebar() {
   const setActiveSidebarPanel = useUIStore((s) => s.setActiveSidebarPanel);
   const setSidebarOpen = useUIStore((s) => s.setSidebarOpen);
   const theme = useUIStore((s) => s.theme);
+  const batchResults = useUIStore((s) => s.batchResults);
 
   if (!sidebarOpen) return null;
-
-  const batchResults = useUIStore((s) => s.batchResults);
 
   interface SidebarTab {
     id: string;

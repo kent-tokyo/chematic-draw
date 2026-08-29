@@ -36,11 +36,10 @@ import {
 // See wasmContract.test.ts for why this require is deferred to beforeAll
 // (eager load-time require of the ~1.4MB wasm binary was observed to
 // corrupt ts-jest's shared compilation state for sibling test files).
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let wasm: any;
 
 beforeAll(() => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   wasm = require('../renderer/wasm/pkg-node/chem_wasm');
 });
 
@@ -126,7 +125,6 @@ afterAll(() => {
 
   const outPath = path.join(__dirname, '../../perf-report.json');
   fs.writeFileSync(outPath, JSON.stringify(payload, null, 2));
-  // eslint-disable-next-line no-console
   console.log(`Performance report written to ${outPath} (${report.length} operations measured)`);
 });
 

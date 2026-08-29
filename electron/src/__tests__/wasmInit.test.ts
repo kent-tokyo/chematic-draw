@@ -28,7 +28,7 @@ describe('WASM init state machine', () => {
       __esModule: true,
       default: jest.fn(defaultImpl),
     }));
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     return require('../renderer/wasm/wasmBridge') as typeof import('../renderer/wasm/wasmBridge');
   }
 

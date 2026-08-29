@@ -5,6 +5,157 @@ import { ElementPicker } from '../inspector/ElementPicker';
 import { AtomDto, BondDto } from '../../store/types';
 import * as wasmBridge from '../../wasm/wasmBridge';
 
+// Hoisted out of InspectorPanel's render body: defining a component inline
+// in a render function gives it a new identity every render, so React
+// unmounts and remounts its whole subtree each time — for SmartsSection
+// specifically, that meant the search <input> got recreated (and lost
+// keyboard focus) after every single keystroke, since typing triggers the
+// parent state update that re-renders InspectorPanel.
+function FunctionalGroupsSection({
+  bgColor,
+  labelColor,
+  textColor,
+  functionalGroups,
+}: {
+  bgColor: string;
+  labelColor: string;
+  textColor: string;
+  functionalGroups: string[];
+}) {
+  return (
+    <div style={{ padding: '12px', backgroundColor: bgColor, borderRadius: '4px', border: `1px solid ${labelColor}` }}>
+      <div style={{ fontSize: '11px', fontWeight: 'bold', color: textColor, marginBottom: '8px' }}>
+        Functional Groups
+      </div>
+      {functionalGroups.length === 0 ? (
+        <div style={{ fontSize: '10px', color: labelColor }}>None detected</div>
+      ) : (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+          {functionalGroups.map((group, i) => (
+            <div
+              key={i}
+              style={{
+                fontSize: '9px',
+                backgroundColor: '#4d8dff',
+                color: 'white',
+                padding: '4px 8px',
+                borderRadius: '12px',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {group.replace(/[()]/g, '')}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ValidationSection({
+  bgColor,
+  labelColor,
+  textColor,
+  validationErrors,
+  validationWarnings,
+}: {
+  bgColor: string;
+  labelColor: string;
+  textColor: string;
+  validationErrors: string[];
+  validationWarnings: string[];
+}) {
+  return (
+    <div style={{ padding: '12px', backgroundColor: bgColor, borderRadius: '4px', border: `1px solid ${labelColor}` }}>
+      <div style={{ fontSize: '11px', fontWeight: 'bold', color: textColor, marginBottom: '8px' }}>
+        Validation
+      </div>
+      {validationErrors.length === 0 ? (
+        <div style={{ fontSize: '10px', color: '#58c97a' }}>✓ No errors</div>
+      ) : (
+        <div style={{ fontSize: '10px', color: '#f26d6d' }}>
+          {validationErrors.map((err, i) => (
+            <div key={i}>{err}</div>
+          ))}
+        </div>
+      )}
+      {validationWarnings.length > 0 && (
+        <div style={{ fontSize: '10px', color: '#e0a030', marginTop: '6px' }}>
+          {validationWarnings.map((warning, i) => (
+            <div key={i}>⚠ {warning}</div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SmartsSection({
+  bgColor,
+  labelColor,
+  textColor,
+  theme,
+  smartsPattern,
+  setSmartsPattern,
+  smartsMatches,
+  handleSmartsSearch,
+}: {
+  bgColor: string;
+  labelColor: string;
+  textColor: string;
+  theme: string;
+  smartsPattern: string;
+  setSmartsPattern: (value: string) => void;
+  smartsMatches: number[];
+  handleSmartsSearch: () => void;
+}) {
+  return (
+    <div style={{ padding: '12px', backgroundColor: bgColor, borderRadius: '4px', border: `1px solid ${labelColor}` }}>
+      <div style={{ fontSize: '11px', fontWeight: 'bold', color: textColor, marginBottom: '8px' }}>
+        SMARTS Search
+      </div>
+      <input
+        type="text"
+        placeholder="e.g., [#6]1:[#6]:[#6]:[#6]:[#6]:[#6]:1"
+        value={smartsPattern}
+        onChange={(e) => setSmartsPattern(e.target.value)}
+        onKeyPress={(e) => e.key === 'Enter' && handleSmartsSearch()}
+        style={{
+          width: '100%',
+          padding: '6px',
+          border: `1px solid ${labelColor}`,
+          borderRadius: '3px',
+          backgroundColor: theme === 'dark' ? '#1e2530' : '#f9f9f9',
+          color: textColor,
+          fontSize: '10px',
+          boxSizing: 'border-box',
+        }}
+      />
+      <button
+        onClick={handleSmartsSearch}
+        style={{
+          marginTop: '6px',
+          width: '100%',
+          padding: '6px',
+          backgroundColor: '#4d8dff',
+          color: 'white',
+          border: 'none',
+          borderRadius: '3px',
+          fontSize: '10px',
+          cursor: 'pointer',
+        }}
+      >
+        Search
+      </button>
+      {smartsMatches.length > 0 && (
+        <div style={{ marginTop: '6px', fontSize: '10px', color: textColor }}>
+          Found {smartsMatches.length} atoms matching
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function InspectorPanel() {
   const theme = useUIStore((s) => s.theme);
   const selectedAtom = useUIStore((s) => s.selectedAtomForInspector);
@@ -83,117 +234,15 @@ export function InspectorPanel() {
     }
   };
 
-  // Functional groups section
-  const FunctionalGroupsSection = () => (
-    <div style={{ padding: '12px', backgroundColor: bgColor, borderRadius: '4px', border: `1px solid ${labelColor}` }}>
-      <div style={{ fontSize: '11px', fontWeight: 'bold', color: textColor, marginBottom: '8px' }}>
-        Functional Groups
-      </div>
-      {functionalGroups.length === 0 ? (
-        <div style={{ fontSize: '10px', color: labelColor }}>None detected</div>
-      ) : (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-          {functionalGroups.map((group, i) => (
-            <div
-              key={i}
-              style={{
-                fontSize: '9px',
-                backgroundColor: '#4d8dff',
-                color: 'white',
-                padding: '4px 8px',
-                borderRadius: '12px',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {group.replace(/[()]/g, '')}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-
-  // Validation section
-  const ValidationSection = () => (
-    <div style={{ padding: '12px', backgroundColor: bgColor, borderRadius: '4px', border: `1px solid ${labelColor}` }}>
-      <div style={{ fontSize: '11px', fontWeight: 'bold', color: textColor, marginBottom: '8px' }}>
-        Validation
-      </div>
-      {validationErrors.length === 0 ? (
-        <div style={{ fontSize: '10px', color: '#58c97a' }}>✓ No errors</div>
-      ) : (
-        <div style={{ fontSize: '10px', color: '#f26d6d' }}>
-          {validationErrors.map((err, i) => (
-            <div key={i}>{err}</div>
-          ))}
-        </div>
-      )}
-      {validationWarnings.length > 0 && (
-        <div style={{ fontSize: '10px', color: '#e0a030', marginTop: '6px' }}>
-          {validationWarnings.map((warning, i) => (
-            <div key={i}>⚠ {warning}</div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-
-  // SMARTS search section
-  const SmartsSection = () => (
-    <div style={{ padding: '12px', backgroundColor: bgColor, borderRadius: '4px', border: `1px solid ${labelColor}` }}>
-      <div style={{ fontSize: '11px', fontWeight: 'bold', color: textColor, marginBottom: '8px' }}>
-        SMARTS Search
-      </div>
-      <input
-        type="text"
-        placeholder="e.g., [#6]1:[#6]:[#6]:[#6]:[#6]:[#6]:1"
-        value={smartsPattern}
-        onChange={(e) => setSmartsPattern(e.target.value)}
-        onKeyPress={(e) => e.key === 'Enter' && handleSmartsSearch()}
-        style={{
-          width: '100%',
-          padding: '6px',
-          border: `1px solid ${labelColor}`,
-          borderRadius: '3px',
-          backgroundColor: theme === 'dark' ? '#1e2530' : '#f9f9f9',
-          color: textColor,
-          fontSize: '10px',
-          boxSizing: 'border-box',
-        }}
-      />
-      <button
-        onClick={handleSmartsSearch}
-        style={{
-          marginTop: '6px',
-          width: '100%',
-          padding: '6px',
-          backgroundColor: '#4d8dff',
-          color: 'white',
-          border: 'none',
-          borderRadius: '3px',
-          fontSize: '10px',
-          cursor: 'pointer',
-        }}
-      >
-        Search
-      </button>
-      {smartsMatches.length > 0 && (
-        <div style={{ marginTop: '6px', fontSize: '10px', color: textColor }}>
-          Found {smartsMatches.length} atoms matching
-        </div>
-      )}
-    </div>
-  );
-
   if (!selectedAtom && !selectedBond) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         <div style={{ color: labelColor, fontSize: '12px', textAlign: 'center', padding: '20px 0' }}>
           Select an atom or bond to inspect
         </div>
-        <FunctionalGroupsSection />
-        <ValidationSection />
-        <SmartsSection />
+        <FunctionalGroupsSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} functionalGroups={functionalGroups} />
+        <ValidationSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} validationErrors={validationErrors} validationWarnings={validationWarnings} />
+        <SmartsSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} theme={theme} smartsPattern={smartsPattern} setSmartsPattern={setSmartsPattern} smartsMatches={smartsMatches} handleSmartsSearch={handleSmartsSearch} />
       </div>
     );
   }
@@ -333,13 +382,6 @@ export function InspectorPanel() {
         </>
       )}
 
-      {!selectedAtom && !selectedBond && (
-        <>
-          <FunctionalGroupsSection />
-          <ValidationSection />
-          <SmartsSection />
-        </>
-      )}
     </div>
   );
 }

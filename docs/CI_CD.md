@@ -67,7 +67,7 @@ on:
 
 | Job | Time | Purpose |
 |-----|------|---------|
-| **Lint & Type Check** | 2-3 min | TypeScript validation |
+| **Lint & Type Check** | 2-3 min | ESLint + TypeScript validation |
 | **Unit Tests** | 5-8 min | Jest unit tests + coverage |
 | **E2E Tests** | 8-12 min | Playwright browser tests |
 | **Performance Benchmarks** | 5-10 min | Performance regressions |
@@ -81,8 +81,10 @@ on:
 5. Install dependencies
 6. Run tests
 
-Note: "Lint & Type Check" currently only runs `npm run typecheck` (real
-`tsc --noEmit`) — `npm run lint` is still a no-op, no ESLint configured yet.
+Note: "Lint & Type Check" runs both `npm run lint` (ESLint —
+typescript-eslint + react-hooks recommended configs) and `npm run
+typecheck` (real `tsc --noEmit`). Lint currently has 0 errors and ~71
+pre-existing `no-unused-vars` warnings (non-blocking) — see `docs/BUILD.md`.
 
 **Coverage:**
 - Coverage report uploaded to [Codecov](https://codecov.io)

@@ -229,6 +229,10 @@ Unit tests need the Node-target WASM build first (`npm run build:wasm:test`)
 npm run test:e2e
 
 # Electron smoke test (the real packaged app via Playwright's _electron — run `npm run package` first)
+# Skipping that (e.g. running `npm start` beforehand instead) leaves
+# .vite/build/main.js in dev mode, so the app opens DevTools as its first
+# window and this test fails with `toHaveTitle('chematic-draw')` received
+# `"DevTools"` — re-run `npm run package` if you see that.
 npm run test:e2e:electron
 
 # Both
@@ -256,11 +260,23 @@ Runs the real Node-target WASM binary against a fixed molecule corpus
 ### Linting / Type Checking
 
 ```bash
+# ESLint (typescript-eslint recommended + react-hooks recommended)
+npm run lint
+
 # Real TypeScript type check
 npm run typecheck
-
-# `npm run lint` is currently a no-op — no ESLint configured yet
 ```
+
+`eslint.config.mjs` deliberately turns `@typescript-eslint/no-explicit-any`
+off (this codebase uses `any` at WASM/DTO boundaries throughout — a full
+pass to eliminate it is a separate, larger decision) and downgrades
+`react-hooks/set-state-in-effect` to a warning (several panels correctly
+call `setState({status:'loading'})` synchronously at the top of an effect
+before an async WASM call, on purpose — see `ResearchPanel.tsx`/
+`Viewer3DPanel.tsx`). `npm run lint` currently reports ~71 pre-existing
+`no-unused-vars` warnings across the codebase (0 errors) — a known,
+tracked baseline (`internal_docs/ROADMAP.md`), not something new code
+needs to fix incidentally.
 
 ---
 

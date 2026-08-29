@@ -37,11 +37,10 @@ export {};
 // state for sibling test files in the same run (they'd fail with spurious "cannot
 // find name jest/expect" errors) — deferring it until this file's own tests
 // actually start running avoids that entirely.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let wasm: any;
 
 beforeAll(() => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   wasm = require('../renderer/wasm/pkg-node/chem_wasm');
 });
 

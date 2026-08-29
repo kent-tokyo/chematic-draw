@@ -26,12 +26,11 @@
 // same (e.g. wasmContract.test.ts). This export makes it a real module.
 export {};
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let wasm: any;
 let formatFixtures: Record<string, string>;
 
 beforeAll(() => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   wasm = require('../renderer/wasm/pkg-node/chem_wasm');
 
   // Item 6: one rich fixture per format (carbon skeleton, aromatic ring,

@@ -298,7 +298,7 @@ ipcMain.handle('clipboard:write', async (event, format, content) => {
   }
 });
 
-ipcMain.handle('clipboard:read', async (event) => {
+ipcMain.handle('clipboard:read', async (_event) => {
   try {
     const text = clipboard.readText();
     return { success: true, content: text };

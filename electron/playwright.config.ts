@@ -8,9 +8,16 @@ import { defineConfig, devices } from '@playwright/test';
 //   required, but never touches preload.js/contextBridge/window.electronAPI
 //   — it can't prove anything about the actual Electron app shell.
 // - electron-smoke: launches the real, built Electron app via Playwright's
-//   _electron API. Requires `npm run package` (or `make`) first. This is
-//   the only suite that actually exercises the main process and preload
-//   bridge.
+//   _electron API. Requires `npm run package` (or `make`) first — running
+//   `npm start` (dev mode) beforehand instead leaves `.vite/build/main.js`
+//   bundled with MAIN_WINDOW_VITE_DEV_SERVER_URL truthy, so main.js's own
+//   (correct) dev-only DevTools guard fires for real: the freshly-launched
+//   app opens DevTools as its first window, and this suite's
+//   `firstWindow()` picks that up instead of the app window, failing with
+//   `expect(page).toHaveTitle('chematic-draw')` received `"DevTools"` — a
+//   stale-build symptom, not an app bug. Re-run `npm run package` if you
+//   see that failure. This is the only suite that actually exercises the
+//   main process and preload bridge.
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,

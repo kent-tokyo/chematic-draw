@@ -11,6 +11,11 @@ export function UndoTimelineModal() {
   const undo = useMoleculeStore((s) => s.undo);
   const redo = useMoleculeStore((s) => s.redo);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  // Lazy initializer: computed once when the modal first mounts, not on
+  // every re-render — Date.now() is impure and must not run directly in
+  // the render body (it would also silently drift the "Current" label to
+  // a newer "now" on every unrelated re-render while the modal stays open).
+  const [openedAt] = useState(() => Date.now());
 
   if (!showUndoModal) return null;
 
@@ -23,7 +28,7 @@ export function UndoTimelineModal() {
       description: `Undo step ${undoStack.length - i}`,
       timestamp: null,
     })),
-    { description: 'Current', timestamp: Date.now() },
+    { description: 'Current', timestamp: openedAt },
     ...[...redoStack].reverse().map((_, i) => ({
       description: `Redo step ${i + 1}`,
       timestamp: null,

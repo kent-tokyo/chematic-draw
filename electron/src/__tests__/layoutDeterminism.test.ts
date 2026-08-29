@@ -15,11 +15,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ALL_FIXTURES } from '../renderer/wasm/__fixtures__/benchmarkMolecules';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let wasm: any;
 
 beforeAll(() => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   wasm = require('../renderer/wasm/pkg-node/chem_wasm');
 });
 

@@ -116,8 +116,8 @@ npm run test:e2e
 # Specific test file
 npm test -- src/__tests__/wasmBridge.test.ts
 
-# Type check (real TS check — `npm run lint` is currently a no-op stub,
-# no ESLint configured yet)
+# Lint (ESLint) and type check (real tsc --noEmit)
+npm run lint
 npm run typecheck
 ```
 
