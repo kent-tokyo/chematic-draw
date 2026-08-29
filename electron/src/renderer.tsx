@@ -190,6 +190,23 @@ function App() {
         }
       });
 
+      api.onMenuExportPdf?.(async () => {
+        const result = await api.fileSaveDialog('untitled.pdf');
+        if (!result.canceled && result.filePath) {
+          try {
+            const svg = wasmBridge.toSvg(molecule);
+            const writeResult = await api.exportPdf(result.filePath, svg);
+            if (writeResult.success) {
+              setStatus(`Exported: ${result.filePath}`);
+            } else {
+              setStatus(`Export failed: ${writeResult.error}`);
+            }
+          } catch (err) {
+            setStatus(`Export failed: ${(err as Error).message}`);
+          }
+        }
+      });
+
       api.onMenuExportMol(async () => {
         const result = await api.fileSaveDialog('untitled.mol');
         if (!result.canceled && result.filePath) {

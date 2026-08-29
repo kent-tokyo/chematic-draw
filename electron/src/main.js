@@ -2,6 +2,7 @@ import { app, BrowserWindow, Menu, dialog, ipcMain, clipboard } from 'electron';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
+import { svgPageSizeInches } from './lib/svgPageSize';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -112,6 +113,10 @@ const createMenu = () => {
             {
               label: 'Export as PNG...',
               click: () => mainWindow.webContents.send('menu:export-png'),
+            },
+            {
+              label: 'Export as PDF...',
+              click: () => mainWindow.webContents.send('menu:export-pdf'),
             },
             {
               label: 'Export as MOL V2000...',
@@ -261,6 +266,7 @@ ipcMain.handle('file:save-dialog', async (event, defaultPath) => {
       { name: 'SDF', extensions: ['sdf'] },
       { name: 'SVG', extensions: ['svg'] },
       { name: 'PNG', extensions: ['png'] },
+      { name: 'PDF', extensions: ['pdf'] },
       { name: 'All Files', extensions: ['*'] },
     ],
   });
@@ -285,6 +291,29 @@ ipcMain.handle('file:write-binary', async (event, filePath, base64Content) => {
     return { success: true };
   } catch (err) {
     return { success: false, error: err.message };
+  }
+});
+
+// Renders the molecule's own SVG into a dedicated hidden window (not the
+// live editing canvas) and prints that to PDF, so the export is unaffected
+// by canvas zoom/pan/selection highlighting.
+ipcMain.handle('export:pdf', async (event, filePath, svgText) => {
+  const { width, height } = svgPageSizeInches(svgText);
+  const html = `<!DOCTYPE html><html><head><style>html,body{margin:0;padding:0}</style></head><body>${svgText}</body></html>`;
+  const pdfWindow = new BrowserWindow({ show: false });
+  try {
+    await pdfWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+    const buffer = await pdfWindow.webContents.printToPDF({
+      printBackground: true,
+      pageSize: { width, height },
+      margins: { marginType: 'none' },
+    });
+    writeFileSync(filePath, buffer);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  } finally {
+    pdfWindow.destroy();
   }
 });
 
