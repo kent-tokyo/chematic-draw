@@ -42,11 +42,11 @@ export function MoleculeCanvas() {
   const recalculateLayout = useReactionSchemeStore((s) => s.recalculateLayout);
 
   const selectedAtomIds = useMemo(() =>
-    molecule.atoms.filter((a) => 'selected' in a && (a as any).selected).map((a) => a.id),
+    molecule.atoms.filter((a) => a.selected).map((a) => a.id),
     [molecule]
   );
   const selectedBondIds = useMemo(() =>
-    molecule.bonds.filter((b) => 'selected' in b && (b as any).selected).map((b) => b.id),
+    molecule.bonds.filter((b) => b.selected).map((b) => b.id),
     [molecule]
   );
 

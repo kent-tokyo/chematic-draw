@@ -26,6 +26,9 @@ export interface AtomDto {
   /** Mass number of a specific isotope (e.g. `13` for ¹³C). `undefined`
    * means natural-abundance element (no isotope specified). */
   isotope?: number;
+  /** Canvas selection highlight. Client-side UI state only — chem-wasm
+   * never produces this field and never reads it back. */
+  selected?: boolean;
 }
 
 export interface BondDto {
@@ -34,6 +37,9 @@ export interface BondDto {
   to: number;
   order: number; // 1=Single, 2=Double, 3=Triple, 4=Aromatic
   stereo: number; // 0=None, 1=WedgeUp, 2=WedgeDown
+  /** Canvas selection highlight. Client-side UI state only — chem-wasm
+   * never produces this field and never reads it back. */
+  selected?: boolean;
 }
 
 export interface MoleculeDto {

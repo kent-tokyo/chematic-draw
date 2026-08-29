@@ -32,6 +32,7 @@ interface MoleculeStore {
   // Selection
   selectAtom: (id: number, additive: boolean) => void;
   selectBond: (id: number, additive: boolean) => void;
+  selectAll: () => void;
   deselectAll: () => void;
   getSelectedAtoms: () => AtomDto[];
   getSelectedBonds: () => BondDto[];
@@ -184,7 +185,7 @@ export const useMoleculeStore = create<MoleculeStore>((set, get) => ({
   selectAtom: (id, additive) => {
     set((state) => {
       const prevSelected = new Set(
-        state.molecule.atoms.filter((a) => 'selected' in a && (a as any).selected).map((a) => a.id)
+        state.molecule.atoms.filter((a) => a.selected).map((a) => a.id)
       );
       if (additive) {
         if (prevSelected.has(id)) prevSelected.delete(id);
@@ -208,7 +209,7 @@ export const useMoleculeStore = create<MoleculeStore>((set, get) => ({
   selectBond: (id, additive) => {
     set((state) => {
       const prevSelected = new Set(
-        state.molecule.bonds.filter((b) => 'selected' in b && (b as any).selected).map((b) => b.id)
+        state.molecule.bonds.filter((b) => b.selected).map((b) => b.id)
       );
       if (additive) {
         if (prevSelected.has(id)) prevSelected.delete(id);
@@ -229,6 +230,16 @@ export const useMoleculeStore = create<MoleculeStore>((set, get) => ({
     });
   },
 
+  selectAll: () => {
+    set((state) => ({
+      molecule: {
+        ...state.molecule,
+        atoms: state.molecule.atoms.map((a) => ({ ...a, selected: true })),
+        bonds: state.molecule.bonds.map((b) => ({ ...b, selected: true })),
+      },
+    }));
+  },
+
   deselectAll: () => {
     set((state) => ({
       molecule: {
@@ -241,11 +252,11 @@ export const useMoleculeStore = create<MoleculeStore>((set, get) => ({
 
   getSelectedAtoms: () => {
     const { molecule } = get();
-    return molecule.atoms.filter((a) => 'selected' in a && (a as any).selected);
+    return molecule.atoms.filter((a) => a.selected);
   },
 
   getSelectedBonds: () => {
     const { molecule } = get();
-    return molecule.bonds.filter((b) => 'selected' in b && (b as any).selected);
+    return molecule.bonds.filter((b) => b.selected);
   },
 }));

@@ -15,6 +15,7 @@ export function useKeyboard() {
   const pushUndo = useMoleculeStore((s) => s.pushUndo);
   const removeAtom = useMoleculeStore((s) => s.removeAtom);
   const removeBond = useMoleculeStore((s) => s.removeBond);
+  const selectAll = useMoleculeStore((s) => s.selectAll);
   const deselectAll = useMoleculeStore((s) => s.deselectAll);
   const getSelectedAtoms = useMoleculeStore((s) => s.getSelectedAtoms);
   const getSelectedBonds = useMoleculeStore((s) => s.getSelectedBonds);
@@ -159,8 +160,10 @@ export function useKeyboard() {
 
       // Select All
       if (ctrl && e.key === 'a') {
-        e.preventDefault();
-        // TODO: selectAll()
+        if (!isInput) {
+          e.preventDefault();
+          selectAll();
+        }
         return;
       }
 
