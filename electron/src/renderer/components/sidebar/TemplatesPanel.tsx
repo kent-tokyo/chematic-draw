@@ -67,12 +67,14 @@ const TEMPLATES = [
 export function TemplatesPanel() {
   const theme = useUIStore((s) => s.theme);
   const setMolecule = useMoleculeStore((s) => s.setMolecule);
+  const pushUndo = useMoleculeStore((s) => s.pushUndo);
   const setStatus = useUIStore((s) => s.setStatus);
   const [searchTerm, setSearchTerm] = useState('');
 
   const handleInsertTemplate = (smiles: string, name: string) => {
     try {
       const mol = wasmBridge.parseMolecule(smiles);
+      pushUndo();
       setMolecule(mol);
       setStatus(`Inserted ${name}`);
     } catch (err) {
