@@ -91,7 +91,7 @@ const createMenu = () => {
                 const content = readFileSync(filePath, 'utf-8');
                 mainWindow.webContents.send('menu:open-file', { path: filePath, content });
               } catch (err) {
-                dialog.showErrorDialog(mainWindow, 'Error', `Failed to open file: ${err.message}`);
+                dialog.showErrorBox('Error', `Failed to open file: ${err.message}`);
               }
             }
           },
@@ -468,7 +468,7 @@ const updateFileMenu = (recentFiles) => {
         const content = readFileSync(filePath, 'utf-8');
         mainWindow.webContents.send('menu:open-file', { path: filePath, content });
       } catch (err) {
-        dialog.showErrorDialog(mainWindow, 'Error', `Failed to open: ${err.message}`);
+        dialog.showErrorBox('Error', `Failed to open: ${err.message}`);
       }
     },
   }));
