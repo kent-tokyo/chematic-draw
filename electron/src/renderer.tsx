@@ -63,10 +63,19 @@ function App() {
           if (savedTheme.success && savedTheme.value) {
             setTheme(savedTheme.value);
           }
+          // sidebarOpen is persisted encoded into this same key (0 = closed,
+          // see the sidebarOpen save effect below) rather than as its own
+          // setting, so a saved 0 must restore the closed state — a truthy
+          // check on `value` would treat 0 as "nothing saved" and silently
+          // reopen the sidebar on every relaunch.
           const savedSidebarWidth = await api.loadSettings('sidebarWidth');
-          if (savedSidebarWidth.success && savedSidebarWidth.value) {
-            useCanvasStore.setState({ zoom: 1 }); // Reset canvas state
-            useUIStore.setState({ sidebarWidth: savedSidebarWidth.value });
+          if (savedSidebarWidth.success && typeof savedSidebarWidth.value === 'number') {
+            if (savedSidebarWidth.value === 0) {
+              useUIStore.setState({ sidebarOpen: false });
+            } else {
+              useUIStore.getState().setSidebarWidth(savedSidebarWidth.value);
+              useUIStore.setState({ sidebarOpen: true });
+            }
           }
         } catch (err) {
           console.error('Failed to hydrate settings:', err);

@@ -186,4 +186,52 @@ test.describe('Electron Smoke', () => {
     await electronApp.close();
     fs.rmSync(userDataDir, { recursive: true, force: true });
   });
+
+  test('closing the sidebar persists across a relaunch', async () => {
+    // Regression test: the settings-hydration effect checked
+    // `savedSidebarWidth.value` for truthiness before restoring, but a
+    // closed sidebar is persisted as sidebarWidth: 0 (there's no separate
+    // sidebarOpen setting — 0 encodes "closed"). 0 is falsy, so the restore
+    // branch was skipped entirely and the sidebar silently reopened at its
+    // default width on every relaunch, even though settings.json correctly
+    // recorded the closed state the whole time. Found via a sweep of the
+    // settings-hydration code adjacent to this round's other fixes.
+    const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chematic-sidebar-test-'));
+    const settingsPath = path.join(userDataDir, 'settings.json');
+
+    const firstApp = await electron.launch({
+      args: [`--user-data-dir=${userDataDir}`, path.resolve(__dirname, '..', '..')],
+    });
+    const firstWindow = await firstApp.firstWindow();
+    await expect(firstWindow.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
+      timeout: 15000,
+    });
+
+    await expect(firstWindow.getByTestId('sidebar')).toBeVisible();
+    await firstWindow.getByRole('button', { name: 'Close sidebar' }).click();
+    await expect(firstWindow.getByTestId('sidebar')).not.toBeVisible();
+
+    // The settings save effect debounces 500ms before writing.
+    await expect
+      .poll(() => {
+        if (!fs.existsSync(settingsPath)) return null;
+        return JSON.parse(fs.readFileSync(settingsPath, 'utf-8')).sidebarWidth;
+      })
+      .toBe(0);
+
+    await firstApp.close();
+
+    const secondApp = await electron.launch({
+      args: [`--user-data-dir=${userDataDir}`, path.resolve(__dirname, '..', '..')],
+    });
+    const secondWindow = await secondApp.firstWindow();
+    await expect(secondWindow.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
+      timeout: 15000,
+    });
+
+    await expect(secondWindow.getByTestId('sidebar')).not.toBeVisible({ timeout: 5000 });
+
+    await secondApp.close();
+    fs.rmSync(userDataDir, { recursive: true, force: true });
+  });
 });
