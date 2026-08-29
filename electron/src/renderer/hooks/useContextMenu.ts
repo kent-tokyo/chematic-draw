@@ -29,7 +29,12 @@ export function useContextMenu() {
       // Try atom first
       const atomId = hitTestAtom(molecule, screenX, screenY, canvasState);
       if (atomId !== null) {
+        // Mutual exclusion: an atom and a bond selected independently (one
+        // right-click each, or a left-click atom then a right-click bond)
+        // used to both stay non-null, so InspectorPanel rendered both
+        // sections' fields stacked on top of each other.
         setSelectedAtomIdForInspector(atomId);
+        setSelectedBondForInspector(null);
         showContextMenu(e.clientX - rect.left, e.clientY - rect.top, atomId);
         return;
       }
@@ -40,6 +45,7 @@ export function useContextMenu() {
         const bond = molecule.bonds.find((b) => b.id === bondId);
         if (bond) {
           setSelectedBondForInspector(bond);
+          setSelectedAtomIdForInspector(null);
           showContextMenu(e.clientX - rect.left, e.clientY - rect.top, undefined, bondId);
         }
         return;

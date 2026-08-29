@@ -102,4 +102,40 @@ test.describe('Atom context menu', () => {
     await page.getByTestId('sidebar-tab-inspector').click();
     await expect(page.getByText('O ▼')).toBeVisible();
   });
+
+  test('selecting a bond after an atom clears the atom out of the Inspector', async ({ page }) => {
+    // Regression test: selectedAtomIdForInspector and selectedBondForInspector
+    // are independent uiStore fields — nothing cleared either one when the
+    // other was set. Left-click an atom (sets the atom id), then right-click
+    // a bond (sets the bond) left both non-null, so InspectorPanel rendered
+    // the atom's Element/Charge/Isotope fields stacked above the bond's
+    // order/stereo controls at the same time.
+    const canvas = page.getByTestId('molecule-canvas');
+    const canvasBox = await canvas.boundingBox();
+    if (!canvasBox) throw new Error('canvas not visible');
+    const posA = { x: canvasBox.width * 0.2, y: canvasBox.height * 0.2 };
+    const posB = { x: canvasBox.width * 0.4, y: canvasBox.height * 0.2 };
+
+    await page.locator('button[title="C [C]"]').click();
+    await canvas.click({ position: posA });
+    await canvas.click({ position: posB });
+
+    await page.locator('button[title="─ [1]"]').click();
+    await page.mouse.move(canvasBox.x + posA.x, canvasBox.y + posA.y);
+    await page.mouse.down();
+    await page.mouse.move(canvasBox.x + posB.x, canvasBox.y + posB.y);
+    await page.mouse.up();
+
+    await page.locator('button[title="Select [ESC]"]').click();
+    await canvas.click({ position: posA });
+
+    await page.getByTestId('sidebar-tab-inspector').click();
+    await expect(page.getByText('Atom ID:')).toBeVisible();
+
+    const bondMid = { x: (posA.x + posB.x) / 2, y: posA.y };
+    await canvas.click({ position: bondMid, button: 'right' });
+
+    await expect(page.getByRole('button', { name: 'Single Bond', exact: true })).toBeVisible();
+    await expect(page.getByText('Atom ID:')).toHaveCount(0);
+  });
 });
