@@ -37,8 +37,15 @@ Complete documentation for the chematic-draw Electron application with integrate
   yet implemented'`. MCS (maximum common substructure) exists in the WASM
   layer but has no UI yet.
 - **Batch Operations**: Process multiple molecules with configurable parameters
-- **File Export**: SVG/PNG/MOL V2000/SMILES (File → Export); XYZ separately
-  from the 3D Viewer tab; CSV/JSON only for reaction schemes (Reactions tab)
+- **File Export**: SVG/PNG/PDF/MOL V2000/SMILES (File → Export); XYZ
+  separately from the 3D Viewer tab; CSV/JSON only for reaction schemes
+  (Reactions tab). PDF renders the same clean SVG output PNG uses, on a
+  page sized to the drawing rather than a fixed Letter/A4 page.
+- **Autosave / Crash Recovery**: the current molecule is snapshotted to a
+  local file periodically; if the app didn't exit cleanly last time, the
+  next launch asks (via a confirm dialog) whether to restore it. This is
+  not the same as unsaved-changes tracking — there is none — so treat it
+  as "restore what was open last time," not "recover my unsaved edits."
 
 ### Performance
 - Lazy-loaded panels for responsive UI

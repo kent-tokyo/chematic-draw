@@ -184,6 +184,11 @@ deleted, and receives no further feature work.
   through SMILES/CML; MOL V2000/SDF drop it — an upstream writer
   limitation, not this bridge's)
 - PNG export
+- PDF export — renders the same `to_svg` output PNG/SVG export use, page
+  sized to the drawing rather than a fixed Letter/A4 page
+- Autosave / crash recovery — a debounced local snapshot, offered back
+  (via explicit confirmation, never silently) only when the app didn't
+  exit cleanly last time
 - `SECURITY.md` and download-checksum verification instructions
 
 ### Fixed

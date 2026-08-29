@@ -447,7 +447,7 @@ Benzene → Nitrobenzene (Nitration)
    → Recheck properties
 4. Use "Stereo" to check/enumerate stereoisomers if needed
 5. Open "3D" to visualize shape
-6. Export the 2D structure via **File → Export** (SVG/PNG), or the 3D
+6. Export the 2D structure via **File → Export** (SVG/PNG/PDF), or the 3D
    structure via the **3D** tab's "XYZ エクスポート" button
 ```
 
