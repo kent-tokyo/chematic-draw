@@ -23,7 +23,11 @@ Complete documentation for the chematic-draw Electron application with integrate
 ## Features Overview
 
 ### Core Functionality
-- **Molecule Drawing**: Canvas-based 2D structure editor with keyboard shortcuts
+- **Molecule Drawing**: Canvas-based 2D structure editor with keyboard shortcuts.
+  The canvas is fully keyboard-editable too — Tab into it, arrow keys move a
+  roving atom focus, Shift+C/N/O/S/P adds a bonded atom, Enter starts a
+  bond-creation flow — and exposes a generated text description for screen
+  readers (full mouse-parity editing beyond this is still future work)
 - **3D Visualization**: WebGL-free 3D molecular viewer with rotation, zoom, export
 - **Reaction Mechanisms**: Step-by-step visualization with atom mapping and electron flow
 - **Property Prediction**: Molecular descriptors, solubility, drug-likeness scores

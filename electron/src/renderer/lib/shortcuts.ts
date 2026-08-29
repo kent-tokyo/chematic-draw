@@ -26,6 +26,17 @@ export const SHORTCUTS: ShortcutGroup[] = [
     ],
   },
   {
+    category: 'Keyboard Canvas Editing',
+    shortcuts: [
+      { keys: 'Tab', description: 'Focus the canvas (auto-selects the first atom)' },
+      { keys: 'Arrow keys', description: 'Move the roving atom focus' },
+      { keys: 'Shift+C/N/O/S/P', description: 'Add that element, bonded to the focused atom' },
+      { keys: 'Enter', description: 'Start bonding the focused atom to a second, existing atom' },
+      { keys: '1 / 2 / 3 / 4', description: '(in bond mode) Confirm bond order to the arrow-selected target' },
+      { keys: 'Esc', description: '(in bond mode) Cancel bond creation' },
+    ],
+  },
+  {
     category: 'File',
     shortcuts: [
       { keys: 'Cmd+N / Ctrl+N', description: 'New molecule' },

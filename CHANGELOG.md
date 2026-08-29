@@ -189,6 +189,15 @@ deleted, and receives no further feature work.
 - Autosave / crash recovery — a debounced local snapshot, offered back
   (via explicit confirmation, never silently) only when the app didn't
   exit cleanly last time
+- Accessibility, Phase A/B1/B2: ARIA labels and dialog semantics on the
+  toolbar/sidebar/modals; the molecule canvas now exposes a generated
+  text description (`role="img"`) and is fully keyboard-editable — Tab
+  into it, arrow keys move a roving atom focus, Shift+C/N/O/S/P adds a
+  bonded atom, Enter starts a 2-step bond-creation flow. A screen-reader
+  announcer now also surfaces the app's existing status messages
+  (save/export results, errors), previously set but never rendered
+  anywhere. Canvas accessibility for full mouse-parity editing beyond
+  this remains future work.
 - `SECURITY.md` and download-checksum verification instructions
 
 ### Fixed
