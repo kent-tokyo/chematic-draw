@@ -3,6 +3,8 @@
 **Pure Rust** で書かれたオープンソースの化学構造描画エディタ。  
 実験的なオフラインファーストの化学構造描画環境です。ChemDraw・ChemDoodle・Ketcher・ChemSketch の代替を目指していますが、まだドロップイン置き換えではなく、科学的正確性と相互運用性を優先して開発しています。
 
+> **注記:** 本ドキュメントは、現在は開発を凍結しているネイティブ Rust/egui デスクトップ版（`crates/chem-ui`, `crates/chem-io`）について説明しています。開発中の本体は [`electron/`](electron/) 以下の Electron + React + WASM 版です。現在の正確な機能一覧とビルド手順は [`docs/README.md`](docs/README.md) を参照してください。
+
 ---
 
 ## 他プロダクトとの機能比較

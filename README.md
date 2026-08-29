@@ -3,6 +3,8 @@
 An open-source chemical structure editor written in **Pure Rust**.  
 An experimental, offline-first chemical drawing environment — not yet a drop-in replacement for ChemDraw, ChemDoodle, Ketcher, or ChemSketch, but built toward chemical correctness and interoperability first.
 
+> **Note:** this document describes the native Rust/egui desktop app (`crates/chem-ui`, `crates/chem-io`), which is now frozen. Active development has moved to the Electron + React + WASM app in [`electron/`](electron/) — see [`docs/README.md`](docs/README.md) for its current, verified feature set and build instructions.
+
 ---
 
 ## Feature comparison
