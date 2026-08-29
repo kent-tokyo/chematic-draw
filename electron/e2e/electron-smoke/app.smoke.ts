@@ -1,5 +1,7 @@
 import { test, expect, _electron as electron } from '@playwright/test';
 import path from 'node:path';
+import fs from 'node:fs';
+import os from 'node:os';
 
 /**
  * Launches the real, packaged Electron app via Playwright's dedicated
@@ -63,5 +65,53 @@ test.describe('Electron Smoke', () => {
     await expect(window.getByRole('dialog', { name: 'Keyboard Shortcuts' })).toBeVisible();
 
     await electronApp.close();
+  });
+
+  test('opening a file records it in the Recent Files list', async () => {
+    // Regression test: main.js has a full Recent Files implementation —
+    // recent-file:add IPC handler, menu rebuild, click-to-reopen, Clear
+    // Recent Files — and preload.js exposes it as
+    // electronAPI.recordRecentFile, but nothing in renderer.tsx ever
+    // called it. The list was permanently empty in practice. Found via a
+    // sweep cross-checking every preload-exposed function against its
+    // actual renderer.tsx call sites (recordRecentFile: 0) after
+    // discovering the same dead-wiring pattern for the Shortcuts menu item
+    // above.
+    const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chematic-recent-files-test-'));
+    const settingsPath = path.join(userDataDir, 'settings.json');
+    const openedPath = path.join(userDataDir, 'test-molecule.smi');
+
+    const electronApp = await electron.launch({
+      args: [`--user-data-dir=${userDataDir}`, path.resolve(__dirname, '..', '..')],
+    });
+    const window = await electronApp.firstWindow();
+    await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
+      timeout: 15000,
+    });
+
+    // SMILES content, not an actual .mol file — parseMolecule's parse_any
+    // auto-detects format from content, not the file extension, and this
+    // is the exact string the app's own default sample loads via.
+    await electronApp.evaluate(
+      ({ BrowserWindow }, { filePath }) => {
+        BrowserWindow.getAllWindows()[0].webContents.send('menu:open-file', {
+          path: filePath,
+          content: 'c1ccccc1',
+        });
+      },
+      { filePath: openedPath }
+    );
+
+    await expect(window.getByText(`Opened: ${openedPath}`)).toBeVisible();
+
+    await expect
+      .poll(() => {
+        if (!fs.existsSync(settingsPath)) return null;
+        return JSON.parse(fs.readFileSync(settingsPath, 'utf-8')).recentFiles;
+      })
+      .toEqual([openedPath]);
+
+    await electronApp.close();
+    fs.rmSync(userDataDir, { recursive: true, force: true });
   });
 });

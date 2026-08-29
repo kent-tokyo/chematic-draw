@@ -158,6 +158,7 @@ function App() {
           setMolecule(mol);
           setFilePath(data.path);
           setStatus(`Opened: ${data.path}`);
+          api.recordRecentFile(data.path);
         } catch (err) {
           setStatus(`Failed to open file: ${(err as Error).message}`);
         }
@@ -185,6 +186,7 @@ function App() {
           if (writeResult.success) {
             setFilePath(result.filePath);
             setStatus(`Saved: ${result.filePath}`);
+            api.recordRecentFile(result.filePath);
           } else {
             setStatus(`Save failed: ${writeResult.error}`);
           }
