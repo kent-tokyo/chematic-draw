@@ -64,6 +64,7 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
   const selectBond = useMoleculeStore((s) => s.selectBond);
   const deselectAll = useMoleculeStore((s) => s.deselectAll);
   const pushUndo = useMoleculeStore((s) => s.pushUndo);
+  const setSelectedAtomIdForInspector = useUIStore((s) => s.setSelectedAtomIdForInspector);
 
   const onMouseDown = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -143,6 +144,13 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
         if (atomId !== null) {
           dragStateRef.current = { type: 'atom-drag', startX: screenX, startY: screenY, atomId };
           selectAtom(atomId, e.shiftKey || e.ctrlKey);
+          // Tracks "most recently clicked," not "currently selected" — a
+          // Shift/Ctrl-click that toggles this atom OFF leaves the id
+          // pointing at a now-deselected atom. That's fine: InspectorPanel
+          // re-checks `selected` live and falls back to another selected
+          // atom, so a stale id here never shows stale data, just picks a
+          // different fallback.
+          setSelectedAtomIdForInspector(atomId);
         } else {
           deselectAll();
         }
@@ -181,7 +189,7 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
         }
       }
     },
-    [molecule, activeTool, activeSidebarPanel, arrowSelectionMode, pendingSourceAtomId, mechanismArrows, selectAtom, deselectAll, removeAtom, removeBond, updateAtom, addAtom, pushUndo, setStatus, scheme, schemeLayout, setSelectedStepIndex, goToStep, setViewMode]
+    [molecule, activeTool, activeSidebarPanel, arrowSelectionMode, pendingSourceAtomId, mechanismArrows, selectAtom, deselectAll, removeAtom, removeBond, updateAtom, addAtom, pushUndo, setStatus, scheme, schemeLayout, setSelectedStepIndex, goToStep, setViewMode, setSelectedAtomIdForInspector]
   );
 
   const onMouseMove = useCallback(
@@ -295,11 +303,12 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
     if (alreadySelected) return;
     if (sortedAtomIds.length > 0) {
       selectAtom(sortedAtomIds[0], false);
+      setSelectedAtomIdForInspector(sortedAtomIds[0]);
       setStatus(`Canvas focused. ${describeAtom(sortedAtomIds[0])}.`);
     } else {
       setStatus('Canvas focused, empty. Press Shift+C, Shift+N, Shift+O, Shift+S, or Shift+P to add an atom.');
     }
-  }, [molecule, sortedAtomIds, selectAtom, setStatus, describeAtom]);
+  }, [molecule, sortedAtomIds, selectAtom, setSelectedAtomIdForInspector, setStatus, describeAtom]);
 
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLCanvasElement>) => {
@@ -382,6 +391,7 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
         const nextIdx = curIdx === -1 ? 0 : (curIdx + (forward ? 1 : -1) + sortedAtomIds.length) % sortedAtomIds.length;
         const nextId = sortedAtomIds[nextIdx];
         selectAtom(nextId, false);
+        setSelectedAtomIdForInspector(nextId);
         setStatus(describeAtom(nextId));
         return;
       }
@@ -402,16 +412,18 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
             const newId = addAtom(element, pos.x, pos.y);
             addBond(selectedId, newId, 1, 0);
             selectAtom(newId, false);
+            setSelectedAtomIdForInspector(newId);
             setStatus(`Added ${ELEMENT_NAMES[element]}, bonded to 1 atom.`);
           } else {
             const newId = addAtom(element, 0, 0);
             selectAtom(newId, false);
+            setSelectedAtomIdForInspector(newId);
             setStatus(`Added ${ELEMENT_NAMES[element]}.`);
           }
         }
       }
     },
-    [molecule, sortedAtomIds, bondFromAtomId, candidateAtomId, selectAtom, addAtom, addBond, pushUndo, setStatus, describeAtom]
+    [molecule, sortedAtomIds, bondFromAtomId, candidateAtomId, selectAtom, setSelectedAtomIdForInspector, addAtom, addBond, pushUndo, setStatus, describeAtom]
   );
 
   return {

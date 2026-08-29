@@ -41,22 +41,38 @@ test.describe('Molecule Drawing', () => {
     await expect(inspectorPanel).toBeVisible();
   });
 
-  test('should allow atom selection', async ({ page }) => {
+  test('left-click selects an atom and the Inspector follows the click', async ({ page }) => {
+    // Regression test: plain left-click selection used to never reach the
+    // Inspector at all — only right-click (via the context menu) did. See
+    // ROADMAP's Discovered Work note and useContextMenu.ts/
+    // useCanvasInteraction.ts for the fix (selectedAtomIdForInspector,
+    // derived live in InspectorPanel from molecule.atoms + the id).
+    //
+    // Two distinct elements at two distinct positions, so the assertion
+    // (which element the Inspector shows) actually proves the Inspector is
+    // tracking *which* atom was clicked, not just that something is
+    // selected — clicking the canvas at all can already select an atom via
+    // Phase B2's focus-driven auto-select, so a mere "not empty" check
+    // wouldn't isolate this fix.
     const canvas = page.getByTestId('molecule-canvas');
     const canvasBox = await canvas.boundingBox();
+    if (!canvasBox) throw new Error('canvas not visible');
+    const posA = { x: canvasBox.width * 0.2, y: canvasBox.height * 0.2 };
+    const posB = { x: canvasBox.width * 0.8, y: canvasBox.height * 0.8 };
 
-    if (canvasBox) {
-      // Click on canvas to select an atom
-      await canvas.click({
-        position: {
-          x: canvasBox.width / 2,
-          y: canvasBox.height / 2,
-        },
-      });
+    await page.locator('button[title="N [N]"]').click();
+    await canvas.click({ position: posA });
+    await page.locator('button[title="O [O]"]').click();
+    await canvas.click({ position: posB });
+    await page.locator('button[title="Select [ESC]"]').click();
 
-      // Check if atom info is displayed
-      await page.waitForTimeout(500);
-    }
+    await page.getByTestId('sidebar-tab-inspector').click();
+
+    await canvas.click({ position: posA });
+    await expect(page.getByText('N ▼')).toBeVisible();
+
+    await canvas.click({ position: posB });
+    await expect(page.getByText('O ▼')).toBeVisible();
   });
 
   test('should display all sidebar tabs', async ({ page }) => {

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { UIState, AtomDto, BondDto } from './types';
+import { UIState, BondDto } from './types';
 
 interface UIStoreState extends UIState {
   // Status bar
@@ -8,7 +8,12 @@ interface UIStoreState extends UIState {
 
   // Sidebar
   activeSidebarPanel: 'inspector' | 'templates' | 'chat' | 'research' | 'reactions' | 'batch-results' | 'stereoisomers' | 'lipinski' | 'properties' | 'mechanism' | 'database' | '3d';
-  selectedAtomForInspector: AtomDto | null;
+  // Just the id, not a snapshot: both left-click (Select tool) and
+  // right-click (context menu) set this, and InspectorPanel looks the atom
+  // up in `molecule.atoms` live on every render. A stored AtomDto used to go
+  // stale the moment the atom changed after being selected, and plain
+  // left-click never touched this at all — only right-click did.
+  selectedAtomIdForInspector: number | null;
   selectedBondForInspector: BondDto | null;
 
   // Context menu
@@ -28,7 +33,7 @@ interface UIStoreState extends UIState {
   setSidebarOpen: (open: boolean) => void;
   setSidebarWidth: (width: number) => void;
   setActiveSidebarPanel: (panel: 'inspector' | 'templates' | 'chat' | 'research' | 'reactions' | 'batch-results' | 'stereoisomers' | 'lipinski' | 'properties' | 'mechanism' | 'database' | '3d') => void;
-  setSelectedAtomForInspector: (atom: AtomDto | null) => void;
+  setSelectedAtomIdForInspector: (id: number | null) => void;
   setSelectedBondForInspector: (bond: BondDto | null) => void;
   setFocusMode: (enabled: boolean) => void;
   setStatus: (message: string, durationMs?: number) => void;
@@ -50,7 +55,7 @@ export const useUIStore = create<UIStoreState>((set) => ({
   statusMessage: '',
   statusExpiry: 0,
   activeSidebarPanel: 'inspector',
-  selectedAtomForInspector: null,
+  selectedAtomIdForInspector: null,
   selectedBondForInspector: null,
   contextMenu: null,
   showShortcutsModal: false,
@@ -71,7 +76,7 @@ export const useUIStore = create<UIStoreState>((set) => ({
 
   setActiveSidebarPanel: (panel) => set({ activeSidebarPanel: panel }),
 
-  setSelectedAtomForInspector: (atom) => set({ selectedAtomForInspector: atom }),
+  setSelectedAtomIdForInspector: (id) => set({ selectedAtomIdForInspector: id }),
 
   setSelectedBondForInspector: (bond) => set({ selectedBondForInspector: bond }),
 

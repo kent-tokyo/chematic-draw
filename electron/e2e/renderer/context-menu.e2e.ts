@@ -32,14 +32,9 @@ test.describe('Atom context menu', () => {
 
     await page.getByRole('button', { name: 'Charge +1' }).click();
 
-    // The Inspector's `selectedAtomForInspector` is only ever populated by
-    // the context-menu right-click handler (a separate, real gap from this
-    // fix — plain left-click selection never touches it) and is a snapshot,
-    // not a live reference, so it still shows the pre-update charge. Right-
-    // click the same atom again to refresh it with the atom's current state,
-    // then confirm the Inspector's +1 charge button is now the active one.
-    await canvas.click({ position: atomPos, button: 'right' });
-    await page.keyboard.press('Escape');
+    // The Inspector derives its atom live from molecule.atoms + the tracked
+    // id on every render, so the charge update is reflected immediately —
+    // no need to re-click to "refresh" a stale snapshot.
     const plusOneButton = page.getByRole('button', { name: '+1', exact: true });
     await expect(plusOneButton).toHaveCSS('background-color', 'rgb(77, 141, 255)');
   });

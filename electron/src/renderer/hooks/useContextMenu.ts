@@ -15,7 +15,7 @@ export function useContextMenu() {
   const zoom = useCanvasStore((s) => s.zoom);
   const canvasState = useMemo(() => ({ offset, zoom }), [offset, zoom]);
   const showContextMenu = useUIStore((s) => s.showContextMenu);
-  const setSelectedAtomForInspector = useUIStore((s) => s.setSelectedAtomForInspector);
+  const setSelectedAtomIdForInspector = useUIStore((s) => s.setSelectedAtomIdForInspector);
   const setSelectedBondForInspector = useUIStore((s) => s.setSelectedBondForInspector);
 
   const handleContextMenu = useCallback(
@@ -29,11 +29,8 @@ export function useContextMenu() {
       // Try atom first
       const atomId = hitTestAtom(molecule, screenX, screenY, canvasState);
       if (atomId !== null) {
-        const atom = molecule.atoms.find((a) => a.id === atomId);
-        if (atom) {
-          setSelectedAtomForInspector(atom);
-          showContextMenu(e.clientX - rect.left, e.clientY - rect.top, atomId);
-        }
+        setSelectedAtomIdForInspector(atomId);
+        showContextMenu(e.clientX - rect.left, e.clientY - rect.top, atomId);
         return;
       }
 
@@ -51,7 +48,7 @@ export function useContextMenu() {
       // Canvas context menu
       showContextMenu(e.clientX - rect.left, e.clientY - rect.top);
     },
-    [molecule, canvasState, showContextMenu, setSelectedAtomForInspector, setSelectedBondForInspector]
+    [molecule, canvasState, showContextMenu, setSelectedAtomIdForInspector, setSelectedBondForInspector]
   );
 
   return { handleContextMenu };

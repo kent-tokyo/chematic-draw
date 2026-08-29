@@ -158,9 +158,20 @@ function SmartsSection({
 
 export function InspectorPanel() {
   const theme = useUIStore((s) => s.theme);
-  const selectedAtom = useUIStore((s) => s.selectedAtomForInspector);
+  const selectedAtomIdForInspector = useUIStore((s) => s.selectedAtomIdForInspector);
   const selectedBond = useUIStore((s) => s.selectedBondForInspector);
   const molecule = useMoleculeStore((s) => s.molecule);
+  // Derived live, every render, from molecule.atoms + the tracked id — never
+  // a stale snapshot. Under multi-select the tracked id is "most recently
+  // clicked," which may no longer be selected (e.g. a Shift-click toggled
+  // it off); falling back to the last currently-selected atom keeps this
+  // always pointing at something real whenever any atom is selected.
+  const currentlySelectedAtoms = molecule.atoms.filter((a) => a.selected);
+  const selectedAtom: AtomDto | null =
+    currentlySelectedAtoms.length === 0
+      ? null
+      : (currentlySelectedAtoms.find((a) => a.id === selectedAtomIdForInspector) ??
+        currentlySelectedAtoms[currentlySelectedAtoms.length - 1]);
   const updateAtom = useMoleculeStore((s) => s.updateAtom);
   const updateBond = useMoleculeStore((s) => s.updateBond);
   const [smartsPattern, setSmartsPattern] = useState('');

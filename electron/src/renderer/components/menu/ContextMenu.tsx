@@ -7,9 +7,10 @@ export function ContextMenu() {
   const theme = useUIStore((s) => s.theme);
   const contextMenu = useUIStore((s) => s.contextMenu);
   const hideContextMenu = useUIStore((s) => s.hideContextMenu);
-  const selectedAtom = useUIStore((s) => s.selectedAtomForInspector);
+  const selectedAtomIdForInspector = useUIStore((s) => s.selectedAtomIdForInspector);
   const selectedBond = useUIStore((s) => s.selectedBondForInspector);
   const molecule = useMoleculeStore((s) => s.molecule);
+  const selectedAtom = molecule.atoms.find((a) => a.id === selectedAtomIdForInspector) ?? null;
   const removeAtom = useMoleculeStore((s) => s.removeAtom);
   const removeBond = useMoleculeStore((s) => s.removeBond);
   const updateAtom = useMoleculeStore((s) => s.updateAtom);
