@@ -21,7 +21,21 @@ export function ResearchPanel() {
   const theme = useUIStore((s) => s.theme);
   const activeSidebarPanel = useUIStore((s) => s.activeSidebarPanel);
   const molecule = useMoleculeStore((s) => s.molecule);
-  const molKey = `${molecule.atoms.length}:${molecule.bonds.length}`;
+  // Composition/connectivity fingerprint, not `molecule` itself — atom
+  // count alone used to gate this effect, which missed any edit that
+  // changes an atom's element/charge/isotope or a bond's order in place
+  // (e.g. clicking an atom with an atom tool selected transmutes it
+  // without changing atoms.length — see useCanvasInteraction.ts). The
+  // canvas stays interactive while this tab is open, so that's reachable
+  // without ever leaving the Research tab, and the displayed properties
+  // silently kept describing the pre-edit molecule. Deliberately excludes
+  // x/y position so dragging an atom (position-only, most frequent
+  // molecule mutation while this tab could be open) doesn't re-trigger
+  // the WASM property/IUPAC-name calls on every drag frame.
+  const molKey =
+    molecule.atoms.map((a) => `${a.element}${a.charge ?? 0}${a.isotope ?? ''}`).join(',') +
+    '|' +
+    molecule.bonds.map((b) => `${b.from}-${b.to}:${b.order}`).join(',');
   const [state, setState] = useState<ResearchState>({ status: 'idle' });
 
   // Switch to 'loading' before computing so a failure on a newly-selected
@@ -89,7 +103,7 @@ export function ResearchPanel() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
             <div>
               <div style={{ fontSize: '10px', color: labelColor }}>MW</div>
-              <div style={{ fontSize: '14px', fontWeight: 'bold', color: textColor }}>
+              <div data-testid="research-mw" style={{ fontSize: '14px', fontWeight: 'bold', color: textColor }}>
                 {properties.molecular_weight?.toFixed(2) ?? 'N/A'}
               </div>
             </div>
