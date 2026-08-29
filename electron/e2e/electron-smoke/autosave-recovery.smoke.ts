@@ -120,3 +120,82 @@ test.describe('Autosave / crash recovery', () => {
     expect(fs.existsSync(autosavePath)).toBe(false);
   });
 });
+
+// The three tests above cover write and restore as separate halves: writing
+// is checked against a hand-crafted snapshot file, and restoring reads a
+// snapshot this suite wrote with fs.writeFileSync rather than the app's own
+// autosave:write handler. Neither exercises the actual round trip the
+// feature exists for — a real write, followed by a real crash, followed by
+// a real restore of that exact snapshot. This closes that gap with its own
+// isolated userDataDir so it can't interleave with the serial block above.
+test.describe('Autosave / crash recovery — real write-then-restore round trip', () => {
+  let roundTripUserDataDir: string;
+  let roundTripAutosavePath: string;
+
+  test.beforeAll(() => {
+    roundTripUserDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chematic-autosave-roundtrip-'));
+    roundTripAutosavePath = path.join(roundTripUserDataDir, 'autosave.json');
+  });
+
+  test.afterAll(() => {
+    fs.rmSync(roundTripUserDataDir, { recursive: true, force: true });
+  });
+
+  test('a snapshot written via autosave:write survives a crash and restores on relaunch', async () => {
+    const firstApp = await electron.launch({
+      args: [`--user-data-dir=${roundTripUserDataDir}`, ELECTRON_DIR],
+      env: process.env,
+    });
+    const firstWindow = await firstApp.firstWindow();
+    await expect(firstWindow.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
+      timeout: 15000,
+    });
+
+    // Distinctive from both the 6a•6b default sample and the 1a•0b fixture
+    // used above, and written through the real IPC handler this time.
+    const molecule = {
+      atoms: [
+        { id: 0, element: 'C', x: 0, y: 0, charge: 0, atom_map: 0 },
+        { id: 1, element: 'O', x: 1, y: 0, charge: 0, atom_map: 0 },
+      ],
+      bonds: [{ id: 0, from: 0, to: 1, order: 1, stereo: 0 }],
+    };
+    const result = await firstWindow.evaluate(
+      ({ molecule }) =>
+        (
+          window as unknown as {
+            electronAPI: { autosaveWrite: (m: unknown, f: string | null) => Promise<{ success: boolean }> };
+          }
+        ).electronAPI.autosaveWrite(molecule, null),
+      { molecule }
+    );
+    expect(result.success).toBe(true);
+    expect(fs.existsSync(roundTripAutosavePath)).toBe(true);
+
+    // SIGKILL, not close() or a plain kill(): a clean quit — and Electron
+    // treats a plain SIGTERM as one, running its default quit handling —
+    // runs before-quit, which always clears the snapshot (that's the
+    // "clean exit" case the third test above already covers). SIGKILL
+    // can't be intercepted, so it simulates the actual crash the recovery
+    // feature exists for: the process disappears with no chance to clean
+    // up, leaving the snapshot behind for next launch to find.
+    const child = firstApp.process();
+    child.kill('SIGKILL');
+    await new Promise<void>((resolve) => child.once('exit', () => resolve()));
+    expect(fs.existsSync(roundTripAutosavePath)).toBe(true);
+
+    const secondApp = await electron.launch({
+      args: [`--user-data-dir=${roundTripUserDataDir}`, ELECTRON_DIR],
+      env: { ...process.env, CHEMATIC_E2E_AUTOSAVE_ANSWER: 'restore' },
+    });
+    const secondWindow = await secondApp.firstWindow();
+    await expect(secondWindow.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
+      timeout: 15000,
+    });
+
+    await expect(secondWindow.getByText(/^2a • 1b/)).toBeVisible({ timeout: 10000 });
+    expect(fs.existsSync(roundTripAutosavePath)).toBe(false);
+
+    await secondApp.close();
+  });
+});
