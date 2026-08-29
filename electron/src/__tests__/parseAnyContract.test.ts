@@ -231,12 +231,22 @@ describe('required regressions (item 9)', () => {
     expect(result.errors).toEqual([]);
   });
 
-  it('properties must not report fake zero values for a real molecule (caffeine has real HBA/HBD/MW)', () => {
+  it('properties must not report fake zero values for a real molecule (caffeine has real HBA/HBD/MW/ring count)', () => {
     const mol = wasm.parse_any('CN1C=NC2=C1C(=O)N(C(=O)N2C)C'); // caffeine
     const props = wasm.get_properties(mol);
     expect(props.molecular_weight).toBeGreaterThan(100);
     expect(props.hba).toBeGreaterThan(0);
     expect(props.formula).toBe('C8H10N4O2');
+    // Caffeine's fused imidazole + pyrimidinedione rings — was previously
+    // undefined on every molecule (no such field on the DTO at all), which
+    // rendered as a permanent "N/A" in PropertyPredictionPanel.
+    expect(props.ring_count).toBe(2);
+  });
+
+  it('ring_count is 0 for an acyclic molecule, not undefined', () => {
+    const mol = wasm.parse_any('CCO');
+    const props = wasm.get_properties(mol);
+    expect(props.ring_count).toBe(0);
   });
 
   it('a fresh parse_any() result for one molecule is structurally independent of a previous one (no leaked state)', () => {

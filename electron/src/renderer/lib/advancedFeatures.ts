@@ -41,7 +41,7 @@ export interface LipinskiViolation {
 
 export function checkLipinski(props: any): LipinskiViolation[] {
   const violations: LipinskiViolation[] = [
-    { rule: 'MW ≤ 500', value: props.mw || 0, limit: 500, violated: (props.mw || 0) > 500 },
+    { rule: 'MW ≤ 500', value: props.molecular_weight || 0, limit: 500, violated: (props.molecular_weight || 0) > 500 },
     { rule: 'LogP ≤ 5', value: props.logp || 0, limit: 5, violated: (props.logp || 0) > 5 },
     { rule: 'HBA ≤ 10', value: props.hba || 0, limit: 10, violated: (props.hba || 0) > 10 },
     { rule: 'HBD ≤ 5', value: props.hbd || 0, limit: 5, violated: (props.hbd || 0) > 5 },

@@ -66,7 +66,7 @@ export function PropertyPredictionPanel() {
 
           <div style={{ padding: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
             {[
-              { label: 'MW', value: molecularProps.mw?.toFixed(2) },
+              { label: 'MW', value: molecularProps.molecular_weight?.toFixed(2) },
               { label: 'LogP', value: molecularProps.logp?.toFixed(2) },
               { label: 'HBA', value: molecularProps.hba },
               { label: 'HBD', value: molecularProps.hbd },

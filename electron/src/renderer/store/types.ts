@@ -53,6 +53,7 @@ export interface PropertiesDto {
   rotatable_bonds: number;
   lipinski_pass: boolean;
   valence_errors: string[];
+  ring_count: number;
 }
 
 // Tool enum

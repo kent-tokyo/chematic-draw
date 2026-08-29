@@ -4,7 +4,7 @@ import { useMoleculeStore } from '../../store/moleculeStore';
 import * as wasmBridge from '../../wasm/wasmBridge';
 
 interface Properties {
-  mw?: number;
+  molecular_weight?: number;
   logp?: number;
   tpsa?: number;
   hba?: number;
@@ -54,7 +54,7 @@ export function ResearchPanel() {
   const bgColor = theme === 'dark' ? '#2f3a47' : '#f3f5f8';
 
   const lipinski = {
-    mw: (properties?.mw ?? 0) <= 500,
+    mw: (properties?.molecular_weight ?? 0) <= 500,
     logp: (properties?.logp ?? 0) <= 5,
     hba: (properties?.hba ?? 0) <= 10,
     hbd: (properties?.hbd ?? 0) <= 5,
@@ -90,7 +90,7 @@ export function ResearchPanel() {
             <div>
               <div style={{ fontSize: '10px', color: labelColor }}>MW</div>
               <div style={{ fontSize: '14px', fontWeight: 'bold', color: textColor }}>
-                {properties.mw?.toFixed(2) ?? 'N/A'}
+                {properties.molecular_weight?.toFixed(2) ?? 'N/A'}
               </div>
             </div>
             <div>
@@ -117,7 +117,7 @@ export function ResearchPanel() {
             <label style={{ fontSize: '11px', color: labelColor }}>Lipinski's Rule of 5</label>
             <div style={{ marginTop: '8px', fontSize: '10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <div style={{ color: lipinski.mw ? '#58c97a' : '#f26d6d' }}>
-                ✓ MW ≤ 500 ({properties.mw?.toFixed(0)})
+                ✓ MW ≤ 500 ({properties.molecular_weight?.toFixed(0)})
               </div>
               <div style={{ color: lipinski.logp ? '#58c97a' : '#f26d6d' }}>
                 ✓ LogP ≤ 5 ({properties.logp?.toFixed(1)})

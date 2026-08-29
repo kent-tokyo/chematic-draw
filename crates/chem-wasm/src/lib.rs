@@ -89,6 +89,7 @@ pub struct PropertiesDto {
     pub rotatable_bonds: u32,
     pub lipinski_pass: bool,
     pub valence_errors: Vec<String>,
+    pub ring_count: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -332,6 +333,7 @@ pub fn get_properties(mol_json: &JsValue) -> Result<JsValue, JsValue> {
     let hbd = chem::hbd_count(&chem_mol) as u32;
     let rot_bonds = chem::rotatable_bond_count(&chem_mol) as u32;
     let lipinski = chem::lipinski_passes(&chem_mol);
+    let ring_count = perception::find_sssr(&chem_mol).ring_count() as u32;
 
     let valence_errors = perception::validate_valence(&chem_mol)
         .into_iter()
@@ -355,6 +357,7 @@ pub fn get_properties(mol_json: &JsValue) -> Result<JsValue, JsValue> {
         rotatable_bonds: rot_bonds,
         lipinski_pass: lipinski,
         valence_errors,
+        ring_count,
     };
 
     serde_wasm_bindgen::to_value(&props)

@@ -172,6 +172,7 @@ interface PropertiesDto {
   rotatable_bonds: number;
   lipinski_pass: boolean;
   valence_errors: string[];
+  ring_count: number;
 }
 ```
 
@@ -185,6 +186,7 @@ interface PropertiesDto {
 | `rotatable_bonds` | Standard rotatable-bond definition: non-ring single bonds between two non-terminal heavy atoms (excludes amide C–N bonds and similar restricted-rotation cases per chematic-chem's classifier). | count | — |
 | `lipinski_pass` | Lipinski's Rule of Five: MW ≤ 500 Da AND HBD ≤ 5 AND HBA ≤ 10 (via a separate Lipinski-specific HBA count) AND Crippen LogP ≤ 5.0. | boolean | A screening heuristic from Lipinski et al. 1997, not a solubility/permeability measurement — passing or failing doesn't determine oral bioavailability by itself. |
 | `valence_errors` | Structural valence check (`chematic::perception::validate_valence`): flags atoms whose bond count exceeds the allowed valence for their element. | list of strings | Only flags valence exceedance; does not check charge-adjusted valence exceptions beyond what chematic-core models, and is a separate, narrower check than full chemical validity. |
+| `ring_count` | Smallest Set of Smallest Rings (`chematic::perception::find_sssr(&mol).ring_count()`) — the cycle rank of the molecular graph (E − V + connected components). | count | Counts SSSR rings, not all rings in a fused/bridged system (e.g. naphthalene reports 2, matching its two fused six-membered rings, not every possible cycle through the shared edge). |
 
 ---
 

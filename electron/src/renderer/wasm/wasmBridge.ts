@@ -1,5 +1,5 @@
 import * as wasmModule from './pkg';
-import { MoleculeDto } from '../store/types';
+import { MoleculeDto, PropertiesDto } from '../store/types';
 
 /**
  * WASM module lifecycle. Every WASM-calling function in this file assumes
@@ -113,7 +113,7 @@ export function cleanLayout(mol: MoleculeDto): MoleculeDto {
   return wasmModule.clean_layout(mol) as MoleculeDto;
 }
 
-export function getProperties(mol: MoleculeDto): Record<string, any> {
+export function getProperties(mol: MoleculeDto): PropertiesDto {
   return wasmModule.get_properties(mol);
 }
 

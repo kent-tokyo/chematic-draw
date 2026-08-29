@@ -36,8 +36,8 @@ export async function processBatch(molecules: MoleculeDto[], task: BatchTask): P
       } else if (task.operation === 'filter') {
         const props = wasmBridge.getProperties(mol);
         const passes =
-          (!task.filterOptions?.minMW || props.mw >= task.filterOptions.minMW) &&
-          (!task.filterOptions?.maxMW || props.mw <= task.filterOptions.maxMW) &&
+          (!task.filterOptions?.minMW || props.molecular_weight >= task.filterOptions.minMW) &&
+          (!task.filterOptions?.maxMW || props.molecular_weight <= task.filterOptions.maxMW) &&
           (!task.filterOptions?.minLogP || props.logp >= task.filterOptions.minLogP) &&
           (!task.filterOptions?.maxLogP || props.logp <= task.filterOptions.maxLogP);
         if (!passes) {
