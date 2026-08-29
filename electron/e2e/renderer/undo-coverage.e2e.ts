@@ -52,4 +52,40 @@ test.describe('Undo coverage for previously un-pushed mutations', () => {
     await page.keyboard.press('Control+z');
     await expect(info).toHaveText(before ?? '');
   });
+
+  test('changing an atom element via the Inspector is undoable', async ({ page }) => {
+    // Representative case for the other previously-un-pushed sites found by
+    // the same sweep: InspectorPanel.tsx's handleAtomUpdate/handleBondUpdate
+    // (Element/Charge/Isotope, bond order/stereo) and StereoisomerPanel.tsx's
+    // "use this isomer" button all called a mutating store action with no
+    // pushUndo() at all — every edit made through them was permanently
+    // un-undoable, not just imprecise like the drag case above. Fixed
+    // identically in each: pushUndo() right before the mutation.
+    const canvas = page.getByTestId('molecule-canvas');
+    const canvasBox = await canvas.boundingBox();
+    if (!canvasBox) throw new Error('canvas not visible');
+    const pos = { x: canvasBox.width * 0.5, y: canvasBox.height * 0.5 };
+
+    await canvas.focus();
+    await page.keyboard.press('Control+a');
+    await page.keyboard.press('Delete');
+    await expect(canvas).toHaveAttribute('aria-label', 'Molecular structure canvas, empty');
+
+    await page.locator('button[title="C [C]"]').click();
+    await canvas.click({ position: pos });
+
+    await page.locator('button[title="Select [ESC]"]').click();
+    await canvas.click({ position: pos });
+    await page.getByTestId('sidebar-tab-inspector').click();
+
+    const elementButton = page.getByText('C ▼');
+    await expect(elementButton).toBeVisible();
+
+    await elementButton.click();
+    await page.getByRole('button', { name: 'N', exact: true }).click();
+    await expect(page.getByText('N ▼')).toBeVisible();
+
+    await page.keyboard.press('Control+z');
+    await expect(page.getByText('C ▼')).toBeVisible();
+  });
 });

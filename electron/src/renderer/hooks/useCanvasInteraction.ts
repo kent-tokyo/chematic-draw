@@ -183,6 +183,7 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
         const atomId = hitTestAtom(molecule, screenX, screenY, canvasState);
         if (atomId !== null) {
           // Change existing atom
+          pushUndo();
           updateAtom(atomId, { element });
         } else {
           // Add new atom

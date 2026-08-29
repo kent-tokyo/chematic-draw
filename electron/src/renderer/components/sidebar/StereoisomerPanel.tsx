@@ -7,6 +7,7 @@ export function StereoisomerPanel() {
   const theme = useUIStore((s) => s.theme);
   const molecule = useMoleculeStore((s) => s.molecule);
   const setMolecule = useMoleculeStore((s) => s.setMolecule);
+  const pushUndo = useMoleculeStore((s) => s.pushUndo);
   const setStatus = useUIStore((s) => s.setStatus);
 
   const [results, setResults] = useState<StereoisomerResult | null>(null);
@@ -82,7 +83,10 @@ export function StereoisomerPanel() {
               >
                 <div style={{ fontSize: '10px', color: textColor }}>Isomer {idx + 1}</div>
                 <button
-                  onClick={() => setMolecule(iso)}
+                  onClick={() => {
+                    pushUndo();
+                    setMolecule(iso);
+                  }}
                   style={{
                     padding: '3px 8px',
                     backgroundColor: accentColor,

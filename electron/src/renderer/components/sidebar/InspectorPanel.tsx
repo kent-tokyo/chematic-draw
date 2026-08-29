@@ -174,6 +174,7 @@ export function InspectorPanel() {
   const selectedAtom: AtomDto | null = molecule.atoms.find((a) => a.id === selectedAtomIdForInspector) ?? null;
   const updateAtom = useMoleculeStore((s) => s.updateAtom);
   const updateBond = useMoleculeStore((s) => s.updateBond);
+  const pushUndo = useMoleculeStore((s) => s.pushUndo);
   const [smartsPattern, setSmartsPattern] = useState('');
   const [smartsMatches, setSmartsMatches] = useState<number[]>([]);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
@@ -235,12 +236,14 @@ export function InspectorPanel() {
 
   const handleAtomUpdate = (key: keyof AtomDto, value: any) => {
     if (selectedAtom) {
+      pushUndo();
       updateAtom(selectedAtom.id, { [key]: value });
     }
   };
 
   const handleBondUpdate = (key: keyof BondDto, value: any) => {
     if (selectedBond) {
+      pushUndo();
       updateBond(selectedBond.id, { [key]: value });
     }
   };
