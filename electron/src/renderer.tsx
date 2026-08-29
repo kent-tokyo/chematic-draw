@@ -272,6 +272,7 @@ function App() {
       api.onMenuToggleTheme(() => setTheme(theme === 'dark' ? 'light' : 'dark'));
       api.onMenuBatchProcess?.(() => showModal('batch'));
       api.onMenuUndoTimeline?.(() => showModal('undo'));
+      api.onMenuShortcuts?.(() => showModal('shortcuts'));
 
       // Phase 6-10 Tools menu handlers
       api.onMenuToolStereoisomers?.(() => {
