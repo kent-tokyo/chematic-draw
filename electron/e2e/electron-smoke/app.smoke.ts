@@ -67,6 +67,37 @@ test.describe('Electron Smoke', () => {
     await electronApp.close();
   });
 
+  test('Edit > Select All menu item actually selects everything', async () => {
+    // Same dead-wiring bug class as the Shortcuts modal test above, found
+    // by the same sweep once that fix landed: main.js sends 'menu:select-all'
+    // on click, preload.js exposes onMenuSelectAll, but renderer.tsx never
+    // subscribed — the menu item (and its Cmd/Ctrl+A accelerator, insofar
+    // as it reaches the renderer at all) did nothing. Proven here via
+    // Delete: selecting everything then deleting must empty the canvas;
+    // with the bug, Delete would have nothing selected to act on.
+    const electronApp = await electron.launch({
+      args: [path.resolve(__dirname, '..', '..')],
+    });
+    const window = await electronApp.firstWindow();
+    await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
+      timeout: 15000,
+    });
+    await expect(window.getByTestId('molecule-canvas')).toHaveAttribute('aria-label', /6 atoms, 6 bonds/);
+
+    await electronApp.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0].webContents.send('menu:select-all');
+    });
+    await window.getByTestId('molecule-canvas').focus();
+    await window.keyboard.press('Delete');
+
+    await expect(window.getByTestId('molecule-canvas')).toHaveAttribute(
+      'aria-label',
+      'Molecular structure canvas, empty'
+    );
+
+    await electronApp.close();
+  });
+
   test('opening a file records it in Recent Files — persisted AND in the live menu', async () => {
     // Regression test: main.js has a full Recent Files implementation —
     // recent-file:add IPC handler, menu rebuild, click-to-reopen, Clear

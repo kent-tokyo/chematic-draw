@@ -31,6 +31,7 @@ function App() {
   const molecule = useMoleculeStore((s) => s.molecule);
   const setMolecule = useMoleculeStore((s) => s.setMolecule);
   const clear = useMoleculeStore((s) => s.clear);
+  const selectAll = useMoleculeStore((s) => s.selectAll);
   const statusMessage = useUIStore((s) => s.statusMessage);
   const setStatus = useUIStore((s) => s.setStatus);
   const showModal = useUIStore((s) => s.showModal);
@@ -284,6 +285,17 @@ function App() {
       api.onMenuBatchProcess?.(() => showModal('batch'));
       api.onMenuUndoTimeline?.(() => showModal('undo'));
       api.onMenuShortcuts?.(() => showModal('shortcuts'));
+      // main.js sends this, preload.js exposes it, but nothing subscribed —
+      // same dead-wiring class as the Keyboard Shortcuts menu item earlier
+      // this session. Guarded on the focused element the same way
+      // useKeyboard.ts's own Ctrl+A handler is, so triggering this from the
+      // Edit menu while a text input (e.g. SMARTS search) has focus doesn't
+      // hijack it into selecting canvas atoms instead.
+      api.onMenuSelectAll?.(() => {
+        if ((document.activeElement as HTMLElement | null)?.tagName !== 'INPUT') {
+          selectAll();
+        }
+      });
 
       // Phase 6-10 Tools menu handlers
       api.onMenuToolStereoisomers?.(() => {
@@ -311,7 +323,7 @@ function App() {
         // Cleanup: no need to unsubscribe from ipcRenderer in this version
       };
     }
-  }, [molecule, filePath, theme, zoom, sidebarOpen]);
+  }, [molecule, filePath, theme, zoom, sidebarOpen, selectAll]);
 
   // Keyboard shortcuts for Phase 3-5
   useEffect(() => {
