@@ -45,6 +45,8 @@ interface AtomDto {
   isotope?: number;              // Mass number (e.g. 13 for 13C); undefined = natural abundance.
                                   // Survives SMILES/CML round-trips; dropped by MOL V2000/SDF
                                   // (chematic-mol's writers, see docs/INTEROP.md).
+  selected?: boolean;             // Canvas selection highlight. Client-side UI state only —
+                                  // chem-wasm never produces or reads this field.
 }
 
 interface BondDto {
@@ -53,6 +55,8 @@ interface BondDto {
   to: number;                // Atom ID
   order: number;             // 1=single, 2=double, 3=triple, 4=aromatic
   stereo: number;            // 0=none, 1=wedge up, 2=wedge down
+  selected?: boolean;        // Canvas selection highlight. Client-side UI state only —
+                              // chem-wasm never produces or reads this field.
 }
 ```
 
