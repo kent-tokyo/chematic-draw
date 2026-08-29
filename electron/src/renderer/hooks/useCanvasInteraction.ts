@@ -35,6 +35,7 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
     startY: number;
     atomId?: number;
     bondFrom?: number;
+    pushedUndo?: boolean;
   }>({ type: 'none', startX: 0, startY: 0 });
 
   const molecule = useMoleculeStore((s) => s.molecule);
@@ -241,13 +242,29 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
         dragStateRef.current.startX = screenX;
         dragStateRef.current.startY = screenY;
       } else if (dragStateRef.current.type === 'atom-drag' && dragStateRef.current.atomId) {
-        const worldPos = screenToWorld(screenX, screenY);
-        updateAtom(dragStateRef.current.atomId, { x: worldPos.x, y: worldPos.y });
+        // atom-drag is set eagerly at mousedown (see below), so a plain
+        // click-select with no real movement must not move the atom or
+        // push an undo checkpoint at all — gate on the same DRAG_THRESHOLD
+        // 'pan' uses just above. Once a real drag is confirmed, keep
+        // following the cursor every tick (don't re-check dist, which
+        // would stall the drag if the cursor jitters back near the start).
+        // The undo push itself fires exactly once, on the tick that first
+        // crosses the threshold, immediately before that tick's own
+        // updateAtom — so it captures the true pre-drag position, not one
+        // already nudged by an earlier sub-threshold tick.
+        if (dragStateRef.current.pushedUndo || dist > DRAG_THRESHOLD) {
+          if (!dragStateRef.current.pushedUndo) {
+            pushUndo();
+            dragStateRef.current.pushedUndo = true;
+          }
+          const worldPos = screenToWorld(screenX, screenY);
+          updateAtom(dragStateRef.current.atomId, { x: worldPos.x, y: worldPos.y });
+        }
       } else if (dragStateRef.current.type === 'bond-drag') {
         setBondDrag(dragStateRef.current.bondFrom, { x: screenX, y: screenY });
       }
     },
-    [molecule, activeTool, setHoverAtom, setHoverBond, pan, updateAtom, setBondDrag, activeSidebarPanel, mechanismArrows, scheme, schemeLayout, setHoveredStepIndex]
+    [molecule, activeTool, setHoverAtom, setHoverBond, pan, updateAtom, pushUndo, setBondDrag, activeSidebarPanel, mechanismArrows, scheme, schemeLayout, setHoveredStepIndex]
   );
 
   const onMouseUp = useCallback(
