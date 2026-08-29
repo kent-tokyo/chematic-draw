@@ -15,7 +15,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - CPK color scheme with VDW radius-based visualization
   - Mouse interaction (drag to rotate, scroll to zoom)
   - XYZ file export for computational chemistry software
-  - Performance optimized with WebWorker offloading
 
 - **Property Prediction** — Molecular descriptor calculation
   - Molecular weight and formula
@@ -54,8 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Configurable batch parameters
   - Progress tracking and result export
 
-- **Performance Optimization** — WebWorker and profiling tools
-  - WebWorker for Canvas rendering offload
+- **Performance Optimization** — profiling tools
   - WASM memory profiler
   - Performance benchmark suite
   - Scaling analysis (O(n) verification)
@@ -111,6 +109,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.2-rc.1] - 2026-08-28 (pre-release)
+
+### Added
+- Real WASM contract tests (compiled binary, not mocks) and a full
+  native + WASM/Electron capability audit
+- Fingerprint result metadata (`get_fingerprint_with_metadata`)
+- Reaction errors now distinguish invalid-SMIRKS from unsupported-chemistry
+- Real WASM performance benchmark suite (calls the actual WASM binary —
+  parse, canonical SMILES, fingerprint, similarity, MCS, layout,
+  validation, 3D — against a fixed molecule corpus)
+- Explicit WASM init state machine (`idle`/`loading`/`ready`/`failed`)
+  with an app-wide startup boundary and a real error panel on failure
+- Per-OS release checksums (`SHA256SUMS-<OS>.txt`) published with every
+  release
+
+### Fixed
+- `AtomDto.element` now returns the real chemistry element symbol
+  instead of a rendering label, so `parse_any()`'s own output can be fed
+  back into other WASM functions
+- Aromatic N bearing an explicit H (e.g. pyrrole's `[nH]`) now round-trips
+  with the correct implicit-hydrogen count and molecular formula
+- `validate_molecule`'s JSON serialization bug that made every
+  `InspectorPanel` validation call silently report zero errors
+- Lipinski / Property Prediction / Research / 3D Viewer panels no longer
+  display a caught WASM failure as a valid or empty result
+- Infinite render loop in the molecule canvas (Zustand selector returning
+  a new object on every call)
+- `InspectorPanel` crash from a WASM-not-ready race condition
+- Sidebar collapsing to ~1px under certain window sizes
+- DevTools no longer opens unconditionally in packaged builds
+- CI: Node.js unified to 24 everywhere, a real `tsc --noEmit` typecheck
+  now runs (previously untyped), coverage thresholds scoped to modules
+  that actually have tests, E2E suite redesigned around real browser/
+  Electron launches instead of loose selectors that tolerated breakage
+- `CONTRIBUTING.md`'s upstream remote corrected to the real repository
+
+### Changed
+- Vite pinned to `7.3.6` exact (Vite 8's bundler isn't yet compatible
+  with the current Electron Forge / `vite-plugin-top-level-await`
+  toolchain)
+
+---
+
 ## [0.1.0] - 2026-05-15
 
 ### Added
@@ -127,26 +168,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-### Planned for v0.3.0
-- Web version (browser-based)
-- Real-time collaborative editing
-- Cloud storage integration
-- Advanced NMR prediction
-- Metabolic stability models
-- Retrosynthetic analysis
+Development target since 2026-08-29: the Electron app in `electron/` only
+— the native Rust/egui app (`crates/chem-ui`/`chem-io`) is frozen, not
+deleted, and receives no further feature work.
 
-### Planned for v0.4.0
-- WebGL-based rendering
-- Augmented Reality (iOS/Android)
-- Virtual Reality support
-- Extended property prediction
-- Plugin system
+### Added (toward v0.3.0 "Reliable Chemical Editor")
+- Chemistry validation beyond basic valence: real valence errors,
+  connected-component disconnection detection, antiaromatic-ring warnings
+- Deterministic layout with golden-SVG regression tests
+- Verified format-interoperability matrix (`docs/INTEROP.md`)
+- Reaction-scheme state unified onto a single store (previously split
+  across two disconnected state trees, silently leaving atom mapping /
+  reaction classification / green-chemistry metrics dead in the shipped UI)
+- Isotope support end-to-end (Inspector input, canvas label, round-trips
+  through SMILES/CML; MOL V2000/SDF drop it — an upstream writer
+  limitation, not this bridge's)
+- PNG export
+- `SECURITY.md` and download-checksum verification instructions
 
-### Planned for v0.5.0+
-- Machine learning integration
-- Mobile native apps
-- Jupyter notebook support
-- Community contribution marketplace
+### Fixed
+- Mechanism arrows becoming invisible once a reaction scheme existed
+- Dead "Export as MOL V2000" / "Export as SMILES" menu items (main
+  process sent the IPC event; nothing in the renderer ever listened)
+- Context menu's "Charge +1"/"Charge -1" (previously `console.log`
+  no-ops); removed the non-functional "Set Element" stub rather than
+  leaving a button that opened nothing
+- 7 leftover placeholder `github.com/yourusername/...` URLs across docs
+
+### Documentation
+- Removed fabricated features from BUILD/CI_CD/QUICK_START/TUTORIAL/
+  ARCHITECTURE that never existed: a double-click property editor, an
+  SN2-dropdown mechanism wizard, WebWorker-offloaded 3D generation, a
+  code-signing/notarization CI step, fictional stores and components
+- Root README now points readers at the actively-developed Electron app
+
+### Next (v0.4.0+, not started)
+Per `internal_docs/ROADMAP.md`, in rough priority order:
+- yomitoki / RENKIN integration (blocked — no local access to either
+  project yet; needs their current API surface understood first)
+- v0.5.0 advanced document semantics (R-groups, S-groups, Markush,
+  multi-page, plugins) — plugin support in particular is a public-API
+  commitment that needs its own design pass
+- Materials track (mikiwame/gugen/kizashi) — blocked on a dedicated
+  crystal document model, deliberately not started
+- v1.0 gates: stable APIs, verified installers, and a migration policy
+  remain unmet (checksums and a security policy are done, see above)
+
+**No longer planned** — web/browser version, real-time collaborative
+editing, cloud storage sync, AR/VR support, and built-in ML model
+integration were previously listed here but are explicitly out of scope
+per the current roadmap's "Explicitly deferred" list, not near-term plans.
 
 ---
 
