@@ -7,10 +7,17 @@ export function ContextMenu() {
   const theme = useUIStore((s) => s.theme);
   const contextMenu = useUIStore((s) => s.contextMenu);
   const hideContextMenu = useUIStore((s) => s.hideContextMenu);
-  const selectedAtomIdForInspector = useUIStore((s) => s.selectedAtomIdForInspector);
-  const selectedBond = useUIStore((s) => s.selectedBondForInspector);
   const molecule = useMoleculeStore((s) => s.molecule);
-  const selectedAtom = molecule.atoms.find((a) => a.id === selectedAtomIdForInspector) ?? null;
+  // What the menu acts on is exactly what was right-clicked — contextMenu's
+  // own atomId/bondId, set once per right-click by showContextMenu — not
+  // uiStore's selectedAtomIdForInspector/selectedBondForInspector. Those
+  // track "what the Inspector should show," which left-click, keyboard
+  // roving-focus, and right-click on an *unrelated* atom/bond can all
+  // change without a new right-click ever happening here; branching on them
+  // let a stale atom/bond win the menu contents for a bond or empty-canvas
+  // right-click.
+  const selectedAtom = molecule.atoms.find((a) => a.id === contextMenu?.atomId) ?? null;
+  const selectedBond = molecule.bonds.find((b) => b.id === contextMenu?.bondId) ?? null;
   const removeAtom = useMoleculeStore((s) => s.removeAtom);
   const removeBond = useMoleculeStore((s) => s.removeBond);
   const updateAtom = useMoleculeStore((s) => s.updateAtom);

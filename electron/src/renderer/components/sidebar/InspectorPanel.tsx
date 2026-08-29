@@ -162,16 +162,16 @@ export function InspectorPanel() {
   const selectedBond = useUIStore((s) => s.selectedBondForInspector);
   const molecule = useMoleculeStore((s) => s.molecule);
   // Derived live, every render, from molecule.atoms + the tracked id — never
-  // a stale snapshot. Under multi-select the tracked id is "most recently
-  // clicked," which may no longer be selected (e.g. a Shift-click toggled
-  // it off); falling back to the last currently-selected atom keeps this
-  // always pointing at something real whenever any atom is selected.
-  const currentlySelectedAtoms = molecule.atoms.filter((a) => a.selected);
-  const selectedAtom: AtomDto | null =
-    currentlySelectedAtoms.length === 0
-      ? null
-      : (currentlySelectedAtoms.find((a) => a.id === selectedAtomIdForInspector) ??
-        currentlySelectedAtoms[currentlySelectedAtoms.length - 1]);
+  // a stale snapshot. Deliberately NOT gated on the atom's `selected` flag:
+  // right-click sets this id without ever touching `selected` (and bonds
+  // have no left-click select at all), so a `selected`-based fallback would
+  // make right-click lose to whatever was left-clicked earlier instead of
+  // showing the atom just right-clicked. The tracked id is simply "the atom
+  // the most recent selection action (left-click, right-click, or keyboard
+  // roving-focus) pointed at" — each of those sets it directly, in the
+  // order the actions happen, which already matches "most recently
+  // selected" for the ordinary case without needing a separate fallback.
+  const selectedAtom: AtomDto | null = molecule.atoms.find((a) => a.id === selectedAtomIdForInspector) ?? null;
   const updateAtom = useMoleculeStore((s) => s.updateAtom);
   const updateBond = useMoleculeStore((s) => s.updateBond);
   const [smartsPattern, setSmartsPattern] = useState('');

@@ -38,4 +38,68 @@ test.describe('Atom context menu', () => {
     const plusOneButton = page.getByRole('button', { name: '+1', exact: true });
     await expect(plusOneButton).toHaveCSS('background-color', 'rgb(77, 141, 255)');
   });
+
+  test('right-clicking empty canvas after selecting an atom shows the canvas menu, not atom items', async ({ page }) => {
+    // Regression test: ContextMenu.tsx used to branch on uiStore's
+    // selectedAtomIdForInspector/selectedBondForInspector (the "what should
+    // the Inspector show" state) instead of contextMenu's own atomId/bondId
+    // (the "what was just right-clicked" state). Once any atom had ever
+    // been selected in the session, selectedAtomIdForInspector stayed
+    // non-null forever, so the atom-menu branch always won — right-clicking
+    // empty canvas (or a bond) after selecting any atom would still show
+    // "Charge +1"/"Delete Atom" instead of the canvas or bond menu.
+    const canvas = page.getByTestId('molecule-canvas');
+    const canvasBox = await canvas.boundingBox();
+    if (!canvasBox) throw new Error('canvas not visible');
+    const atomPos = { x: canvasBox.width * 0.5, y: canvasBox.height * 0.5 };
+    const emptyPos = { x: canvasBox.width * 0.05, y: canvasBox.height * 0.95 };
+
+    await page.locator('button[title="C [C]"]').click();
+    await canvas.click({ position: atomPos });
+    await page.locator('button[title="Select [ESC]"]').click();
+    await canvas.click({ position: atomPos });
+
+    await canvas.click({ position: emptyPos, button: 'right' });
+
+    await expect(page.getByRole('button', { name: 'Clean Layout' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Charge +1' })).toHaveCount(0);
+  });
+
+  test('right-clicking a different atom updates the Inspector to it, even while another atom stays selected', async ({ page }) => {
+    // Regression test: InspectorPanel used to fall back to whichever atom
+    // was marked `selected` (the mouse/keyboard multi-select flag) whenever
+    // the right-clicked atom itself wasn't part of that set — right-click
+    // never touches `selected`, so right-clicking atom B while atom A was
+    // still selected from an earlier left-click showed A's details, not B's.
+    //
+    // Right-clicking with the Select tool active doesn't isolate this:
+    // useCanvasInteraction's onMouseDown doesn't filter by mouse button, so
+    // a Select-tool right-click ALSO calls selectAtom (same as a left-click
+    // would) in addition to useContextMenu's own handler — both end up
+    // targeting the same atom, masking the bug. A non-Select tool's
+    // onMouseDown branch doesn't call selectAtom at all, isolating
+    // useContextMenu's independent path.
+    const canvas = page.getByTestId('molecule-canvas');
+    const canvasBox = await canvas.boundingBox();
+    if (!canvasBox) throw new Error('canvas not visible');
+    const posA = { x: canvasBox.width * 0.2, y: canvasBox.height * 0.2 };
+    const posB = { x: canvasBox.width * 0.8, y: canvasBox.height * 0.8 };
+
+    await page.locator('button[title="N [N]"]').click();
+    await canvas.click({ position: posA });
+    await page.locator('button[title="O [O]"]').click();
+    await canvas.click({ position: posB });
+    await page.locator('button[title="Select [ESC]"]').click();
+
+    // Left-click leaves N (posA) as the `selected` atom.
+    await canvas.click({ position: posA });
+
+    // Switch off the Select tool, then right-click O (posB) — never
+    // left-clicked, so never `selected`.
+    await page.locator('button[title="─ [1]"]').click();
+    await canvas.click({ position: posB, button: 'right' });
+
+    await page.getByTestId('sidebar-tab-inspector').click();
+    await expect(page.getByText('O ▼')).toBeVisible();
+  });
 });
