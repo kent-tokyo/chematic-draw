@@ -67,7 +67,7 @@ test.describe('Electron Smoke', () => {
     await electronApp.close();
   });
 
-  test('opening a file records it in the Recent Files list', async () => {
+  test('opening a file records it in Recent Files — persisted AND in the live menu', async () => {
     // Regression test: main.js has a full Recent Files implementation —
     // recent-file:add IPC handler, menu rebuild, click-to-reopen, Clear
     // Recent Files — and preload.js exposes it as
@@ -77,6 +77,27 @@ test.describe('Electron Smoke', () => {
     // actual renderer.tsx call sites (recordRecentFile: 0) after
     // discovering the same dead-wiring pattern for the Shortcuts menu item
     // above.
+    //
+    // Wiring the caller up surfaced a second, deeper, pre-existing bug:
+    // updateFileMenu() tried to patch a live MenuItem's `submenu` property
+    // directly — Electron makes that read-only, so it threw on every call
+    // ("Cannot assign to read only property 'submenu'"), silently caught
+    // by the IPC handler's try/catch. settings.json persistence still
+    // succeeded (that write happens before the throw), so a test checking
+    // only the settings file would go green while the actual on-screen
+    // Recent Files submenu stayed permanently empty in every session,
+    // including a fresh relaunch (createMenu()'s own template never read
+    // saved recentFiles at startup either). Fixed by making the "Recent
+    // Files" submenu part of the same template createMenu() feeds
+    // Menu.buildFromTemplate() on every call (a full rebuild, which is
+    // what Electron actually supports), rather than a later in-place
+    // patch — createMenu() now takes recentFiles as a parameter (defaulted
+    // from saved settings, so a relaunch shows them too), and the IPC
+    // handler calls createMenu(recentFiles) instead of the broken helper.
+    //
+    // This test checks both halves: settings.json (persistence) and the
+    // real Menu's actual item labels (the part the first version of this
+    // fix didn't verify and would have shipped broken).
     const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chematic-recent-files-test-'));
     const settingsPath = path.join(userDataDir, 'settings.json');
     const openedPath = path.join(userDataDir, 'test-molecule.smi');
@@ -110,6 +131,18 @@ test.describe('Electron Smoke', () => {
         return JSON.parse(fs.readFileSync(settingsPath, 'utf-8')).recentFiles;
       })
       .toEqual([openedPath]);
+
+    const menuState = await electronApp.evaluate(({ Menu }) => {
+      const menu = Menu.getApplicationMenu();
+      const fileMenu = menu?.items.find((i) => i.label === 'File');
+      const recent = fileMenu?.submenu?.items.find((i) => i.label === 'Recent Files');
+      return {
+        topLevel: menu?.items.map((i) => i.label) ?? [],
+        recentLabels: recent?.submenu?.items.map((i) => i.label) ?? [],
+      };
+    });
+    expect(menuState.topLevel).toEqual(['File', 'Edit', 'View', 'Tools', 'Help']);
+    expect(menuState.recentLabels[0]).toBe(`1. ${path.basename(openedPath)}`);
 
     await electronApp.close();
     fs.rmSync(userDataDir, { recursive: true, force: true });
