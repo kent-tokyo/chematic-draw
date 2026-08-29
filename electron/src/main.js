@@ -70,10 +70,22 @@ const createWindow = () => {
 // silently (caught by the IPC handler's try/catch) — the Recent Files
 // submenu never actually updated, in any session, ever. A full rebuild via
 // buildFromTemplate is the only way Electron supports changing it.
-const createMenu = (recentFiles = loadSettings().recentFiles || []) => {
+const createMenu = (recentFiles = loadSettings().recentFiles) => {
   const isMac = process.platform === 'darwin';
 
-  const recentFilesSubmenu = recentFiles.map((filePath, idx) => ({
+  // settings.json is user-editable on disk, not just written by
+  // saveSettings() — a hand-edited or corrupted `recentFiles` (wrong type,
+  // non-string entries) previously only reached this function from inside
+  // the IPC handler's try/catch. It's now also reachable, unguarded, from
+  // app.whenReady()'s startup call: a throw here means Electron falls back
+  // to its own default menu template (wrong labels, missing every custom
+  // File/Edit/View/Tools/Help item) instead of ours, not just a broken
+  // Recent Files submenu.
+  const safeRecentFiles = Array.isArray(recentFiles)
+    ? recentFiles.filter((f) => typeof f === 'string')
+    : [];
+
+  const recentFilesSubmenu = safeRecentFiles.map((filePath, idx) => ({
     label: `${idx + 1}. ${path.basename(filePath)}`,
     accelerator: `Ctrl+${idx + 1}`,
     click: async () => {

@@ -147,4 +147,43 @@ test.describe('Electron Smoke', () => {
     await electronApp.close();
     fs.rmSync(userDataDir, { recursive: true, force: true });
   });
+
+  test('a corrupted recentFiles in settings.json does not break the whole application menu', async () => {
+    // Regression test for a bug introduced by the previous fix, caught by
+    // a follow-up advisor review pass: createMenu() moved from being only
+    // reachable inside the recent-file:add IPC handler's try/catch to also
+    // being the default-parameter path used at app startup
+    // (createMenu() with no args, called from app.whenReady()). settings.json
+    // is a user-editable file on disk, not just written by saveSettings() —
+    // a hand-edited or corrupted recentFiles (wrong type, e.g. a string
+    // instead of an array) used to throw inside createMenu()'s .map() call,
+    // unguarded, at startup. Electron doesn't crash on that (the promise
+    // chain has no .catch()), but it never reaches Menu.setApplicationMenu()
+    // either, so it silently falls back to Electron's own default menu
+    // template — wrong top-level labels, and every custom File/Edit/View/
+    // Tools/Help item (Export, Recent Files, Batch Process, the Tools
+    // panels, Keyboard Shortcuts) missing, not just Recent Files.
+    const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chematic-corrupt-settings-test-'));
+    fs.writeFileSync(
+      path.join(userDataDir, 'settings.json'),
+      JSON.stringify({ recentFiles: 'not-an-array' }),
+      'utf-8'
+    );
+
+    const electronApp = await electron.launch({
+      args: [`--user-data-dir=${userDataDir}`, path.resolve(__dirname, '..', '..')],
+    });
+    const window = await electronApp.firstWindow();
+    await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
+      timeout: 15000,
+    });
+
+    const topLevel = await electronApp.evaluate(
+      ({ Menu }) => Menu.getApplicationMenu()?.items.map((i) => i.label) ?? []
+    );
+    expect(topLevel).toEqual(['File', 'Edit', 'View', 'Tools', 'Help']);
+
+    await electronApp.close();
+    fs.rmSync(userDataDir, { recursive: true, force: true });
+  });
 });
