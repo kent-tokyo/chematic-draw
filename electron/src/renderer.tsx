@@ -353,18 +353,18 @@ function App() {
     hideModal('batch');
   };
 
-  const toolButtons: Array<{ tool: Tool; label: string; key: string }> = [
-    { tool: Tool.Select, label: 'Select', key: 'ESC' },
-    { tool: Tool.Atom_C, label: 'C', key: 'C' },
-    { tool: Tool.Atom_N, label: 'N', key: 'N' },
-    { tool: Tool.Atom_O, label: 'O', key: 'O' },
-    { tool: Tool.Atom_S, label: 'S', key: 'S' },
-    { tool: Tool.Atom_P, label: 'P', key: 'P' },
-    { tool: Tool.Bond_Single, label: '─', key: '1' },
-    { tool: Tool.Bond_Double, label: '═', key: '2' },
-    { tool: Tool.Bond_Triple, label: '≡', key: '3' },
-    { tool: Tool.Bond_Aromatic, label: '◯', key: '4' },
-    { tool: Tool.Eraser, label: '✕', key: 'DEL' },
+  const toolButtons: Array<{ tool: Tool; label: string; key: string; ariaLabel: string }> = [
+    { tool: Tool.Select, label: 'Select', key: 'ESC', ariaLabel: 'Select tool' },
+    { tool: Tool.Atom_C, label: 'C', key: 'C', ariaLabel: 'Carbon atom' },
+    { tool: Tool.Atom_N, label: 'N', key: 'N', ariaLabel: 'Nitrogen atom' },
+    { tool: Tool.Atom_O, label: 'O', key: 'O', ariaLabel: 'Oxygen atom' },
+    { tool: Tool.Atom_S, label: 'S', key: 'S', ariaLabel: 'Sulfur atom' },
+    { tool: Tool.Atom_P, label: 'P', key: 'P', ariaLabel: 'Phosphorus atom' },
+    { tool: Tool.Bond_Single, label: '─', key: '1', ariaLabel: 'Single bond' },
+    { tool: Tool.Bond_Double, label: '═', key: '2', ariaLabel: 'Double bond' },
+    { tool: Tool.Bond_Triple, label: '≡', key: '3', ariaLabel: 'Triple bond' },
+    { tool: Tool.Bond_Aromatic, label: '◯', key: '4', ariaLabel: 'Aromatic bond' },
+    { tool: Tool.Eraser, label: '✕', key: 'DEL', ariaLabel: 'Eraser' },
   ];
 
   return (
@@ -387,6 +387,8 @@ function App() {
       {showBatchDialog && <BatchProcessDialog onProcess={handleBatchProcess} onCancel={() => hideModal('batch')} />}
       {/* Top Bar */}
       <div
+        role="toolbar"
+        aria-label="Drawing tools"
         style={{
           display: 'flex',
           gap: '4px',
@@ -402,6 +404,8 @@ function App() {
             key={btn.tool}
             onClick={() => setTool(btn.tool)}
             title={`${btn.label} [${btn.key}]`}
+            aria-label={btn.ariaLabel}
+            aria-pressed={activeTool === btn.tool}
             style={{
               padding: '6px 10px',
               fontSize: '12px',
@@ -421,6 +425,7 @@ function App() {
 
         <button
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
           style={{
             padding: '6px 12px',
             backgroundColor: 'transparent',

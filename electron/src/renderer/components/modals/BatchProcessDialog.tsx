@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useUIStore } from '../../store/uiStore';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 export interface BatchDialogProps {
   onProcess: (config: BatchConfig) => Promise<void> | void;
@@ -21,6 +22,15 @@ export function BatchProcessDialog({ onProcess, onCancel }: BatchDialogProps) {
   const [config, setConfig] = useState<BatchConfig>({ operation: 'standardize' });
   const [progress, setProgress] = useState(0);
   const [processing, setProcessing] = useState(false);
+  const dialogRef = useFocusTrap(true);
+
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel();
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [onCancel]);
 
   const bgColor = theme === 'dark' ? '#2f3a47' : '#ffffff';
   const borderColor = theme === 'dark' ? '#3a4a57' : '#e0e0e0';
@@ -58,6 +68,11 @@ export function BatchProcessDialog({ onProcess, onCancel }: BatchDialogProps) {
       }}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="batch-process-title"
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         style={{
           backgroundColor: bgColor,
@@ -68,7 +83,7 @@ export function BatchProcessDialog({ onProcess, onCancel }: BatchDialogProps) {
           boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
         }}
       >
-        <h2 style={{ margin: '0 0 20px', color: textColor }}>Batch Process Molecules</h2>
+        <h2 id="batch-process-title" style={{ margin: '0 0 20px', color: textColor }}>Batch Process Molecules</h2>
 
         {/* Operation Selection */}
         <div style={{ marginBottom: '20px' }}>
@@ -83,6 +98,7 @@ export function BatchProcessDialog({ onProcess, onCancel }: BatchDialogProps) {
                   setOperation(op);
                   setConfig({ ...config, operation: op });
                 }}
+                aria-pressed={operation === op}
                 style={{
                   padding: '10px',
                   backgroundColor: operation === op ? '#4d8dff' : inputBg,
@@ -144,6 +160,10 @@ export function BatchProcessDialog({ onProcess, onCancel }: BatchDialogProps) {
               Processing... {progress}%
             </div>
             <div
+              role="progressbar"
+              aria-valuenow={progress}
+              aria-valuemin={0}
+              aria-valuemax={100}
               style={{
                 width: '100%',
                 height: '8px',

@@ -122,6 +122,7 @@ export function Sidebar() {
         ))}
         <button
           onClick={() => setSidebarOpen(false)}
+          aria-label="Close sidebar"
           style={{
             padding: '4px 6px',
             border: 'none',

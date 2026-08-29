@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 export function UndoTimelineModal() {
   const theme = useUIStore((s) => s.theme);
@@ -16,6 +17,16 @@ export function UndoTimelineModal() {
   // the render body (it would also silently drift the "Current" label to
   // a newer "now" on every unrelated re-render while the modal stays open).
   const [openedAt] = useState(() => Date.now());
+  const dialogRef = useFocusTrap(showUndoModal);
+
+  useEffect(() => {
+    if (!showUndoModal) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') hideModal('undo');
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [showUndoModal, hideModal]);
 
   if (!showUndoModal) return null;
 
@@ -55,6 +66,11 @@ export function UndoTimelineModal() {
       }}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="undo-timeline-title"
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         style={{
           backgroundColor: bgColor,
@@ -69,9 +85,10 @@ export function UndoTimelineModal() {
       >
         {/* Header */}
         <div style={{ padding: '16px', borderBottom: `1px solid ${borderColor}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ margin: 0, color: textColor, fontSize: '18px' }}>Undo/Redo Timeline</h2>
+          <h2 id="undo-timeline-title" style={{ margin: 0, color: textColor, fontSize: '18px' }}>Undo/Redo Timeline</h2>
           <button
             onClick={() => hideModal('undo')}
+            aria-label="Close"
             style={{
               background: 'none',
               border: 'none',
@@ -120,6 +137,7 @@ export function UndoTimelineModal() {
         <div style={{ padding: '16px', borderTop: `1px solid ${borderColor}` }}>
           <input
             type="range"
+            aria-label="Timeline position"
             min={0}
             max={allStates.length - 1}
             value={currentIdx}

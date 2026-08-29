@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { SHORTCUTS, ShortcutGroup } from '../../lib/shortcuts';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 export function ShortcutsModal() {
   const theme = useUIStore((s) => s.theme);
@@ -8,6 +9,7 @@ export function ShortcutsModal() {
   const hideModal = useUIStore((s) => s.hideModal);
   const [activeTab, setActiveTab] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
+  const dialogRef = useFocusTrap(showShortcutsModal);
 
   // Close on Escape
   useEffect(() => {
@@ -50,6 +52,11 @@ export function ShortcutsModal() {
       }}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="shortcuts-modal-title"
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         style={{
           backgroundColor: bgColor,
@@ -65,9 +72,10 @@ export function ShortcutsModal() {
       >
         {/* Header */}
         <div style={{ padding: '16px', borderBottom: `1px solid ${borderColor}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ margin: 0, color: textColor, fontSize: '18px' }}>Keyboard Shortcuts</h2>
+          <h2 id="shortcuts-modal-title" style={{ margin: 0, color: textColor, fontSize: '18px' }}>Keyboard Shortcuts</h2>
           <button
             onClick={() => hideModal('shortcuts')}
+            aria-label="Close"
             style={{
               background: 'none',
               border: 'none',
