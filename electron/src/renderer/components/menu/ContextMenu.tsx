@@ -12,6 +12,7 @@ export function ContextMenu() {
   const molecule = useMoleculeStore((s) => s.molecule);
   const removeAtom = useMoleculeStore((s) => s.removeAtom);
   const removeBond = useMoleculeStore((s) => s.removeBond);
+  const updateAtom = useMoleculeStore((s) => s.updateAtom);
   const updateBond = useMoleculeStore((s) => s.updateBond);
   const setMolecule = useMoleculeStore((s) => s.setMolecule);
   const pushUndo = useMoleculeStore((s) => s.pushUndo);
@@ -51,10 +52,24 @@ export function ContextMenu() {
   const menuItems: Array<{ label: string; action: () => void }> = [];
 
   if (selectedAtom) {
+    // No "Set Element" here — that needs the full ElementPicker widget
+    // (Inspector tab), not a single menu action; a stub button that opened
+    // nothing was worse than not offering it.
     menuItems.push(
-      { label: 'Set Element', action: () => console.log('Element picker') },
-      { label: 'Charge +1', action: () => console.log('Charge +') },
-      { label: 'Charge -1', action: () => console.log('Charge -') },
+      {
+        label: 'Charge +1',
+        action: () => {
+          pushUndo();
+          updateAtom(selectedAtom.id, { charge: selectedAtom.charge + 1 });
+        },
+      },
+      {
+        label: 'Charge -1',
+        action: () => {
+          pushUndo();
+          updateAtom(selectedAtom.id, { charge: selectedAtom.charge - 1 });
+        },
+      },
       { label: '', action: () => {} }, // separator
       {
         label: 'Delete Atom',

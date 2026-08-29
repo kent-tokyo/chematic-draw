@@ -326,4 +326,23 @@ describe('WASM contract (real binary, not mocked)', () => {
       expect(wildcardAtom).toBeDefined();
     }
   );
+
+  // BLOCKED, same shape as the wildcard case above: confirmed empirically
+  // that an isotope-labeled atom (e.g. 13C) silently loses its isotope
+  // (comes back `undefined`) when written to and re-parsed from MOL V2000
+  // or SDF — these are chematic-mol's own writers, not something this
+  // bridge encodes, so there's no dto_to_chem/chem_to_dto fix available
+  // here. CML and canonical SMILES both preserve it correctly (see
+  // parseAnyContract.test.ts). See docs/INTEROP.md's "Known lossy
+  // conversions" table. Un-skip once chematic-mol's V2000/SDF writers
+  // encode the isotope (mass-difference) field.
+  it.skip.each(['to_mol_v2000', 'to_sdf'])(
+    'an isotope-labeled atom survives a round-trip through %s (blocked: isotope dropped)',
+    (writerName) => {
+      const mol = wasm.parse_any('[13CH4]');
+      const text = wasm[writerName](mol);
+      const reparsed = wasm.parse_any(text);
+      expect(reparsed.atoms[0].isotope).toBe(13);
+    }
+  );
 });

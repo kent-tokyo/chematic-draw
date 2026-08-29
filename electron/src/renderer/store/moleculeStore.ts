@@ -1,13 +1,9 @@
 import { create } from 'zustand';
 import { MoleculeDto, AtomDto, BondDto } from './types';
-import { ReactionScheme } from '../lib/reactions';
 
 interface MoleculeStore {
   // Current molecule
   molecule: MoleculeDto;
-
-  // Reaction scheme (Phase 5)
-  reactionScheme: ReactionScheme;
 
   // Undo/redo history
   undoStack: MoleculeDto[];
@@ -18,7 +14,6 @@ interface MoleculeStore {
 
   // Actions
   setMolecule: (mol: MoleculeDto) => void;
-  setReactionScheme: (scheme: ReactionScheme) => void;
   pushUndo: () => void;
   undo: () => void;
   redo: () => void;
@@ -51,7 +46,6 @@ const UNDO_LIMIT = 64;
 
 export const useMoleculeStore = create<MoleculeStore>((set, get) => ({
   molecule: emptyMolecule,
-  reactionScheme: { steps: [] },
   undoStack: [],
   redoStack: [],
   properties: null,
@@ -61,10 +55,6 @@ export const useMoleculeStore = create<MoleculeStore>((set, get) => ({
       molecule: mol,
       redoStack: [],
     }));
-  },
-
-  setReactionScheme: (scheme) => {
-    set({ reactionScheme: scheme });
   },
 
   pushUndo: () => {

@@ -16,7 +16,6 @@ export interface CanvasInteractionHandlers {
   onMouseDown: (e: React.MouseEvent<HTMLCanvasElement>) => void;
   onMouseMove: (e: React.MouseEvent<HTMLCanvasElement>) => void;
   onMouseUp: (e: React.MouseEvent<HTMLCanvasElement>) => void;
-  onContextMenu: (e: React.MouseEvent<HTMLCanvasElement>) => void;
 }
 
 export function useCanvasInteraction(): CanvasInteractionHandlers {
@@ -255,16 +254,10 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
     [molecule, activeTool, addBond, setBondDrag]
   );
 
-  const onContextMenu = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    e.preventDefault();
-    // TODO: Show context menu
-  }, []);
-
   return {
     onMouseDown,
     onMouseMove,
     onMouseUp,
-    onContextMenu,
   };
 }
 

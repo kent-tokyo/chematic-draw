@@ -94,19 +94,24 @@ export function MechanismPanel() {
         sourceAtomId: pendingSourceAtomId,
         sinkAtomId: pendingSinkAtomId,
         type,
-        stepId: scheme?.steps[scheme.currentStepIndex]?.id || '',
+        stepId: scheme && scheme.steps.length > 0 ? scheme.steps[scheme.currentStepIndex].id : '',
       };
 
-      // Save to current step if in scheme, otherwise to global store
+      // Always add to the interactive mechanism store — the canvas, hit-testing,
+      // electron suggestions, and this panel's own list/edit/remove UI all read
+      // from here. A reaction scheme existing must never make an arrow invisible.
+      useMechanismStore.getState().addArrow(newArrow);
+      useMechanismStore.getState().cancelArrowSelection();
+
+      // Best-effort mirror into the current scheme step too, so step arrow
+      // counts (classification/export) reflect it. Not kept in sync on step
+      // navigation — see ROADMAP "Discovered Work" note.
       if (scheme && scheme.steps.length > 0) {
         const currentArrows = scheme.steps[scheme.currentStepIndex].arrows;
         updateCurrentStepArrows([...currentArrows, newArrow]);
-      } else {
-        useMechanismStore.getState().completeArrowSelection(pendingSinkAtomId, type);
       }
 
       setShowArrowTypeDialog(false);
-      useMechanismStore.getState().setPendingSinkAtomId(null);
       setStatus(`Arrow added (${type})`);
     }
   };

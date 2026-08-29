@@ -1,15 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
-import { ReactionScheme, ReactionStep, ReactionCondition, createReactionStep, addStep, removeStep, updateConditions, executeReaction, SMIRKS_TEMPLATES } from '../../lib/reactions';
+import { executeReaction, SMIRKS_TEMPLATES } from '../../lib/reactions';
 import { useReactionSchemeStore } from '../../store/reactionSchemeStore';
-import { validateReactionScheme, getIntermediates, getExternalReagents } from '../../lib/reactionSchemeUtils';
+import { MechanismStep, ReactionCondition } from '../../store/types';
 import { exportSchemeAsJSON, importSchemeFromJSON, exportSchemeAsSVG, exportSchemeAsCSV } from '../../lib/schemeExport';
 
 export function ReactionPanel() {
-  const scheme = useMoleculeStore((s) => s.reactionScheme);
-  const setReactionScheme = useMoleculeStore((s) => s.setReactionScheme);
-  const onSchemeChange = (updated: ReactionScheme) => setReactionScheme(updated);
   const theme = useUIStore((s) => s.theme);
   const [expandedStepId, setExpandedStepId] = useState<string | null>(null);
   const [newStepReactants, setNewStepReactants] = useState<number>(1);
@@ -22,8 +19,15 @@ export function ReactionPanel() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const schemeLayout = useReactionSchemeStore((s) => s.schemeLayout);
 
-  // Scheme store hooks
-  const schemeStoreScheme = useReactionSchemeStore((s) => s.scheme);
+  // Single source of truth for the reaction scheme (steps, conditions, arrows,
+  // atom mapping, green metrics). Previously this panel also read/wrote a second,
+  // disconnected scheme in moleculeStore — see internal_docs/ROADMAP.md v0.3 notes.
+  const scheme = useReactionSchemeStore((s) => s.scheme);
+  const createScheme = useReactionSchemeStore((s) => s.createScheme);
+  const updateSchemeInfo = useReactionSchemeStore((s) => s.updateSchemeInfo);
+  const addStepToScheme = useReactionSchemeStore((s) => s.addStep);
+  const removeStepFromScheme = useReactionSchemeStore((s) => s.removeStep);
+  const updateStep = useReactionSchemeStore((s) => s.updateStep);
   const getCurrentStep = useReactionSchemeStore((s) => s.getCurrentStep);
   const nextStep = useReactionSchemeStore((s) => s.nextStep);
   const previousStep = useReactionSchemeStore((s) => s.previousStep);
@@ -34,9 +38,17 @@ export function ReactionPanel() {
   const greenMetrics = useReactionSchemeStore((s) => s.greenMetrics);
   const atomLabelsVisible = useReactionSchemeStore((s) => s.atomLabelsVisible);
   const mappingLinesVisible = useReactionSchemeStore((s) => s.mappingLinesVisible);
-  const calculateAtomMappings = useReactionSchemeStore((s) => s.calculateAtomMappings);
   const toggleAtomLabels = useReactionSchemeStore((s) => s.toggleAtomLabels);
   const toggleMappingLines = useReactionSchemeStore((s) => s.toggleMappingLines);
+
+  // The scheme is created lazily on first mount so the panel always has one to
+  // edit, matching the previous always-present UX (addStep/removeStep already
+  // recalculate atom mappings, classification, and green metrics themselves).
+  useEffect(() => {
+    if (!scheme) {
+      createScheme('', '');
+    }
+  }, [scheme, createScheme]);
 
   const bgColor = theme === 'dark' ? '#2f3a47' : '#ffffff';
   const borderColor = theme === 'dark' ? '#3a4a57' : '#e0e0e0';
@@ -46,31 +58,31 @@ export function ReactionPanel() {
   const accentColor = '#4d8dff';
 
   const handleAddStep = () => {
-    const newStep = createReactionStep(`step-${Date.now()}`, [], []);
-    const updatedScheme = { ...scheme, steps: [...scheme.steps, newStep] };
-    onSchemeChange(updatedScheme);
+    const newStep: MechanismStep = {
+      id: `step-${Date.now()}`,
+      reactants: [],
+      products: [],
+      arrows: [],
+      mechanismType: 'sn2',
+      conditions: {},
+      arrowType: 'single',
+    };
+    addStepToScheme(newStep);
   };
 
   const handleRemoveStep = (stepId: string) => {
-    const updatedScheme = { ...scheme };
-    removeStep(updatedScheme, stepId);
-    onSchemeChange(updatedScheme);
+    removeStepFromScheme(stepId);
   };
 
   const handleUpdateConditions = (stepId: string, conditions: Partial<ReactionCondition>) => {
-    const step = scheme.steps.find((s) => s.id === stepId);
+    const step = scheme?.steps.find((s) => s.id === stepId);
     if (step) {
-      updateConditions(step, conditions);
-      onSchemeChange({ ...scheme });
+      updateStep(stepId, { conditions: { ...step.conditions, ...conditions } });
     }
   };
 
   const handleArrowTypeChange = (stepId: string, arrowType: 'single' | 'double' | 'equilibrium' | 'retro') => {
-    const step = scheme.steps.find((s) => s.id === stepId);
-    if (step) {
-      step.arrowType = arrowType;
-      onSchemeChange({ ...scheme });
-    }
+    updateStep(stepId, { arrowType });
   };
 
   const molecule = useMoleculeStore((s) => s.molecule);
@@ -106,23 +118,23 @@ export function ReactionPanel() {
     }
 
     setReactionError('');
-    const updatedScheme = { ...scheme, steps: [...scheme.steps, result.step] };
-    onSchemeChange(updatedScheme);
+    addStepToScheme({
+      id: result.step.id,
+      reactants: result.step.reactants,
+      products: result.step.products,
+      arrows: [],
+      mechanismType: 'sn2',
+      conditions: result.step.conditions,
+      arrowType: result.step.arrowType,
+    });
     setSmirlksInput('');
   };
 
-  const handleCreateNewScheme = () => {
-    useReactionSchemeStore.getState().createScheme('New Mechanism', 'Multi-step reaction');
-    setStatus('✓ New reaction scheme created');
-  };
-
-  useEffect(() => {
-    if (scheme && scheme.steps.length > 0) {
-      calculateAtomMappings();
-    }
-  }, [scheme?.steps.length, calculateAtomMappings]);
-
   const isDark = theme === 'dark';
+
+  // Scheme is created by the effect above on first mount; nothing to render
+  // for the one tick before it exists.
+  if (!scheme) return null;
 
   // Download helper function
   const downloadFile = (content: string, filename: string, type: string) => {
@@ -138,42 +150,36 @@ export function ReactionPanel() {
   };
 
   // Export/Import handlers.
-  // These export the mechanism-drawing scheme (schemeStoreScheme: ReactionSchemeContext,
-  // with atom mappings/green metrics/mechanism arrows), not the molecule-level `scheme`
-  // (ReactionScheme, the SMIRKS-applied reaction steps) — the two are different concepts
-  // that happen to share the name "scheme".
   const handleExportJSON = () => {
-    if (!schemeStoreScheme) return;
     const json = exportSchemeAsJSON(
-      schemeStoreScheme,
+      scheme,
       useReactionSchemeStore.getState().atomMappings,
       useReactionSchemeStore.getState().reactionClassification,
       useReactionSchemeStore.getState().greenMetrics
     );
-    downloadFile(json, `${schemeStoreScheme.title || 'scheme'}_export.json`, 'application/json');
+    downloadFile(json, `${scheme.title || 'scheme'}_export.json`, 'application/json');
     setStatus('Exported as JSON');
   };
 
   const handleExportSVG = () => {
-    if (!schemeStoreScheme || !schemeLayout) return;
+    if (!schemeLayout) return;
     const svg = exportSchemeAsSVG(
-      schemeStoreScheme,
+      scheme,
       schemeLayout,
       useReactionSchemeStore.getState().atomMappings,
       useReactionSchemeStore.getState().greenMetrics
     );
-    downloadFile(svg, `${schemeStoreScheme.title || 'scheme'}_diagram.svg`, 'image/svg+xml');
+    downloadFile(svg, `${scheme.title || 'scheme'}_diagram.svg`, 'image/svg+xml');
     setStatus('Exported as SVG');
   };
 
   const handleExportCSV = () => {
-    if (!schemeStoreScheme) return;
     const csv = exportSchemeAsCSV(
-      schemeStoreScheme,
+      scheme,
       useReactionSchemeStore.getState().reactionClassification,
       useReactionSchemeStore.getState().greenMetrics
     );
-    downloadFile(csv, `${schemeStoreScheme.title || 'scheme'}_report.csv`, 'text/csv');
+    downloadFile(csv, `${scheme.title || 'scheme'}_report.csv`, 'text/csv');
     setStatus('Exported as CSV');
   };
 
@@ -187,11 +193,7 @@ export function ReactionPanel() {
       if (importedScheme) {
         useReactionSchemeStore.getState().createScheme(importedScheme.title, importedScheme.description);
         const state = useReactionSchemeStore.getState();
-        state.scheme?.steps?.forEach((step, i) => {
-          if (i < importedScheme.steps.length) {
-            state.updateStep(step.id, importedScheme.steps[i]);
-          }
-        });
+        importedScheme.steps.forEach((step) => state.addStep(step));
         setStatus(`Imported scheme: ${importedScheme.title}`);
       } else {
         setStatus('Failed to import JSON');
@@ -219,7 +221,7 @@ export function ReactionPanel() {
         type="text"
         placeholder="Reaction title..."
         value={scheme.title || ''}
-        onChange={(e) => onSchemeChange({ ...scheme, title: e.target.value })}
+        onChange={(e) => updateSchemeInfo({ title: e.target.value })}
         style={{
           padding: '6px',
           border: `1px solid ${borderColor}`,
@@ -235,7 +237,7 @@ export function ReactionPanel() {
       <textarea
         placeholder="Reaction description..."
         value={scheme.description || ''}
-        onChange={(e) => onSchemeChange({ ...scheme, description: e.target.value })}
+        onChange={(e) => updateSchemeInfo({ description: e.target.value })}
         style={{
           padding: '6px',
           border: `1px solid ${borderColor}`,
@@ -319,7 +321,7 @@ export function ReactionPanel() {
       )}
 
       {/* Multi-Step Scheme Navigation */}
-      {schemeStoreScheme && (
+      {scheme.steps.length > 0 && (
         <div style={{
           padding: '12px',
           backgroundColor: theme === 'dark' ? '#1e2a3a' : '#f5f9ff',
@@ -339,7 +341,7 @@ export function ReactionPanel() {
               fontWeight: 'bold',
               color: theme === 'dark' ? '#90caf9' : '#1976d2',
             }}>
-              Step {schemeStoreScheme.currentStepIndex + 1} of {schemeStoreScheme.steps.length}
+              Step {scheme.currentStepIndex + 1} of {scheme.steps.length}
             </div>
             <div style={{ display: 'flex', gap: '4px' }}>
               <button
@@ -599,7 +601,7 @@ export function ReactionPanel() {
                     <input
                       type="text"
                       placeholder="e.g., RT, 100°C, reflux"
-                      value={step.conditions.temperature || ''}
+                      value={step.conditions?.temperature || ''}
                       onChange={(e) => handleUpdateConditions(step.id, { temperature: e.target.value })}
                       style={{
                         width: '100%',
@@ -621,7 +623,7 @@ export function ReactionPanel() {
                     <input
                       type="text"
                       placeholder="e.g., DMF, THF, H2O"
-                      value={step.conditions.solvent || ''}
+                      value={step.conditions?.solvent || ''}
                       onChange={(e) => handleUpdateConditions(step.id, { solvent: e.target.value })}
                       style={{
                         width: '100%',
@@ -643,7 +645,7 @@ export function ReactionPanel() {
                     <input
                       type="text"
                       placeholder="e.g., Pd/C, Et3N"
-                      value={step.conditions.catalyst || ''}
+                      value={step.conditions?.catalyst || ''}
                       onChange={(e) => handleUpdateConditions(step.id, { catalyst: e.target.value })}
                       style={{
                         width: '100%',
@@ -665,7 +667,7 @@ export function ReactionPanel() {
                     <input
                       type="text"
                       placeholder="e.g., 2h, overnight"
-                      value={step.conditions.time || ''}
+                      value={step.conditions?.time || ''}
                       onChange={(e) => handleUpdateConditions(step.id, { time: e.target.value })}
                       style={{
                         width: '100%',
@@ -689,7 +691,7 @@ export function ReactionPanel() {
                       min="0"
                       max="100"
                       placeholder="0-100"
-                      value={step.conditions.yield || ''}
+                      value={step.conditions?.yield || ''}
                       onChange={(e) => handleUpdateConditions(step.id, { yield: e.target.value ? parseInt(e.target.value) : undefined })}
                       style={{
                         width: '100%',
@@ -813,25 +815,8 @@ export function ReactionPanel() {
         )}
       </div>
 
-      {/* Add Step / Create Scheme Button */}
+      {/* Add Step Button */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {!schemeStoreScheme && (
-          <button
-            onClick={handleCreateNewScheme}
-            style={{
-              padding: '8px',
-              backgroundColor: accentColor,
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '11px',
-              fontWeight: 'bold',
-            }}
-          >
-            + Create Reaction Scheme
-          </button>
-        )}
         <button
           onClick={handleAddStep}
           style={{
@@ -845,7 +830,7 @@ export function ReactionPanel() {
             fontWeight: 'bold',
           }}
         >
-          {schemeStoreScheme ? '+ Add Step to Scheme' : '+ Add Reaction Step'}
+          + Add Reaction Step
         </button>
         {status && (
           <div style={{

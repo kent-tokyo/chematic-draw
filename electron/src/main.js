@@ -110,6 +110,10 @@ const createMenu = () => {
               click: () => mainWindow.webContents.send('menu:export-svg'),
             },
             {
+              label: 'Export as PNG...',
+              click: () => mainWindow.webContents.send('menu:export-png'),
+            },
+            {
               label: 'Export as MOL V2000...',
               click: () => mainWindow.webContents.send('menu:export-mol'),
             },
@@ -255,6 +259,8 @@ ipcMain.handle('file:save-dialog', async (event, defaultPath) => {
       { name: 'MOL V2000', extensions: ['mol'] },
       { name: 'SMILES', extensions: ['smi'] },
       { name: 'SDF', extensions: ['sdf'] },
+      { name: 'SVG', extensions: ['svg'] },
+      { name: 'PNG', extensions: ['png'] },
       { name: 'All Files', extensions: ['*'] },
     ],
   });
@@ -264,6 +270,18 @@ ipcMain.handle('file:save-dialog', async (event, defaultPath) => {
 ipcMain.handle('file:write', async (event, filePath, content) => {
   try {
     writeFileSync(filePath, content, 'utf-8');
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+// Separate from file:write because that handler always encodes as utf-8 —
+// passing PNG bytes through it would corrupt the file. base64Content is
+// decoded to a raw Buffer here instead.
+ipcMain.handle('file:write-binary', async (event, filePath, base64Content) => {
+  try {
+    writeFileSync(filePath, Buffer.from(base64Content, 'base64'));
     return { success: true };
   } catch (err) {
     return { success: false, error: err.message };

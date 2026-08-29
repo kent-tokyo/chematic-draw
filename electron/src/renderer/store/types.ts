@@ -23,6 +23,9 @@ export interface AtomDto {
    * info is available; fall back to `element`. An explicit `""` means
    * "deliberately show nothing," not "no data." */
   display_label?: string | null;
+  /** Mass number of a specific isotope (e.g. `13` for ¹³C). `undefined`
+   * means natural-abundance element (no isotope specified). */
+  isotope?: number;
 }
 
 export interface BondDto {
@@ -106,12 +109,25 @@ export interface MechanismState {
   hoverArrowId: string | null;
 }
 
+export interface ReactionCondition {
+  temperature?: string; // e.g., "25°C", "RT", "reflux"
+  catalyst?: string;
+  solvent?: string;
+  time?: string; // e.g., "2h", "overnight"
+  yield?: number; // 0-100
+  notes?: string;
+}
+
 export interface MechanismStep {
   id: string;
   reactants: MoleculeDto[];
   products: MoleculeDto[];
   arrows: MechanismArrow[];
   mechanismType: 'sn2' | 'sn1' | 'e1' | 'e2' | 'electrophilic_addition';
+  // Set by the SMIRKS/manual reaction-step flow (ReactionPanel); absent on
+  // steps created by the electron-pushing mechanism flow (MechanismPanel).
+  conditions?: ReactionCondition;
+  arrowType?: 'single' | 'double' | 'equilibrium' | 'retro';
 }
 
 // Electron detection types for mechanism arrow suggestions

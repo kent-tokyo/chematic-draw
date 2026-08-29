@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onMenuSave: (callback) => ipcRenderer.on('menu:save', callback),
   onMenuSaveAs: (callback) => ipcRenderer.on('menu:save-as', callback),
   onMenuExportSvg: (callback) => ipcRenderer.on('menu:export-svg', callback),
+  onMenuExportPng: (callback) => ipcRenderer.on('menu:export-png', callback),
   onMenuExportMol: (callback) => ipcRenderer.on('menu:export-mol', callback),
   onMenuExportSmiles: (callback) => ipcRenderer.on('menu:export-smiles', callback),
   onMenuSelectAll: (callback) => ipcRenderer.on('menu:select-all', callback),
@@ -28,6 +29,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // File operations (renderer → main)
   fileSaveDialog: (defaultPath) => ipcRenderer.invoke('file:save-dialog', defaultPath),
   fileWrite: (filePath, content) => ipcRenderer.invoke('file:write', filePath, content),
+  fileWriteBinary: (filePath, base64Content) => ipcRenderer.invoke('file:write-binary', filePath, base64Content),
 
   // Clipboard operations (renderer → main)
   copyToClipboard: (format, content) => ipcRenderer.invoke('clipboard:write', format, content),

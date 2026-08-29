@@ -30,6 +30,7 @@ interface ReactionSchemeStore {
 
   // Scheme CRUD
   createScheme(title: string, description?: string): void;
+  updateSchemeInfo(updates: { title?: string; description?: string }): void;
   clearScheme(): void;
 
   // Step management
@@ -148,6 +149,13 @@ export const useReactionSchemeStore = create<ReactionSchemeStore>((set, get) => 
         reactionClassification: null,
         greenMetrics: null,
       };
+    });
+  },
+
+  updateSchemeInfo: (updates) => {
+    set((state) => {
+      if (!state.scheme) return state;
+      return { scheme: { ...state.scheme, ...updates } };
     });
   },
 

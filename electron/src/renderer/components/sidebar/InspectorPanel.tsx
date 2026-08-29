@@ -237,6 +237,30 @@ export function InspectorPanel() {
             </div>
           </div>
 
+          <div>
+            <label style={{ fontSize: '11px', color: labelColor, display: 'block', marginBottom: '6px' }}>
+              Isotope (mass number)
+            </label>
+            <input
+              type="number"
+              min="1"
+              placeholder="natural abundance"
+              value={selectedAtom.isotope ?? ''}
+              onChange={(e) =>
+                handleAtomUpdate('isotope', e.target.value ? parseInt(e.target.value, 10) : undefined)
+              }
+              style={{
+                width: '100%',
+                padding: '6px',
+                border: `1px solid ${inputBorder}`,
+                borderRadius: '3px',
+                backgroundColor: inputBg,
+                color: textColor,
+                fontSize: '11px',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
 
           <div style={{ fontSize: '10px', color: labelColor, padding: '8px', backgroundColor: theme === 'dark' ? '#2f3a47' : '#f3f5f8', borderRadius: '3px' }}>
             <strong>Atom ID:</strong> {selectedAtom.id}

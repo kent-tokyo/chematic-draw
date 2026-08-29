@@ -53,6 +53,12 @@ pub struct AtomDto {
     pub wildcard: bool,
     #[serde(default)]
     pub display_label: Option<String>,
+    /// Mass number of a specific isotope (e.g. `13` for ¹³C), or `None` for
+    /// the natural-abundance element. `#[serde(default)]` for the same
+    /// reason as `hydrogen_count`: older DTOs without this field still
+    /// deserialize, defaulting to "no isotope specified."
+    #[serde(default)]
+    pub isotope: Option<u16>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -530,7 +536,7 @@ fn dto_to_chem(dto: &MoleculeDto) -> Result<chematic::core::Molecule, JsValue> {
 
         let chem_atom = Atom {
             element,
-            isotope: None,
+            isotope: atom.isotope,
             charge: atom.charge,
             // Explicit H count from the DTO, not inferred: ring topology
             // alone can't distinguish e.g. pyrrole-type N (donates its lone
@@ -619,6 +625,7 @@ fn chem_to_dto(mol: &chematic::core::Molecule, coords: Option<&[(f64, f64)]>) ->
                     hydrogen_count: Some(chematic::core::implicit_hcount(mol, AtomIdx(i as u32))),
                     wildcard: atom.wildcard,
                     display_label: display_label(AtomIdx(i as u32)),
+                    isotope: atom.isotope,
                 }
             })
             .collect()
@@ -639,6 +646,7 @@ fn chem_to_dto(mol: &chematic::core::Molecule, coords: Option<&[(f64, f64)]>) ->
                     hydrogen_count: Some(chematic::core::implicit_hcount(mol, AtomIdx(i as u32))),
                     wildcard: atom.wildcard,
                     display_label: display_label(AtomIdx(i as u32)),
+                    isotope: atom.isotope,
                 }
             })
             .collect()

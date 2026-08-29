@@ -51,6 +51,14 @@ format's own fields can represent:
   nothing to lose here by definition, but a user might reasonably (and
   incorrectly) expect a saved file to "remember" how a structure was
   condensed for display.
+- **Isotope labels** (`isotope: number` in `AtomDto`, e.g. `13` for ¹³C): a
+  `[13CH4]`-style isotope round-trips correctly through canonical SMILES and
+  CML (verified in `parseAnyContract.test.ts`), but **silently drops to
+  natural abundance** (`isotope` comes back `undefined`) when written to and
+  re-parsed from MOL V2000 or SDF — confirmed empirically. This is
+  chematic-mol's own V2000/SDF writer not encoding the mass-difference
+  field, not something this bridge's `chem_to_dto`/`dto_to_chem` can fix.
+  Pinned as skipped regression tests in `wasmContract.test.ts`.
 
 None of these are implemented as an automated pre-save warning today — this
 table exists so the actual, current gaps are written down and discoverable,

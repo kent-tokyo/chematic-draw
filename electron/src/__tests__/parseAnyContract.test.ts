@@ -271,4 +271,13 @@ describe('required regressions (item 9)', () => {
     expect(props.formula).toBe('C4H5N');
     expect(wasm.to_canonical_smiles(mol)).toBe('c1[nH]ccc1');
   });
+
+  it('an isotope-labeled atom (e.g. 13C) round-trips through canonical SMILES', () => {
+    const mol = wasm.parse_any('[13CH4]');
+    expect(mol.atoms[0].isotope).toBe(13);
+    const smiles = wasm.to_canonical_smiles(mol);
+    expect(smiles).toContain('13C');
+    const reparsed = wasm.parse_any(smiles);
+    expect(reparsed.atoms[0].isotope).toBe(13);
+  });
 });

@@ -42,6 +42,9 @@ interface AtomDto {
   wildcard?: boolean;            // R-group/variable-attachment atom
   display_label?: string | null; // Cosmetic 2D label ("CH3", "" to suppress);
                                   // never chemistry input, undefined/null = fall back to `element`
+  isotope?: number;              // Mass number (e.g. 13 for 13C); undefined = natural abundance.
+                                  // Survives SMILES/CML round-trips; dropped by MOL V2000/SDF
+                                  // (chematic-mol's writers, see docs/INTEROP.md).
 }
 
 interface BondDto {

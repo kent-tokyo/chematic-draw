@@ -13,6 +13,7 @@ import { useMoleculeStore } from './renderer/store/moleculeStore';
 import { useCanvasStore } from './renderer/store/canvasStore';
 import { Tool } from './renderer/store/types';
 import * as wasmBridge from './renderer/wasm/wasmBridge';
+import { svgToPngBase64 } from './renderer/lib/svgToPng';
 
 function App() {
   const [wasmStatus, setWasmStatus] = useState<wasmBridge.WasmStatus>('idle');
@@ -162,6 +163,50 @@ function App() {
         const result = await api.fileSaveDialog('untitled.svg');
         if (!result.canceled && result.filePath) {
           const content = wasmBridge.toSvg(molecule);
+          const writeResult = await api.fileWrite(result.filePath, content);
+          if (writeResult.success) {
+            setStatus(`Exported: ${result.filePath}`);
+          } else {
+            setStatus(`Export failed: ${writeResult.error}`);
+          }
+        }
+      });
+
+      api.onMenuExportPng(async () => {
+        const result = await api.fileSaveDialog('untitled.png');
+        if (!result.canceled && result.filePath) {
+          try {
+            const svg = wasmBridge.toSvg(molecule);
+            const base64 = await svgToPngBase64(svg);
+            const writeResult = await api.fileWriteBinary(result.filePath, base64);
+            if (writeResult.success) {
+              setStatus(`Exported: ${result.filePath}`);
+            } else {
+              setStatus(`Export failed: ${writeResult.error}`);
+            }
+          } catch (err) {
+            setStatus(`Export failed: ${(err as Error).message}`);
+          }
+        }
+      });
+
+      api.onMenuExportMol(async () => {
+        const result = await api.fileSaveDialog('untitled.mol');
+        if (!result.canceled && result.filePath) {
+          const content = wasmBridge.toMolV2000(molecule);
+          const writeResult = await api.fileWrite(result.filePath, content);
+          if (writeResult.success) {
+            setStatus(`Exported: ${result.filePath}`);
+          } else {
+            setStatus(`Export failed: ${writeResult.error}`);
+          }
+        }
+      });
+
+      api.onMenuExportSmiles(async () => {
+        const result = await api.fileSaveDialog('untitled.smi');
+        if (!result.canceled && result.filePath) {
+          const content = wasmBridge.toCanonicalSmiles(molecule);
           const writeResult = await api.fileWrite(result.filePath, content);
           if (writeResult.success) {
             setStatus(`Exported: ${result.filePath}`);

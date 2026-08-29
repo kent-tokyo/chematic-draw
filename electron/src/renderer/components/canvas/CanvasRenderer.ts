@@ -321,6 +321,15 @@ export class CanvasRenderer {
       this.ctx.font = `${10 * state.zoom}px Arial`;
       this.ctx.fillText(chargeStr, x + radius + 5, y - radius - 5);
     }
+
+    // Draw isotope mass number if present, mirroring charge's position on
+    // the opposite corner (a true stacked superscript prefix would need
+    // per-glyph width measurement; this simplified adjacent-label placement
+    // matches what several other 2D editors do for the same reason).
+    if (atom.isotope !== undefined && atom.isotope !== null) {
+      this.ctx.font = `${10 * state.zoom}px Arial`;
+      this.ctx.fillText(`${atom.isotope}`, x - radius - 5, y - radius - 5);
+    }
   }
 
   drawMechanismArrows(
