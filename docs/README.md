@@ -29,56 +29,66 @@ Complete documentation for the chematic-draw Electron application with integrate
 - **Property Prediction**: Molecular descriptors, solubility, drug-likeness scores
 
 ### Advanced Features
-- **Stereochemistry**: Enumeration of stereoisomers with configurable chiral centers
-- **Database Search**: Similarity search, maximum common substructure (MCS) detection
+- **Stereochemistry**: Enumeration of candidate stereoisomers (heuristic
+  detection, not a full CIP check — see [Tutorial](./TUTORIAL.md#stereochemistry))
+- **Database Search**: Similarity search against PubChem/ChemSpider. MCS
+  (maximum common substructure) exists in the WASM layer but has no UI yet.
 - **Batch Operations**: Process multiple molecules with configurable parameters
-- **File Export**: SVG, PNG, CSV, XYZ (3D), JSON formats
+- **File Export**: SVG/PNG/MOL V2000/SMILES (File → Export); XYZ separately
+  from the 3D Viewer tab; CSV/JSON only for reaction schemes (Reactions tab)
 
 ### Performance
-- WebWorker-based Canvas optimization for smooth 3D rendering
 - Lazy-loaded panels for responsive UI
-- WASM-backed chemistry operations with memory profiling
-- Benchmark suite for performance validation
+- WASM-backed chemistry operations, with a real benchmark suite
+  (`npm run test:perf`) against a fixed molecule corpus
 
 ## Technology Stack
 
 | Layer | Technology | Version |
 |-------|-----------|---------|
-| **Desktop** | Electron | 33.x |
-| **UI Framework** | React | 18.x |
-| **State Management** | Zustand | 4.x |
-| **Chemistry Engine** | chematic | 0.1.40 |
-| **Canvas 3D** | Canvas 2D API + WebWorker | Native |
-| **WASM** | wasm-bindgen | Latest |
-| **Build** | Vite + wasm-pack | Latest |
-| **Testing** | Jest + Playwright | Latest |
+| **Desktop** | Electron | 44.x |
+| **UI Framework** | React | 19.x |
+| **State Management** | Zustand | 5.x |
+| **Chemistry Engine** | chematic | 0.20.1 |
+| **Canvas** | Canvas 2D API | Native |
+| **WASM** | wasm-bindgen (via wasm-pack) | — |
+| **Build** | Vite + Electron Forge | — |
+| **Testing** | Jest + Playwright | — |
+
+(Check `electron/package.json` / `Cargo.toml` for exact current versions —
+this table reflects a point in time.)
 
 ## Getting Started
 
 ### For Users
-Download the latest release from GitHub and run:
-```bash
-chematic-draw-x.x.x.dmg  # macOS
-chematic-draw-x.x.x.exe  # Windows
-chematic-draw-x.x.x.zip  # Linux
-```
+Pre-release installers (`.deb`/`.rpm` for Linux, `.zip` for macOS, a
+Squirrel installer for Windows — see `electron/forge.config.js`) are
+published on the [Releases page](https://github.com/kent-tokyo/chematic-draw/releases)
+for tagged versions; there's no stable release yet, and builds are
+unsigned. See [Quick Start](./QUICK_START.md#installation) for download +
+checksum-verification steps, or build from source below.
 
 ### For Developers
 ```bash
-git clone https://github.com/yourusername/chematic-draw
-cd chematic-draw
+git clone https://github.com/kent-tokyo/chematic-draw
+cd chematic-draw/electron
 npm install
+npm run build:wasm
 npm start
 ```
 
-See [Quick Start](./QUICK_START.md) for detailed instructions.
+See [Quick Start](./QUICK_START.md) or [Build Guide](./BUILD.md) for
+detailed instructions.
 
 ## Version Info
 
-- **chematic**: 0.1.40+
-- **chematic-draw**: 0.2.0
-- **Node.js**: 18+
+- **chematic**: 0.20.1
+- **chematic-draw**: 0.2.2-rc.1
+- **Node.js**: 24+
 - **Rust**: 1.70+ (for building WASM)
+
+(These drift over time — `electron/package.json`/`Cargo.toml` are the
+source of truth, not this file.)
 
 ## Support
 

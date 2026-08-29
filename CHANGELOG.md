@@ -223,7 +223,7 @@ Deprecated features are:
 ## Acknowledgments
 
 ### Contributors
-- [List of contributors](https://github.com/yourusername/chematic-draw/graphs/contributors)
+- [List of contributors](https://github.com/kent-tokyo/chematic-draw/graphs/contributors)
 
 ### Dependencies
 - [chematic](https://github.com/rapodaca/chematic) — Chemistry library

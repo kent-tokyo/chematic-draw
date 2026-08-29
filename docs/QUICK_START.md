@@ -4,48 +4,76 @@ Get chematic-draw up and running in 5 minutes.
 
 ## Installation
 
-### macOS
+### Option 1: Download a pre-release build
+
+Packaged installers (`.deb`/`.rpm` for Linux, `.zip` for macOS, a Squirrel
+`.exe` installer for Windows) are published on the
+[GitHub Releases page](https://github.com/kent-tokyo/chematic-draw/releases)
+for tagged versions. There's no stable release yet — only release
+candidates (e.g. `v0.2.2-rc.1`) — and builds are unsigned (no code
+signing/notarization is configured), so macOS/Windows will show an
+unidentified-developer warning on first launch.
+
+**Verify your download** against the `SHA256SUMS-<OS>.txt` file published
+alongside the binaries in the same release:
+
 ```bash
-brew install chematic-draw
-chematic-draw
+# Linux
+sha256sum -c SHA256SUMS-Linux.txt
+
+# macOS
+shasum -a 256 -c SHA256SUMS-macOS.txt
+
+# Windows (PowerShell)
+Get-FileHash <downloaded-file> -Algorithm SHA256
+# compare the output against the matching line in SHA256SUMS-Windows.txt
 ```
 
-### Windows
-Download `chematic-draw-setup.exe` from [Releases](https://github.com/yourusername/chematic-draw/releases)
+This confirms the file wasn't corrupted or altered in transit — it does not
+substitute for code signing, since the checksums themselves are published
+unsigned in the same release.
 
-### Linux
+### Option 2: Build from source
+
 ```bash
-sudo snap install chematic-draw
-chematic-draw
+git clone https://github.com/kent-tokyo/chematic-draw.git
+cd chematic-draw/electron
+npm install
+npm run build:wasm
+npm start
 ```
+
+Requires Node.js 24+ and a Rust toolchain with `wasm-pack` — see
+[Build Guide](./BUILD.md) for details.
 
 ## First Launch
 
-1. **Start Application** — Click the application icon
-2. **Main Window Opens** — You'll see:
-   - Large canvas area (center) for drawing molecules
-   - Sidebar (right) with tools and properties
-   - Menu bar (top) with File, Edit, View options
-3. **Canvas Ready** — You can now start drawing
+1. **App window opens** — you'll see:
+   - Canvas area (left) for drawing molecules, with an atom/bond toolbar above it
+   - Sidebar (right) with tabs: Inspector, Templates, Reactions, Batch, Stereo, Lipinski, Props, Mech, 3D, DB, Research, Chat
+   - Menu bar (top) with File, Edit, View, Tools, Help
+2. A sample molecule (benzene) loads automatically on startup.
+3. **Canvas Ready** — you can now start drawing
 
 ## Draw Your First Molecule
 
 ### Method 1: Click-to-Build
-1. **Click Draw Mode** — Ensure pencil/draw icon is selected
-2. **Click Canvas** — Place atoms:
-   - Single click = Carbon (C)
-   - Double-click = Nitrogen (N)
-   - Right-click menu = Other elements
-3. **Drag Between Atoms** — Create bonds
-4. **Adjust Bonds** — Click bond to toggle single/double/triple
+1. **Pick an element** — click a toolbar button: `C`, `N`, `O`, `S`, or `P`
+   (or press the matching key)
+2. **Click Canvas** — each click places an atom of that element; click near
+   an existing atom to bond a new one to it
+3. **Pick a bond type** — click the bond toolbar buttons (single/double/
+   triple/aromatic, or press `1`/`2`/`3`/`4`) before clicking to place a bond
+   between two existing atoms
+4. **Select tool** (`Esc`) — switch back to selecting/moving atoms and bonds
 
-### Method 2: SMILES Input
-1. **File → New from SMILES**
-2. **Paste SMILES string**:
+### Method 2: Load from a file
+There's no "paste a SMILES string" dialog — instead, use **File → Open...**
+and pick a file (`.smi`, `.mol`, `.sdf`, `.cml`, `.cdxml`) containing it; the
+parser auto-detects the format. Example SMILES to try in a `.smi` file:
    - Benzene: `c1ccccc1`
    - Aspirin: `CC(=O)Oc1ccccc1C(=O)O`
    - Naphthalene: `c1ccc2ccccc2c1`
-3. **Click Load**
 
 ### Method 3: Templates
 1. **Click Templates Tab** (right sidebar)
@@ -69,12 +97,16 @@ chematic-draw
 4. **Drug-Likeness** — Lipinski's rule violations
 5. **Synthetic Accessibility** — SA score (0-10, lower = easier)
 
-### Reaction Mechanisms
-1. **Click "Reactions" Tab** in sidebar
-2. **Select Reaction Type** — Choose from SN1, SN2, E1, E2, Addition
-3. **Draw Reagent** — Add nucleophile/electrophile
-4. **Generate Mechanism** — Visualize electron flow
-5. **Step Through** — Navigate reaction steps
+### Reactions & Mechanisms
+Two separate tabs cover this, not one:
+1. **"Reactions" tab** — add steps manually, or run a built-in SMIRKS
+   template (carboxylic acid → amide, ester → acid, etc.) against the
+   loaded molecule to generate a step automatically. Multi-step schemes
+   show live atom-mapping, a step/single-step classification, and green
+   chemistry metrics (atom economy, E-factor) once a step exists.
+2. **"Mech" tab** — draw electron-pushing arrows: click "+ Add Arrow", then
+   click a source atom and a sink atom on the canvas, and pick the arrow
+   type (forward/retro/resonance).
 
 ### Stereochemistry
 1. **Click "Stereo" Tab** in sidebar
@@ -91,26 +123,31 @@ chematic-draw
 | `Ctrl+S` / `Cmd+S` | Save molecule |
 | `Ctrl+Z` / `Cmd+Z` | Undo |
 | `Ctrl+Shift+Z` / `Cmd+Shift+Z` | Redo |
-| `Delete` / `Backspace` | Delete selected atom |
-| `D` | Toggle draw mode |
-| `S` | Toggle select mode |
-| `B` | Bond tool |
-| `E` | Erase tool |
-| `?` | Show help |
+| `Delete` / `Backspace` | Delete selected atom/bond |
+| `Esc` | Select tool |
+| `C` / `N` / `O` / `S` / `P` | Place that element (no modifier key) |
+| `1` / `2` / `3` / `4` | Single / double / triple / aromatic bond tool |
+| `Ctrl+L` / `Cmd+L` | Clean layout (auto re-arrange) |
+| `Ctrl+A` / `Cmd+A` | Select all |
+| `+` / `-` / `0` | Zoom in / out / reset |
+| `F1` or `Ctrl+?` | Show keyboard shortcuts |
 
 ## Export Your Work
 
 ### Formats
-- **SVG** — Vector graphics (for publications)
-- **PNG** — Raster image (for presentations)
-- **XYZ** — 3D coordinates (for Gaussian, ORCA, etc.)
-- **CSV** — Atom/bond table (for data analysis)
-- **JSON** — Native format (for chematic-draw projects)
+Available from **File → Export**: **SVG** (vector, publications), **PNG**
+(raster), **MOL V2000**, **SMILES**. There's no CSV/JSON molecule export or
+File-menu XYZ export — those exist elsewhere:
+- **XYZ** — 3D Viewer tab ("3D" in sidebar) → generate 3D coordinates →
+  "XYZ エクスポート" button
+- **CSV / JSON** — Reactions tab's own "Export Scheme" panel exports a
+  *reaction scheme* (steps, atom mappings, green-chemistry metrics) this
+  way — not a single molecule
 
-### How to Export
-1. **File → Export As**
-2. **Choose format**
-3. **Select location**
+### How to Export a Molecule
+1. **File → Export**
+2. **Choose format** (SVG / PNG / MOL V2000 / SMILES)
+3. **Choose save location** in the dialog
 4. **Done!**
 
 ## Common Workflows
@@ -134,20 +171,17 @@ chematic-draw
 ### Design Reaction Route
 ```
 1. Load starting material
-2. Click "Reactions" tab
-3. Select reaction type (SN2, Addition, etc.)
-4. Draw electrophile/nucleophile
-5. Generate mechanism
-6. Step through to see electron flow
+2. Click "Reactions" tab → run a SMIRKS template or add a manual step
+3. Click "Mech" tab → draw electron-pushing arrows for the mechanism
+4. Step through the scheme's steps to review the route
 ```
 
 ## Tips & Tricks
 
 ✨ **Pro Tips:**
-- Use **Tab** to cycle through drawing modes
-- **Right-click** on atom for element menu
-- Hold **Shift** while dragging to adjust bond angle
-- **Double-click** atom to edit properties (charge, mass number)
+- **Shift/Ctrl-click** an atom or bond to add it to the current selection
+- Select an atom and use the **Inspector** tab to edit charge, isotope
+  (mass number), or element
 - Use **Templates** for common scaffolds (save time!)
 - Export to **SVG** for publication-quality figures
 

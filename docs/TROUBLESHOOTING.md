@@ -586,7 +586,7 @@ DEBUG=* npm start
 
 ### Where to Report Issues
 
-- **GitHub Issues:** https://github.com/yourusername/chematic-draw/issues
+- **GitHub Issues:** https://github.com/kent-tokyo/chematic-draw/issues
 - **GitHub Discussions:** For questions and feature requests
 - **Email Support:** support@example.com
 
