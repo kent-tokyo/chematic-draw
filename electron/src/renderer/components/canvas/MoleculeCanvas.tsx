@@ -62,6 +62,38 @@ export function MoleculeCanvas() {
     return molecule;
   }, [scheme, getCurrentStep, molecule]);
 
+  // Accessible name for the canvas (role="img" below) — this <canvas> has no
+  // DOM representation of atoms/bonds at all, so without this a screen
+  // reader perceives nothing here. Atom/bond counts are free (already in
+  // state); formula/MW need a WASM call, too expensive to run on every
+  // drag-move frame (updateAtom fires continuously while dragging an atom),
+  // so that part is debounced the same way the settings autosave above is.
+  const atomCount = displayMolecule.atoms.length;
+  const bondCount = displayMolecule.bonds.length;
+  const [formulaSummary, setFormulaSummary] = useState('');
+  useEffect(() => {
+    if (atomCount === 0) {
+      setFormulaSummary('');
+      return;
+    }
+    const timeout = setTimeout(() => {
+      try {
+        const props = wasmBridge.getProperties(displayMolecule);
+        setFormulaSummary(`${props.formula}, molecular weight ${props.molecular_weight.toFixed(2)}, `);
+      } catch {
+        // Mid-edit states (e.g. a dangling bond being drawn) aren't always
+        // valid molecules — leave the cheap atom/bond-count summary as-is.
+        setFormulaSummary('');
+      }
+    }, 500);
+    return () => clearTimeout(timeout);
+  }, [displayMolecule, atomCount]);
+
+  const canvasLabel =
+    atomCount === 0
+      ? 'Molecular structure canvas, empty'
+      : `Molecular structure: ${formulaSummary}${atomCount} atom${atomCount === 1 ? '' : 's'}, ${bondCount} bond${bondCount === 1 ? '' : 's'}`;
+
   // Handle canvas resize
   useEffect(() => {
     const handleResize = () => {
@@ -220,6 +252,8 @@ export function MoleculeCanvas() {
     <canvas
       ref={canvasRef}
       data-testid="molecule-canvas"
+      role="img"
+      aria-label={canvasLabel}
       style={{
         flex: 1,
         // Canvas is a replaced element — its `width`/`height` attributes (set
