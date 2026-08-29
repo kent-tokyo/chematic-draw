@@ -39,13 +39,13 @@ command not found: node
 
 3. **Linux (Ubuntu/Debian):**
    ```bash
-   curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+   curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
    sudo apt-get install nodejs
    ```
 
-**Verify:** Node 18+ is installed
+**Verify:** Node 24+ is required (`electron/package.json`'s `engines.node`, `electron/.nvmrc`)
 ```bash
-node --version  # Should output v18.x.x or higher
+node --version  # Should output v24.x.x or higher
 ```
 
 ---
@@ -120,28 +120,23 @@ Command 'wasm-pack' not found
 
 ---
 
-### "Error: Cannot find module '@wasm-bindgen/...'"
-
-**Error:**
-```
-Cannot find module '@wasm-bindgen/chematic'
-```
+### "Cannot find module './pkg'" (or similar WASM import error)
 
 **Cause:**
-WASM module not built yet.
+WASM module not built yet — there's no npm package involved; `wasmBridge.ts`
+imports the WASM build output directly from a local, gitignored folder
+(`electron/src/renderer/wasm/pkg/`) that only exists after building.
 
 **Solution:**
 ```bash
-# Build WASM first
-cd crates/chem-wasm
-wasm-pack build --target web
-cd ../..
-
-# Then install dependencies
+cd electron
 npm install
+npm run build:wasm       # dev build -> src/renderer/wasm/pkg/
+# or: npm run build:wasm:release   # optimized build
 
 # Verify WASM exists
-ls crates/chem-wasm/pkg/
+ls src/renderer/wasm/pkg/
+# Should see: chem_wasm.js, chem_wasm_bg.wasm, etc.
 ```
 
 ---
@@ -150,11 +145,12 @@ ls crates/chem-wasm/pkg/
 
 **Error:**
 ```
-npm ERR! peer dep missing: @types/react@18.0.0
+npm ERR! peer dep missing: @types/react@19.0.0
 ```
 
 **Solution:**
 ```bash
+cd electron
 # Clear cache and reinstall
 rm -rf node_modules package-lock.json
 npm install
@@ -174,20 +170,20 @@ npm install
 1. **Update Rust:**
    ```bash
    rustup update
-   rustc --version  # Should be 1.70+
+   rustc --version  # Needs 1.85+ — the workspace uses `edition = "2024"`
    ```
 
 2. **Check Cargo.toml versions:**
    ```toml
    [dependencies]
-   chematic = { version = "0.1.40", features = ["full"] }
+   chematic = { version = "0.20.1", features = ["full"] }
    ```
 
 3. **Clean build:**
    ```bash
-   cd crates/chem-wasm
-   cargo clean
-   wasm-pack build --target web --release
+   cargo clean -p chem-wasm
+   cd electron
+   npm run build:wasm:release
    ```
 
 ---
@@ -211,22 +207,21 @@ TypeError: Cannot read property 'instance' of undefined
 
 1. **Verify WASM exists:**
    ```bash
-   ls electron/src/renderer/wasm/../../../crates/chem-wasm/pkg/
-   # Should see: chem_wasm.wasm, chem_wasm.js, etc.
+   ls electron/src/renderer/wasm/pkg/
+   # Should see: chem_wasm.js, chem_wasm_bg.wasm, etc.
    ```
 
 2. **Rebuild WASM:**
    ```bash
-   cd crates/chem-wasm
-   wasm-pack build --target web --release
-   cd ../..
+   cd electron
+   npm run build:wasm:release
    npm start
    ```
 
 3. **Check WASM import path:**
    In `electron/src/renderer/wasm/wasmBridge.ts`:
    ```typescript
-   import * as wasmModule from '../../../crates/chem-wasm/pkg/chem_wasm';
+   import * as wasmModule from './pkg';
    ```
 
 ---
@@ -242,7 +237,7 @@ Cannot read property 'atoms' of null
 No molecule loaded in canvas when performing operation.
 
 **Solution:**
-1. Load a molecule first: File → New from SMILES
+1. Load a molecule first: File → Open, or paste SMILES/MOL with `Ctrl+V`
 2. Or draw a molecule on canvas
 3. Then try the operation
 
@@ -264,10 +259,10 @@ Invalid SMILES syntax
 
 | ❌ Wrong | ✅ Correct | Molecule |
 |---------|-----------|----------|
-| `C1CCCCC1C` | `C1CCCCC1C` | Toluene |
+| `C1CCCCC1C(` (unbalanced parenthesis) | `Cc1ccccc1` | Toluene |
 | `C(C)C(C)C` | `CC(C)C` | Isobutane |
 | `c1ccccc1N+` | `c1ccccc1[NH+]` | Aniline cation |
-| `CC=C` | `CC=C` | Propene |
+| `C=C=C` (this is allene, not propene) | `CC=C` | Propene |
 
 **Solution:**
 - Verify SMILES syntax on [cheminfo.org](https://cheminfo.org/Molecular-Weight-Calculator)
@@ -302,9 +297,8 @@ WASM module is not optimized.
 **Solution:**
 1. **Rebuild with optimizations:**
    ```bash
-   cd crates/chem-wasm
-   wasm-pack build --target web --release
-   cd ../..
+   cd electron
+   npm run build:wasm:release
    npm start
    ```
 
@@ -315,6 +309,7 @@ WASM module is not optimized.
 
 3. **Profile performance:**
    ```bash
+   cd electron
    npm run test:perf
    # Review benchmark output
    ```
@@ -324,14 +319,15 @@ WASM module is not optimized.
 ### "Canvas is laggy (not 60 FPS)"
 
 **Cause:**
-Main thread is overloaded.
+Main thread is overloaded — all WASM calls and 3D coordinate generation run
+synchronously on the main thread in this app (there's no WebWorker
+offloading anywhere in the renderer).
 
 **Solutions:**
 
-1. **Enable WebWorker:**
-   - Viewer3DPanel should automatically use it
-   - Check if worker is spawning correctly
-   - Open DevTools → Performance tab
+1. **Profile the main thread:**
+   - Open DevTools → Performance tab and record while interacting
+   - Look for long WASM call frames or excessive re-renders
 
 2. **Reduce molecule size:**
    - Large molecules (>200 atoms) render slower
@@ -357,8 +353,11 @@ Memory leak in WASM or JavaScript.
 
 2. **Check WASM allocations:**
    ```bash
+   cd electron
    npm run test:perf
-   # Review "Memory leak detection" section
+   # Reports median/p90/max timing and WASM binary size per benchmark run —
+   # there's no dedicated leak-detection section; use DevTools' heap
+   # snapshot (above) to actually diagnose a leak.
    ```
 
 3. **Clear unused data:**
@@ -378,7 +377,7 @@ Memory leak in WASM or JavaScript.
 1. Click "3D" tab in sidebar
 2. If nothing appears, try:
    ```bash
-   npm start  # Restart app
+   cd electron && npm start  # Restart app
    ```
 
 #### "3D generation completes but no canvas"
@@ -474,15 +473,13 @@ macOS blocks unsigned applications.
 
 #### "Smart Screen blocked the app"
 
+**Cause:** the Windows build is unsigned (no code-signing certificate
+configured in CI — see `docs/CI_CD.md`).
+
 **Solution:**
 1. Click "More info"
 2. Click "Run anyway"
 3. Confirm UAC prompt
-
-#### "Visual Studio C++ runtime missing"
-
-**Install:**
-- [Visual C++ Redistributable](https://support.microsoft.com/en-us/help/2977003)
 
 ---
 
@@ -497,7 +494,7 @@ X11 or Wayland session issue.
 ```bash
 # Run with X11 explicitly
 export DISPLAY=:0
-npm start
+cd electron && npm start
 ```
 
 ---
@@ -540,27 +537,29 @@ npm start
 
 ### Check WASM Module
 
-```javascript
-// In DevTools console:
-import { parseSmilesWasm } from '@wasm-bindgen/chematic';
-const mol = parseSmilesWasm('c1ccccc1');
-console.log(mol);  // Should show molecule object
-```
+There's no installable `@wasm-bindgen/chematic` package to `import` from a
+live DevTools console — the WASM bindings are a local build output bundled
+into the app. To inspect a parse result, add a temporary log in
+`electron/src/renderer/wasm/wasmBridge.ts`'s `parseMolecule()` (or any other
+exported function) and rebuild, or check the result from the app's own UI
+(e.g. the Inspector panel after loading a molecule).
 
 ### Monitor State
 
-Zustand provides debugging utilities:
+Zustand's `create()` attaches `getState()`/`subscribe()` directly to the
+exported hook, so this works if you have a way to reach the module (e.g.
+pasted into a breakpoint's console, not a fresh DevTools console — plain
+`import` of a project-relative path doesn't resolve there):
 
 ```typescript
-// In DevTools console:
-import { moleculeStore } from './renderer/store/moleculeStore';
+import { useMoleculeStore } from './renderer/store/moleculeStore';
 
 // View current state
-const state = moleculeStore.getState();
+const state = useMoleculeStore.getState();
 console.log(state.molecule);
 
 // Watch state changes
-const unsubscribe = moleculeStore.subscribe((state) => {
+const unsubscribe = useMoleculeStore.subscribe((state) => {
   console.log('State updated:', state);
 });
 ```
@@ -569,6 +568,7 @@ const unsubscribe = moleculeStore.subscribe((state) => {
 
 Set environment variable:
 ```bash
+cd electron
 DEBUG=* npm start
 ```
 
@@ -588,7 +588,10 @@ DEBUG=* npm start
 
 - **GitHub Issues:** https://github.com/kent-tokyo/chematic-draw/issues
 - **GitHub Discussions:** For questions and feature requests
-- **Email Support:** support@example.com
+
+This is a solo-maintained project — there's no dedicated support inbox or
+formal response-time SLA (see [`SECURITY.md`](../SECURITY.md) for the same
+note on vulnerability reports specifically).
 
 ### Information to Include
 
@@ -619,13 +622,24 @@ When reporting a bug, include:
 ## FAQ
 
 **Q: Is my data secure?**
-A: All processing happens locally. No data sent to servers. Molecules stay on your computer.
+A: Nearly all processing happens locally with no network calls. The one
+exception is the DB tab's compound search (`DatabaseSearchPanel.tsx`),
+which looks up the drawn molecule's InChIKey against the public PubChem
+REST API — an exact-match lookup by structure, not a name search (there's
+no name-input field in this panel). ChemSpider is selectable as a source
+in the same panel but unimplemented — it always throws `'ChemSpider
+search not yet implemented'`.
 
 **Q: Can I use this offline?**
-A: Yes, fully offline application. No internet connection required.
+A: Yes, except for the PubChem-based compound name search noted above —
+drawing, editing, export, 3D, and all property calculations work fully
+offline.
 
 **Q: How do I export my work?**
-A: File → Export As → Choose format (SVG, PNG, XYZ, CSV, JSON)
+A: Three separate export paths, not one menu:
+- File → Export: SVG, PNG, MOL V2000, SMILES (the molecule itself)
+- 3D panel's own "XYZ エクスポート" button: 3D coordinates as XYZ
+- Reactions panel's "Export & Import" section: the reaction scheme as JSON, CSV, or SVG
 
 **Q: Can I undo changes?**
 A: Yes, `Ctrl+Z` / `Cmd+Z` to undo. Use "Undo Timeline" panel to see history.
@@ -642,6 +656,5 @@ If this guide doesn't help:
 1. **Check closed GitHub issues** — Your problem might be solved
 2. **Search GitHub Discussions** — Q&A section
 3. **Create a new issue** — Include all requested information above
-4. **Email support** — support@example.com (response time: 24-48 hours)
 
-We're here to help! 💬
+We're here to help!

@@ -31,8 +31,11 @@ Complete documentation for the chematic-draw Electron application with integrate
 ### Advanced Features
 - **Stereochemistry**: Enumeration of candidate stereoisomers (heuristic
   detection, not a full CIP check — see [Tutorial](./TUTORIAL.md#stereochemistry))
-- **Database Search**: Similarity search against PubChem/ChemSpider. MCS
-  (maximum common substructure) exists in the WASM layer but has no UI yet.
+- **Database Search**: Exact-match lookup against PubChem by InChIKey (not
+  similarity search). ChemSpider is selectable in the UI but unimplemented —
+  `searchDatabase(mol, 'chemspider')` always throws `'ChemSpider search not
+  yet implemented'`. MCS (maximum common substructure) exists in the WASM
+  layer but has no UI yet.
 - **Batch Operations**: Process multiple molecules with configurable parameters
 - **File Export**: SVG/PNG/MOL V2000/SMILES (File → Export); XYZ separately
   from the 3D Viewer tab; CSV/JSON only for reaction schemes (Reactions tab)
