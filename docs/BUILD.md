@@ -17,13 +17,12 @@ Instructions for building chematic-draw from source.
 ## System Requirements
 
 ### Minimum
-- **Node.js** 18+ (18.13.0 or later)
+- **Node.js** 24 (see `electron/.nvmrc` / `electron/package.json`'s `engines.node`)
 - **npm** 9+
 - **Rust** 1.70+
 - **Git** 2.30+
 
 ### Recommended
-- **Node.js** 20 (LTS)
 - **Rust** latest stable
 - **macOS** 11+, **Windows** 10+, or **Ubuntu** 20.04+
 
@@ -47,7 +46,7 @@ brew install node rust
 sudo apt-get install build-essential git curl
 
 # Install Node.js (via NodeSource)
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
 sudo apt-get install nodejs
 
 # Install Rust
@@ -68,20 +67,25 @@ source $HOME/.cargo/env
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/yourusername/chematic-draw.git
+git clone https://github.com/kent-tokyo/chematic-draw.git
 cd chematic-draw
 ```
 
 ### 2. Install Dependencies
 
+There is no root `package.json` — the Electron app (and every `npm` script
+in this guide) lives under `electron/`.
+
 ```bash
+cd electron
+
 # Install Node.js packages
 npm install
 
 # Install Rust toolchain for WASM
 rustup target add wasm32-unknown-unknown
 
-# Install wasm-pack globally (optional but recommended)
+# Install wasm-pack (required — the build scripts below shell out to it)
 cargo install wasm-pack
 ```
 
@@ -89,7 +93,7 @@ cargo install wasm-pack
 
 ```bash
 # Check versions
-node --version      # Should be 18+
+node --version      # Should be 24
 npm --version       # Should be 9+
 rustc --version     # Should be 1.70+
 cargo --version
@@ -102,45 +106,52 @@ wasm-pack --version
 
 ### Build WASM Module
 
-The WASM module is the Rust chemistry backend compiled to WebAssembly.
+The WASM module is the Rust chemistry backend (`crates/chem-wasm`) compiled
+to WebAssembly. Always build it through the npm scripts below, not a raw
+`wasm-pack build` — `wasm-pack`'s `--out-dir` resolves relative to the crate
+path argument, not your current directory, so a bare `wasm-pack build
+--target web` run from inside `crates/chem-wasm` silently writes to
+`crates/chem-wasm/pkg/`, which the app never loads from.
+
+Run from `electron/`:
 
 ```bash
-# Build for development (faster, larger bundle)
-cd crates/chem-wasm
-wasm-pack build --target web
+# Development build (web target — what the running app loads)
+npm run build:wasm
 
-# Build for production (optimized, smaller bundle)
-wasm-pack build --target web --release
+# Production build (optimized)
+npm run build:wasm:release
 
-# Output appears in: pkg/
+# Node target (needed for Jest, which runs WASM directly in Node)
+npm run build:wasm:test
 ```
 
 **Build output:**
-- `pkg/chem_wasm.js` — JavaScript wrapper
-- `pkg/chem_wasm.wasm` — WebAssembly binary (~500KB optimized)
-- `pkg/chem_wasm.d.ts` — TypeScript definitions
+- `electron/src/renderer/wasm/pkg/` — web target (`build:wasm`/`build:wasm:release`)
+- `electron/src/renderer/wasm/pkg-node/` — Node target (`build:wasm:test`)
+- Each contains `chem_wasm.js` (JS wrapper), `chem_wasm_bg.wasm` (binary), `chem_wasm.d.ts` (types)
 
-### Build Electron App
+### Build the Electron App
+
+There's no separate "compile the app" step distinct from packaging — Vite
+bundling (main process, preload, renderer) happens automatically as part of
+`package`/`make`/`start`, driven by `electron/vite.main.config.mjs`,
+`vite.preload.config.mjs`, and `vite.renderer.config.mjs`.
 
 ```bash
-# From root directory
-npm run build
-
-# Output in: dist/
+# From electron/
+npm run package   # Unpacked app, for local inspection — out/<platform>/
+npm run make      # Full distributable installers — out/make/
 ```
-
-**Build process:**
-1. TypeScript → JavaScript compilation
-2. WASM module integration
-3. Vite bundling for main process
-4. Vite bundling for renderer process
 
 ### Complete Build (Development)
 
 ```bash
-cd crates/chem-wasm && wasm-pack build --target web && cd ../..
+cd electron
 npm install
-npm run build
+npm run build:wasm
+npm run typecheck
+npm start
 ```
 
 ---
@@ -152,6 +163,7 @@ npm run build
 **Start Electron with hot reloading:**
 
 ```bash
+cd electron
 npm start
 ```
 
@@ -171,17 +183,22 @@ This launches:
 **Package as distributable:**
 
 ```bash
+cd electron
 npm run make
 ```
 
-Creates platform-specific installers in `out/make/`:
-- `*.dmg` (macOS)
-- `*.exe` (Windows)
-- `*.AppImage` (Linux)
+Creates platform-specific installers in `electron/out/make/`:
+- `*.deb`, `*.rpm` (Linux)
+- `*.zip` (macOS)
+- Squirrel installer (Windows)
+
+(Not `.dmg`/`.AppImage` — see `electron/forge.config.js`'s `makers` list.)
 
 ---
 
 ## Testing
+
+All commands below run from `electron/`.
 
 ### Unit Tests
 
@@ -198,51 +215,51 @@ npm run test:coverage
 # Coverage output in: coverage/
 ```
 
-**Test suites:**
-- `src/__tests__/wasmBridge.test.ts` — WASM function testing
-- `src/__tests__/Viewer3DPanel.test.tsx` — React component tests
-- `src/__tests__/integration.test.ts` — End-to-end workflows
+Unit tests need the Node-target WASM build first (`npm run build:wasm:test`)
+— they call the real compiled WASM binary, not a mock.
+
+**Test suites (`src/__tests__/`):** `wasmBridge.test.ts`, `wasmContract.test.ts`,
+`parseAnyContract.test.ts`, `wasmInit.test.ts`, `layoutDeterminism.test.ts`,
+`reactionSchemeStore.test.ts`, `integration.test.ts`, `Viewer3DPanel.test.tsx`.
 
 ### E2E Tests (Playwright)
 
 ```bash
-# Run E2E tests
+# Renderer tests (real Chromium + Vite dev server, no Electron shell)
 npm run test:e2e
 
-# Run with UI browser
+# Electron smoke test (the real packaged app via Playwright's _electron — run `npm run package` first)
+npm run test:e2e:electron
+
+# Both
+npm run test:e2e:all
+
+# Run with UI browser / step-through debug mode
 npm run test:e2e:ui
-
-# Debug mode (step through)
 npm run test:e2e:debug
-
-# Test reports in: test-results/
 ```
 
 **E2E test suites:**
-- `e2e/molecule-drawing.e2e.ts` — Canvas drawing functionality
-- `e2e/viewer-3d.e2e.ts` — 3D panel operations
-- `e2e/workflow.e2e.ts` — Complete workflows
+- `e2e/renderer/*.e2e.ts` — canvas drawing, mechanism arrows, 3D viewer, workflows, WASM init (real browser, no Electron)
+- `e2e/electron-smoke/app.smoke.ts` — the only suite that touches the real Electron main process/preload bridge
 
 ### Performance Benchmarks
 
 ```bash
-# Run performance benchmarks
 npm run test:perf
-
-# Output includes:
-# - 3D generation timing
-# - Memory usage analysis
-# - Scaling analysis (O(n) verification)
-# - Recommendations for optimization
 ```
 
-### Linting
+Runs the real Node-target WASM binary against a fixed molecule corpus
+(parse, canonical SMILES, fingerprint, similarity, MCS, layout, validation,
+3D) and reports median/p90/max timings.
+
+### Linting / Type Checking
 
 ```bash
-# Run TypeScript compiler check
-npm run lint
+# Real TypeScript type check
+npm run typecheck
 
-# Note: ESLint not configured, may add in future
+# `npm run lint` is currently a no-op — no ESLint configured yet
 ```
 
 ---
@@ -252,10 +269,10 @@ npm run lint
 ```
 chematic-draw/
 ├── crates/
-│   ├── chem-wasm/              # Rust WASM module
+│   ├── chem-wasm/              # Rust WASM module (the electron app's only chemistry dependency)
 │   │   ├── Cargo.toml
 │   │   └── src/lib.rs
-│   └── ...
+│   └── ...                     # chem-ui/chem-io: native egui app, frozen — not built by anything above
 ├── electron/
 │   ├── src/
 │   │   ├── main.js             # Electron main process
@@ -265,16 +282,17 @@ chematic-draw/
 │   │   │   ├── components/     # React components
 │   │   │   ├── hooks/          # Custom hooks
 │   │   │   ├── store/          # Zustand stores
-│   │   │   ├── wasm/           # WASM bridge
+│   │   │   ├── wasm/           # WASM bridge + built pkg/pkg-node output
 │   │   │   └── lib/            # Utilities
 │   │   └── __tests__/          # Unit tests
-│   ├── e2e/                    # E2E tests
+│   ├── e2e/                    # E2E tests (renderer/ + electron-smoke/)
 │   ├── jest.config.js
 │   ├── playwright.config.ts
 │   ├── package.json
-│   └── vite.config.ts
+│   ├── forge.config.js
+│   └── vite.main.config.mjs / vite.preload.config.mjs / vite.renderer.config.mjs
 ├── docs/                        # Documentation
-└── README.md
+└── internal_docs/ROADMAP.md     # Gitignored working roadmap, not published
 ```
 
 ---
@@ -285,6 +303,7 @@ chematic-draw/
 
 1. **Start dev server:**
    ```bash
+   cd electron
    npm start
    ```
 
@@ -292,12 +311,10 @@ chematic-draw/
    - Changes auto-reload in running app
    - React DevTools available
 
-3. **Modify WASM module:**
+3. **Modify the WASM module:**
    ```bash
-   cd crates/chem-wasm
-   wasm-pack build --target web
-   cd ../..
-   # Refresh Electron app manually (Ctrl+R)
+   npm run build:wasm
+   # Refresh Electron app manually (Ctrl+R) — WASM changes aren't hot-reloaded
    ```
 
 4. **Run tests:**
@@ -316,7 +333,7 @@ chematic-draw/
 ### Hot Reload
 
 - **React code:** Automatic (HMR enabled)
-- **WASM module:** Manual rebuild required
+- **WASM module:** Manual rebuild required (`npm run build:wasm`)
 - **Main process:** Restart required (use `npm start` again)
 
 ### Debugging
@@ -327,13 +344,13 @@ chematic-draw/
 - Set breakpoints and inspect state
 
 **Rust WASM:**
-- Build with `wasm-pack build` (not `--release`)
+- Build with `npm run build:wasm` (not `:release` — keeps debug info)
 - Browser DevTools shows WASM code
 - Use `console.log()` for debugging
 
 **Electron Main Process:**
 - Start with: `npm start`
-- DevTools not available by default
+- DevTools not available by default for the main process
 - Add debugging via VS Code Debugger
 
 ---
@@ -342,13 +359,11 @@ chematic-draw/
 
 ### Vite Configuration
 
-**File:** `electron/vite.config.ts`
+**Files:** `electron/vite.main.config.mjs`, `vite.preload.config.mjs`, `vite.renderer.config.mjs`
 
-Key settings:
-- Main process bundling
-- Renderer bundling
-- WASM asset handling
-- Development server port (5173)
+Three separate configs (main process, preload, renderer), wired together by
+`electron/forge.config.js`'s Vite plugin. Renderer dev server runs on port
+5173.
 
 ### Jest Configuration
 
@@ -357,16 +372,15 @@ Key settings:
 Key settings:
 - TypeScript support (ts-jest)
 - jsdom test environment
-- Mock setup for WASM
+- `src/test-setup.ts` — global setup, including the WASM module mock for
+  the Performance CI job's node-target-only builds
 
 ### Playwright Configuration
 
 **File:** `electron/playwright.config.ts`
 
-Key settings:
-- Chrome/Chromium browser
-- Screenshot/video capture on failure
-- 30-second timeout per test
+Two projects: `renderer-e2e` (Chromium against the Vite dev server) and
+`electron-smoke` (the real packaged Electron app via `_electron.launch()`).
 
 ---
 
@@ -374,41 +388,37 @@ Key settings:
 
 ### "wasm-pack command not found"
 
-**Solution 1: Install globally**
+**Solution 1: Install via cargo**
 ```bash
 cargo install wasm-pack
 ```
 
-**Solution 2: Use cargo**
+**Solution 2: Run without a global install**
 ```bash
-cargo install wasm-pack
+npx wasm-pack --version   # confirms it's reachable via npx
+npm run build:wasm        # the actual build script (see above)
 ```
 
-**Solution 3: Use npm script**
-```bash
-npx wasm-pack build --target web
-```
+### "Cannot find module './pkg'" (or `./pkg-node`)
 
-### "Cannot find module '@wasm-bindgen'"
-
-This usually means WASM wasn't built.
+This means WASM wasn't built for the target the code path needs.
 
 ```bash
-cd crates/chem-wasm
-wasm-pack build --target web
-cd ../..
-npm install
+cd electron
+npm run build:wasm        # for the running app (web target)
+npm run build:wasm:test   # for Jest (Node target)
 ```
 
 ### "Electron fails to start"
 
 **Check:**
-1. Node version: `node --version` (should be 18+)
-2. Dependencies: `npm install` (run again)
-3. WASM built: `ls crates/chem-wasm/pkg/`
+1. Node version: `node --version` (should be 24)
+2. Dependencies: `cd electron && npm install` (run again)
+3. WASM built: `ls electron/src/renderer/wasm/pkg/`
 
 **Debug:**
 ```bash
+cd electron
 npm start 2>&1 | tee debug.log
 # Review debug.log for error details
 ```
@@ -421,29 +431,29 @@ npm start 2>&1 | tee debug.log
 - Run in debug mode: `npm run test:e2e:debug`
 
 **Jest:**
-- Check mocks in `src/__tests__/setup.ts`
-- Review WASM module mocks
+- Check global setup in `src/test-setup.ts`
+- Confirm `npm run build:wasm:test` has been run (unit tests call the real WASM binary)
 - Increase timeout: `jest.setTimeout(10000)` in test file
 
 ### "WASM module not loading"
 
 **Check in browser console:**
 ```javascript
-// Verify WASM module
-import { parseSmilesWasm } from '@wasm-bindgen/chematic';
-console.log(parseSmilesWasm);  // Should be a function
+// electron/src/renderer/wasm/wasmBridge.ts imports the built package directly:
+import * as wasmModule from './pkg';
+// If this throws, the web-target build is missing or stale — rebuild
+// with `npm run build:wasm`.
 ```
 
 **Common causes:**
-- WASM not built
-- Incorrect import path
-- WASM MIME type misconfigured (check server headers)
+- WASM not built (`npm run build:wasm` never run, or run for the wrong target)
+- Stale build after a Rust source change (rebuild needed — not hot-reloaded)
 
 ### "Performance issues during development"
 
 **Solutions:**
-- Use `--release` flag: `wasm-pack build --target web --release`
-- Profile with: `npm run bench` (performance benchmarks)
+- Use the release build: `npm run build:wasm:release`
+- Profile with: `npm run test:perf` (performance benchmarks)
 - Check DevTools Performance tab
 
 ---
@@ -452,30 +462,20 @@ console.log(parseSmilesWasm);  // Should be a function
 
 ### GitHub Actions
 
-Tests run automatically on push/PR:
+Real workflow files, not illustrative examples:
+- `.github/workflows/test.yml` — typecheck, unit tests + coverage gate, E2E, Electron smoke, performance benchmarks
+- `.github/workflows/build.yml` — per-OS package builds, checksums, release publishing
+- `.github/workflows/nightly.yml` — dependency/license audit, SBOM
 
-```yaml
-# .github/workflows/test.yml
-on: [push, pull_request]
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: 18
-      - run: npm install
-      - run: npm test
-      - run: npm run test:e2e
-```
+All jobs `cd electron` before running `npm` commands, mirroring this guide.
 
 ### Local CI Simulation
 
 ```bash
-# Simulate CI locally
+cd electron
 npm install
-npm run build
+npm run build:wasm:test
+npm run typecheck
 npm test
 npm run test:e2e
 npm run test:perf
@@ -488,11 +488,10 @@ npm run test:perf
 ### Building Release Packages
 
 ```bash
-# Clean previous builds
-npm run clean
+cd electron
 
-# Build WASM
-cd crates/chem-wasm && wasm-pack build --target web --release && cd ../..
+# Build WASM (release)
+npm run build:wasm:release
 
 # Build Electron packages for all platforms
 npm run make
@@ -521,8 +520,10 @@ See [Electron docs](https://www.electronjs.org/docs/tutorial/code-signing) for d
 ### Profile WASM
 
 ```bash
-# Build with profiling
-wasm-pack build --target web
+cd electron
+
+# Build with debug info (not --release)
+npm run build:wasm
 
 # Run benchmarks
 npm run test:perf

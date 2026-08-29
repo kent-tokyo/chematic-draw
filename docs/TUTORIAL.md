@@ -22,9 +22,8 @@ Step-by-step guides for all major features in chematic-draw.
 
 #### Steps
 
-1. **Start in Draw Mode**
-   - Click pencil icon in toolbar, or press `D`
-   - You should see cursor change to crosshair
+1. **Select the carbon tool**
+   - Click the `C` button in the toolbar (top of the canvas), or press `C`
 
 2. **Place First Carbon**
    - Click center of canvas
@@ -32,21 +31,19 @@ Step-by-step guides for all major features in chematic-draw.
 
 3. **Add Second Carbon (Carbonyl)**
    - Click to the right of first carbon (~100px)
-   - A new carbon appears
-   - Single bond connects them
+   - A new carbon appears, bonded to the first (clicking near an existing
+     atom with an element tool active bonds the new atom to it)
 
 4. **Create C=O Bond**
-   - Click above second carbon
-   - New oxygen appears
-   - Default is single bond; we need double
+   - Select the `O` tool, click above the second carbon — a new oxygen
+     appears, connected by a single bond (default)
 
 5. **Convert to Double Bond**
-   - Click the C-O bond (should highlight)
-   - Right-click → "Bond Order" → Select "Double (2)"
-   - Bond changes to `=` symbol
+   - Click the bond tool for a double bond (toolbar button, or press `2`)
+   - Click the C-O bond to change its order to double
 
 6. **Add Third Carbon**
-   - Click to the left of first carbon
+   - Select the `C` tool again, click to the left of the first carbon
    - New carbon appears connected by single bond
 
 7. **Complete and Verify**
@@ -56,43 +53,53 @@ Step-by-step guides for all major features in chematic-draw.
 
 #### Alternative: Load from SMILES
 
-**Faster method for known structures:**
+**Faster method for known structures:** there's no "paste a SMILES string"
+dialog — save the SMILES to a text file and use **File → Open...**, which
+auto-detects the format:
 
-1. **File → New from SMILES**
-2. **Paste:** `CC(=O)C`
-3. **Click Load**
-4. Molecule loads instantly (no manual drawing needed)
+1. Save `CC(=O)C` to a `.smi` file
+2. **File → Open...** → select the file
+3. Molecule loads instantly (no manual drawing needed)
 
 ### Editing Existing Molecules
 
 #### Select an Atom
 - Click atom to highlight it
-- Use arrow keys to move it
-- Right-click for properties (charge, element type)
+- Shift-click or Ctrl-click to add more atoms/bonds to the selection
 
 #### Delete Elements
 - Click atom/bond to select
 - Press `Delete` or `Backspace`
 
-#### Add Charges
-- Double-click atom
-- Modify "Charge" field: 0, +1, -1, etc.
-- Click OK
+#### Add Charges / Isotope
+- Select an atom, then open the **Inspector** tab (right sidebar)
+- Use the **Charge** button group (−2 to +2) or the **Isotope (mass
+  number)** field
+- Changes apply immediately — no separate "OK" step
 
 #### Change Element
-- Right-click atom
-- Select "Element" → Choose new element
-- Hydrogens adjust automatically
+- Select an atom, then use the **Element** picker in the **Inspector** tab
 
 #### Toggle Bond Type
-- Click bond (highlights as red line)
-- Right-click → "Bond Order" → Select option
-- Options: 1 (single), 2 (double), 3 (triple)
+- Select the bond tool for the order you want (toolbar, or `1`/`2`/`3`/`4`
+  for single/double/triple/aromatic), then click the bond
+- Alternatively, select an existing bond and change its **Bond Order** in
+  the Inspector tab
 
 #### Add Stereochemistry
-- Right-click bond
-- Select "Wedge" (↗) or "Dash" (⇄)
-- Changes visual appearance to show 3D orientation
+- Select a bond, then use the **Stereo** button group in the **Inspector**
+  tab: None / Wedge / Dash
+
+**Right-click context menu:** right-clicking the canvas opens a real,
+selection-sensitive menu — verified live: an atom, a bond, or empty canvas
+each show different options.
+- On a **bond**: Single/Double/Triple/Aromatic Bond, Wedge Up, Dash Down,
+  Delete Bond — all fully functional.
+- On **empty canvas**: Clean Layout, Standardize — both fully functional.
+- On an **atom**: Delete Atom works, but **Set Element**, **Charge +1**, and
+  **Charge -1** are currently no-ops (they log to the console and close the
+  menu, but don't change anything) — use the Inspector tab's Element picker
+  and Charge buttons above instead for those two.
 
 ### Viewing Molecule Properties
 
@@ -147,9 +154,8 @@ Step-by-step guides for all major features in chematic-draw.
 - Scroll down = zoom out
 - Range: 0.1× to 8.0× (min to max magnification)
 
-#### Reset View
-- Press `R` to reset rotation to default (0°, 0°)
-- Press `Z` to reset zoom to 1.0×
+There's currently no reset-view button or shortcut — re-generate the 3D
+structure, or scroll/drag back manually.
 
 ### Export 3D Structure
 
@@ -177,85 +183,74 @@ C   -1.212   0.700   0.000
 
 ### 3D Performance Tips
 
-| Molecule Size | Generation Time | Performance |
-|---|---|---|
-| <50 atoms | <500ms | Very fast |
-| 50-200 atoms | 500ms-2s | Fast |
-| 200-500 atoms | 2-5s | Moderate |
-| >500 atoms | >5s | Slow (complex molecules) |
+Exact timings depend on the molecule and machine — see
+`electron/src/__tests__/wasmPerformance.bench.ts` for the real, measured
+benchmark suite (`npm run test:perf`) rather than the estimates below.
 
-**Optimization:**
-- For large molecules, consider splitting into fragments
-- 3D generation offloads to WebWorker (doesn't block UI)
-- Rendering uses Canvas 2D (optimized for smooth interaction)
+**Notes:**
+- 3D generation (`generate3dCoords`) runs on the main thread, not a
+  WebWorker — it can briefly block the UI for very large molecules
+- Rendering uses Canvas 2D
 
 ---
 
 ## Reaction Mechanisms
 
-### Set Up a Reaction
+This is two separate tabs, not one "mechanism generator": the **Reactions**
+tab runs template SMIRKS transforms and tracks steps; the **Mech** tab is
+for manually drawing electron-pushing arrows. There's no dropdown that
+auto-generates a full SN1/SN2/E1/E2 mechanism from a reactant + reagent —
+that has to be built step by step.
 
-**Goal:** Visualize SN2 nucleophilic substitution reaction.
+### Run a Template Reaction
+
+**Goal:** Convert a carboxylic acid to an amide.
 
 #### Steps
 
 1. **Load Starting Material**
-   - Draw or load: **Alkyl halide** (e.g., `CCBr` = ethyl bromide)
-   - File → New from SMILES → `CCBr`
+   - Save `CC(=O)O` (acetic acid) to a `.smi` file and open it via
+     **File → Open...**
 
-2. **Open Reactions Tab**
-   - Click **"Reactions"** in right sidebar
-   - You'll see reaction builder interface
+2. **Open the Reactions Tab**
+   - Click **"Reactions"** in the sidebar
+   - Pick a template from the dropdown, e.g. **"Carboxylic acid → Amide"**
+     (other built-in templates: ester → acid, ester → alcohol, alcohol →
+     aldehyde, aldehyde → carboxylic acid, ketone → alcohol; or write a
+     custom SMIRKS pattern)
+   - Click **"Execute Reaction"**
+   - If the pattern matches, a new step is added showing the product;
+     otherwise you get an explicit "SMIRKS pattern did not match this
+     molecule" message, not a silent failure
 
-3. **Select Reaction Type**
-   - Dropdown: Choose **"SN2"**
-   - Description: "Bimolecular nucleophilic substitution"
+3. **Or add a step manually**
+   - Click **"+ Add Reaction Step"** to add an empty step you can fill in
+     by hand, with conditions (temperature/solvent/catalyst/time/yield)
 
-4. **Specify Reagent**
-   - Input nucleophile SMILES
-   - Example: `[O-]` (hydroxide ion for SN2 OH conversion)
-   - Or draw the nucleophile
+Once two or more steps exist, the panel shows live **atom mapping**,
+**reaction classification** (single-step/multi-step), and **green
+chemistry metrics** (atom economy, E-factor).
 
-5. **Generate Mechanism**
-   - Click **"Generate Mechanism"**
-   - Wait for calculation
-   - Multi-step visualization appears
+**Atoms are color-coded in the atom-mapping legend:**
+- 🟢 **Green** = Persistent (atoms present in both steps)
+- 🔵 **Blue** = New
+- 🔴 **Red** = Leaving
+- ⚫ **Gray** = Spectator
 
-### Understand the Mechanism
+### Draw Electron-Pushing Arrows
 
-**Atoms are color-coded:**
-- 🟢 **Green** = Persistent (atoms in both reactant and product)
-- 🔵 **Blue** = New (atoms created in reaction)
-- 🔴 **Red** = Leaving (atoms removed from structure)
-- ⚫ **Gray** = Spectator (non-participating atoms)
+**Goal:** Annotate a mechanism step with arrows manually.
 
-**Example SN2:**
-```
-Reactant:    C-Br + HO⁻  →  C-OH + Br⁻
-Mechanism:
-Step 1: Nucleophile attacks from back
-Step 2: Br-C bond breaks, C-O forms
-Step 3: Br leaves as leaving group
-```
+1. **Open the "Mech" tab** (separate from "Reactions")
+2. Click **"+ Add Arrow"**
+3. Click a **source atom**, then a **sink atom** on the canvas
+4. Pick an arrow type: **Forward** (→, standard electron flow), **Retro**
+   (⇌, reverse/equilibrium), or **Resonance** (↔, delocalization)
+5. The arrow appears in the "Arrows" list, where you can change its type
+   or remove it
 
-### Step-by-Step Navigation
-
-1. **Use arrow buttons** to advance through reaction steps
-2. **Each step shows:**
-   - Structural change
-   - Electron flow (curved arrows, if visible)
-   - Intermediate formation
-3. **Reset:** Click "Reset" to return to step 0
-
-### Available Reaction Types
-
-| Type | Mechanism | Example |
-|------|-----------|---------|
-| **SN1** | Unimolecular substitution | tert-butyl carbocation + nucleophile |
-| **SN2** | Bimolecular substitution | ethyl bromide + hydroxide |
-| **E1** | Unimolecular elimination | t-BuCl → alkene + HCl |
-| **E2** | Bimolecular elimination | RX + strong base → alkene |
-| **Addition** | Electrophilic addition | alkene + HBr → alkyl halide |
+There's no built-in "step through electron flow automatically" animation —
+arrows are placed and reviewed manually.
 
 ---
 
@@ -268,9 +263,7 @@ Step 3: Br leaves as leaving group
 #### Steps
 
 1. **Load Aspirin**
-   - File → New from SMILES
-   - Paste: `CC(=O)Oc1ccccc1C(=O)O`
-   - Click Load
+   - Save `CC(=O)Oc1ccccc1C(=O)O` to a `.smi` file, then **File → Open...**
 
 2. **Open Props Tab**
    - Click **"Props"** in right sidebar
@@ -328,40 +321,26 @@ Step 3: Br leaves as leaving group
 #### Steps
 
 1. **Load Lactic Acid**
-   - SMILES: `CC(O)C(=O)O`
-   - File → New from SMILES → Paste → Load
+   - Save `CC(O)C(=O)O` to a `.smi` file, then **File → Open...**
 
-2. **Open Stereo Tab**
-   - Click **"Stereo"** in right sidebar
-   - Chiral center detection runs automatically
+2. **Open the "Stereo" Tab**
+   - Click **"Enumerate Stereoisomers"** — this is the only control; there's
+     no separate "mark chiral centers" step or R/S-labeling option
+   - Results appear as a list: "Isomer 1", "Isomer 2", ... each with a
+     **View** button that loads it into the canvas
 
-3. **Mark Chiral Centers**
-   - Application identifies the **chiral carbon** (C with OH)
-   - Visual marker (∗ or highlight) on the atom
-   - Click atom to toggle selection
-
-4. **Configure Enumeration**
-   - Select: **"Enumerate All Isomers"**
-   - Specify: **Absolute configuration needed** (R/S labels)
-   - Click **"Generate Isomers"**
-
-5. **Review Results**
-   - **Isomer 1:** (R)-Lactic acid (D-Lactic acid)
-   - **Isomer 2:** (S)-Lactic acid (L-Lactic acid)
+Caveat: the underlying stereocenter detection is a candidate heuristic (any
+sp3 carbon with 4 distinct connections), not a real CIP-based
+substituent-uniqueness check — it can over-report on molecules with no real
+stereocenters (e.g. it flags 2 "centers" on ethanol, which has none). Treat
+the isomer count as an upper bound to inspect, not a guaranteed-correct
+count.
 
 ### Multiple Chiral Centers
 
-**For complex molecules with n chiral centers:**
-- 2ⁿ stereoisomers possible
-- Example: Glucose (4 chiral centers) = 2⁴ = 16 stereoisomers
-
-```
-Molecule:     Chiral Centers:    Stereoisomers:
-Lactic acid        1                    2
-Tartaric acid      2                    4
-Glucose            4                    16
-Cholesterol        8                    256
-```
+**For complex molecules with n real chiral centers:**
+- Up to 2ⁿ stereoisomers possible (fewer if the molecule has internal
+  symmetry, e.g. a meso compound)
 
 ### Stereo Notation
 
@@ -381,71 +360,32 @@ Cholesterol        8                    256
 
 ### Similarity Search
 
-**Goal:** Find molecules similar to caffeine in database.
+**Goal:** Find molecules similar to caffeine in an external database.
 
 #### Steps
 
 1. **Load Caffeine**
-   - SMILES: `CN1C=NC2=C1C(=O)N(C(=O)N2C)C`
-   - File → New from SMILES → Load
+   - Save `CN1C=NC2=C1C(=O)N(C(=O)N2C)C` to a `.smi` file, then
+     **File → Open...**
 
-2. **Open Database Tab**
-   - Click **"DB"** in right sidebar
-   - You'll see "Search Similar" section
+2. **Open the "DB" Tab**
+   - Choose a source: **PubChem** or **ChemSpider**
+   - Click **"Search Compounds"**
 
-3. **Perform Similarity Search**
-   - Click **"Search Database"** button
-   - Fingerprint generated (ECFP4)
-   - Similarity search runs against curated database
+3. **Review Results**
+   Each result shows the compound name, source, a similarity percentage
+   (color-coded: green ≥90%, light green ≥70%, orange ≥50%, red below),
+   a few of its properties, and a **"View on PubChem/ChemSpider →"** link
+   that opens the real record in your browser — results don't load
+   directly into the canvas.
 
-4. **Review Results**
-   - Results ranked by **Tanimoto similarity** (0.0 to 1.0)
-   - Each result shows:
-     - Molecule name
-     - Similarity score
-     - Thumbnail structure
-   - Click result to load into canvas
+### Maximum Common Substructure (MCS)
 
-#### Similarity Interpretation
-
-| Score | Meaning | Example |
-|-------|---------|---------|
-| **0.95-1.0** | Nearly identical | Same compound, different source |
-| **0.85-0.95** | Highly similar | Close analogs |
-| **0.70-0.85** | Similar | Same pharmacophore |
-| **0.50-0.70** | Moderately similar | Structural hints |
-| **<0.50** | Dissimilar | Different scaffolds |
-
-### Maximum Common Substructure (MCS) Search
-
-**Goal:** Highlight the common scaffold between two compounds.
-
-#### Steps
-
-1. **Load First Molecule**
-   - Example: Aspirin `CC(=O)Oc1ccccc1C(=O)O`
-
-2. **Open Comparison**
-   - Load second molecule: Ibuprofen `CC(C)Cc1ccc(cc1)C(C)C(=O)O`
-
-3. **Click "Find MCS"**
-   - Compares both molecules
-   - Highlights matching atoms/bonds in both structures
-
-4. **Interpret MCS Result**
-   - Both compounds have:
-     - Benzene ring (6 common atoms)
-     - Carboxylic acid group
-     - Adjacent lipophilic group
-   - **MCS similarity:** 0.82 (highly similar scaffolds)
-
-### Database Search Best Practices
-
-✨ **Pro Tips:**
-- Use **similarity threshold 0.6+** for meaningful results
-- **Exact match** (1.0) returns only identical compounds
-- Fingerprints capture **pharmacophoric features**, not exact structure
-- **MCS search** reveals common scaffolds useful for SAR (Structure-Activity Relationship)
+MCS comparison is implemented at the WASM layer (`mcs`/`mcsSimilarity` in
+`wasmBridge.ts`, covered by real tests in `wasmContract.test.ts`), but
+there's currently no sidebar panel exposing it — no "Find MCS" button or
+two-molecule comparison UI exists yet. If you need it today, it's reachable
+programmatically, not through the app's UI.
 
 ---
 
@@ -480,12 +420,11 @@ Cholesterol        8                    256
 ```
 1. Load starting material
 2. Click "Reactions" tab
-3. Select reaction type (SN2, Addition, etc.)
-4. Draw reagent
-5. Review mechanism and products
-6. If product matches target, note the reaction
-7. If not, try different reagent or reaction type
-8. Repeat until reaching target
+3. Pick a matching SMIRKS template (or write a custom one) and Execute
+4. If it matches, a new step appears with the product; if not, you get an
+   explicit "did not match" message — try a different template
+5. Repeat, adding steps, until you reach the target
+6. Optionally: use the "Mech" tab to annotate electron flow for any step
 ```
 
 **Example Route:**
@@ -506,9 +445,10 @@ Benzene → Nitrobenzene (Nitration)
 3. Example: High LogP (too lipophilic)
    → Add polar group (OH, COOH) to reduce LogP
    → Recheck properties
-4. Use "Stereo" to add stereochemistry if needed
+4. Use "Stereo" to check/enumerate stereoisomers if needed
 5. Open "3D" to visualize shape
-6. Export final design as XYZ/SVG for publication
+6. Export the 2D structure via **File → Export** (SVG/PNG), or the 3D
+   structure via the **3D** tab's "XYZ エクスポート" button
 ```
 
 ### Workflow 4: Compound Deduplication
@@ -518,10 +458,10 @@ Benzene → Nitrobenzene (Nitration)
 **Process:**
 ```
 1. Load compound 1
-2. Export SMILES: Click "Canonicalize"
+2. File → Export → Export as SMILES... (already canonical form)
 3. Load compound 2
-4. Export SMILES: Click "Canonicalize"
-5. Compare canonical SMILES strings
+4. File → Export → Export as SMILES...
+5. Compare the two exported SMILES strings
    → If identical, same compound
    → If different, different compounds
 ```

@@ -19,7 +19,7 @@ Thank you for your interest in contributing! This guide explains how to contribu
 
 ### Prerequisites
 
-- **Node.js** 18+
+- **Node.js** 24 (see `electron/package.json`'s `engines.node`)
 - **Rust** 1.70+
 - **Git** 2.30+
 - **GitHub account**
@@ -33,16 +33,20 @@ git clone https://github.com/YOUR_USERNAME/chematic-draw.git
 cd chematic-draw
 
 # Add upstream remote
-git remote add upstream https://github.com/rapodaca/chematic-draw.git
+git remote add upstream https://github.com/kent-tokyo/chematic-draw.git
 ```
 
 ---
 
 ## Development Setup
 
+There is no root-level `package.json` — the Electron app (and every `npm`
+command in this guide) lives under `electron/`.
+
 ### 1. Install Dependencies
 
 ```bash
+cd electron
 npm install
 rustup target add wasm32-unknown-unknown
 cargo install wasm-pack
@@ -51,9 +55,10 @@ cargo install wasm-pack
 ### 2. Build WASM
 
 ```bash
-cd crates/chem-wasm
-wasm-pack build --target web
-cd ../..
+# From electron/ — always through this script, not a raw `wasm-pack build`.
+# wasm-pack's --out-dir resolves relative to the crate path argument, not
+# your cwd, so a bare invocation silently writes to the wrong directory.
+npm run build:wasm
 ```
 
 ### 3. Start Development Server
@@ -98,18 +103,22 @@ Edit files in:
 
 ### Test Your Changes
 
+All commands below run from `electron/`.
+
 ```bash
 # Unit tests
 npm test
 
-# E2E tests
+# E2E tests (real Chromium, no Electron shell — npm run test:e2e:electron
+# for the real packaged app, which needs `npm run package` first)
 npm run test:e2e
 
 # Specific test file
 npm test -- src/__tests__/wasmBridge.test.ts
 
-# Type check
-npm run lint
+# Type check (real TS check — `npm run lint` is currently a no-op stub,
+# no ESLint configured yet)
+npm run typecheck
 ```
 
 ---
@@ -137,7 +146,7 @@ describe('My Feature', () => {
 ### Test Coverage
 
 ```bash
-npm test -- --coverage
+npm run test:coverage
 ```
 
 Aim for:
@@ -151,7 +160,9 @@ Aim for:
 For UI features, add Playwright tests:
 
 ```typescript
-// electron/e2e/myfeature.e2e.ts
+// electron/e2e/renderer/myfeature.e2e.ts — real browser, no Electron shell.
+// A test that needs the actual Electron main process/preload bridge goes
+// in electron/e2e/electron-smoke/ instead.
 
 test('should render my feature', async ({ page }) => {
   await page.goto('/');
@@ -167,7 +178,7 @@ test('should render my feature', async ({ page }) => {
 ### Before You Submit
 
 - **Run tests:** `npm test` (all pass)
-- **Check types:** `npm run lint` (no errors)
+- **Check types:** `npm run typecheck` (no errors)
 - **Update docs:** If you changed behavior, update docs/
 - **One feature per PR:** Don't combine unrelated changes
 - **Commit messages:** Follow [Commit Messages](#commit-messages) section
@@ -191,34 +202,14 @@ git push origin feature/my-feature
 
 ### Create Pull Request
 
-1. Go to [GitHub](https://github.com/yourusername/chematic-draw)
+1. Go to [GitHub](https://github.com/kent-tokyo/chematic-draw)
 2. Click "New Pull Request"
 3. Set:
    - Base: `upstream/main`
    - Compare: `feature/my-feature`
-4. Fill PR template:
-   ```markdown
-   ## Description
-   Brief description of changes
-
-   ## Type
-   - [ ] Bug fix
-   - [ ] Feature
-   - [ ] Documentation
-   - [ ] Performance improvement
-
-   ## Testing
-   - [ ] Unit tests added
-   - [ ] E2E tests added
-   - [ ] Manual testing completed
-
-   ## Related Issues
-   Closes #123
-
-   ## Breaking Changes
-   None / Describe any breaking changes
-   ```
-
+4. GitHub pre-fills the description from `.github/pull_request_template.md`
+   — fill it in (description, type of change, what you tested, docs
+   touched, breaking changes)
 5. Submit PR
 
 ### PR Checklist
@@ -226,7 +217,7 @@ git push origin feature/my-feature
 Before marking as ready:
 
 - ✅ Tests pass (`npm test`)
-- ✅ Types pass (`npm run lint`)
+- ✅ Types pass (`npm run typecheck`)
 - ✅ No console errors
 - ✅ Documentation updated
 - ✅ Commit messages clear
@@ -482,9 +473,9 @@ PR is ready to merge if:
 ### Questions?
 
 - **GitHub Discussions:** Ask questions in Q&A
-- **GitHub Issues:** Report bugs or request features
+- **GitHub Issues:** Report bugs or request features — use the bug report
+  or feature request template under `.github/ISSUE_TEMPLATE/`
 - **Pull Request Comments:** Ask for clarification on review
-- **Email:** maintainer@example.com
 
 ### Resources
 
@@ -512,7 +503,6 @@ By participating, you agree to:
 
 Contributors are recognized in:
 - GitHub contributors page
-- CONTRIBUTORS.md file
-- Release notes
+- Release notes / [CHANGELOG.md](./CHANGELOG.md)
 
 Thank you for contributing! 💙

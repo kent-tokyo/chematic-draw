@@ -22,9 +22,10 @@ chematic-draw is a **desktop chemistry application** built with Electron, React,
 ```
 ┌─────────────────────────────────────────┐
 │        Electron Main Process            │
-│  (File I/O, Window Management, IPC)     │
+│  (File I/O, Window Management, IPC,     │
+│   native menu bar — main.js)            │
 └──────────────┬──────────────────────────┘
-               │ IPC
+               │ IPC (preload.js's window.electronAPI)
 ┌──────────────▼──────────────────────────┐
 │      Electron Renderer Process          │
 │  (React UI, Canvas, Interactions)       │
@@ -33,17 +34,18 @@ chematic-draw is a **desktop chemistry application** built with Electron, React,
 │  Zustand State Stores                   │
 │  Event Handlers (Keyboard, Mouse)       │
 └──────────────┬──────────────────────────┘
-               │
-        ┌──────▼───────┐
-        │   WebWorker  │
-        │ (3D Calc)    │
-        └──────┬───────┘
-               │
+               │ synchronous calls, no worker/async
+               │ indirection (wasmBridge.ts)
         ┌──────▼───────────┐
         │  WASM Module     │
         │ (Chemistry Ops)  │
         └──────────────────┘
 ```
+
+There is no WebWorker layer — 3D coordinate generation and every other WASM
+call run synchronously on the main (renderer) thread, called directly from
+`wasmBridge.ts`. (Verified: zero `new Worker(...)` calls anywhere in
+`electron/src/renderer`.)
 
 ### Key Layers
 
@@ -60,15 +62,16 @@ chematic-draw is a **desktop chemistry application** built with Electron, React,
 
 3. **State (Zustand)**
    - Molecule state
+   - Canvas/tool state
    - UI state
+   - Mechanism-arrow state
    - Reaction scheme state
-   - Persistent settings
 
 4. **Computation (WASM/Rust)**
-   - SMILES parsing
+   - SMILES/MOL/SDF/CML/CDXML parsing
    - 3D coordinate generation
    - Fingerprint calculation
-   - Reaction execution
+   - Reaction execution (SMIRKS)
    - Property prediction
 
 ---
@@ -77,18 +80,23 @@ chematic-draw is a **desktop chemistry application** built with Electron, React,
 
 | Layer | Technology | Purpose | Version |
 |-------|-----------|---------|---------|
-| **Desktop** | Electron | Cross-platform app shell | 33.x |
-| **UI Framework** | React | Component-based UI | 18.x |
-| **Styling** | CSS/Tailwind | Responsive design | Inline |
-| **State** | Zustand | Lightweight store | 4.x |
+| **Desktop** | Electron | Cross-platform app shell | 44.0.0 |
+| **UI Framework** | React | Component-based UI | 19.2.8 |
+| **Styling** | Inline styles | No CSS/Tailwind framework | — |
+| **State** | Zustand | Lightweight store | 5.0.15 |
 | **Canvas** | Canvas 2D API | 2D drawing, 3D projection | Native |
-| **Chemistry Engine** | chematic (Rust) | Molecule operations | 0.1.40 |
-| **WASM** | wasm-bindgen | Rust → JavaScript bridge | Latest |
-| **Build** | Vite | Bundler and dev server | Latest |
-| **WASM Build** | wasm-pack | Rust → WASM compilation | Latest |
-| **Testing** | Jest | Unit testing | Latest |
-| **E2E Testing** | Playwright | Browser automation | Latest |
-| **Benchmarking** | Custom profiler | Performance analysis | Built-in |
+| **Chemistry Engine** | chematic (Rust) | Molecule operations | 0.20.1 |
+| **WASM** | wasm-bindgen | Rust → JavaScript bridge | via wasm-pack |
+| **Build** | Vite | Bundler and dev server | 7.3.6 (pinned exact — see Round 1 CI notes) |
+| **WASM Build** | wasm-pack | Rust → WASM compilation | 0.13.x |
+| **Testing** | Jest | Unit testing | ^30.4.2 |
+| **E2E Testing** | Playwright | Browser automation | ^1.62.1 |
+| **Benchmarking** | `wasmPerformance.bench.ts` (`npm run test:perf`) | Real-WASM performance suite | Built-in |
+| **Node** | Node.js | Runtime | 24 (`.nvmrc`, `engines.node`) |
+
+("Styling" was previously listed as CSS/Tailwind — there is no Tailwind
+dependency or CSS framework; components use inline `style={{...}}` objects
+throughout.)
 
 ---
 
@@ -96,56 +104,58 @@ chematic-draw is a **desktop chemistry application** built with Electron, React,
 
 ### React Components
 
+The real component tree is flatter than a typical "App → MenuBar →
+MainWindow" nesting — `electron/src/renderer.tsx`'s single `App()` function
+renders everything directly. The **native OS menu bar** (File/Edit/View/
+Tools, with New/Open/Save/Export/Zoom/etc.) is a separate thing entirely: it
+lives in `electron/src/main.js` (Electron's `Menu.buildFromTemplate`, main
+process) and talks to the React tree only via IPC events that `App()`
+subscribes to — it is not a React component.
+
 ```
-App
-├── MenuBar
-├── MainWindow
-│   ├── Canvas (MoleculeCanvas)
-│   │   └── 2D structure editor
-│   └── Sidebar
-│       ├── ChatPanel (Info display)
-│       ├── InspectorPanel
-│       │   └── Atom/bond properties
-│       ├── TemplatesPanel
-│       │   └── Molecule templates
-│       ├── ReactionPanel
-│       │   └── Reaction mechanisms
-│       ├── StereoisomerPanel
-│       │   └── Chirality enumeration
-│       ├── PropertyPredictionPanel
-│       │   └── Molecular descriptors
-│       ├── LipinskiPanel
-│       │   └── Drug-likeness scoring
-│       ├── MechanismPanel
-│       │   └── Reaction visualization
-│       ├── DatabaseSearchPanel
-│       │   └── MCS & similarity search
-│       ├── BatchResultPanel
-│       │   └── Batch operation results
-│       └── Viewer3DPanel
-│           └── 3D molecular structure
-├── ContextMenu
-│   └── Right-click operations
-├── ArrowTypeDialog
-│   └── Electron flow settings
-├── BatchProcessDialog
-│   └── Batch operation configuration
-└── UndoTimeline
-    └── Undo/redo visualization
+App (renderer.tsx)
+├── Toolbar (inline in App — tool buttons, theme toggle, status)
+├── MoleculeCanvas
+│   └── 2D structure editor (CanvasRenderer.ts does the actual drawing)
+├── Sidebar
+│   ├── InspectorPanel — atom/bond properties
+│   ├── TemplatesPanel — molecule templates
+│   ├── ReactionPanel — SMIRKS-template reaction execution + scheme steps
+│   ├── BatchResultPanel — batch operation results
+│   ├── StereoisomerPanel — chirality enumeration
+│   ├── LipinskiPanel — drug-likeness scoring
+│   ├── PropertyPredictionPanel — molecular descriptors
+│   ├── MechanismPanel — manual electron-pushing-arrow drawing
+│   ├── Viewer3DPanel — 3D molecular structure
+│   ├── DatabaseSearchPanel — PubChem/ChemSpider search
+│   ├── ResearchPanel — (present in the real tab list; doc's old
+│   │   component tree omitted this one entirely)
+│   └── ChatPanel — info display
+├── ContextMenu — right-click menu (atom/bond/empty-canvas, selection-sensitive)
+├── ShortcutsModal — keyboard shortcuts reference (doc's old tree omitted this)
+├── UndoTimelineModal — undo/redo history
+├── ArrowTypeDialog — electron-flow arrow type picker (mounted inside MechanismPanel)
+└── BatchProcessDialog — batch operation configuration (conditionally rendered)
 ```
+
+Sidebar tabs, in the real order (`Sidebar.tsx`): Inspector, Templates,
+Reactions, Batch, Stereo, Lipinski, Props, Mech, 3D, DB, Research, Chat (12
+tabs, not the ~10 the old tree implied).
 
 ### Component Responsibilities
 
 | Component | Purpose | State Management |
 |-----------|---------|------------------|
-| **MoleculeCanvas** | 2D structure editor | moleculeStore |
+| **MoleculeCanvas** | 2D structure editor | moleculeStore + canvasStore |
 | **Sidebar** | Panel container | uiStore |
-| **InspectorPanel** | Atom/bond details | moleculeStore |
-| **Viewer3DPanel** | 3D visualization | Local state + WASM |
-| **ReactionPanel** | Reaction builder | reactionSchemeStore |
+| **InspectorPanel** | Atom/bond details | uiStore (`selectedAtomForInspector`/`selectedBondForInspector`) + moleculeStore for mutations |
+| **Viewer3DPanel** | 3D visualization | Local component state + WASM |
+| **ReactionPanel** | Reaction step builder | reactionSchemeStore (single source of truth — see State Management) |
+| **MechanismPanel** | Electron-pushing arrows | mechanismStore (+ mirrors into reactionSchemeStore when a scheme exists) |
 | **ContextMenu** | Right-click menu | uiStore |
 | **TemplatesPanel** | Molecule library | Local state |
-| **BatchProcessDialog** | Bulk operations | batchStore |
+| **BatchProcessDialog** / **BatchResultPanel** | Bulk operations | uiStore (`batchResults` array) — there is no separate `batchStore` |
+| **DatabaseSearchPanel** | Compound search | Local state — there is no separate `databaseStore` |
 
 ---
 
@@ -154,69 +164,123 @@ App
 ### Zustand Stores
 
 chematic-draw uses **Zustand** for lightweight, functional state management.
+Five real stores exist under `electron/src/renderer/store/` —
+`moleculeStore.ts`, `canvasStore.ts`, `uiStore.ts`, `mechanismStore.ts`,
+`reactionSchemeStore.ts`. There is no `batchStore` or `databaseStore`.
 
 #### 1. **moleculeStore**
-Contains current molecule being edited.
+Contains the current molecule being edited, plus undo/redo history.
 
 ```typescript
-interface MoleculeState {
-  molecule: MoleculeDto | null;
+interface MoleculeStore {
+  molecule: MoleculeDto;             // never null — starts as { atoms: [], bonds: [] }
+  undoStack: MoleculeDto[];
+  redoStack: MoleculeDto[];
   setMolecule: (mol: MoleculeDto) => void;
-  addAtom: (atom: AtomDto) => void;
-  updateAtom: (id: number, updates: Partial<AtomDto>) => void;
-  deleteAtom: (id: number) => void;
-  addBond: (bond: BondDto) => void;
-  updateBond: (id: number, updates: Partial<BondDto>) => void;
-  deleteBond: (id: number) => void;
-  canUndo: boolean;
-  canRedo: boolean;
+  pushUndo: () => void;
   undo: () => void;
   redo: () => void;
+  clear: () => void;
+  addAtom: (element: string, x: number, y: number) => number; // returns new id
+  updateAtom: (id: number, updates: Partial<AtomDto>) => void;
+  removeAtom: (id: number) => void;
+  addBond: (from: number, to: number, order: number, stereo: number) => void;
+  updateBond: (id: number, updates: Partial<BondDto>) => void;
+  removeBond: (id: number) => void;
+  selectAtom: (id: number, additive: boolean) => void;
+  selectBond: (id: number, additive: boolean) => void;
+  deselectAll: () => void;
+  getSelectedAtoms: () => AtomDto[];
+  getSelectedBonds: () => BondDto[];
 }
 ```
+
+Undo/redo is snapshot-based (whole-`MoleculeDto` stack, bounded by
+`UNDO_LIMIT`), not a command pattern. `selectAtom`/`selectBond` toggle a
+purely-visual `selected` flag on the atom/bond — this is a **different**
+selection concept from the Inspector panel's own selection (see uiStore
+below); the two are not kept in sync.
 
 **Key operations:**
-- Load SMILES → `setMolecule()`
+- Load SMILES/MOL/etc. → `setMolecule()`
 - Draw atom → `addAtom()`
 - Draw bond → `addBond()`
-- Select/edit → `updateAtom()` / `updateBond()`
-- Delete → `deleteAtom()` / `deleteBond()`
+- Edit → `updateAtom()` / `updateBond()`
+- Delete → `removeAtom()` / `removeBond()`
 
-#### 2. **uiStore**
-UI state: active panels, dialogs, selections.
+#### 2. **canvasStore**
+Tool and viewport state — which drawing tool is active, zoom, pan offset,
+in-progress drag state. Not part of the old version of this doc at all.
+
+#### 3. **uiStore**
+UI state: theme, sidebar, active panel, context menu, modals, status
+messages, batch-results history.
 
 ```typescript
-interface UIState {
-  activeSidebarPanel: 'props' | '3d' | 'reactions' | 'stereo' | 'inspector' | 'db' | ...;
-  setActiveSidebarPanel: (panel: string) => void;
-  selectedAtomId: number | null;
-  setSelectedAtomId: (id: number | null) => void;
-  selectedBondId: number | null;
-  setSelectedBondId: (id: number | null) => void;
-  contextMenu: { x: number; y: number; visible: boolean };
-  setContextMenu: (menu: ContextMenu | null) => void;
-  // ... more UI state
+interface UIStoreState {
+  theme: 'dark' | 'light';
+  sidebarOpen: boolean;
+  sidebarWidth: number;
+  activeSidebarPanel:
+    | 'inspector' | 'templates' | 'chat' | 'research' | 'reactions'
+    | 'batch-results' | 'stereoisomers' | 'lipinski' | 'properties'
+    | 'mechanism' | 'database' | '3d';
+  selectedAtomForInspector: AtomDto | null;
+  selectedBondForInspector: BondDto | null;
+  contextMenu: { visible: boolean; x: number; y: number; atomId?: number; bondId?: number } | null;
+  showShortcutsModal: boolean;
+  showUndoModal: boolean;
+  showBatchDialog: boolean;
+  batchResults: Array<{ operation: string; processed: number; failed: number; errors: string[]; timestamp: number }>;
+  // + setTheme, setActiveSidebarPanel, setSelectedAtomForInspector,
+  //   showContextMenu/hideContextMenu, showModal/hideModal,
+  //   setStatus/clearStatus, addBatchResult, ...
 }
 ```
 
-#### 3. **reactionSchemeStore**
-Reaction mechanism and scheme state.
+**A real, currently-unresolved quirk worth knowing:** `selectedAtomForInspector`
+is only ever set by `useContextMenu.ts`'s right-click handler — plain
+left-click atom selection goes through `moleculeStore.selectAtom` instead
+(a different, purely-visual mechanism the Inspector panel doesn't read).
+Net effect: the Inspector tab can only show atom details after a
+right-click on that atom (even if you immediately dismiss the menu), and
+even then `selectedAtomForInspector` is a snapshot taken at click time, not
+a live reference, so it goes stale until the next right-click.
+
+#### 4. **mechanismStore**
+Electron-pushing-arrow drawing state: the arrow list, click-source→click-sink
+selection mode, and AI-suggested source/sink pairs.
+
+**A second real, currently-unresolved quirk:** `mechanismStore.arrows` is a
+single flat array with no per-step semantics — nothing syncs it with
+`reactionSchemeStore`'s step navigation (`goToStep`/`nextStep`/`previousStep`).
+An arrow is mirrored into the current step's `arrows` at creation time only;
+it isn't reloaded or re-scoped when the user navigates to a different step.
+
+#### 5. **reactionSchemeStore**
+The single source of truth for reaction-scheme documents: steps, atom
+mapping, green-chemistry metrics, reaction classification, and the mechanism
+scheme's step navigation/layout.
 
 ```typescript
-interface ReactionSchemeState {
-  reactions: Reaction[];
-  currentStep: number;
-  scheme: ReactionScheme | null;
-  addReaction: (rxn: Reaction) => void;
-  removeReaction: (id: number) => void;
-  setCurrentStep: (step: number) => void;
-  // ... more
+interface ReactionSchemeStore {
+  scheme: ReactionSchemeContext | null; // { id, title, description?, steps: MechanismStep[], currentStepIndex, viewMode }
+  schemeLayout: SchemeLayout | null;
+  atomMappings: AtomMapping | null;
+  reactionClassification: ReactionClassification | null;
+  greenMetrics: GreenChemistryMetrics | null;
+  createScheme: (title: string, description?: string) => void;
+  addStep: (step: MechanismStep) => void;   // recalculates mappings/classification/metrics
+  removeStep: (stepId: string) => void;     // same
+  updateStep: (stepId: string, updates: Partial<MechanismStep>) => void;
+  nextStep: () => void; previousStep: () => void; goToStep: (index: number) => void;
+  // ...
 }
 ```
 
-#### 4. **Batch & Search Stores**
-- `batchStore` — Bulk operation configuration and results
-- `databaseStore` — Search results and cache
+(The old version of this doc described a `reactions: Reaction[]` /
+`currentStep: number` shape with `addReaction`/`removeReaction` — that
+shape never existed in this codebase.)
 
 ### State Updates Flow
 
@@ -224,8 +288,6 @@ interface ReactionSchemeState {
 User Action (click, type, keyboard)
     ↓
 React Event Handler
-    ↓
-Validate Input
     ↓
 Zustand Store Update
     ↓
@@ -243,51 +305,59 @@ Canvas/UI Update
 ```
 React Components
     ↓
-TypeScript wasmBridge.ts
-    ↓
-JavaScript wasm_bindgen wrapper
+TypeScript wasmBridge.ts (electron/src/renderer/wasm/wasmBridge.ts)
+    ↓  import * as wasmModule from './pkg'
+JavaScript wasm-bindgen wrapper (built into ./pkg via `npm run build:wasm`)
     ↓
 WebAssembly Module
     ↓
-Rust WASM Functions
+Rust WASM Functions (crates/chem-wasm)
     ↓
-chematic Library
+chematic Library (crates.io, not vendored)
 ```
 
-### Key WASM Functions
+Every call is synchronous from the caller's point of view — there is no
+worker thread or async queue between `wasmBridge.ts` and the compiled
+module (the one genuinely async step is the one-time `initWasm()` load).
+
+### Key WASM Functions (real names — `wasmBridge.ts`)
 
 | Function | Input | Output | Purpose |
 |----------|-------|--------|---------|
-| `parseSmilesWasm` | SMILES string | MoleculeDto | Parse structure |
+| `parseMolecule` | text (any supported format) | MoleculeDto | Parse structure |
 | `generate3dCoords` | MoleculeDto | Coords3dDto | 3D generation |
-| `minimize3d` | Mol + Coords | Coords3dDto | UFF optimization |
-| `getFingerprint` | MoleculeDto | String (hex) | ECFP4 fingerprint |
-| `tanimotoSimilarity` | 2 FP strings | Number | Similarity score |
-| `runReactants` | SMIRKS + Mols | Mol[] | Reaction execution |
-| `findMcs` | 2 Molecules | McsResult | Common substructure |
-| `predictProperties` | MoleculeDto | PropertyPrediction | Property prediction |
+| `minimize3d` | Mol + Coords | Coords3dDto | UFF minimization |
+| `getFingerprint` / `getFingerprintWithMetadata` | MoleculeDto | hex string / FingerprintDto | ECFP4 fingerprint |
+| `tanimotoSimilarity` | 2 fingerprint hex strings | number | Similarity score |
+| `runReactants` | MoleculeDto + SMIRKS | ReactionRunResult | Reaction execution |
+| `findMcs` | 2 MoleculeDtos | McsResultDto | Maximum common substructure |
+| `toSvg` / `toMolV2000` / `toMolV3000` / `toSdf` / `toCml` / `toSmiles` / `toCanonicalSmiles` | MoleculeDto | string | Format export |
+| `getProperties` | MoleculeDto | Record<string, any> | Physicochemical properties |
+
+(There is no `parseSmilesWasm` — that name never existed in this codebase.
+`predictProperties` is **not** a direct WASM wrapper at all — it's a
+TypeScript-side heuristic in `lib/advancedFeatures.ts` that calls
+`getProperties` and post-processes the result; worth knowing since it means
+adding a new prediction doesn't necessarily mean touching Rust.)
 
 ### TypeScript Bridge
 
 **File:** `electron/src/renderer/wasm/wasmBridge.ts`
 
 ```typescript
-// Wrapper around wasm_bindgen generated code
-import * as wasmModule from '../../../pkg/chem_wasm';
+import * as wasmModule from './pkg';
+import { MoleculeDto } from '../store/types';
 
-export const wasmBridge = {
-  // Direct wrapping of WASM functions
-  parseSmilesWasm: (smiles: string) => {...},
-  generate3dCoords: async (mol: MoleculeDto) => {...},
-  // ... more functions
-};
+export function parseMolecule(text: string): MoleculeDto {
+  return wasmModule.parse_any(text) as MoleculeDto;
+}
+// ... one thin wrapper function per WASM export, not an object literal
 ```
 
 **Purpose:**
 - Type-safe JavaScript interface to WASM
-- Error handling and conversion
-- Performance monitoring
-- Profiling hooks
+- Converts snake_case Rust/wasm-bindgen exports to camelCase TS functions
+- Surfaces WASM errors as JS exceptions callers can catch
 
 ---
 
@@ -298,7 +368,7 @@ export const wasmBridge = {
 ```
 User Draws Atom
     ↓
-MoleculeCanvas onClick handler
+MoleculeCanvas mouse handler (useCanvasInteraction.ts)
     ↓
 Store: moleculeStore.addAtom()
     ↓
@@ -308,145 +378,79 @@ React re-renders affected components
     ↓
 Canvas redraws with new atom
     ↓
-InspectorPanel updates (if selected)
-    ↓
-PropsPanel recalculates (if open)
-    ↓
-User sees updated UI
+InspectorPanel updates (only if that atom is the right-clicked selection —
+see uiStore's selectedAtomForInspector quirk above)
 ```
 
 ### 3D Visualization Flow
 
 ```
-User clicks "3D 生成"
+User clicks "Generate 3D"
     ↓
 Get current molecule from moleculeStore
     ↓
-Call wasmBridge.generate3dCoords(mol)
-    ↓
-  [WebWorker] Offload heavy computation?
-    ↓
-Wait for WASM result
+Call wasmBridge.generate3dCoords(mol) — synchronous, main thread, no worker
     ↓
 Call wasmBridge.minimize3d(mol, coords)
     ↓
-Store result in component state
+Store result in Viewer3DPanel's local component state
     ↓
-Viewer3DPanel renders Canvas 2D scene
+Viewer3DPanel renders a Canvas 2D scene (manual 3D→2D projection, not WebGL)
     ↓
-User sees 3D structure
+Mouse drag → rotate (update angles) · Scroll → zoom
     ↓
-Mouse drag → rotate (update angles)
-    ↓
-Scroll → zoom (update zoom level)
-    ↓
-Canvas re-renders continuously
+Canvas re-renders on each interaction
 ```
 
-### Reaction Mechanism Flow
+### Reaction Flow (two separate, real flows — not one wizard)
 
+**SMIRKS template execution** (`ReactionPanel`):
 ```
-User selects reaction type
+User picks a SMIRKS template (or types a custom pattern)
     ↓
-Input nucleophile/electrophile
+Call wasmBridge.runReactants(mol, smirks)
     ↓
-Call wasmBridge.runReactants(smirks, mols)
+reactionSchemeStore.addStep() — also recalculates atom mapping,
+classification, and green-chemistry metrics
     ↓
-Mechanism classification
+ReactionPanel renders the updated step list + those metrics
+```
+
+**Manual mechanism-arrow drawing** (`MechanismPanel`, separate tab):
+```
+User clicks "Add Arrow" → clicks source atom → clicks sink atom
     ↓
-Store in reactionSchemeStore
+Arrow type dialog (forward/retro/resonance)
     ↓
-ReactionPanel renders steps
+mechanismStore.addArrow() (always) + mirrored into the current
+reactionSchemeStore step's arrows (only if a scheme with steps exists)
     ↓
-User clicks "Next Step"
-    ↓
-Update currentStep in store
-    ↓
-Canvas highlights atom mapping
-    ↓
-Color code atoms (green/blue/red/gray)
+Canvas draws the arrow; atom-mapping color coding comes from
+reactionSchemeStore's atomMappings, independently of the arrow itself
 ```
 
 ---
 
 ## Performance Considerations
 
-### Bottlenecks & Solutions
+There is no dedicated profiler UI or WebWorker offloading in this codebase.
+Real, current performance work is the WASM benchmark suite —
+`electron/src/__tests__/wasmPerformance.bench.ts`, run via `npm run
+test:perf`, against a fixed 13-molecule corpus
+(`wasm/__fixtures__/benchmarkMolecules.ts`). It reports median/p90/max
+timings as a CI artifact (`perf-report.json`) rather than gating on fixed
+numbers, since there's no prior-run baseline to regress against yet — the
+static benchmark table this section used to show (5ms parse, 300ms/1.2s/2.5s
+for 3D gen/minimize, etc.) was never measured against this app; it's been
+removed rather than left as an unverified claim.
 
-| Bottleneck | Symptom | Solution |
-|-----------|---------|----------|
-| Large 3D molecules (>500 atoms) | UI freezes for 5+ seconds | WebWorker offloading |
-| Frequent canvas redraws | Stuttering at 30-40 FPS | Canvas optimization, requestAnimationFrame |
-| WASM startup | Slow cold start | Lazy load WASM, preload in background |
-| State updates | Component cascade | Zustand selector memoization |
-| Fingerprint calculation | Slow for large batches | Batch processing with workers |
-
-### Optimization Techniques
-
-#### 1. WebWorker for 3D
-Canvas rendering offloaded to separate thread:
-- Main thread: React UI, event handling
-- Worker thread: 3D rotation, projection calculations
-- Result: Smooth 60 FPS interaction
-
-**Usage:**
-```typescript
-const worker = new Worker('./canvasWorker.ts');
-worker.postMessage({ atoms, angleX, angleY, zoom });
-worker.onmessage = (result) => {
-  // Update canvas with projected atoms
-};
-```
-
-#### 2. Memoization
-Prevent unnecessary re-renders:
-```typescript
-const MemoCanvas = React.memo(Canvas, (prev, next) => {
-  return prev.molecule === next.molecule &&
-         prev.selectedAtom === next.selectedAtom;
-});
-```
-
-#### 3. Lazy Loading
-Load panels only when needed:
-```typescript
-const Viewer3DPanel = lazy(() => import('./Viewer3DPanel'));
-
-<Suspense fallback={<Spinner />}>
-  {activeSidebarPanel === '3d' && <Viewer3DPanel />}
-</Suspense>
-```
-
-#### 4. Canvas Batching
-Minimize canvas state changes:
-```typescript
-// Good: One draw call per frame
-ctx.clearRect(0, 0, width, height);
-for (const atom of atoms) {
-  drawAtom(ctx, atom);  // Batched
-}
-
-// Bad: Multiple state changes
-for (const atom of atoms) {
-  ctx.fillStyle = getColor(atom);  // Expensive
-  ctx.fillRect(...);
-}
-```
-
-### Benchmark Results
-
-Current performance (as of last optimization):
-
-| Operation | Time | Target | Status |
-|-----------|------|--------|--------|
-| Parse SMILES | 5ms | <10ms | ✅ |
-| Generate 3D (50 atoms) | 300ms | <500ms | ✅ |
-| Generate 3D (200 atoms) | 1.2s | <2s | ✅ |
-| 3D Minimize | 2.5s | <5s | ✅ |
-| Fingerprint | 30ms | <100ms | ✅ |
-| Similarity calc | 2ms | <10ms | ✅ |
-| Canvas render | 14ms | <16.67ms | ✅ |
-| Memory per 3D | 20MB | <50MB | ✅ |
+No `React.memo`, `lazy()`, or `requestAnimationFrame` usage exists anywhere
+in the renderer today (verified by grep) — the Memoization/Lazy
+Loading/WebWorker code samples this section used to show described
+techniques that were never implemented, not real optimizations in place.
+Real, verified layout/render determinism work instead lives in
+`layoutDeterminism.test.ts` (repeated-call determinism + golden-SVG
+byte comparison for `to_svg`/`clean_layout`/`generate_3d_coords`).
 
 ---
 
@@ -459,10 +463,13 @@ Current performance (as of last optimization):
 **Rationale:**
 - Redux too verbose for this codebase size
 - Zustand: Simple, no boilerplate
-- Each domain (molecule, ui, reaction) is independent
+- Each domain (molecule, canvas, ui, mechanism, reaction scheme) is independent
 - Easy to test and reason about
 
-**Trade-off:** Slightly less type safety than Redux typed selectors
+**Trade-off:** Slightly less type safety than Redux typed selectors; five
+independent stores also means cross-store synchronization has to be done by
+hand — see the two real quirks noted in State Management above, both
+instances of exactly this trade-off.
 
 ### 2. Why Canvas 2D (not WebGL)?
 
@@ -475,33 +482,22 @@ Current performance (as of last optimization):
 - Cross-platform compatibility
 - WASM projection calculations very fast
 
-**Trade-off:** Not suitable for very complex scenes (>10K atoms)
+**Trade-off:** Not suitable for very complex scenes (many thousands of atoms) — untested at that scale, no specific atom-count ceiling has been measured.
 
 ### 3. Why WASM (not pure JavaScript)?
 
 **Decision: Rust WASM for chemistry operations**
 
 **Rationale:**
-- Chemistry algorithms are CPU-intensive (SMILES parsing, 3D gen, FP)
-- WASM 10-100x faster than JavaScript
-- Reuse chematic library (battle-tested)
+- Chemistry algorithms are CPU-intensive (SMILES parsing, 3D gen, fingerprinting)
+- WASM meaningfully faster than JavaScript for this class of work
+- Reuse the `chematic` crate ecosystem rather than reimplementing chemistry in TS
 - Safety guarantees from Rust
 
-**Trade-off:** Build complexity, WASM module distribution
+**Trade-off:** Build complexity (a Rust toolchain + wasm-pack step ahead of
+every `npm start`), WASM module distribution.
 
-### 4. Why WebWorker?
-
-**Decision: Offload 3D calculations to worker thread**
-
-**Rationale:**
-- 3D rotation/projection can be expensive (>50ms)
-- Main thread must stay responsive for UI
-- Worker runs in parallel
-- Smooth 60 FPS achievable
-
-**Trade-off:** Message passing overhead (usually <1ms)
-
-### 5. Why Electron (not web app)?
+### 4. Why Electron (not web app)?
 
 **Decision: Desktop Electron app**
 
@@ -512,7 +508,10 @@ Current performance (as of last optimization):
 - Offline functionality
 - System integration
 
-**Trade-off:** Larger distribution, platform-specific code paths
+**Trade-off:** Larger distribution, platform-specific code paths.
+
+(A previous "Why WebWorker?" entry has been removed — there is no
+WebWorker anywhere in this codebase; see System Overview above.)
 
 ---
 
@@ -520,7 +519,11 @@ Current performance (as of last optimization):
 
 ### Adding a New Feature
 
-**Example: Add new property prediction (e.g., hERG cardiac toxicity)**
+**Illustrative example only** — hERG cardiac-toxicity prediction does not
+exist in this codebase today. This walks through the real *pattern* an
+addition like it would follow (Rust WASM function → TS bridge wrapper →
+React panel → register in `Sidebar.tsx`'s tab list), not a description of
+existing code.
 
 1. **Rust WASM** (`crates/chem-wasm/src/lib.rs`)
    ```rust
@@ -533,43 +536,40 @@ Current performance (as of last optimization):
 2. **TypeScript Bridge** (`electron/src/renderer/wasm/wasmBridge.ts`)
    ```typescript
    export function predictHerg(mol: MoleculeDto): number {
-       return wasmModule.predict_herg(JSON.stringify(mol));
+     return wasmModule.predict_herg(mol) as number;
    }
    ```
 
 3. **React Component** (`electron/src/renderer/components/sidebar/HergPanel.tsx`)
    ```typescript
-   export const HergPanel = () => {
-     const mol = moleculeStore((s) => s.molecule);
+   export function HergPanel() {
+     const mol = useMoleculeStore((s) => s.molecule);
      const [herg, setHerg] = useState<number | null>(null);
 
      useEffect(() => {
-       if (mol) {
+       try {
          setHerg(wasmBridge.predictHerg(mol));
+       } catch {
+         setHerg(null);
        }
      }, [mol]);
 
-     return <div>hERG Risk: {herg?.toFixed(2)}</div>;
-   };
+     return <div>hERG Risk: {herg?.toFixed(2) ?? 'N/A'}</div>;
+   }
    ```
 
-4. **Register Panel** (`electron/src/renderer/components/sidebar/Sidebar.tsx`)
-   ```typescript
-   const tabs = [
-     // ... existing tabs
-     { id: 'herg', label: 'hERG', component: HergPanel },
-   ];
-   ```
+4. **Register the tab** (`electron/src/renderer/components/sidebar/Sidebar.tsx`)
+   Add to the `tabs` array and the `activeSidebarPanel === '...' && <HergPanel />` branch.
 
 ### Adding Tests
 
 ```typescript
 // electron/src/__tests__/herg.test.ts
 describe('hERG Prediction', () => {
-  it('should predict hERG risk for cardiotoxic compound', () => {
-    const mol = wasmBridge.parseSmilesWasm('C1=CC=C(C=C1)CCN');
+  it('should predict hERG risk for a known-cardiotoxic compound', () => {
+    const mol = wasmBridge.parseMolecule('C1=CC=C(C=C1)CCN');
     const risk = wasmBridge.predictHerg(mol);
-    expect(risk).toBeGreaterThan(0.5);  // High risk
+    expect(risk).toBeGreaterThan(0.5);
   });
 });
 ```
@@ -579,19 +579,17 @@ describe('hERG Prediction', () => {
 ## Security Considerations
 
 ### 1. WASM Sandboxing
-- WASM runs in browser sandbox
-- No filesystem access
-- Limited to JSON data serialization
+- WASM runs in the browser/Electron-renderer sandbox
+- No filesystem access from WASM itself
+- Data crosses the WASM boundary as `serde`-serialized DTOs
 
-### 2. File Validation
-- Validate SMILES syntax before parsing
-- Reject oversized molecules
-- Scan for malformed input
+### 2. Input Validation
+- `dto_to_chem` rejects unknown element symbols as a real error, not a silent guess
+- `validate_molecule` reports real valence/connectivity/aromaticity findings (see `docs/API.md`)
 
 ### 3. IPC Security (Electron)
-- Use preload script for IPC
-- Validate all messages
-- Limit exposed APIs
+- `preload.js` uses `contextBridge.exposeInMainWorld` — the renderer never gets raw `ipcRenderer`
+- The exposed `window.electronAPI` surface is a fixed, enumerated set of functions (menu-event listeners, file dialog/write, clipboard, settings) — not a generic message-passing channel
 
 ---
 
@@ -617,6 +615,11 @@ describe('hERG Prediction', () => {
    - Volumetric visualization
    - VR/AR support
 
+(All four are aspirational/not started — see `internal_docs/ROADMAP.md`'s
+"Explicitly deferred" section for the project's current stance on several
+of these, e.g. cloud sync/real-time collaboration are deliberately out of
+scope, not just unscheduled.)
+
 ---
 
 ## Resources
@@ -625,7 +628,6 @@ describe('hERG Prediction', () => {
 - **React docs:** https://react.dev
 - **Zustand docs:** https://github.com/pmndrs/zustand
 - **WASM guide:** https://rustwasm.org/
-- **chematic docs:** https://github.com/rapodaca/chematic
 
 ---
 

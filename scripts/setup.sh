@@ -37,9 +37,13 @@ command_exists() {
   command -v "$1" >/dev/null 2>&1
 }
 
-# Function to print status
+# Function to print status. Pass an explicit exit code as $2 when the
+# preceding command isn't itself the thing to check (e.g. a `[ ]` version
+# test, whose own exit code reflects the comparison, not success/failure of
+# the check) — omit it to fall back to $? at call time, as before.
 print_status() {
-  if [ $? -eq 0 ]; then
+  local status="${2:-$?}"
+  if [ "$status" -eq 0 ]; then
     echo -e "${GREEN}✓ $1${NC}"
   else
     echo -e "${RED}✗ $1${NC}"
@@ -52,14 +56,14 @@ echo -e "\n${BLUE}1. Checking Node.js...${NC}"
 if command_exists node; then
   NODE_VERSION=$(node --version)
   echo "Node.js $NODE_VERSION"
-  if [ "$(node --version | cut -d'.' -f1 | sed 's/v//')" -lt 18 ]; then
-    echo -e "${RED}✗ Node.js 18+ required${NC}"
+  if [ "$(node --version | cut -d'.' -f1 | sed 's/v//')" -lt 24 ]; then
+    echo -e "${RED}✗ Node.js 24+ required${NC}"
     exit 1
   fi
-  print_status "Node.js check"
+  print_status "Node.js check" 0
 else
   echo -e "${RED}✗ Node.js not found${NC}"
-  echo "Install from https://nodejs.org (version 18+)"
+  echo "Install from https://nodejs.org (version 24+)"
   exit 1
 fi
 
@@ -98,7 +102,7 @@ if command_exists rustc; then
       print_status "Rust toolchain update"
     fi
   else
-    print_status "Rust check"
+    print_status "Rust check" 0
   fi
 else
   echo "Installing Rust..."

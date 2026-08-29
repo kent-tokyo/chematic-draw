@@ -42,8 +42,8 @@ Release Workflow (automatic)
 Add to README:
 
 ```markdown
-![Tests](https://github.com/yourusername/chematic-draw/actions/workflows/test.yml/badge.svg)
-![Build](https://github.com/yourusername/chematic-draw/actions/workflows/build.yml/badge.svg)
+![Tests](https://github.com/kent-tokyo/chematic-draw/actions/workflows/test.yml/badge.svg)
+![Build](https://github.com/kent-tokyo/chematic-draw/actions/workflows/build.yml/badge.svg)
 ```
 
 ---
@@ -75,11 +75,14 @@ on:
 
 **Steps:**
 1. Checkout code
-2. Setup Node 20
+2. Setup Node 24
 3. Setup Rust + WASM target
 4. Build WASM module
 5. Install dependencies
 6. Run tests
+
+Note: "Lint & Type Check" currently only runs `npm run typecheck` (real
+`tsc --noEmit`) — `npm run lint` is still a no-op, no ESLint configured yet.
 
 **Coverage:**
 - Coverage report uploaded to [Codecov](https://codecov.io)
@@ -103,25 +106,35 @@ on:
   workflow_dispatch:
 ```
 
-**Jobs:**
+**Jobs:** one `build` job with an OS matrix (`ubuntu-latest`/`macos-latest`/`windows-latest`), plus a `release` job.
 
-| Job | OS | Artifacts |
-|-----|----|---------
-| **Build Linux** | Ubuntu | `.AppImage` |
-| **Build macOS** | macOS 11+ | `.dmg` (with notarization) |
-| **Build Windows** | Windows | `.exe` (with signing) |
-| **Release** | Ubuntu | Create GitHub release |
+| OS | Artifacts (real Electron Forge makers — see `electron/forge.config.js`) |
+|----|---------|
+| Ubuntu | `.deb`, `.rpm` (maker-deb/maker-rpm — **not** `.AppImage`) |
+| macOS | `.zip` (maker-zip — **not** `.dmg`) |
+| Windows | `.exe`/`.nupkg` (maker-squirrel) |
+
+Every artifact set also gets a `SHA256SUMS-<OS>.txt` checksum file
+(generated in a dedicated step, uploaded alongside the binaries), and the
+build job includes a "Check version consistency" step comparing
+`electron/package.json`, `crates/chem-wasm/Cargo.toml`, and the git tag.
 
 **Steps per platform:**
 1. Checkout code
 2. Setup tools (Node, Rust, wasm-pack)
 3. Build WASM (release optimized)
-4. Build Electron package
-5. Sign artifacts (macOS/Windows)
-6. Upload to artifacts
+4. Build Electron package (`npm run make`)
+5. Generate SHA-256 checksums
+6. Upload artifacts
 
-**Environment Variables:**
+**Code signing / notarization: not implemented.** No `APPLE_*`/`CSC_*`
+secrets or signing steps exist in `build.yml` today — macOS/Windows
+artifacts ship unsigned. The environment-variable list and signing
+troubleshooting sections below describe what *would* be needed to add
+signing, not current behavior.
+
 ```yaml
+# Not yet wired into any workflow — listed here as what signing would need:
 APPLE_ID: Apple Developer account email
 APPLE_APP_SPECIFIC_PASSWORD: Generated in Apple ID settings
 APPLE_TEAM_ID: Developer team ID
@@ -143,10 +156,11 @@ on:
   workflow_dispatch:
 ```
 
-**Jobs:**
-- **Nightly Build**: Full build with all tests
-- **Security Audit**: npm audit, cargo audit
-- **Dependency Check**: Outdated packages
+**Jobs** (real job ids in `nightly.yml`):
+- **build**: full build with all tests
+- **security-audit**: `npm audit`, `cargo audit` (via `taiki-e/install-action@v2`)
+- **dependency-check**: `npm outdated`, `cargo outdated` (informational, non-blocking)
+- **sbom-and-license**: SPDX SBOM (`anchore/sbom-action@v0`) plus Rust (`cargo-license`) and npm (`license-checker`) license reports, uploaded as a workflow artifact
 
 **Purpose:**
 - Detect issues that don't appear on PR
@@ -172,11 +186,9 @@ on:
    WIN_CSC_KEY_PASSWORD
    ```
 
-2. **Variables** (Settings → Variables → Actions)
-   ```
-   NODE_VERSION: 20
-   RUST_VERSION: stable
-   ```
+2. Node/Rust versions are hardcoded in the workflow files (Node `'24'` via
+   `actions/setup-node@v4`'s `node-version`, Rust via
+   `dtolnay/rust-toolchain@stable`) — not read from repo Variables.
 
 ### Caching
 
@@ -211,8 +223,13 @@ Jobs run in parallel, reducing total pipeline time:
 #### Step 1: Update Version
 
 ```bash
-# Update version in package.json
-npm version patch  # or minor, major
+# Update version in electron/package.json (the only package.json in the repo)
+cd electron && npm version patch  # or minor, major
+cd ..
+
+# Also update crates/chem-wasm/Cargo.toml's version to match — the build's
+# "Check version consistency" step fails the build if these two (and the
+# git tag) disagree.
 
 # Commit and tag
 git commit -am "v0.2.1"
@@ -229,10 +246,11 @@ Push to `main` with tags automatically triggers:
 
 #### Step 3: Release Assets
 
-GitHub automatically creates release with:
-- `chematic-draw-x.x.x.AppImage` (Linux)
-- `chematic-draw-x.x.x.dmg` (macOS)
-- `chematic-draw-x.x.x.exe` (Windows)
+GitHub automatically creates a release with:
+- `.deb`/`.rpm` (Linux), `.zip` (macOS), `.exe`/`.nupkg` (Windows) — see the real maker table above
+- `SHA256SUMS-<OS>.txt` per platform
+- Marked as a pre-release automatically when the tag contains a `-`
+  (e.g. `v0.3.0-rc.1`) — `prerelease: ${{ contains(github.ref_name, '-') }}`
 - Auto-generated release notes
 
 ### Semantic Versioning
@@ -271,7 +289,7 @@ These appear as "Pre-release" in GitHub.
 
 ### GitHub Actions Dashboard
 
-**View at:** https://github.com/yourusername/chematic-draw/actions
+**View at:** https://github.com/kent-tokyo/chematic-draw/actions
 
 Shows:
 - Workflow runs
@@ -319,7 +337,7 @@ Coverage reports appear as:
 ```yaml
 - uses: actions/setup-node@v4
   with:
-    node-version: '20'
+    node-version: '24'
     cache: 'npm'
     cache-dependency-path: 'electron/package-lock.json'
 ```
@@ -337,10 +355,10 @@ Coverage reports appear as:
 Upload only final artifacts (not intermediate builds):
 
 ```yaml
-- uses: actions/upload-artifact@v3
+- uses: actions/upload-artifact@v4
   with:
     name: linux-binaries
-    path: out/make/**/*.AppImage
+    path: electron/out/make/**/*.deb
     retention-days: 30  # Auto-delete after 30 days
 ```
 
@@ -367,6 +385,9 @@ strategy:
 ```yaml
 - name: Install wasm-pack
   run: cargo install wasm-pack --locked
+- name: Build WASM
+  working-directory: electron
+  run: npm run build:wasm  # or build:wasm:release / build:wasm:test
 ```
 
 ### Test Timeout (>60 min)
@@ -393,22 +414,21 @@ strategy:
 2. Add required secrets
 3. Re-run workflow
 
-### macOS Codesigning Fails
+### macOS Codesigning / Windows Signing
 
-**Cause:** Invalid certificate or password.
+**Not applicable today** — `build.yml` has no signing step and no
+`CSC_*`/`APPLE_*`/`WIN_CSC_*` secrets configured; macOS/Windows artifacts
+ship unsigned. The steps below are what adding signing would require, not a
+fix for an existing failure.
 
-**Solutions:**
 ```bash
 # Export certificate as base64
 base64 -i certificate.p12 | pbcopy
 
 # Set secret in GitHub: CSC_LINK
 # Set password in GitHub: CSC_KEY_PASSWORD
+# (Windows: WIN_CSC_LINK / WIN_CSC_KEY_PASSWORD)
 ```
-
-### Windows Signing Fails
-
-Similar to macOS, set `WIN_CSC_LINK` and `WIN_CSC_KEY_PASSWORD`.
 
 ---
 
@@ -436,25 +456,23 @@ Run steps based on conditions:
 ```yaml
 - name: Build WASM
   if: matrix.os == 'ubuntu-latest'  # Run only on Linux
-  run: wasm-pack build --target web
+  working-directory: electron
+  run: npm run build:wasm  # not a raw `wasm-pack build` — see BUILD.md
 ```
 
 ### Matrix Variables
 
-Use different commands per OS:
+`electron-forge`'s `make` already produces the right artifact type per OS on
+its own (no `make:mac`/`make:win` variants exist or are needed) — the real
+`build.yml` just runs `npm run make` on every OS in the matrix:
 
 ```yaml
 strategy:
   matrix:
-    include:
-      - os: ubuntu-latest
-        build-cmd: npm run make
-      - os: macos-latest
-        build-cmd: npm run make:mac
-      - os: windows-latest
-        build-cmd: npm run make:win
+    os: [ubuntu-latest, macos-latest, windows-latest]
 steps:
-  - run: ${{ matrix.build-cmd }}
+  - working-directory: electron
+    run: npm run make
 ```
 
 ---
