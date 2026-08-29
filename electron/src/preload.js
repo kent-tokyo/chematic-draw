@@ -41,4 +41,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveSettings: (key, value) => ipcRenderer.invoke('settings:save', key, value),
   loadSettings: (key) => ipcRenderer.invoke('settings:load', key),
   recordRecentFile: (filePath) => ipcRenderer.invoke('recent-file:add', filePath),
+
+  // Autosave / crash recovery (renderer → main)
+  autosaveWrite: (molecule, filePath) => ipcRenderer.invoke('autosave:write', molecule, filePath),
+  getPendingRecovery: () => ipcRenderer.invoke('autosave:get-pending-recovery'),
 });

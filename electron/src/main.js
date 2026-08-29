@@ -1,5 +1,5 @@
 import { app, BrowserWindow, Menu, dialog, ipcMain, clipboard } from 'electron';
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync, renameSync } from 'node:fs';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import { svgPageSizeInches } from './lib/svgPageSize';
@@ -11,6 +11,12 @@ if (started) {
 
 let mainWindow;
 const SETTINGS_PATH = path.join(app.getPath('userData'), 'settings.json');
+const AUTOSAVE_PATH = path.join(app.getPath('userData'), 'autosave.json');
+const AUTOSAVE_TMP_PATH = `${AUTOSAVE_PATH}.tmp`;
+
+// Set only when the user confirms "Restore" in checkAutosaveRecovery(),
+// consumed exactly once by the 'autosave:get-pending-recovery' IPC handler.
+let pendingRecovery = null;
 
 // Helper functions for settings persistence
 const loadSettings = () => {
@@ -357,6 +363,77 @@ ipcMain.handle('settings:load', async (event, key) => {
   }
 });
 
+// IPC Handlers for Autosave / Crash Recovery
+//
+// This is deliberately NOT "restore unsaved changes" — the app has no
+// dirty-tracking, so it can't tell a saved molecule from an edited one.
+// It's "restore whatever was open last time," offered only when
+// autosave.json still exists at launch, which only happens when the
+// previous run didn't reach a clean quit (before-quit below always clears
+// it). A crash mid-write would otherwise leave a truncated, unparseable
+// JSON file, which is worse than no recovery at all — so the write goes to
+// a temp file first and only replaces the real one via an atomic rename.
+ipcMain.handle('autosave:write', async (event, molecule, filePath) => {
+  try {
+    const dir = path.dirname(AUTOSAVE_PATH);
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    writeFileSync(AUTOSAVE_TMP_PATH, JSON.stringify({ molecule, filePath }), 'utf-8');
+    renameSync(AUTOSAVE_TMP_PATH, AUTOSAVE_PATH);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+// One-shot pull: the renderer calls this once, after WASM (and therefore
+// setMolecule) is ready, instead of main.js pushing at an uncertain time.
+ipcMain.handle('autosave:get-pending-recovery', async () => {
+  const snapshot = pendingRecovery;
+  pendingRecovery = null;
+  return snapshot;
+});
+
+// Asks the user, via a native confirm dialog, whether to restore the
+// snapshot left behind by a previous run that didn't exit cleanly. Runs
+// once at startup, before the renderer can have registered anything —
+// the answer is stashed in pendingRecovery for the renderer to pull once
+// it's actually ready to accept a molecule.
+const checkAutosaveRecovery = async () => {
+  if (!existsSync(AUTOSAVE_PATH)) return;
+  try {
+    const snapshot = JSON.parse(readFileSync(AUTOSAVE_PATH, 'utf-8'));
+    // Native OS dialogs can't be driven by Playwright's _electron automation
+    // (no CDP access outside the web content) — e2e coverage of this branch
+    // answers via this env var instead of the real dialog. Never set outside
+    // tests, so production behavior always goes through the real dialog.
+    const response = process.env.CHEMATIC_E2E_AUTOSAVE_ANSWER
+      ? (process.env.CHEMATIC_E2E_AUTOSAVE_ANSWER === 'restore' ? 0 : 1)
+      : (await dialog.showMessageBox(mainWindow, {
+          type: 'question',
+          buttons: ['Restore', 'Discard'],
+          defaultId: 0,
+          cancelId: 1,
+          title: 'Restore last session?',
+          message: "chematic-draw didn't exit cleanly last time.",
+          detail: 'Restore the molecule that was open when it closed?',
+        })).response;
+    if (response === 0) {
+      pendingRecovery = snapshot;
+    }
+  } catch (err) {
+    console.error('Failed to read autosave snapshot:', err);
+  } finally {
+    // Already captured in memory (or unreadable) either way — the file's
+    // only job was surviving until this check, and a fresh one gets
+    // written again as soon as the user makes their next edit.
+    try {
+      unlinkSync(AUTOSAVE_PATH);
+    } catch {
+      // already gone
+    }
+  }
+};
+
 // IPC Handler for Recent Files
 ipcMain.handle('recent-file:add', async (event, filePath) => {
   try {
@@ -413,9 +490,10 @@ const updateFileMenu = (recentFiles) => {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   createWindow();
   createMenu();
+  await checkAutosaveRecovery();
 
   // On OS X it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
@@ -425,6 +503,18 @@ app.whenReady().then(() => {
       createMenu();
     }
   });
+});
+
+// A clean quit (menu Quit, Cmd+Q, closing the last window on
+// Windows/Linux) always reaches here, so clearing the snapshot here is
+// what makes its presence at next launch mean "didn't exit cleanly" — a
+// crash or force-kill skips this handler entirely, leaving it behind.
+app.on('before-quit', () => {
+  try {
+    if (existsSync(AUTOSAVE_PATH)) unlinkSync(AUTOSAVE_PATH);
+  } catch (err) {
+    console.error('Failed to clear autosave snapshot on quit:', err);
+  }
 });
 
 // Quit when all windows are closed, except on macOS. There, it's common

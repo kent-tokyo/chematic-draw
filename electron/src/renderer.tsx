@@ -75,17 +75,48 @@ function App() {
     init();
   }, []);
 
-  // Load sample molecule on mount
+  // Load sample molecule on mount — unless main.js is holding a crash-
+  // recovery snapshot the user just confirmed restoring, in which case that
+  // takes priority. Checked here (rather than main.js pushing it) because
+  // this is the first point setMolecule is actually safe to call.
   useEffect(() => {
     if (!wasmLoaded) return;
-    // Try to load benzene
-    try {
-      const result = wasmBridge.parseMolecule('c1ccccc1');
-      setMolecule(result);
-    } catch (err) {
-      console.error('Failed to load sample:', err);
-    }
+    (async () => {
+      if (typeof window !== 'undefined' && (window as any).electronAPI?.getPendingRecovery) {
+        try {
+          const snapshot = await (window as any).electronAPI.getPendingRecovery();
+          if (snapshot) {
+            setMolecule(snapshot.molecule);
+            setFilePath(snapshot.filePath ?? null);
+            setStatus('Restored last session');
+            return;
+          }
+        } catch (err) {
+          console.error('Failed to check for a recoverable session:', err);
+        }
+      }
+      // Try to load benzene
+      try {
+        const result = wasmBridge.parseMolecule('c1ccccc1');
+        setMolecule(result);
+      } catch (err) {
+        console.error('Failed to load sample:', err);
+      }
+    })();
   }, [wasmLoaded]);
+
+  // Autosave: debounced crash-recovery snapshot, written to a file main.js
+  // clears on every clean quit. Its mere presence at next launch is what
+  // signals the app didn't exit cleanly — not a "there are unsaved
+  // changes" flag, since this app has no dirty-tracking to base one on.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !(window as any).electronAPI?.autosaveWrite) return;
+    const api = (window as any).electronAPI;
+    const timeout = setTimeout(() => {
+      api.autosaveWrite(molecule, filePath);
+    }, 2000);
+    return () => clearTimeout(timeout);
+  }, [molecule, filePath]);
 
   // Auto-save settings
   useEffect(() => {
