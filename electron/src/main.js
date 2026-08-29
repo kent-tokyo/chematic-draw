@@ -249,8 +249,15 @@ const createMenu = () => {
             dialog.showMessageBox(mainWindow, {
               type: 'info',
               title: 'About chematic-draw',
-              message: 'chematic-draw v0.1.0',
-              detail: 'Open-source chemical structure editor\nPowered by chematic 0.1.32',
+              // app.getVersion() reads package.json's real version, so this
+              // never goes stale the way a hardcoded string did (was
+              // "v0.1.0" against an actual 0.2.2-rc.1). The chematic crate
+              // version has no equivalent runtime accessor from this
+              // process — kept as a literal, matching the same
+              // manually-updated pattern already used for it elsewhere
+              // (e.g. docs/API.md).
+              message: `chematic-draw v${app.getVersion()}`,
+              detail: 'Open-source chemical structure editor\nPowered by chematic 0.20.1',
             });
           },
         },
