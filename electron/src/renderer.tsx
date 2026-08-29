@@ -31,6 +31,7 @@ function App() {
   const molecule = useMoleculeStore((s) => s.molecule);
   const setMolecule = useMoleculeStore((s) => s.setMolecule);
   const clear = useMoleculeStore((s) => s.clear);
+  const statusMessage = useUIStore((s) => s.statusMessage);
   const setStatus = useUIStore((s) => s.setStatus);
   const showModal = useUIStore((s) => s.showModal);
   const hideModal = useUIStore((s) => s.hideModal);
@@ -381,6 +382,29 @@ function App() {
         fontFamily: 'system-ui, -apple-system, sans-serif',
       }}
     >
+      {/* Screen-reader announcer for useUIStore's statusMessage (save/
+          export results, keyboard canvas-editing feedback, etc.) —
+          setStatus() was previously called throughout the app but nothing
+          ever rendered statusMessage, so none of it reached assistive
+          technology. Visually hidden via clip, not display:none/
+          visibility:hidden, which would hide it from AT too. */}
+      <div
+        aria-live="polite"
+        role="status"
+        style={{
+          position: 'absolute',
+          width: '1px',
+          height: '1px',
+          padding: 0,
+          margin: '-1px',
+          overflow: 'hidden',
+          clip: 'rect(0, 0, 0, 0)',
+          whiteSpace: 'nowrap',
+          border: 0,
+        }}
+      >
+        {statusMessage}
+      </div>
       <ContextMenu />
       <ShortcutsModal />
       <UndoTimelineModal />

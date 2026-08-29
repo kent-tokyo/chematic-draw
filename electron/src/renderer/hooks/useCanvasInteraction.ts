@@ -1,4 +1,4 @@
-import { useCallback, useRef, useMemo } from 'react';
+import { useCallback, useRef, useMemo, useState } from 'react';
 import { useMoleculeStore } from '../store/moleculeStore';
 import { useCanvasStore } from '../store/canvasStore';
 import { useUIStore } from '../store/uiStore';
@@ -12,10 +12,20 @@ import { useReactionSchemeStore } from '../store/reactionSchemeStore';
 const DRAG_THRESHOLD = 4;
 const BOND_LENGTH = 60;
 
+const ELEMENT_NAMES: Record<string, string> = {
+  C: 'Carbon',
+  N: 'Nitrogen',
+  O: 'Oxygen',
+  S: 'Sulfur',
+  P: 'Phosphorus',
+};
+
 export interface CanvasInteractionHandlers {
   onMouseDown: (e: React.MouseEvent<HTMLCanvasElement>) => void;
   onMouseMove: (e: React.MouseEvent<HTMLCanvasElement>) => void;
   onMouseUp: (e: React.MouseEvent<HTMLCanvasElement>) => void;
+  onKeyDown: (e: React.KeyboardEvent<HTMLCanvasElement>) => void;
+  onFocus: () => void;
 }
 
 export function useCanvasInteraction(): CanvasInteractionHandlers {
@@ -254,10 +264,162 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
     [molecule, activeTool, addBond, setBondDrag]
   );
 
+  // Keyboard-driven editing (accessibility Phase B2): a mouse click has no
+  // keyboard equivalent, so this is a roving-focus model instead — arrow
+  // keys move which atom is "selected" (reusing the existing shared
+  // `selected` field, so mouse and keyboard users see the same highlight),
+  // Shift+element adds a new atom bonded to it, and Enter starts a
+  // two-step flow to bond it to a second, existing atom. Scoped to the
+  // canvas element's own onKeyDown (not a global window listener like
+  // useKeyboard.ts's shortcuts) so it only fires while the canvas itself
+  // has DOM focus — Tab still moves focus in/out of the canvas normally,
+  // it is deliberately NOT repurposed for atom navigation.
+  const [bondFromAtomId, setBondFromAtomId] = useState<number | null>(null);
+  const [candidateAtomId, setCandidateAtomId] = useState<number | null>(null);
+
+  const sortedAtomIds = useMemo(() => molecule.atoms.map((a) => a.id).sort((a, b) => a - b), [molecule]);
+
+  const describeAtom = useCallback(
+    (id: number): string => {
+      const atom = molecule.atoms.find((a) => a.id === id);
+      if (!atom) return '';
+      const name = ELEMENT_NAMES[atom.element] ?? atom.element;
+      const bondCount = molecule.bonds.filter((b) => b.from === id || b.to === id).length;
+      return `${name}, bonded to ${bondCount} atom${bondCount === 1 ? '' : 's'}`;
+    },
+    [molecule]
+  );
+
+  const onFocus = useCallback(() => {
+    const alreadySelected = molecule.atoms.some((a) => a.selected);
+    if (alreadySelected) return;
+    if (sortedAtomIds.length > 0) {
+      selectAtom(sortedAtomIds[0], false);
+      setStatus(`Canvas focused. ${describeAtom(sortedAtomIds[0])}.`);
+    } else {
+      setStatus('Canvas focused, empty. Press Shift+C, Shift+N, Shift+O, Shift+S, or Shift+P to add an atom.');
+    }
+  }, [molecule, sortedAtomIds, selectAtom, setStatus, describeAtom]);
+
+  const onKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLCanvasElement>) => {
+      const selectedId = molecule.atoms.find((a) => a.selected)?.id ?? null;
+      const isArrow = e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowUp';
+      const forward = e.key === 'ArrowRight' || e.key === 'ArrowDown';
+
+      // Bond mode: kept out of the shared `selected` field (only the
+      // candidate atom would end up highlighted, losing track of the
+      // anchor atom) — status announcements carry both instead.
+      if (bondFromAtomId !== null) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          e.stopPropagation(); // don't also trigger the global Escape (deselectAll)
+          setBondFromAtomId(null);
+          setCandidateAtomId(null);
+          setStatus('Bond creation cancelled.');
+          return;
+        }
+        if (isArrow) {
+          e.preventDefault();
+          e.stopPropagation();
+          const others = sortedAtomIds.filter((id) => id !== bondFromAtomId);
+          if (others.length === 0) return;
+          const curIdx = candidateAtomId !== null ? others.indexOf(candidateAtomId) : -1;
+          const nextIdx = curIdx === -1 ? 0 : (curIdx + (forward ? 1 : -1) + others.length) % others.length;
+          const nextId = others[nextIdx];
+          setCandidateAtomId(nextId);
+          setStatus(`Bond target: ${describeAtom(nextId)}. Press 1-4 for bond order, Escape to cancel.`);
+          return;
+        }
+        if (e.key === '1' || e.key === '2' || e.key === '3' || e.key === '4') {
+          e.preventDefault();
+          e.stopPropagation(); // don't also trigger the global tool-switch for 1-4
+          const fromExists = molecule.atoms.some((a) => a.id === bondFromAtomId);
+          const toAtom = candidateAtomId !== null ? molecule.atoms.find((a) => a.id === candidateAtomId) : undefined;
+          if (fromExists && toAtom) {
+            const alreadyBonded = molecule.bonds.some(
+              (b) =>
+                (b.from === bondFromAtomId && b.to === candidateAtomId) ||
+                (b.from === candidateAtomId && b.to === bondFromAtomId)
+            );
+            if (alreadyBonded) {
+              setStatus('These atoms are already bonded.');
+            } else {
+              pushUndo();
+              addBond(bondFromAtomId, candidateAtomId as number, Number(e.key), 0);
+              setStatus(`Bonded to ${ELEMENT_NAMES[toAtom.element] ?? toAtom.element}.`);
+            }
+          } else {
+            setStatus('Bond creation cancelled — atom no longer exists.');
+          }
+          setBondFromAtomId(null);
+          setCandidateAtomId(null);
+          return;
+        }
+        return;
+      }
+
+      // Enter: start bond mode from the currently focused atom.
+      if (e.key === 'Enter' && selectedId !== null) {
+        const others = sortedAtomIds.filter((id) => id !== selectedId);
+        if (others.length === 0) {
+          setStatus('No other atoms to bond to.');
+          return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        setBondFromAtomId(selectedId);
+        setCandidateAtomId(null);
+        setStatus(`Bond mode from ${describeAtom(selectedId)}. Arrow keys choose a target, 1-4 sets bond order, Escape cancels.`);
+        return;
+      }
+
+      // Roving atom focus.
+      if (isArrow && sortedAtomIds.length > 0) {
+        e.preventDefault();
+        e.stopPropagation();
+        const curIdx = selectedId !== null ? sortedAtomIds.indexOf(selectedId) : -1;
+        const nextIdx = curIdx === -1 ? 0 : (curIdx + (forward ? 1 : -1) + sortedAtomIds.length) % sortedAtomIds.length;
+        const nextId = sortedAtomIds[nextIdx];
+        selectAtom(nextId, false);
+        setStatus(describeAtom(nextId));
+        return;
+      }
+
+      // Shift+element: add a new atom, single-bonded to the focused one
+      // (auto-positioned away from its existing bonds). Existing bare
+      // letter-key tool-switching (useKeyboard.ts) is unaffected — its
+      // lookup is case-sensitive on the lowercase key, so it never matches
+      // Shift+letter's uppercase e.key.
+      if (e.shiftKey) {
+        const element = ELEMENT_NAMES[e.key.toUpperCase()] ? e.key.toUpperCase() : null;
+        if (element) {
+          e.preventDefault();
+          e.stopPropagation();
+          pushUndo();
+          if (selectedId !== null) {
+            const pos = calculateBondedAtomPosition(molecule, selectedId, BOND_LENGTH);
+            const newId = addAtom(element, pos.x, pos.y);
+            addBond(selectedId, newId, 1, 0);
+            selectAtom(newId, false);
+            setStatus(`Added ${ELEMENT_NAMES[element]}, bonded to 1 atom.`);
+          } else {
+            const newId = addAtom(element, 0, 0);
+            selectAtom(newId, false);
+            setStatus(`Added ${ELEMENT_NAMES[element]}.`);
+          }
+        }
+      }
+    },
+    [molecule, sortedAtomIds, bondFromAtomId, candidateAtomId, selectAtom, addAtom, addBond, pushUndo, setStatus, describeAtom]
+  );
+
   return {
     onMouseDown,
     onMouseMove,
     onMouseUp,
+    onKeyDown,
+    onFocus,
   };
 }
 

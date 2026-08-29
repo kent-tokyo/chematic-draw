@@ -254,6 +254,9 @@ export function MoleculeCanvas() {
       data-testid="molecule-canvas"
       role="img"
       aria-label={canvasLabel}
+      tabIndex={0}
+      onFocus={interactionHandlers.onFocus}
+      onKeyDown={interactionHandlers.onKeyDown}
       style={{
         flex: 1,
         // Canvas is a replaced element — its `width`/`height` attributes (set
