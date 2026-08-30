@@ -1,6 +1,23 @@
 import { create } from 'zustand';
 import { UIState, BondDto } from './types';
 
+export interface BatchItemSummary {
+  index: number;
+  status: 'succeeded' | 'failed' | 'skipped' | 'cancelled';
+  warnings: string[];
+  error?: string;
+}
+
+export interface BatchResultSummary {
+  operation: string;
+  processed: number;
+  failed: number;
+  errors: string[];
+  timestamp: number;
+  cancelled?: boolean;
+  items: BatchItemSummary[];
+}
+
 interface UIStoreState extends UIState {
   // Status bar
   statusMessage: string;
@@ -25,7 +42,7 @@ interface UIStoreState extends UIState {
   showBatchDialog: boolean;
 
   // Batch results history
-  batchResults: Array<{ operation: string; processed: number; failed: number; errors: string[]; timestamp: number }>;
+  batchResults: BatchResultSummary[];
 
   // Actions
   setTheme: (theme: 'dark' | 'light') => void;
@@ -42,7 +59,13 @@ interface UIStoreState extends UIState {
   hideContextMenu: () => void;
   showModal: (type: 'shortcuts' | 'export' | 'undo' | 'batch') => void;
   hideModal: (type: 'shortcuts' | 'export' | 'undo' | 'batch') => void;
-  addBatchResult: (operation: string, processed: number, failed: number, errors: string[]) => void;
+  addBatchResult: (
+    operation: string,
+    processed: number,
+    failed: number,
+    errors: string[],
+    details?: { cancelled: boolean; items: BatchItemSummary[] }
+  ) => void;
 }
 
 export const useUIStore = create<UIStoreState>((set) => ({
@@ -117,11 +140,11 @@ export const useUIStore = create<UIStoreState>((set) => ({
     if (type === 'batch') set({ showBatchDialog: false });
   },
 
-  addBatchResult: (operation, processed, failed, errors) => {
+  addBatchResult: (operation, processed, failed, errors, details = { cancelled: false, items: [] }) => {
     set((state) => ({
       batchResults: [
         ...state.batchResults,
-        { operation, processed, failed, errors, timestamp: Date.now() },
+        { operation, processed, failed, errors, timestamp: Date.now(), ...details },
       ].slice(-10), // Keep last 10 results
     }));
   },

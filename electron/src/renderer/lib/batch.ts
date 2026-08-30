@@ -16,15 +16,52 @@ export interface BatchTask {
   smartsPattern?: string;
 }
 
-export async function processBatch(molecules: MoleculeDto[], task: BatchTask): Promise<ProcessResult> {
+export type BatchItemStatus = 'pending' | 'running' | 'succeeded' | 'failed' | 'skipped' | 'cancelled';
+
+export interface BatchItemResult {
+  index: number;
+  status: BatchItemStatus;
+  input: MoleculeDto;
+  output?: MoleculeDto & Partial<{ properties: any }>;
+  warnings: string[];
+  error?: string;
+}
+
+export interface BatchProgress {
+  completed: number;
+  total: number;
+  item: BatchItemResult;
+}
+
+export interface ProcessBatchOptions {
+  signal?: AbortSignal;
+  onProgress?: (progress: BatchProgress) => void;
+}
+
+export async function processBatch(
+  molecules: MoleculeDto[],
+  task: BatchTask,
+  options: ProcessBatchOptions = {}
+): Promise<ProcessResult> {
   const results: ProcessResult = {
     processed: 0,
     failed: 0,
     molecules: [],
     errors: [],
+    items: [],
+    cancelled: false,
   };
 
-  for (const mol of molecules) {
+  for (const [index, mol] of molecules.entries()) {
+    if (options.signal?.aborted) {
+      results.cancelled = true;
+      results.items.push({ index, status: 'cancelled', input: mol, warnings: [] });
+      continue;
+    }
+
+    const item: BatchItemResult = { index, status: 'running', input: mol, warnings: [] };
+    results.items.push(item);
+    options.onProgress?.({ completed: index, total: molecules.length, item });
     try {
       let processed: MoleculeDto & Partial<{ properties: any }> = mol;
 
@@ -42,6 +79,9 @@ export async function processBatch(molecules: MoleculeDto[], task: BatchTask): P
           (!task.filterOptions?.maxLogP || props.logp <= task.filterOptions.maxLogP);
         if (!passes) {
           results.failed++;
+          item.status = 'skipped';
+          item.warnings.push('Did not match filter criteria.');
+          options.onProgress?.({ completed: index + 1, total: molecules.length, item });
           continue;
         }
         processed = mol;
@@ -55,10 +95,16 @@ export async function processBatch(molecules: MoleculeDto[], task: BatchTask): P
 
       results.molecules.push(processed);
       results.processed++;
+      item.status = 'succeeded';
+      item.output = processed;
     } catch (err) {
-      results.errors.push((err as Error).message);
+      const message = err instanceof Error ? err.message : String(err);
+      results.errors.push(message);
       results.failed++;
+      item.status = 'failed';
+      item.error = message;
     }
+    options.onProgress?.({ completed: index + 1, total: molecules.length, item });
   }
 
   return results;
@@ -69,4 +115,6 @@ export interface ProcessResult {
   failed: number;
   molecules: (MoleculeDto & Partial<{ properties: any }>)[];
   errors: string[];
+  items: BatchItemResult[];
+  cancelled: boolean;
 }

@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 export interface BatchDialogProps {
-  onProcess: (config: BatchConfig) => Promise<void> | void;
+  onProcess: (
+    config: BatchConfig,
+    options: { signal: AbortSignal; onProgress: (completed: number, total: number) => void }
+  ) => Promise<void> | void;
   onCancel: () => void;
 }
 
@@ -22,6 +25,7 @@ export function BatchProcessDialog({ onProcess, onCancel }: BatchDialogProps) {
   const [config, setConfig] = useState<BatchConfig>({ operation: 'standardize' });
   const [progress, setProgress] = useState(0);
   const [processing, setProcessing] = useState(false);
+  const controllerRef = useRef<AbortController | null>(null);
   const dialogRef = useFocusTrap(true);
 
   useEffect(() => {
@@ -41,8 +45,13 @@ export function BatchProcessDialog({ onProcess, onCancel }: BatchDialogProps) {
   const handleProcess = async () => {
     setProcessing(true);
     setProgress(0);
+    const controller = new AbortController();
+    controllerRef.current = controller;
     try {
-      const promise = onProcess({ ...config, operation });
+      const promise = onProcess({ ...config, operation }, {
+        signal: controller.signal,
+        onProgress: (completed, total) => setProgress(total === 0 ? 100 : Math.round((completed / total) * 100)),
+      });
       if (promise instanceof Promise) {
         await promise;
       }
@@ -51,12 +60,21 @@ export function BatchProcessDialog({ onProcess, onCancel }: BatchDialogProps) {
       console.error('Batch process failed:', err);
       setProgress(0);
     }
+    controllerRef.current = null;
     setProcessing(false);
+  };
+
+  const handleCancel = () => {
+    if (processing) {
+      controllerRef.current?.abort();
+      setProcessing(false);
+    }
+    onCancel();
   };
 
   return (
     <div
-      onClick={onCancel}
+      onClick={handleCancel}
       style={{
         position: 'fixed',
         inset: 0,
@@ -187,8 +205,8 @@ export function BatchProcessDialog({ onProcess, onCancel }: BatchDialogProps) {
         {/* Buttons */}
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
           <button
-            onClick={onCancel}
-            disabled={processing}
+            onClick={handleCancel}
+            disabled={false}
             style={{
               padding: '8px 16px',
               backgroundColor: 'transparent',
@@ -197,7 +215,7 @@ export function BatchProcessDialog({ onProcess, onCancel }: BatchDialogProps) {
               borderRadius: '4px',
               cursor: 'pointer',
               fontSize: '12px',
-              opacity: processing ? 0.5 : 1,
+              opacity: 1,
             }}
           >
             Cancel

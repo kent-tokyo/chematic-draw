@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.0] - 2026-08-31
+
+### Added
+- **Reviewable batch processing** — per-item success, skip, failure, and cancellation states are retained in input order.
+- Batch progress callbacks and `AbortSignal` cancellation support.
+- Explicit filter warnings and a per-item review section in the Batch panel.
+
+### Safety
+- Batch results preserve failures and skipped items instead of hiding them.
+- Cancellation stops future work without fabricating or silently replacing molecule results.
+
+---
+
 ## [0.2.0] - 2026-06-10
 
 ### Added

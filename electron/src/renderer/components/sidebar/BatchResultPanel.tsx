@@ -1,16 +1,8 @@
 import React from 'react';
-import { useUIStore } from '../../store/uiStore';
-
-export interface BatchResult {
-  operation: string;
-  processed: number;
-  failed: number;
-  errors: string[];
-  timestamp: number;
-}
+import { BatchResultSummary, useUIStore } from '../../store/uiStore';
 
 interface BatchResultPanelProps {
-  results: BatchResult[];
+  results: BatchResultSummary[];
 }
 
 export function BatchResultPanel({ results }: BatchResultPanelProps) {
@@ -92,6 +84,29 @@ export function BatchResultPanel({ results }: BatchResultPanelProps) {
               +{latestResult.errors.length - 3} more errors
             </div>
           )}
+        </div>
+      )}
+
+      {/* Per-item review */}
+      {latestResult.items.length > 0 && (
+        <div
+          aria-label="Batch item review"
+          style={{
+            padding: '8px',
+            backgroundColor: theme === 'dark' ? '#252d38' : '#f5f7fa',
+            borderRadius: '4px',
+          }}
+        >
+          <div style={{ fontSize: '10px', fontWeight: 'bold', color: textColor, marginBottom: '5px' }}>
+            Item review{latestResult.cancelled ? ' (cancelled)' : ''}
+          </div>
+          {latestResult.items.map((item) => (
+            <div key={item.index} style={{ fontSize: '9px', color: labelColor, marginBottom: '3px' }}>
+              Item {item.index + 1}: <strong>{item.status}</strong>
+              {item.error ? ` — ${item.error}` : ''}
+              {item.warnings.length > 0 ? ` — ${item.warnings.join('; ')}` : ''}
+            </div>
+          ))}
         </div>
       )}
 

@@ -442,7 +442,10 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showModal]);
 
-  const handleBatchProcess = async (config: BatchConfig) => {
+  const handleBatchProcess = async (
+    config: BatchConfig,
+    options: { signal: AbortSignal; onProgress: (completed: number, total: number) => void }
+  ) => {
     try {
       setStatus(`Batch processing: ${config.operation}...`);
 
@@ -456,9 +459,27 @@ function App() {
         } : undefined,
       };
 
-      const result = await batchLib.processBatch([molecule], task);
+      const result = await batchLib.processBatch([molecule], task, {
+        signal: options.signal,
+        onProgress: ({ completed, total }) => options.onProgress(completed, total),
+      });
 
-      addBatchResult(config.operation, result.processed, result.failed, result.errors);
+      addBatchResult(config.operation, result.processed, result.failed, result.errors, {
+        cancelled: result.cancelled,
+        items: result.items.map(({ index, status, warnings, error }) => ({
+          index,
+          status: status === 'succeeded' || status === 'failed' || status === 'skipped' || status === 'cancelled'
+            ? status
+            : 'cancelled',
+          warnings,
+          error,
+        })),
+      });
+
+      if (result.cancelled) {
+        setStatus(`Batch processing cancelled: ${result.processed} processed, ${result.failed} failed`);
+        return;
+      }
 
       if (result.molecules.length > 0) {
         setMolecule(result.molecules[0]);
@@ -473,7 +494,10 @@ function App() {
     } catch (err) {
       setStatus(`Batch processing failed: ${(err as Error).message}`);
       console.error('Batch error:', err);
-      addBatchResult(config.operation, 0, 1, [(err as Error).message]);
+      addBatchResult(config.operation, 0, 1, [(err as Error).message], {
+        cancelled: false,
+        items: [{ index: 0, status: 'failed', warnings: [], error: (err as Error).message }],
+      });
     }
     hideModal('batch');
   };
