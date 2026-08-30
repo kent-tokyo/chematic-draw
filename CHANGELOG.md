@@ -109,6 +109,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Removed
+- The native Rust/egui desktop build (`crates/chem-ui`, `crates/chem-io`,
+  root `src/main.rs`) — frozen since the Electron app became the sole
+  actively-developed target; now deleted along with its
+  Claude-Code-context docs (`DESIGN.md`, `SPEC.md`, `TEMPLATES.md`) and
+  task-tracking files. `crates/chem-wasm` (the Electron app's chemistry
+  bridge) is unaffected — it never depended on the deleted crates.
+  `README.md`/`README_ja.md` and `AGENTS.md` now describe the Electron
+  app directly instead of pointing to it as a separate "frozen" target.
+
+### Fixed
+- A cluster of menu/canvas/undo reliability issues, mostly features that
+  looked like they worked but silently didn't: dead menu-to-renderer IPC
+  wiring (Keyboard Shortcuts, Select All, Recent Files never actually
+  updating due to a read-only Electron property), Edit > Undo/Redo/Copy/
+  Paste doing nothing when clicked (Electron's built-in `role:` ignores
+  `click` outright), several molecule edits that were silently excluded
+  from undo history (drag-to-reposition, atom transmute via click,
+  Inspector edits, template insert), a stale-closure bug that broke
+  Ctrl+C/Ctrl+L/keyboard zoom/focus-mode after the first use, a canvas
+  resize bug that could make the molecule disappear entirely, and the
+  `clipboard:read` IPC handler never resolving (an unawaited Promise),
+  which meant paste-from-the-real-OS-clipboard never worked at all, via
+  keyboard or menu. Full root-cause writeups in `internal_docs/
+  ROADMAP.md`; summary in `electron/tasks/todo.md` and `electron/tasks/
+  lessons.md`.
+
+### Changed
+- Atoms on the 2D canvas are now color-coded by element (CPK-inspired),
+  instead of a flat white circle for every element.
+- The molecule now centers itself in the canvas on a fresh load (initial
+  sample, file open, crash-recovery restore) instead of rendering at its
+  raw parsed coordinates, which for the default sample landed near the
+  canvas's top-left corner.
+
+---
+
 ## [0.2.2-rc.1] - 2026-08-28 (pre-release)
 
 ### Added

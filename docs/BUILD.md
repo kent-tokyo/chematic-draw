@@ -285,10 +285,9 @@ needs to fix incidentally.
 ```
 chematic-draw/
 ├── crates/
-│   ├── chem-wasm/              # Rust WASM module (the electron app's only chemistry dependency)
-│   │   ├── Cargo.toml
-│   │   └── src/lib.rs
-│   └── ...                     # chem-ui/chem-io: native egui app, frozen — not built by anything above
+│   └── chem-wasm/               # Rust WASM module (the electron app's only chemistry dependency)
+│       ├── Cargo.toml
+│       └── src/lib.rs
 ├── electron/
 │   ├── src/
 │   │   ├── main.js             # Electron main process
