@@ -98,6 +98,52 @@ test.describe('Electron Smoke', () => {
     await electronApp.close();
   });
 
+  test('Edit > Undo/Redo menu items actually undo/redo the molecule', async () => {
+    // main.js's Edit > Undo/Redo used to be Electron's built-in
+    // role: 'undo'/'redo' — a MenuItem's `click` is ignored whenever
+    // `role` is set, so there was no way to route it to the app's real
+    // moleculeStore.undo()/redo(); clicking it invoked a real Chromium
+    // execCommand instead, confirmed empirically (via
+    // electronApp.evaluate calling webContents.undo() directly) to be a
+    // complete no-op on this app's own molecule-edit history. Fixed with
+    // custom label/click items — deliberately with NO accelerator, since
+    // giving them one would re-register Cmd+Z/Cmd+Shift+Z as a native
+    // menu shortcut, and whether a matching menu accelerator prevents the
+    // keystroke from also reaching the page's own DOM keydown listener
+    // (useKeyboard.ts, which already correctly calls undo()/redo())
+    // couldn't be verified in this environment — Playwright's key
+    // injection bypasses native menu accelerator dispatch entirely. This
+    // test only proves the menu *click* path (previously a silent no-op,
+    // now real): the actual Cmd+Z/Cmd+Shift+Z keyboard shortcuts are
+    // unaffected by this menu and were already covered by this session's
+    // earlier undo-coverage tests.
+    const electronApp = await electron.launch({
+      args: [path.resolve(__dirname, '..', '..')],
+    });
+    const window = await electronApp.firstWindow();
+    await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
+      timeout: 15000,
+    });
+    await expect(window.getByTestId('molecule-canvas')).toHaveAttribute('aria-label', /6 atoms, 6 bonds/);
+
+    const canvas = window.getByTestId('molecule-canvas');
+    await window.locator('button[title="C [C]"]').click();
+    await canvas.click({ position: { x: 50, y: 50 } });
+    await expect(canvas).toHaveAttribute('aria-label', /7 atoms, 6 bonds/);
+
+    await electronApp.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0].webContents.send('menu:undo');
+    });
+    await expect(canvas).toHaveAttribute('aria-label', /6 atoms, 6 bonds/);
+
+    await electronApp.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0].webContents.send('menu:redo');
+    });
+    await expect(canvas).toHaveAttribute('aria-label', /7 atoms, 6 bonds/);
+
+    await electronApp.close();
+  });
+
   test('opening a file records it in Recent Files — persisted AND in the live menu', async () => {
     // Regression test: main.js has a full Recent Files implementation —
     // recent-file:add IPC handler, menu rebuild, click-to-reopen, Clear

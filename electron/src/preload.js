@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onMenuExportMol: (callback) => ipcRenderer.on('menu:export-mol', callback),
   onMenuExportSmiles: (callback) => ipcRenderer.on('menu:export-smiles', callback),
   onMenuSelectAll: (callback) => ipcRenderer.on('menu:select-all', callback),
+  onMenuUndo: (callback) => ipcRenderer.on('menu:undo', callback),
+  onMenuRedo: (callback) => ipcRenderer.on('menu:redo', callback),
   onMenuZoomIn: (callback) => ipcRenderer.on('menu:zoom-in', callback),
   onMenuZoomOut: (callback) => ipcRenderer.on('menu:zoom-out', callback),
   onMenuZoomReset: (callback) => ipcRenderer.on('menu:zoom-reset', callback),

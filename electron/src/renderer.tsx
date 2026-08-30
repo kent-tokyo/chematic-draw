@@ -32,6 +32,8 @@ function App() {
   const setMolecule = useMoleculeStore((s) => s.setMolecule);
   const clear = useMoleculeStore((s) => s.clear);
   const selectAll = useMoleculeStore((s) => s.selectAll);
+  const undo = useMoleculeStore((s) => s.undo);
+  const redo = useMoleculeStore((s) => s.redo);
   const statusMessage = useUIStore((s) => s.statusMessage);
   const setStatus = useUIStore((s) => s.setStatus);
   const showModal = useUIStore((s) => s.showModal);
@@ -300,6 +302,26 @@ function App() {
         }
       });
 
+      // main.js's Edit > Undo/Redo used to be Electron's built-in
+      // role: 'undo'/'redo' — a real Chromium execCommand that's a no-op
+      // on this app's own molecule history (confirmed empirically) and
+      // ignores any `click` handler outright whenever `role` is set, so
+      // there was no way to route it to the app's real undo()/redo(). Now
+      // custom items with no accelerator (see main.js) — Cmd+Z/Cmd+Shift+Z
+      // keep working exactly as before via useKeyboard.ts's own keydown
+      // listener; this only wires up the menu *click*, which previously
+      // silently did nothing. Same isInput guard as onMenuSelectAll above.
+      api.onMenuUndo?.(() => {
+        if ((document.activeElement as HTMLElement | null)?.tagName !== 'INPUT') {
+          undo();
+        }
+      });
+      api.onMenuRedo?.(() => {
+        if ((document.activeElement as HTMLElement | null)?.tagName !== 'INPUT') {
+          redo();
+        }
+      });
+
       // Phase 6-10 Tools menu handlers
       api.onMenuToolStereoisomers?.(() => {
         useUIStore.getState().setActiveSidebarPanel('stereoisomers');
@@ -326,7 +348,7 @@ function App() {
         // Cleanup: no need to unsubscribe from ipcRenderer in this version
       };
     }
-  }, [molecule, filePath, theme, zoom, sidebarOpen, selectAll]);
+  }, [molecule, filePath, theme, zoom, sidebarOpen, selectAll, undo, redo]);
 
   // Keyboard shortcuts for Phase 3-5
   useEffect(() => {

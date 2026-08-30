@@ -194,8 +194,35 @@ const createMenu = (recentFiles = loadSettings().recentFiles) => {
     {
       label: 'Edit',
       submenu: [
-        { role: 'undo', accelerator: isMac ? 'Cmd+Z' : 'Ctrl+Z' },
-        { role: 'redo', accelerator: isMac ? 'Cmd+Shift+Z' : 'Ctrl+Shift+Z' },
+        // Deliberately custom items with NO accelerator, not Electron's
+        // built-in role: 'undo'/'redo' — those invoke webContents.undo()/
+        // redo() (a real Chromium execCommand, confirmed empirically to be
+        // a complete no-op on this app's own molecule-edit history, which
+        // isn't DOM-editing-based), and a MenuItem's `click` is ignored
+        // whenever `role` is set, so there was no way to route a role-based
+        // item to the app's real undo/redo at all. Giving these an
+        // accelerator here would re-register Cmd+Z/Cmd+Shift+Z as a native
+        // menu shortcut — on every desktop platform, a matching menu
+        // accelerator is handled by the OS/native menu layer, which may or
+        // may not also let the keystroke reach the page's own DOM keydown
+        // listener depending on platform and Electron version, and that
+        // couldn't be verified in this environment (Playwright's key
+        // injection bypasses native menu dispatch entirely, so it can't
+        // distinguish the two cases). Leaving accelerator unset avoids that
+        // ambiguity outright: Cmd+Z/Cmd+Shift+Z keep working exactly as
+        // before, via useKeyboard.ts's own DOM-level keydown listener
+        // (which does correctly call the app's real undo()/redo(), see
+        // Discovered Work), completely independent of this menu — and
+        // clicking the menu item now also works, which it silently never
+        // did before.
+        {
+          label: 'Undo',
+          click: () => mainWindow.webContents.send('menu:undo'),
+        },
+        {
+          label: 'Redo',
+          click: () => mainWindow.webContents.send('menu:redo'),
+        },
         {
           label: 'Undo Timeline',
           accelerator: isMac ? 'Cmd+Ctrl+Z' : 'Ctrl+Alt+Z',
