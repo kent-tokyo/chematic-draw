@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Tool, CanvasState } from './types';
+import { Tool, CanvasState, MoleculeDto } from './types';
 
 interface CanvasStoreState extends CanvasState {
   // Additional state
@@ -7,6 +7,17 @@ interface CanvasStoreState extends CanvasState {
   bondDragFrom: number | null;
   bondDragPos: { x: number; y: number } | null;
   contextMenu: { pos: { x: number; y: number }; atomId?: number; bondId?: number } | null;
+  // The canvas element's own on-screen size, kept here (not local
+  // component state) so centerViewOnLoad below can read it regardless of
+  // which component last measured it.
+  canvasSize: { width: number; height: number };
+  // Set by a fresh-document load (initial sample, file open, crash
+  // recovery restore) before the canvas has necessarily been measured yet
+  // — consumed once canvasSize is actually known, whichever of the two
+  // happens last. Not set by ordinary edits (mid-session setMolecule
+  // calls like a stereoisomer swap or template insert), which should
+  // leave the user's current pan/zoom alone.
+  pendingCenter: boolean;
 
   // Actions
   setTool: (tool: Tool) => void;
@@ -19,6 +30,9 @@ interface CanvasStoreState extends CanvasState {
   setBondDrag: (from: number | null, pos?: { x: number; y: number }) => void;
   showContextMenu: (pos: { x: number; y: number }, atomId?: number, bondId?: number) => void;
   hideContextMenu: () => void;
+  setCanvasSize: (size: { width: number; height: number }) => void;
+  requestCenterOnLoad: () => void;
+  centerViewOnLoad: (molecule: MoleculeDto) => void;
 
   // Coordinate conversion
   worldToScreen: (x: number, y: number) => { x: number; y: number };
@@ -38,6 +52,8 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
   bondDragFrom: null,
   bondDragPos: null,
   contextMenu: null,
+  canvasSize: { width: 0, height: 0 },
+  pendingCenter: false,
 
   setTool: (tool) => set({ activeTool: tool }),
 
@@ -81,6 +97,34 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
   },
 
   hideContextMenu: () => set({ contextMenu: null }),
+
+  setCanvasSize: (size) => set({ canvasSize: size }),
+
+  requestCenterOnLoad: () => set({ pendingCenter: true }),
+
+  // Centers the molecule's bounding box in the canvas at the current zoom.
+  // No-ops (but still clears the pending flag) on an empty molecule or an
+  // as-yet-unmeasured canvas — the caller is expected to retry once
+  // whichever is missing becomes available, not to have gotten the timing
+  // right itself.
+  centerViewOnLoad: (molecule) => {
+    const state = get();
+    if (molecule.atoms.length === 0 || state.canvasSize.width === 0) {
+      set({ pendingCenter: false });
+      return;
+    }
+    const xs = molecule.atoms.map((a) => a.x);
+    const ys = molecule.atoms.map((a) => a.y);
+    const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
+    const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
+    set({
+      offset: {
+        x: state.canvasSize.width / 2 - centerX * state.zoom,
+        y: state.canvasSize.height / 2 - centerY * state.zoom,
+      },
+      pendingCenter: false,
+    });
+  },
 
   worldToScreen: (x, y) => {
     const state = get();

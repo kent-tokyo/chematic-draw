@@ -100,6 +100,7 @@ function App() {
             setMolecule(snapshot.molecule);
             setFilePath(snapshot.filePath ?? null);
             setStatus('Restored last session');
+            useCanvasStore.getState().requestCenterOnLoad();
             return;
           }
         } catch (err) {
@@ -110,6 +111,7 @@ function App() {
       try {
         const result = wasmBridge.parseMolecule('c1ccccc1');
         setMolecule(result);
+        useCanvasStore.getState().requestCenterOnLoad();
       } catch (err) {
         console.error('Failed to load sample:', err);
       }
@@ -169,6 +171,7 @@ function App() {
           setFilePath(data.path);
           setStatus(`Opened: ${data.path}`);
           api.recordRecentFile(data.path);
+          useCanvasStore.getState().requestCenterOnLoad();
         } catch (err) {
           setStatus(`Failed to open file: ${(err as Error).message}`);
         }

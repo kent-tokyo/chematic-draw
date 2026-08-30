@@ -15,7 +15,13 @@ import * as wasmBridge from '../../wasm/wasmBridge';
 
 export function MoleculeCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
+  // Lives in canvasStore, not local state — centerViewOnLoad (triggered
+  // from renderer.tsx's fresh-document load sites) needs to read it
+  // regardless of which component last measured the canvas.
+  const canvasSize = useCanvasStore((s) => s.canvasSize);
+  const setCanvasSize = useCanvasStore((s) => s.setCanvasSize);
+  const pendingCenter = useCanvasStore((s) => s.pendingCenter);
+  const centerViewOnLoad = useCanvasStore((s) => s.centerViewOnLoad);
 
   // Hooks
   useKeyboard();
@@ -118,7 +124,19 @@ export function MoleculeCanvas() {
     const observer = new ResizeObserver(handleResize);
     observer.observe(parent);
     return () => observer.disconnect();
-  }, []);
+  }, [setCanvasSize]);
+
+  // Center a freshly-loaded document (initial sample, file open, crash
+  // recovery restore — flagged via requestCenterOnLoad from renderer.tsx)
+  // once the canvas has actually been measured. Runs on both canvasSize
+  // and pendingCenter changes so it doesn't matter which becomes true
+  // first: the resize effect above measures the canvas independently of
+  // when a document load happens to land.
+  useEffect(() => {
+    if (pendingCenter && canvasSize.width > 0) {
+      centerViewOnLoad(molecule);
+    }
+  }, [pendingCenter, canvasSize, molecule, centerViewOnLoad]);
 
   // Recalculate layout when scheme or canvas size changes
   useEffect(() => {
