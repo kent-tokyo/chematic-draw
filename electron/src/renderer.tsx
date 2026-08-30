@@ -488,8 +488,8 @@ function App() {
           {theme === 'dark' ? '☀️' : '🌙'}
         </button>
 
-        <div style={{ fontSize: '12px', opacity: 0.7, marginLeft: '12px', whiteSpace: 'nowrap' }}>
-          {molecule.atoms.length}a • {molecule.bonds.length}b • {zoom.toFixed(0)}%
+        <div data-testid="toolbar-summary" style={{ fontSize: '12px', opacity: 0.7, marginLeft: '12px', whiteSpace: 'nowrap' }}>
+          {molecule.atoms.length}a • {molecule.bonds.length}b • {(zoom * 100).toFixed(0)}%
         </div>
 
         {wasmStatus === 'loading' && (

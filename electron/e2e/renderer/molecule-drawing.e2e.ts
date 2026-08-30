@@ -17,6 +17,15 @@ test.describe('Molecule Drawing', () => {
     await expect(sidebar).toBeVisible();
   });
 
+  test('toolbar summary shows zoom as a real percentage', async ({ page }) => {
+    // Regression test: this badge computed `zoom.toFixed(0)` directly —
+    // `zoom` is a 0.2-10 multiplier (1 = 100%), not already a percentage —
+    // so at the default zoom it showed "1%" instead of "100%". The status
+    // bar's separate zoom readout already did this correctly
+    // (`(zoom * 100).toFixed(0)`); this one just needed the same fix.
+    await expect(page.getByTestId('toolbar-summary')).toHaveText(/100%$/);
+  });
+
   test('should load molecule from SMILES input', async ({ page }) => {
     // Open input dialog or use menu
     const fileMenuButton = page.locator('button:has-text("File")').first();
