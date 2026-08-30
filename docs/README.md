@@ -78,7 +78,7 @@ this table reflects a point in time.)
 Installers (`.deb`/`.rpm` for Linux, `.zip` for macOS, a Squirrel installer
 for Windows — see `electron/forge.config.js`) are published on the
 [Releases page](https://github.com/kent-tokyo/chematic-draw/releases) for
-tagged versions; the current stable release is `v0.2.2`, and builds are
+tagged versions; the current stable release is `v0.3.0`, and builds are
 unsigned. See [Quick Start](./QUICK_START.md#installation) for download +
 checksum-verification steps, or build from source below.
 
@@ -97,7 +97,7 @@ detailed instructions.
 ## Version Info
 
 - **chematic**: 0.20.1
-- **chematic-draw**: 0.2.2
+- **chematic-draw**: 0.3.0
 - **Node.js**: 24+
 - **Rust**: 1.70+ (for building WASM)
 

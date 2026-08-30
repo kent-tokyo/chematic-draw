@@ -21,12 +21,12 @@ survive unchanged; the *chemical structure* is).
 | PDB | ✅ (`parsePdb`, coordinates only) | ❌ | N/A | Same as XYZ — coordinate import only. |
 | SVG | ❌ | ✅ (`to_svg`) | N/A | Export-only, as expected — SVG is a rendering target, not a chemical interchange format. |
 
-## Known lossy conversions (no automated warning yet)
+## Known lossy conversions (automatically confirmed before save/export)
 
-There is currently no runtime mechanism that tells a user "this export will
-lose information" before they save. Known cases where a round-trip through
-this app's own supported formats is *not* lossless, based on what each
-format's own fields can represent:
+The renderer checks the target format before molecule saves and explicit MOL /
+SMILES exports. If a known loss is detected, it explains the affected fields
+and asks the user to continue. Known cases where a round-trip through this
+app's own supported formats is *not* lossless are:
 
 - **CDXML → (any writable format) → re-save as CDXML**: impossible outright
   (no CDXML writer), so this isn't silent data loss so much as a forced
@@ -60,10 +60,11 @@ format's own fields can represent:
   field, not something this bridge's `chem_to_dto`/`dto_to_chem` can fix.
   Pinned as skipped regression tests in `wasmContract.test.ts`.
 
-None of these are implemented as an automated pre-save warning today — this
-table exists so the actual, current gaps are written down and discoverable,
-rather than only knowable by reading the WASM bridge source. Building a real
-"this export will lose X" check is future work, not attempted here.
+CDXML remains a hard stop rather than a confirmation: the format is read-only
+and the user must choose another extension. 3D-coordinate loss is not inferred
+from `MoleculeDto`, because the current document model does not retain a 3D
+conformer after the viewer operation; this remains an explicit future model
+item rather than an invented warning.
 
 ## See Also
 

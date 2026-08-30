@@ -150,6 +150,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Promoted the release candidate after real WASM contract, performance,
   renderer E2E, Electron smoke, and packaged-build validation.
 
+## [0.3.0] - 2026-08-31
+
+### Added
+- Loss-aware molecule saving and export: wildcard and isotope loss is
+  explained before affected formats are written.
+- Format-aware saving for SMILES, SDF, CML, and MOL V2000 paths.
+
+### Fixed
+- Saving an opened `.smi`, `.sdf`, or `.cml` file no longer writes MOL data
+  under the wrong extension.
+- Opened CDXML documents are now explicitly treated as read-only instead of
+  silently overwriting them with MOL content.
+
 ---
 
 ## [0.2.2-rc.1] - 2026-08-28 (pre-release)

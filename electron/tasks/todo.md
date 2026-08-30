@@ -48,6 +48,13 @@
 - [x] 実WASM契約・性能、Rust fmt/clippy/test、Jest、Renderer E2E、Electron smoke、macOSパッケージを検証
 - [x] v0.2.2タグを作成。GitHub Releaseと各OS配布物はタグpush後のCIが生成
 
+## v0.3.0 リリース完了（2026-08-31）
+
+- [x] 保存先拡張子に応じたSMILES/SDF/CML/MOL出力
+- [x] wildcard/isotopeの既知の情報損失を保存・エクスポート前に説明
+- [x] CDXML上書きを拒否し、別形式へのSave Asを案内
+- [x] loss analysisのユニットテストと既存回帰テストを検証
+
 ## 2026-08-29〜08-30 信頼性向上ラウンド（`/greenlane` 自律作業、詳細は ROADMAP.md）
 
 一見動いているように見えて実際には機能していなかった不具合を、複数の切り口（IPC配線の突き合わせ・設定永続化の正しさ・lint警告の精読・undo網羅性・実機操作）から発見・修正:

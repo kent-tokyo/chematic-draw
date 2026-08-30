@@ -11,10 +11,33 @@ import { useUIStore } from './renderer/store/uiStore';
 import * as batchLib from './renderer/lib/batch';
 import { useMoleculeStore } from './renderer/store/moleculeStore';
 import { useCanvasStore } from './renderer/store/canvasStore';
-import { Tool } from './renderer/store/types';
+import { MoleculeDto, Tool } from './renderer/store/types';
 import * as wasmBridge from './renderer/wasm/wasmBridge';
 import { svgToPngBase64 } from './renderer/lib/svgToPng';
 import * as clipboard from './renderer/lib/clipboard';
+import { exportLossMessage, exportLosses, formatForFilePath, MoleculeExportFormat } from './renderer/lib/exportLoss';
+
+function serializeMoleculeForPath(molecule: MoleculeDto, filePath: string): string {
+  switch (formatForFilePath(filePath)) {
+    case 'smiles':
+      return wasmBridge.toCanonicalSmiles(molecule);
+    case 'sdf':
+      return wasmBridge.toSdf(molecule);
+    case 'cml':
+      return wasmBridge.toCml(molecule);
+    case 'mol-v2000':
+      return wasmBridge.toMolV2000(molecule);
+    case 'cdxml':
+      throw new Error('CDXML is read-only; choose a different file extension.');
+  }
+}
+
+function confirmLossAwareExport(molecule: MoleculeDto, filePath: string): boolean {
+  const format: MoleculeExportFormat = formatForFilePath(filePath);
+  const losses = exportLosses(molecule, format);
+  if (losses.some((loss) => loss.code === 'unsupported-format')) return false;
+  return losses.length === 0 || window.confirm(exportLossMessage(filePath, losses));
+}
 
 function App() {
   const [wasmStatus, setWasmStatus] = useState<wasmBridge.WasmStatus>('idle');
@@ -183,7 +206,16 @@ function App() {
 
       api.onMenuSave(async () => {
         if (filePath) {
-          const content = wasmBridge.toMolV2000(molecule);
+          const format = formatForFilePath(filePath);
+          if (format === 'cdxml') {
+            setStatus('CDXML is read-only. Use Save As and choose MOL, SDF, CML, or SMILES.');
+            return;
+          }
+          if (!confirmLossAwareExport(molecule, filePath)) {
+            if (exportLosses(molecule, format).length > 0) setStatus('Save cancelled');
+            return;
+          }
+          const content = serializeMoleculeForPath(molecule, filePath);
           const result = await api.fileWrite(filePath, content);
           if (result.success) {
             setStatus('Saved');
@@ -198,7 +230,12 @@ function App() {
       api.onMenuSaveAs(async () => {
         const result = await api.fileSaveDialog('untitled.mol');
         if (!result.canceled && result.filePath) {
-          const content = wasmBridge.toMolV2000(molecule);
+          if (!confirmLossAwareExport(molecule, result.filePath)) {
+            const format = formatForFilePath(result.filePath);
+            setStatus(format === 'cdxml' ? 'CDXML is read-only. Choose a different format.' : 'Save cancelled');
+            return;
+          }
+          const content = serializeMoleculeForPath(molecule, result.filePath);
           const writeResult = await api.fileWrite(result.filePath, content);
           if (writeResult.success) {
             setFilePath(result.filePath);
@@ -261,6 +298,10 @@ function App() {
       api.onMenuExportMol(async () => {
         const result = await api.fileSaveDialog('untitled.mol');
         if (!result.canceled && result.filePath) {
+          if (!confirmLossAwareExport(molecule, result.filePath)) {
+            setStatus('Export cancelled');
+            return;
+          }
           const content = wasmBridge.toMolV2000(molecule);
           const writeResult = await api.fileWrite(result.filePath, content);
           if (writeResult.success) {
@@ -274,6 +315,10 @@ function App() {
       api.onMenuExportSmiles(async () => {
         const result = await api.fileSaveDialog('untitled.smi');
         if (!result.canceled && result.filePath) {
+          if (!confirmLossAwareExport(molecule, result.filePath)) {
+            setStatus('Export cancelled');
+            return;
+          }
           const content = wasmBridge.toCanonicalSmiles(molecule);
           const writeResult = await api.fileWrite(result.filePath, content);
           if (writeResult.success) {
