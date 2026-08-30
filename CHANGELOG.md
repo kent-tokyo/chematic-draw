@@ -163,6 +163,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Opened CDXML documents are now explicitly treated as read-only instead of
   silently overwriting them with MOL content.
 
+## [0.4.0] - 2026-08-31
+
+### Added
+- Reaction verification for authored schemes: explicit atom-balance
+  diagnostics, map-number consistency checks, and a visible verified/not
+  verified state.
+- Reaction diagnostics are recalculated whenever a step is edited, so the UI
+  cannot retain stale validation results.
+
+### Safety
+- Diagnostics report only authored atoms and mappings. They never invent a
+  product or silently repair an inconsistent reaction.
+
 ---
 
 ## [0.2.2-rc.1] - 2026-08-28 (pre-release)

@@ -36,6 +36,7 @@ export function ReactionPanel() {
   const atomMappings = useReactionSchemeStore((s) => s.atomMappings);
   const reactionClassification = useReactionSchemeStore((s) => s.reactionClassification);
   const greenMetrics = useReactionSchemeStore((s) => s.greenMetrics);
+  const reactionDiagnostics = useReactionSchemeStore((s) => s.reactionDiagnostics);
   const atomLabelsVisible = useReactionSchemeStore((s) => s.atomLabelsVisible);
   const mappingLinesVisible = useReactionSchemeStore((s) => s.mappingLinesVisible);
   const toggleAtomLabels = useReactionSchemeStore((s) => s.toggleAtomLabels);
@@ -434,6 +435,36 @@ export function ReactionPanel() {
           {reactionClassification.indicators.map((ind, i) => (
             <div key={i} style={{ fontSize: '9px', color: labelColor }}>• {ind}</div>
           ))}
+        </div>
+      )}
+
+      {reactionDiagnostics && scheme && scheme.steps.length > 0 && (
+        <div
+          role="status"
+          aria-label="Reaction verification"
+          style={{
+            padding: '12px',
+            backgroundColor: reactionDiagnostics.status === 'verified'
+              ? (isDark ? '#1a3a2a' : '#e8f5e9')
+              : (isDark ? '#3a2d1a' : '#fff8e1'),
+            border: `1px solid ${reactionDiagnostics.status === 'verified' ? (isDark ? '#2a5a4a' : '#81c784') : (isDark ? '#6a4d22' : '#ffcc80')}`,
+            borderRadius: '6px',
+            marginBottom: '12px',
+          }}
+        >
+          <div style={{ fontSize: '12px', fontWeight: 'bold', color: textColor, marginBottom: '6px' }}>
+            Reaction Verification: {reactionDiagnostics.status === 'verified' ? 'VERIFIED' : 'NOT VERIFIED'}
+          </div>
+          {reactionDiagnostics.issues.map((issue, index) => (
+            <div key={index} style={{ fontSize: '10px', color: reactionDiagnostics.status === 'verified' ? '#4caf50' : '#d88900', marginTop: '3px' }}>
+              {reactionDiagnostics.status === 'verified' ? '✓' : '⚠'} {issue}
+            </div>
+          ))}
+          {reactionDiagnostics.mapping.unmatchedMapNumbers.length > 0 && (
+            <div style={{ fontSize: '10px', color: '#d88900', marginTop: '5px' }}>
+              Unmatched map numbers: {reactionDiagnostics.mapping.unmatchedMapNumbers.join(', ')}
+            </div>
+          )}
         </div>
       )}
 

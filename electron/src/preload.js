@@ -3,6 +3,22 @@ import { contextBridge, ipcRenderer } from 'electron';
 // Expose controlled IPC methods to renderer process
 contextBridge.exposeInMainWorld('electronAPI', {
   // Menu events (main → renderer)
+  // renderer.tsx re-registers these handlers when its stateful closures
+  // change. Clear the previous subscriptions first so stale molecule
+  // snapshots cannot race the current handler (notably on menu:copy).
+  clearMenuListeners: () => {
+    [
+      'menu:new', 'menu:open-file', 'menu:save', 'menu:save-as',
+      'menu:export-svg', 'menu:export-png', 'menu:export-pdf',
+      'menu:export-mol', 'menu:export-smiles', 'menu:select-all',
+      'menu:undo', 'menu:redo', 'menu:copy', 'menu:paste',
+      'menu:zoom-in', 'menu:zoom-out', 'menu:zoom-reset',
+      'menu:toggle-sidebar', 'menu:toggle-theme', 'menu:shortcuts',
+      'menu:undo-timeline', 'menu:batch-process', 'menu:tool-stereoisomers',
+      'menu:tool-lipinski', 'menu:tool-properties', 'menu:tool-mechanism',
+      'menu:tool-database',
+    ].forEach((channel) => ipcRenderer.removeAllListeners(channel));
+  },
   onMenuNew: (callback) => ipcRenderer.on('menu:new', callback),
   onMenuOpenFile: (callback) => ipcRenderer.on('menu:open-file', (event, data) => callback(data)),
   onMenuSave: (callback) => ipcRenderer.on('menu:save', callback),

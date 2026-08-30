@@ -8,6 +8,128 @@ export interface ValidationResult {
   issues: string[];
 }
 
+export interface ReactionDiagnostics {
+  status: 'verified' | 'not_verified';
+  issues: string[];
+  atomBalance: {
+    balanced: boolean;
+    differences: string[];
+  };
+  mapping: {
+    complete: boolean;
+    duplicateMapNumbers: number[];
+    unmatchedMapNumbers: number[];
+  };
+}
+
+function atomBalanceForStep(step: MechanismStep): { balanced: boolean; differences: string[] } {
+  const countAtoms = (molecules: MoleculeDto[]) => {
+    const counts = new Map<string, number>();
+    for (const molecule of molecules) {
+      for (const atom of molecule.atoms) {
+        const key = atom.element;
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+      }
+    }
+    return counts;
+  };
+  const reactants = countAtoms(step.reactants);
+  const products = countAtoms(step.products);
+  const elements = new Set([...reactants.keys(), ...products.keys()]);
+  const differences = [...elements].sort().flatMap((element) => {
+    const delta = (reactants.get(element) ?? 0) - (products.get(element) ?? 0);
+    return delta === 0 ? [] : [`${element}: ${delta > 0 ? `${delta} extra on reactants` : `${Math.abs(delta)} missing from reactants`}`];
+  });
+  return { balanced: differences.length === 0, differences };
+}
+
+function mappingForStep(step: MechanismStep): ReactionDiagnostics['mapping'] {
+  const reactantMaps = new Map<number, string>();
+  const productMaps = new Map<number, string>();
+  const duplicateMapNumbers = new Set<number>();
+
+  const collect = (molecules: MoleculeDto[], target: Map<number, string>) => {
+    for (const molecule of molecules) {
+      for (const atom of molecule.atoms) {
+        if (!atom.atom_map || atom.atom_map <= 0) continue;
+        if (target.has(atom.atom_map)) duplicateMapNumbers.add(atom.atom_map);
+        target.set(atom.atom_map, atom.element);
+      }
+    }
+  };
+  collect(step.reactants, reactantMaps);
+  collect(step.products, productMaps);
+
+  const unmatched = new Set<number>();
+  for (const mapNumber of new Set([...reactantMaps.keys(), ...productMaps.keys()])) {
+    if (!reactantMaps.has(mapNumber) || !productMaps.has(mapNumber) || reactantMaps.get(mapNumber) !== productMaps.get(mapNumber)) {
+      unmatched.add(mapNumber);
+    }
+  }
+  return {
+    complete: duplicateMapNumbers.size === 0 && unmatched.size === 0,
+    duplicateMapNumbers: [...duplicateMapNumbers].sort((a, b) => a - b),
+    unmatchedMapNumbers: [...unmatched].sort((a, b) => a - b),
+  };
+}
+
+/**
+ * Diagnose only facts present in the authored reaction document. This does
+ * not infer products, repair maps, or classify a reaction mechanism.
+ */
+export function diagnoseReactionScheme(scheme: ReactionSchemeContext): ReactionDiagnostics {
+  if (!scheme || scheme.steps.length === 0) {
+    return {
+      status: 'not_verified',
+      issues: ['No reaction steps are available for verification.'],
+      atomBalance: { balanced: false, differences: [] },
+      mapping: { complete: false, duplicateMapNumbers: [], unmatchedMapNumbers: [] },
+    };
+  }
+
+  const issues: string[] = [];
+  const allDifferences: string[] = [];
+  let allBalanced = true;
+  let allMapped = true;
+  const duplicateMapNumbers = new Set<number>();
+  const unmatchedMapNumbers = new Set<number>();
+
+  scheme.steps.forEach((step, index) => {
+    if (step.reactants.length === 0 || step.products.length === 0) {
+      allBalanced = false;
+      allMapped = false;
+      issues.push(`Step ${index + 1}: atom balance is not verified.`);
+      issues.push(`Step ${index + 1}: reactants and products are required for mapping verification.`);
+      return;
+    }
+    const balance = atomBalanceForStep(step);
+    if (!balance.balanced) {
+      allBalanced = false;
+      balance.differences.forEach((difference) => allDifferences.push(`Step ${index + 1}: ${difference}`));
+      issues.push(`Step ${index + 1}: atom balance is not verified.`);
+    }
+    const mapping = mappingForStep(step);
+    if (!mapping.complete) {
+      allMapped = false;
+      mapping.duplicateMapNumbers.forEach((number) => duplicateMapNumbers.add(number));
+      mapping.unmatchedMapNumbers.forEach((number) => unmatchedMapNumbers.add(number));
+      issues.push(`Step ${index + 1}: atom mapping is incomplete or inconsistent.`);
+    }
+  });
+
+  if (allMapped && allBalanced) issues.push('Atom balance and mapping verified from authored atoms.');
+  return {
+    status: allMapped && allBalanced ? 'verified' : 'not_verified',
+    issues,
+    atomBalance: { balanced: allBalanced, differences: allDifferences },
+    mapping: {
+      complete: allMapped,
+      duplicateMapNumbers: [...duplicateMapNumbers].sort((a, b) => a - b),
+      unmatchedMapNumbers: [...unmatchedMapNumbers].sort((a, b) => a - b),
+    },
+  };
+}
+
 /**
  * Check if two molecules are equivalent (simplified comparison)
  * Compares SMILES or atom count as proxy for equality

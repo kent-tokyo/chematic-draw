@@ -4,6 +4,7 @@ import { SchemeLayout } from '../lib/schemeLayout';
 import { calculateSchemeLayout } from '../lib/schemeLayout';
 import { AtomMapping, ReactionClassification, GreenChemistryMetrics } from './types';
 import { mapAtomsAcrossSteps, classifyReaction, calculateGreenChemistryMetrics } from '../lib/atomMapping';
+import { diagnoseReactionScheme, ReactionDiagnostics } from '../lib/reactionSchemeUtils';
 
 interface ReactionSchemeStore {
   // State
@@ -14,6 +15,7 @@ interface ReactionSchemeStore {
   atomMappings: AtomMapping | null;
   reactionClassification: ReactionClassification | null;
   greenMetrics: GreenChemistryMetrics | null;
+  reactionDiagnostics: ReactionDiagnostics | null;
   atomLabelsVisible: boolean;
   mappingLinesVisible: boolean;
 
@@ -62,6 +64,7 @@ export const useReactionSchemeStore = create<ReactionSchemeStore>((set, get) => 
   atomMappings: null,
   reactionClassification: null,
   greenMetrics: null,
+  reactionDiagnostics: null,
   atomLabelsVisible: true,
   mappingLinesVisible: true,
 
@@ -148,6 +151,7 @@ export const useReactionSchemeStore = create<ReactionSchemeStore>((set, get) => 
         atomMappings: null,
         reactionClassification: null,
         greenMetrics: null,
+        reactionDiagnostics: null,
       };
     });
   },
@@ -160,7 +164,16 @@ export const useReactionSchemeStore = create<ReactionSchemeStore>((set, get) => 
   },
 
   clearScheme: () => {
-    set({ scheme: null });
+    set({
+      scheme: null,
+      schemeLayout: null,
+      selectedStepIndex: null,
+      hoveredStepIndex: null,
+      atomMappings: null,
+      reactionClassification: null,
+      greenMetrics: null,
+      reactionDiagnostics: null,
+    });
   },
 
   // Step management
@@ -177,6 +190,7 @@ export const useReactionSchemeStore = create<ReactionSchemeStore>((set, get) => 
       const mappings = mapAtomsAcrossSteps(newScheme);
       const classification = classifyReaction(newScheme);
       const metrics = calculateGreenChemistryMetrics(newScheme);
+      const diagnostics = diagnoseReactionScheme(newScheme);
 
       return {
         scheme: newScheme,
@@ -184,6 +198,7 @@ export const useReactionSchemeStore = create<ReactionSchemeStore>((set, get) => 
         atomMappings: mappings,
         reactionClassification: classification,
         greenMetrics: metrics,
+        reactionDiagnostics: diagnostics,
       };
     });
   },
@@ -210,6 +225,7 @@ export const useReactionSchemeStore = create<ReactionSchemeStore>((set, get) => 
       const mappings = mapAtomsAcrossSteps(newScheme);
       const classification = classifyReaction(newScheme);
       const metrics = calculateGreenChemistryMetrics(newScheme);
+      const diagnostics = diagnoseReactionScheme(newScheme);
 
       return {
         scheme: newScheme,
@@ -218,6 +234,7 @@ export const useReactionSchemeStore = create<ReactionSchemeStore>((set, get) => 
         atomMappings: mappings,
         reactionClassification: classification,
         greenMetrics: metrics,
+        reactionDiagnostics: diagnostics,
       };
     });
   },
@@ -225,13 +242,19 @@ export const useReactionSchemeStore = create<ReactionSchemeStore>((set, get) => 
   updateStep: (stepId: string, updates: Partial<MechanismStep>) => {
     set((state) => {
       if (!state.scheme) return state;
+      const newScheme = {
+        ...state.scheme,
+        steps: state.scheme.steps.map((step) =>
+          step.id === stepId ? { ...step, ...updates } : step
+        ),
+      };
       return {
-        scheme: {
-          ...state.scheme,
-          steps: state.scheme.steps.map((step) =>
-            step.id === stepId ? { ...step, ...updates } : step
-          ),
-        },
+        scheme: newScheme,
+        schemeLayout: calculateSchemeLayout(newScheme),
+        atomMappings: mapAtomsAcrossSteps(newScheme),
+        reactionClassification: classifyReaction(newScheme),
+        greenMetrics: calculateGreenChemistryMetrics(newScheme),
+        reactionDiagnostics: diagnoseReactionScheme(newScheme),
       };
     });
   },
@@ -248,12 +271,18 @@ export const useReactionSchemeStore = create<ReactionSchemeStore>((set, get) => 
     set((state) => {
       if (!state.scheme) return state;
       const reorderedSteps = indices.map((i) => state.scheme!.steps[i]);
+      const newScheme = {
+        ...state.scheme,
+        steps: reorderedSteps,
+        currentStepIndex: 0,
+      };
       return {
-        scheme: {
-          ...state.scheme,
-          steps: reorderedSteps,
-          currentStepIndex: 0,
-        },
+        scheme: newScheme,
+        schemeLayout: calculateSchemeLayout(newScheme),
+        atomMappings: mapAtomsAcrossSteps(newScheme),
+        reactionClassification: classifyReaction(newScheme),
+        greenMetrics: calculateGreenChemistryMetrics(newScheme),
+        reactionDiagnostics: diagnoseReactionScheme(newScheme),
       };
     });
   },
@@ -296,17 +325,20 @@ export const useReactionSchemeStore = create<ReactionSchemeStore>((set, get) => 
           atomMappings: null,
           reactionClassification: null,
           greenMetrics: null,
+          reactionDiagnostics: null,
         };
       }
 
       const mappings = mapAtomsAcrossSteps(state.scheme);
       const classification = classifyReaction(state.scheme);
       const metrics = calculateGreenChemistryMetrics(state.scheme);
+      const diagnostics = diagnoseReactionScheme(state.scheme);
 
       return {
         atomMappings: mappings,
         reactionClassification: classification,
         greenMetrics: metrics,
+        reactionDiagnostics: diagnostics,
       };
     });
   },

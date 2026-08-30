@@ -184,6 +184,7 @@ function App() {
   useEffect(() => {
     if (typeof window !== 'undefined' && (window as any).electronAPI) {
       const api = (window as any).electronAPI;
+      api.clearMenuListeners?.();
 
       api.onMenuNew(() => {
         clear();
