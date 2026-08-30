@@ -144,6 +144,82 @@ test.describe('Electron Smoke', () => {
     await electronApp.close();
   });
 
+  test('electronAPI.pasteFromClipboard() resolves instead of hanging forever', async () => {
+    // Found while investigating an unrelated menu issue (Edit > Copy/Paste
+    // being wired to Electron's built-in role, not real app logic) —
+    // main.js's clipboard:read IPC handler did `const text =
+    // clipboard.readText(); return { success: true, content: text };`
+    // without awaiting. On this Electron build, clipboard.readText()
+    // itself returns a genuine Promise (confirmed empirically — logged
+    // its constructor.name as 'Promise'), not the plain string its docs
+    // describe. Embedding that live, unresolved Promise directly in this
+    // handler's IPC response fails Electron's structured-clone
+    // serialization ("Error occurred in handler for 'clipboard:read':
+    // Error: An object could not be cloned", confirmed via the main
+    // process's own stderr) — and that failure happens *after* the
+    // handler already returned, so nothing in this file's own try/catch
+    // ever saw it. The renderer's ipcRenderer.invoke('clipboard:read')
+    // call — and therefore electronAPI.pasteFromClipboard(), and
+    // therefore useKeyboard.ts's own Ctrl+V handler, completely
+    // independent of any menu — just hung forever with no error and no
+    // resolution. Paste-from-the-real-OS-clipboard never worked in the
+    // packaged app, via keyboard or menu, before this fix.
+    const electronApp = await electron.launch({
+      args: [path.resolve(__dirname, '..', '..')],
+    });
+    const window = await electronApp.firstWindow();
+    await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
+      timeout: 15000,
+    });
+
+    await electronApp.evaluate(({ clipboard }) => clipboard.writeText('CCO'));
+    const result = await window.evaluate(() => (window as any).electronAPI.pasteFromClipboard());
+
+    expect(result).toEqual({ success: true, content: 'CCO' });
+
+    await electronApp.close();
+  });
+
+  test('Edit > Copy/Paste menu items actually copy/paste the molecule', async () => {
+    // Same bug class and same fix as the Undo/Redo menu test above:
+    // role: 'copy'/'paste' invoke webContents.copy()/paste() (real
+    // Chromium execCommands), confirmed empirically (via
+    // electronApp.evaluate calling them directly, with a sentinel value
+    // pre-seeded on the OS clipboard) to be complete no-ops when the
+    // canvas — not a text field — has focus: Edit > Copy never put the
+    // molecule's SMILES on the clipboard, and Edit > Paste never parsed
+    // clipboard content into the molecule. Fixed the same way, with the
+    // same no-accelerator reasoning (Cmd+C/Cmd+V are unaffected, already
+    // covered by useKeyboard.ts's own listener).
+    const electronApp = await electron.launch({
+      args: [path.resolve(__dirname, '..', '..')],
+    });
+    const window = await electronApp.firstWindow();
+    await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
+      timeout: 15000,
+    });
+    const canvas = window.getByTestId('molecule-canvas');
+    await expect(canvas).toHaveAttribute('aria-label', /6 atoms, 6 bonds/);
+
+    await electronApp.evaluate(({ clipboard }) => clipboard.writeText('SENTINEL'));
+    await electronApp.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0].webContents.send('menu:copy');
+    });
+    await expect
+      .poll(() => electronApp.evaluate(({ clipboard }) => clipboard.readText()))
+      .not.toBe('SENTINEL');
+    const copied = await electronApp.evaluate(({ clipboard }) => clipboard.readText());
+    expect(copied.toLowerCase()).toContain('c1ccccc1');
+
+    await electronApp.evaluate(({ clipboard }) => clipboard.writeText('CCO'));
+    await electronApp.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0].webContents.send('menu:paste');
+    });
+    await expect(canvas).toHaveAttribute('aria-label', /3 atoms, 2 bonds/);
+
+    await electronApp.close();
+  });
+
   test('opening a file records it in Recent Files — persisted AND in the live menu', async () => {
     // Regression test: main.js has a full Recent Files implementation —
     // recent-file:add IPC handler, menu rebuild, click-to-reopen, Clear

@@ -15,6 +15,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onMenuSelectAll: (callback) => ipcRenderer.on('menu:select-all', callback),
   onMenuUndo: (callback) => ipcRenderer.on('menu:undo', callback),
   onMenuRedo: (callback) => ipcRenderer.on('menu:redo', callback),
+  onMenuCopy: (callback) => ipcRenderer.on('menu:copy', callback),
+  onMenuPaste: (callback) => ipcRenderer.on('menu:paste', callback),
   onMenuZoomIn: (callback) => ipcRenderer.on('menu:zoom-in', callback),
   onMenuZoomOut: (callback) => ipcRenderer.on('menu:zoom-out', callback),
   onMenuZoomReset: (callback) => ipcRenderer.on('menu:zoom-reset', callback),

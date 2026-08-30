@@ -229,9 +229,30 @@ const createMenu = (recentFiles = loadSettings().recentFiles) => {
           click: () => mainWindow.webContents.send('menu:undo-timeline'),
         },
         { type: 'separator' },
+        // role: 'cut' left as-is — no app-level Cut feature exists for it
+        // to shadow (useKeyboard.ts has no Ctrl+X handler), unlike Copy/
+        // Paste below.
         { role: 'cut', accelerator: isMac ? 'Cmd+X' : 'Ctrl+X' },
-        { role: 'copy', accelerator: isMac ? 'Cmd+C' : 'Ctrl+C' },
-        { role: 'paste', accelerator: isMac ? 'Cmd+V' : 'Ctrl+V' },
+        // Same fix as Undo/Redo above, same reason: role: 'copy'/'paste'
+        // invoke webContents.copy()/paste() (real Chromium execCommands),
+        // confirmed empirically to be complete no-ops when the canvas
+        // (not a text field) has focus — clicking Edit > Copy never put
+        // the molecule's SMILES on the clipboard, and Edit > Paste never
+        // parsed clipboard content into the molecule, silently doing
+        // nothing instead of routing to useKeyboard.ts's real
+        // clipboard.copyMoleculeSmiles()/pasteFromClipboard() logic
+        // (`click` is ignored outright whenever `role` is set). No
+        // accelerator, for the same reason as Undo/Redo: Cmd+C/Cmd+V stay
+        // exactly as they already work today, entirely via
+        // useKeyboard.ts's own keydown listener.
+        {
+          label: 'Copy',
+          click: () => mainWindow.webContents.send('menu:copy'),
+        },
+        {
+          label: 'Paste',
+          click: () => mainWindow.webContents.send('menu:paste'),
+        },
         { type: 'separator' },
         {
           label: 'Select All',
@@ -406,7 +427,12 @@ ipcMain.handle('export:pdf', async (event, filePath, svgText) => {
 // IPC Handlers for Clipboard
 ipcMain.handle('clipboard:write', async (event, format, content) => {
   try {
-    clipboard.writeText(content);
+    // Awaited, not fire-and-forget: on this Electron build,
+    // clipboard.readText() below was found to actually return a Promise
+    // (not the plain string its docs describe), not just for read — an
+    // un-awaited async clipboard call here would let this handler return
+    // {success: true} before the write is confirmed to have landed.
+    await clipboard.writeText(content);
     return { success: true };
   } catch (err) {
     return { success: false, error: err.message };
@@ -415,7 +441,19 @@ ipcMain.handle('clipboard:write', async (event, format, content) => {
 
 ipcMain.handle('clipboard:read', async (_event) => {
   try {
-    const text = clipboard.readText();
+    // Must be awaited: clipboard.readText() returns a genuine Promise on
+    // this platform/Electron build, not the plain string its docs
+    // describe (confirmed empirically — logged its constructor.name as
+    // 'Promise'). An un-awaited `text` here embeds that live Promise
+    // object directly in this handler's IPC response, which Electron's
+    // structured-clone serialization cannot handle ("An object could not
+    // be cloned") — that throw happens *after* this handler already
+    // returned, so it never reaches the try/catch here; the renderer's
+    // ipcRenderer.invoke('clipboard:read') call just hangs forever with
+    // no error and no resolution. Paste-from-clipboard never worked in
+    // the packaged app as a result — found while investigating an
+    // unrelated menu issue (Edit > Copy/Paste), not by looking for this.
+    const text = await clipboard.readText();
     return { success: true, content: text };
   } catch (err) {
     return { success: false, error: err.message };

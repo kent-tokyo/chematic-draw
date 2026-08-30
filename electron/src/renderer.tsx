@@ -14,6 +14,7 @@ import { useCanvasStore } from './renderer/store/canvasStore';
 import { Tool } from './renderer/store/types';
 import * as wasmBridge from './renderer/wasm/wasmBridge';
 import { svgToPngBase64 } from './renderer/lib/svgToPng';
+import * as clipboard from './renderer/lib/clipboard';
 
 function App() {
   const [wasmStatus, setWasmStatus] = useState<wasmBridge.WasmStatus>('idle');
@@ -34,6 +35,7 @@ function App() {
   const selectAll = useMoleculeStore((s) => s.selectAll);
   const undo = useMoleculeStore((s) => s.undo);
   const redo = useMoleculeStore((s) => s.redo);
+  const pushUndo = useMoleculeStore((s) => s.pushUndo);
   const statusMessage = useUIStore((s) => s.statusMessage);
   const setStatus = useUIStore((s) => s.setStatus);
   const showModal = useUIStore((s) => s.showModal);
@@ -322,6 +324,33 @@ function App() {
         }
       });
 
+      // Same fix, same reason, as Undo/Redo above — role: 'copy'/'paste'
+      // in main.js were confirmed empirically to be no-ops on this app
+      // (webContents.copy()/paste() never touched the molecule or its
+      // SMILES on the clipboard), now custom items with no accelerator.
+      // Cmd+C/Cmd+V are unaffected, still handled entirely by
+      // useKeyboard.ts's own keydown listener; this mirrors that same
+      // clipboard.ts logic for the menu *click* path.
+      api.onMenuCopy?.(() => {
+        if ((document.activeElement as HTMLElement | null)?.tagName !== 'INPUT') {
+          clipboard.copyMoleculeSmiles(molecule)
+            .then(() => setStatus('Copied SMILES'))
+            .catch(() => setStatus('Copy failed'));
+        }
+      });
+      api.onMenuPaste?.(() => {
+        if ((document.activeElement as HTMLElement | null)?.tagName !== 'INPUT') {
+          clipboard.pasteFromClipboard()
+            .then((content) => {
+              const mol = wasmBridge.parseMolecule(content);
+              pushUndo();
+              setMolecule(mol);
+              setStatus('Pasted structure');
+            })
+            .catch(() => setStatus('Paste failed: invalid format'));
+        }
+      });
+
       // Phase 6-10 Tools menu handlers
       api.onMenuToolStereoisomers?.(() => {
         useUIStore.getState().setActiveSidebarPanel('stereoisomers');
@@ -348,7 +377,7 @@ function App() {
         // Cleanup: no need to unsubscribe from ipcRenderer in this version
       };
     }
-  }, [molecule, filePath, theme, zoom, sidebarOpen, selectAll, undo, redo]);
+  }, [molecule, filePath, theme, zoom, sidebarOpen, selectAll, undo, redo, pushUndo]);
 
   // Keyboard shortcuts for Phase 3-5
   useEffect(() => {
