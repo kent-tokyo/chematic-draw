@@ -42,6 +42,12 @@
 - [x] リリースごとのチェックサム（SHA256SUMS）、SECURITY.md
 - [x] 多言語 README（5言語）※その後 Electron 一本化に伴い README.md/README_ja.md はElectron版の説明に統合
 
+## v0.2.2 リリース完了（2026-08-31）
+
+- [x] rc.1後の信頼性修正を変更履歴へ反映し、Electron/WASM/Cargoのバージョンを同期
+- [x] 実WASM契約・性能、Rust fmt/clippy/test、Jest、Renderer E2E、Electron smoke、macOSパッケージを検証
+- [x] v0.2.2タグを作成。GitHub Releaseと各OS配布物はタグpush後のCIが生成
+
 ## 2026-08-29〜08-30 信頼性向上ラウンド（`/greenlane` 自律作業、詳細は ROADMAP.md）
 
 一見動いているように見えて実際には機能していなかった不具合を、複数の切り口（IPC配線の突き合わせ・設定永続化の正しさ・lint警告の精読・undo網羅性・実機操作）から発見・修正:

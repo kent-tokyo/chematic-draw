@@ -109,7 +109,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [0.2.2] - 2026-08-31
 
 ### Removed
 - The native Rust/egui desktop build (`crates/chem-ui`, `crates/chem-io`,
@@ -145,6 +145,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sample, file open, crash-recovery restore) instead of rendering at its
   raw parsed coordinates, which for the default sample landed near the
   canvas's top-left corner.
+
+### Release quality
+- Promoted the release candidate after real WASM contract, performance,
+  renderer E2E, Electron smoke, and packaged-build validation.
 
 ---
 
