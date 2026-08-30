@@ -46,6 +46,38 @@ const COLORS = {
   },
 };
 
+// CPK-inspired per-element fill colors, covering ElementPicker.tsx's
+// COMMON_ELEMENTS list. Every unselected atom used to render as a plain
+// white circle regardless of element — only the text label distinguished
+// C from O from N, which hurts quick visual scanning of a larger
+// structure, the way real CPK coloring is meant to help with. Kept to a
+// single theme-independent map (real CPK convention doesn't change with
+// light/dark mode either) and to light/medium tones so the existing black
+// `atomLabel` text stays legible on all of them without a separate
+// per-element text-contrast calculation.
+const ELEMENT_COLORS: Record<string, string> = {
+  H: '#f5f5f5',
+  C: '#d8d8d8',
+  N: '#8ab4f8',
+  O: '#f28b82',
+  F: '#a5d6a7',
+  P: '#ffab40',
+  S: '#ffd54f',
+  Cl: '#66bb6a',
+  Br: '#c68958',
+  I: '#ba68c8',
+  B: '#ffccbc',
+  Si: '#d7ccc8',
+  Se: '#ffb74d',
+  Li: '#ce93d8',
+  Na: '#ce93d8',
+  K: '#ce93d8',
+  Ca: '#a5d6a7',
+  Fe: '#ff8a65',
+  Cu: '#ffb289',
+  Zn: '#b0bec5',
+};
+
 const STEP_BOX_PADDING = 10;
 const STEP_BOX_BORDER_WIDTH = 2;
 const STEP_BOX_SELECTED_BORDER_WIDTH = 3;
@@ -288,7 +320,7 @@ export class CanvasRenderer {
     const radius = ATOM_RADIUS * (options.selected ? 1.5 : 1);
 
     // Draw atom circle
-    this.ctx.fillStyle = options.selected ? colors.selected : colors.atom;
+    this.ctx.fillStyle = options.selected ? colors.selected : (ELEMENT_COLORS[atom.element] ?? colors.atom);
     this.ctx.beginPath();
     this.ctx.arc(x, y, radius, 0, Math.PI * 2);
     this.ctx.fill();
