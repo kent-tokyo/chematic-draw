@@ -94,7 +94,12 @@ export function MoleculeCanvas() {
       ? 'Molecular structure canvas, empty'
       : `Molecular structure: ${formulaSummary}${atomCount} atom${atomCount === 1 ? '' : 's'}, ${bondCount} bond${bondCount === 1 ? '' : 's'}`;
 
-  // Handle canvas resize
+  // Handle canvas resize. A ResizeObserver on the canvas's own parent (not
+  // window's 'resize' event) catches every layout-driven size change, not
+  // just whole-window resizes — the sidebar opening/closing changes the
+  // canvas's flex-allocated width without the window itself resizing, which
+  // a window-level listener would silently miss, leaving the canvas at its
+  // old (now wrong) pixel size and its content visually stretched.
   useEffect(() => {
     const handleResize = () => {
       if (canvasRef.current) {
@@ -108,8 +113,11 @@ export function MoleculeCanvas() {
     };
 
     handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    const parent = canvasRef.current?.parentElement;
+    if (!parent) return;
+    const observer = new ResizeObserver(handleResize);
+    observer.observe(parent);
+    return () => observer.disconnect();
   }, []);
 
   // Recalculate layout when scheme or canvas size changes
@@ -175,7 +183,7 @@ export function MoleculeCanvas() {
         hoverArrowId,
       });
     }
-  }, [displayMolecule, molecule, theme, hoverAtomId, hoverBondId, selectedAtomIds, selectedBondIds, bondDragPos, bondDragFrom, activeSidebarPanel, mechanismArrows, selectedArrowId, hoverArrowId, scheme, schemeLayout, selectedStepIndex, hoveredStepIndex]);
+  }, [displayMolecule, molecule, theme, hoverAtomId, hoverBondId, selectedAtomIds, selectedBondIds, bondDragPos, bondDragFrom, activeSidebarPanel, mechanismArrows, selectedArrowId, hoverArrowId, scheme, schemeLayout, selectedStepIndex, hoveredStepIndex, canvasSize]);
 
   // Handle zoom
   const handleWheel = (e: React.WheelEvent) => {
