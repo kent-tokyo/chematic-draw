@@ -37,6 +37,8 @@ for the full development history.
   engine and records malformed inputs as explicit failed items.
 - File, binary, and PDF exports now write through a temporary file and atomic
   rename to avoid leaving partially-written output after interruption.
+- Batch filters now honor valid zero-valued boundaries instead of treating them
+  as unspecified.
 - Sidebar panels now expose full accessible names and explicit tab/tabpanel
   relationships while retaining compact visual labels.
 - Empty canvases now show a concise next-action guide for choosing an atom or

@@ -66,6 +66,18 @@ describe('batch processing review results', () => {
     expect(result.items[0].warnings).toEqual(['Did not match filter criteria.']);
   });
 
+  it('honors zero-valued filter boundaries', async () => {
+    (wasmBridge.getProperties as jest.Mock).mockReturnValue({ molecular_weight: 0, logp: 0 });
+    const result = await processBatch([molecule(1)], {
+      operation: 'filter',
+      filterOptions: { maxMW: 0, minLogP: 0 },
+    });
+
+    expect(result.processed).toBe(1);
+    expect(result.skipped).toBe(0);
+    expect(result.items[0].status).toBe('succeeded');
+  });
+
   it('produces the same result hash for the same task and inputs', async () => {
     const first = await processBatch([molecule(1)], { operation: 'convert' });
     const second = await processBatch([molecule(1)], { operation: 'convert' });
