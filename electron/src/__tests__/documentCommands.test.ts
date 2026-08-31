@@ -42,4 +42,14 @@ describe('local extension document API', () => {
     host.register({ id: 'analysis-plugin', version: '1.0.0', permissions: ['analysis:read'] }, [], [{ id: 'count', description: 'count atoms', analyze: (mol) => mol.atoms.length }]);
     expect(host.analyze('analysis-plugin', 'count', molecule)).toBe(1);
   });
+
+  test('rejects invalid documents before invoking analysis providers', () => {
+    const host = createExtensionHost();
+    const analyze = jest.fn(() => 'unexpected');
+    host.register({ id: 'safe-analysis', version: '1.0.0', permissions: ['analysis:read'] }, [], [{ id: 'check', description: 'check molecule', analyze }]);
+    const invalid = { ...molecule, bonds: [{ id: 1, from: 1, to: 404, order: 1, stereo: 0 }] };
+
+    expect(() => host.analyze('safe-analysis', 'check', invalid)).toThrow(/Analysis received an invalid document/);
+    expect(analyze).not.toHaveBeenCalled();
+  });
 });

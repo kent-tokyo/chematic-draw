@@ -17,6 +17,8 @@ for the full development history.
   arguments, setting keys, and payload sizes.
 - Settings hydration now rejects invalid theme, sidebar-width, and shortcut
   value types instead of passing corrupted user-edited settings to the UI.
+- Local analysis extensions now reject invalid molecule documents before the
+  provider is invoked, matching the command execution boundary.
 - Sidebar panels now expose full accessible names and explicit tab/tabpanel
   relationships while retaining compact visual labels.
 - Empty canvases now show a concise next-action guide for choosing an atom or

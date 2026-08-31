@@ -100,6 +100,8 @@ export function createExtensionHost(): ExtensionHost {
     analyze(extensionId, providerId, molecule) {
       const extension = extensions.get(extensionId); const provider = extension?.providers.get(providerId);
       if (!extension || !provider) throw new Error(`Unknown analysis provider: ${extensionId}/${providerId}`);
+      const inputErrors = validateMoleculeDocument(molecule);
+      if (inputErrors.length > 0) throw new Error(`Analysis received an invalid document: ${inputErrors.join('; ')}`);
       return provider.analyze(molecule);
     },
   };
