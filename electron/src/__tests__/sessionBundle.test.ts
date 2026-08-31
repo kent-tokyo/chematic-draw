@@ -1,4 +1,4 @@
-import { createSessionBundle, parseSessionBundle, serializeSessionBundle, SESSION_BUNDLE_SCHEMA, SESSION_BUNDLE_VERSION } from '../renderer/lib/sessionBundle';
+import { createSessionBundle, parseSessionBundle, serializeSessionBundle, MAX_SESSION_BUNDLE_TEXT_LENGTH, SESSION_BUNDLE_SCHEMA, SESSION_BUNDLE_VERSION } from '../renderer/lib/sessionBundle';
 import { MoleculeDto } from '../renderer/store/types';
 
 const molecule: MoleculeDto = {
@@ -27,6 +27,10 @@ describe('session bundle', () => {
   it('rejects malformed or unrelated JSON', () => {
     expect(() => parseSessionBundle('{"hello":"world"}')).toThrow('Unsupported');
     expect(() => parseSessionBundle('{not json')).toThrow('valid JSON');
+  });
+
+  it('rejects an oversized bundle before JSON parsing', () => {
+    expect(() => parseSessionBundle('x'.repeat(MAX_SESSION_BUNDLE_TEXT_LENGTH + 1))).toThrow(/character limit/);
   });
 
   it('migrates a v1 bundle into the current document envelope', () => {

@@ -111,7 +111,8 @@ memory. Unknown future bundle versions, malformed molecules, and provenance
 hash mismatches are rejected; source files are never rewritten implicitly.
 Molecule documents are also bounded to 100,000 atoms and 200,000 bonds, with
 integer validation for charges, map numbers, isotopes, hydrogen counts, and
-bond stereo values before extension commands or session imports run.
+bond stereo values before extension commands or session imports run. Session
+bundle JSON is limited to 10,000,000 characters before parsing.
 
 ### Reaction document integrity
 

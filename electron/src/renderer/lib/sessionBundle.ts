@@ -5,6 +5,7 @@ export const SESSION_BUNDLE_SCHEMA = 'chematic-draw/session-bundle';
 export const SESSION_BUNDLE_VERSION = 2;
 export const DOCUMENT_SCHEMA_VERSION = 1;
 export const SESSION_BUNDLE_MIGRATION_POLICY = 'v1-to-v2-only';
+export const MAX_SESSION_BUNDLE_TEXT_LENGTH = 10_000_000;
 
 export interface SessionBundle {
   schema: typeof SESSION_BUNDLE_SCHEMA;
@@ -64,6 +65,9 @@ function isMolecule(value: unknown): value is MoleculeDto {
 }
 
 export function parseSessionBundle(text: string): SessionBundle {
+  if (text.length > MAX_SESSION_BUNDLE_TEXT_LENGTH) {
+    throw new Error(`Session bundle exceeds the ${MAX_SESSION_BUNDLE_TEXT_LENGTH.toLocaleString()} character limit.`);
+  }
   let value: unknown;
   try { value = JSON.parse(text); } catch { throw new Error('Session bundle is not valid JSON.'); }
   if (!value || typeof value !== 'object') throw new Error('Session bundle must be a JSON object.');
