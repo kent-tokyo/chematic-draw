@@ -9,7 +9,7 @@ Get chematic-draw up and running in 5 minutes.
 Packaged installers (`.deb`/`.rpm` for Linux, `.zip` for macOS, a Squirrel
 `.exe` installer for Windows) are published on the
 [GitHub Releases page](https://github.com/kent-tokyo/chematic-draw/releases)
-for tagged versions. The current stable release is `v0.5.5`; builds are
+for tagged versions. The current stable release is `v0.5.6`; builds are
 unsigned (no code
 signing/notarization is configured), so macOS/Windows will show an
 unidentified-developer warning on first launch.
@@ -136,7 +136,8 @@ Two separate tabs cover this, not one:
 
 ### Formats
 Available from **File → Export**: **SVG** (vector, publications), **PNG**
-(raster), **MOL V2000**, **SMILES**. There's no CSV/JSON molecule export or
+(raster), **MOL V2000**, **SMILES**, and **JSON session bundle**. There's no
+CSV molecule export or
 File-menu XYZ export — those exist elsewhere:
 - **XYZ** — 3D Viewer tab ("3D" in sidebar) → generate 3D coordinates →
   "XYZ エクスポート" button

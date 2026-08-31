@@ -20,6 +20,7 @@ survive unchanged; the *chemical structure* is).
 | XYZ | ✅ (`parseXyz`, coordinates only) | ❌ | N/A | Import only, for 3D viewer input. No bond/connectivity information in the format itself. |
 | PDB | ✅ (`parsePdb`, coordinates only) | ❌ | N/A | Same as XYZ — coordinate import only. |
 | JSON session bundle | ✅ (chematic bundle) | ✅ | ✅ | Local review bundle containing the molecule, source path, engine metadata, and deterministic structure fingerprint. It is not a general-purpose chemical interchange format. |
+| JSON reaction document | ✅ (version 1) | ✅ (version 1) | ✅ | Versioned reaction-scheme envelope with safe migration from the legacy unversioned export. Unknown future schemas are rejected. |
 | SVG | ❌ | ✅ (`to_svg`) | N/A | Export-only, as expected — SVG is a rendering target, not a chemical interchange format. |
 
 ## Known lossy conversions (automatically confirmed before save/export)

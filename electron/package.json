@@ -1,7 +1,7 @@
 {
   "name": "chematic-draw",
   "productName": "Chematic Draw",
-  "version": "0.5.5",
+  "version": "0.5.6",
   "description": "chematic-draw — Electron/WASM chemical structure editor",
   "main": ".vite/build/main.js",
   "private": true,

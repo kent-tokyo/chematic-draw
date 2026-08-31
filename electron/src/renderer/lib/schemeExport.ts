@@ -1,6 +1,22 @@
 import { ReactionSchemeContext, MechanismStep, MoleculeDto, AtomMapping, ReactionClassification, GreenChemistryMetrics } from '../store/types';
 import { SchemeLayout } from './schemeLayout';
 
+export const REACTION_DOCUMENT_SCHEMA = 'chematic-draw/reaction-document';
+export const REACTION_DOCUMENT_VERSION = 1;
+
+interface ReactionDocumentExport {
+  schema: typeof REACTION_DOCUMENT_SCHEMA;
+  schema_version: typeof REACTION_DOCUMENT_VERSION;
+  version: '1.0';
+  exportDate: string;
+  scheme: ReactionSchemeContext;
+  analysis: {
+    atomMappings: unknown;
+    reactionClassification: ReactionClassification | null;
+    greenMetrics: GreenChemistryMetrics | null;
+  };
+}
+
 /**
  * Export complete scheme as JSON
  */
@@ -10,7 +26,9 @@ export function exportSchemeAsJSON(
   reactionClassification: ReactionClassification | null,
   greenMetrics: GreenChemistryMetrics | null
 ): string {
-  const exportData = {
+  const exportData: ReactionDocumentExport = {
+    schema: REACTION_DOCUMENT_SCHEMA,
+    schema_version: REACTION_DOCUMENT_VERSION,
     version: '1.0',
     exportDate: new Date().toISOString(),
     scheme,
@@ -30,10 +48,32 @@ export function exportSchemeAsJSON(
 export function importSchemeFromJSON(jsonString: string): ReactionSchemeContext | null {
   try {
     const data = JSON.parse(jsonString);
-    if (!data.scheme || !data.scheme.steps) {
+    if (!data || typeof data !== 'object' || !data.scheme || !Array.isArray(data.scheme.steps)) {
       return null;
     }
-    return data.scheme as ReactionSchemeContext;
+    if (data.schema && (data.schema !== REACTION_DOCUMENT_SCHEMA || data.schema_version !== REACTION_DOCUMENT_VERSION)) {
+      return null;
+    }
+    const scheme = data.scheme as Partial<ReactionSchemeContext>;
+    if (scheme.steps.some((step) => !step || typeof step.id !== 'string')) return null;
+    if (typeof scheme.id !== 'string') return null;
+    return {
+      id: scheme.id,
+      title: typeof scheme.title === 'string' ? scheme.title : '',
+      description: typeof scheme.description === 'string' ? scheme.description : '',
+      steps: scheme.steps.map((step) => ({
+        ...step,
+        id: step.id,
+        reactants: Array.isArray(step.reactants) ? step.reactants : [],
+        products: Array.isArray(step.products) ? step.products : [],
+        arrows: Array.isArray(step.arrows) ? step.arrows : [],
+        mechanismType: step.mechanismType ?? 'sn2',
+        conditions: step.conditions ?? {},
+        arrowType: step.arrowType ?? 'single',
+      })),
+      currentStepIndex: typeof scheme.currentStepIndex === 'number' ? scheme.currentStepIndex : 0,
+      viewMode: scheme.viewMode === 'scheme' ? 'scheme' : 'step',
+    };
   } catch (error) {
     console.error('Failed to import scheme:', error);
     return null;
