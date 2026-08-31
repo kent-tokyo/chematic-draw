@@ -49,4 +49,15 @@ describe('reaction diagnostics', () => {
     expect(result.chargeBalance).toEqual({ balanced: false, difference: 1 });
     expect(result.issues).toContain('Step 1: formal charge is not balanced (1 extra charge on reactants).');
   });
+
+  it('detects isotope and explicit hydrogen inventory differences', () => {
+    const isotopeChange = scheme('C', 'C');
+    isotopeChange.steps[0].reactants[0].atoms[0].isotope = 13;
+    isotopeChange.steps[0].reactants[0].atoms[0].hydrogen_count = 1;
+    isotopeChange.steps[0].products[0].atoms[0].hydrogen_count = 0;
+    const result = diagnoseReactionScheme(isotopeChange);
+    expect(result.status).toBe('not_verified');
+    expect(result.atomBalance.differences).toEqual(['Step 1: 13C: 1 extra on reactants', 'Step 1: C: 1 missing from reactants', 'Step 1: H: 1 extra on reactants']);
+    expect(result.issues).toContain('Step 1: atom balance is not verified.');
+  });
 });

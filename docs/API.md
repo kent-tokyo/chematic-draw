@@ -113,7 +113,8 @@ hash mismatches are rejected; source files are never rewritten implicitly.
 ### Reaction document integrity
 
 Versioned reaction-document JSON exports include `analysis.reactionDiagnostics`.
-The report records per-step element inventory differences, formal-charge
+The report records per-step element/isotope inventory differences, explicit
+hydrogen-count and formal-charge
 differences, atom-map duplicates or unmatched map numbers, and a
 `verified`/`not_verified` status. Verification is
 limited to atoms explicitly authored in the document: missing atom maps,

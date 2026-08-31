@@ -39,8 +39,11 @@ function atomBalanceForStep(step: MechanismStep): { balanced: boolean; differenc
     const counts = new Map<string, number>();
     for (const molecule of molecules) {
       for (const atom of molecule.atoms) {
-        const key = atom.element;
-    counts.set(key, (counts.get(key) ?? 0) + 1);
+        const key = atom.isotope === undefined ? atom.element : `${atom.isotope}${atom.element}`;
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+        if (atom.hydrogen_count !== undefined) {
+          counts.set('H', (counts.get('H') ?? 0) + atom.hydrogen_count);
+        }
       }
     }
     return counts;
@@ -67,7 +70,7 @@ function mappingForStep(step: MechanismStep): ReactionDiagnostics['mapping'] & {
       for (const atom of molecule.atoms) {
         if (!atom.atom_map || atom.atom_map <= 0) continue;
         if (target.has(atom.atom_map)) duplicateMapNumbers.add(atom.atom_map);
-        target.set(atom.atom_map, atom.element);
+        target.set(atom.atom_map, atom.isotope === undefined ? atom.element : `${atom.isotope}${atom.element}`);
       }
     }
   };
