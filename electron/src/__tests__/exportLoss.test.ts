@@ -23,6 +23,13 @@ describe('export loss analysis', () => {
     ]);
   });
 
+  it('applies the same loss warnings to RXN V2000 molecule blocks', () => {
+    expect(exportLosses(molecule, 'rxn-v2000')).toEqual([
+      { code: 'wildcard', message: '1 wildcard atom will be written as ordinary carbon by this format.' },
+      { code: 'isotope', message: '1 isotope label will be dropped by this format.' },
+    ]);
+  });
+
   it('does not report losses for SMILES or CML for this corpus', () => {
     expect(exportLosses(molecule, 'smiles')).toEqual([]);
     expect(exportLosses(molecule, 'cml')).toEqual([

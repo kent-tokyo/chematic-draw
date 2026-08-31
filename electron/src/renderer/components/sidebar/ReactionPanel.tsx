@@ -7,6 +7,7 @@ import { MechanismStep, ReactionCondition } from '../../store/types';
 import { exportSchemeAsJSON, importSchemeFromJSON, exportSchemeAsSVG, exportSchemeAsCSV } from '../../lib/schemeExport';
 import { exportRxn, importRxn } from '../../lib/rxnExport';
 import * as wasmBridge from '../../wasm/wasmBridge';
+import { exportLossMessage, exportLosses } from '../../lib/exportLoss';
 
 export function ReactionPanel() {
   const theme = useUIStore((s) => s.theme);
@@ -191,6 +192,11 @@ export function ReactionPanel() {
     const products = scheme.steps.length === 1 ? scheme.steps[0].products : [];
     if (scheme.steps.length !== 1) {
       setStatus('RXN export supports one authored step; use JSON for multi-step schemes');
+      return;
+    }
+    const losses = [...reactants, ...products].flatMap((molecule) => exportLosses(molecule, 'rxn-v2000'));
+    if (losses.length > 0 && !window.confirm(exportLossMessage(`${scheme.title || 'reaction'}_export.rxn`, losses))) {
+      setStatus('RXN export cancelled');
       return;
     }
     const rxn = exportRxn({ reactants, products }, wasmBridge.toMolV2000);

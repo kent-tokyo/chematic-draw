@@ -1,6 +1,6 @@
 import { MoleculeDto } from '../store/types';
 
-export type MoleculeExportFormat = 'smiles' | 'mol-v2000' | 'sdf' | 'cml' | 'cdxml';
+export type MoleculeExportFormat = 'smiles' | 'mol-v2000' | 'rxn-v2000' | 'sdf' | 'cml' | 'cdxml';
 
 export interface ExportLoss {
   code: 'wildcard' | 'isotope' | 'unsupported-format';
@@ -11,6 +11,7 @@ const extensionToFormat: Record<string, MoleculeExportFormat> = {
   smi: 'smiles',
   smiles: 'smiles',
   mol: 'mol-v2000',
+  rxn: 'rxn-v2000',
   sdf: 'sdf',
   cml: 'cml',
   cdxml: 'cdxml',
@@ -25,7 +26,7 @@ export function exportLosses(molecule: MoleculeDto, format: MoleculeExportFormat
   const losses: ExportLoss[] = [];
   const wildcardCount = molecule.atoms.filter((atom) => atom.wildcard === true).length;
   const isotopeCount = molecule.atoms.filter((atom) => atom.isotope !== undefined).length;
-  const molFormats: MoleculeExportFormat[] = ['mol-v2000', 'sdf', 'cml'];
+  const molFormats: MoleculeExportFormat[] = ['mol-v2000', 'rxn-v2000', 'sdf', 'cml'];
 
   if (format === 'cdxml') {
     losses.push({
@@ -42,7 +43,7 @@ export function exportLosses(molecule: MoleculeDto, format: MoleculeExportFormat
     });
   }
 
-  if (isotopeCount > 0 && (format === 'mol-v2000' || format === 'sdf')) {
+  if (isotopeCount > 0 && (format === 'mol-v2000' || format === 'rxn-v2000' || format === 'sdf')) {
     losses.push({
       code: 'isotope',
       message: `${isotopeCount} isotope label${isotopeCount === 1 ? '' : 's'} will be dropped by this format.`,

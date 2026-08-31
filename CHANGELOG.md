@@ -16,6 +16,8 @@ for the full development history.
 
 - RXN agents, stoichiometric coefficients, multi-step schemes, and unsupported
   extensions remain outside the current DTO and are preserved only by JSON.
+- RXN V2000 export now uses the existing loss-warning boundary before writing
+  wildcard or isotope data that the format cannot preserve.
 - Reaction integrity diagnostics now include formal-charge conservation in
   addition to authored atom inventory and mapping checks.
 - Reaction integrity diagnostics also account for isotope labels and explicit
