@@ -33,6 +33,8 @@ for the full development history.
 - Session bundles and local extension commands now reject oversized molecules
   and invalid chemistry numeric fields at the shared document boundary.
 - Session bundle imports now reject oversized JSON before parsing it.
+- Session bundle imports now validate source-path, schema-version, and provenance
+  metadata before accepting a document.
 - Reaction integrity diagnostics now include formal-charge conservation in
   addition to authored atom inventory and mapping checks.
 - Reaction integrity diagnostics also account for isotope labels and explicit

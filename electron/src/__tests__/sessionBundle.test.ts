@@ -1,4 +1,4 @@
-import { createSessionBundle, parseSessionBundle, serializeSessionBundle, MAX_SESSION_BUNDLE_TEXT_LENGTH, SESSION_BUNDLE_SCHEMA, SESSION_BUNDLE_VERSION } from '../renderer/lib/sessionBundle';
+import { createSessionBundle, parseSessionBundle, serializeSessionBundle, MAX_SESSION_BUNDLE_TEXT_LENGTH, MAX_SESSION_SOURCE_PATH_LENGTH, SESSION_BUNDLE_SCHEMA, SESSION_BUNDLE_VERSION } from '../renderer/lib/sessionBundle';
 import { MoleculeDto } from '../renderer/store/types';
 
 const molecule: MoleculeDto = {
@@ -31,6 +31,16 @@ describe('session bundle', () => {
 
   it('rejects an oversized bundle before JSON parsing', () => {
     expect(() => parseSessionBundle('x'.repeat(MAX_SESSION_BUNDLE_TEXT_LENGTH + 1))).toThrow(/character limit/);
+  });
+
+  it('rejects malformed metadata even when the molecule hash is valid', () => {
+    const malformed = JSON.parse(serializeSessionBundle(molecule, null));
+    malformed.source.file_path = 'x'.repeat(MAX_SESSION_SOURCE_PATH_LENGTH + 1);
+    expect(() => parseSessionBundle(JSON.stringify(malformed))).toThrow(/molecule/);
+
+    const missingOperation = JSON.parse(serializeSessionBundle(molecule, null));
+    missingOperation.provenance.operation = 'import-session-bundle';
+    expect(() => parseSessionBundle(JSON.stringify(missingOperation))).toThrow(/molecule/);
   });
 
   it('migrates a v1 bundle into the current document envelope', () => {

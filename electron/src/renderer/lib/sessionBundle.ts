@@ -6,6 +6,7 @@ export const SESSION_BUNDLE_VERSION = 2;
 export const DOCUMENT_SCHEMA_VERSION = 1;
 export const SESSION_BUNDLE_MIGRATION_POLICY = 'v1-to-v2-only';
 export const MAX_SESSION_BUNDLE_TEXT_LENGTH = 10_000_000;
+export const MAX_SESSION_SOURCE_PATH_LENGTH = 4_096;
 
 export interface SessionBundle {
   schema: typeof SESSION_BUNDLE_SCHEMA;
@@ -64,6 +65,16 @@ function isMolecule(value: unknown): value is MoleculeDto {
   return Array.isArray(candidate.atoms) && Array.isArray(candidate.bonds);
 }
 
+function hasValidBundleMetadata(bundle: VersionedInputBundle): boolean {
+  if (!bundle.document || bundle.document.schema_version !== DOCUMENT_SCHEMA_VERSION) return false;
+  if (!bundle.source || typeof bundle.source !== 'object') return false;
+  const filePath = bundle.source.file_path;
+  if (filePath !== null && (typeof filePath !== 'string' || filePath.length > MAX_SESSION_SOURCE_PATH_LENGTH)) return false;
+  return bundle.provenance?.operation === 'export-session-bundle'
+    && typeof bundle.provenance.structure_hash === 'string'
+    && /^fnv1a-32:[0-9a-f]{8}$/.test(bundle.provenance.structure_hash);
+}
+
 export function parseSessionBundle(text: string): SessionBundle {
   if (text.length > MAX_SESSION_BUNDLE_TEXT_LENGTH) {
     throw new Error(`Session bundle exceeds the ${MAX_SESSION_BUNDLE_TEXT_LENGTH.toLocaleString()} character limit.`);
@@ -78,7 +89,7 @@ export function parseSessionBundle(text: string): SessionBundle {
   const normalized = bundle.schema_version === 1
     ? migrateV1Bundle(bundle)
     : bundle.schema_version === SESSION_BUNDLE_VERSION ? bundle : null;
-  if (!normalized || !normalized.document || !isMolecule(normalized.document.molecule)) {
+  if (!normalized || !hasValidBundleMetadata(normalized) || !isMolecule(normalized.document.molecule)) {
     throw new Error('Session bundle does not contain a molecule.');
   }
   const errors = validateMoleculeDocument(normalized.document.molecule);
