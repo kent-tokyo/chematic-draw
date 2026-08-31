@@ -126,7 +126,7 @@ const createMenu = (recentFiles = loadSettings().recentFiles) => {
           click: async () => {
             const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
               filters: [
-                { name: 'Molecule Files', extensions: ['mol', 'smi', 'sdf', 'cml', 'cdxml'] },
+                { name: 'Molecule and session files', extensions: ['mol', 'smi', 'sdf', 'cml', 'cdxml', 'json'] },
                 { name: 'All Files', extensions: ['*'] },
               ],
               properties: ['openFile'],
@@ -177,6 +177,10 @@ const createMenu = (recentFiles = loadSettings().recentFiles) => {
             {
               label: 'Export as SMILES...',
               click: () => mainWindow.webContents.send('menu:export-smiles'),
+            },
+            {
+              label: 'Export session bundle (JSON)...',
+              click: () => mainWindow.webContents.send('menu:export-json'),
             },
           ],
         },

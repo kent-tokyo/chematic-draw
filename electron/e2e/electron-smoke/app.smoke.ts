@@ -67,6 +67,26 @@ test.describe('Electron Smoke', () => {
     await electronApp.close();
   });
 
+  test('File > Export exposes the importable JSON session bundle', async () => {
+    const electronApp = await electron.launch({
+      args: [path.resolve(__dirname, '..', '..')],
+    });
+    const window = await electronApp.firstWindow();
+    await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
+      timeout: 15000,
+    });
+
+    const exportLabels = await electronApp.evaluate(({ Menu }) => {
+      const menu = Menu.getApplicationMenu();
+      const fileMenu = menu?.items.find((item) => item.label === 'File');
+      const exportMenu = fileMenu?.submenu?.items.find((item) => item.label === 'Export');
+      return exportMenu?.submenu?.items.map((item) => item.label) ?? [];
+    });
+    expect(exportLabels).toContain('Export session bundle (JSON)...');
+
+    await electronApp.close();
+  });
+
   test('Edit > Select All menu item actually selects everything', async () => {
     // Same dead-wiring bug class as the Shortcuts modal test above, found
     // by the same sweep once that fix landed: main.js sends 'menu:select-all'

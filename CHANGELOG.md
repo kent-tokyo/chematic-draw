@@ -3,6 +3,15 @@
 Notable changes to chematic-draw. Dates use ISO 8601 format. See the git log
 for the full development history.
 
+## [0.5.5] - 2026-08-31
+
+### Added
+
+- Added importable JSON session bundles containing the current molecule,
+  source path, engine metadata, and a deterministic structure fingerprint.
+- Added a File → Export → Export session bundle (JSON) command and JSON bundle
+  open support for local review and bug reports.
+
 ## [0.5.4] - 2026-08-31
 
 ### Added
@@ -87,6 +96,7 @@ for the full development history.
 
 - Initial Electron application release.
 
+[0.5.5]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.5.5
 [0.5.4]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.5.4
 [0.5.3]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.5.3
 [0.5.2]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.5.2

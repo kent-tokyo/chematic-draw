@@ -19,6 +19,7 @@ survive unchanged; the *chemical structure* is).
 | InChI | ❌ | ✅ (`molToInchi`, one-way) | N/A | InChI is intentionally one-directional here: `molToInchi` produces an InChI string from a molecule, and `inchiToInchiKey` hashes an InChI string to its InChIKey — there is no `inchiToMol`. This matches upstream chemistry-informatics convention (InChI is an identifier/hash format, not meant to be a lossless structure-interchange format), so this is not treated as a gap to close, just a direction that doesn't exist. |
 | XYZ | ✅ (`parseXyz`, coordinates only) | ❌ | N/A | Import only, for 3D viewer input. No bond/connectivity information in the format itself. |
 | PDB | ✅ (`parsePdb`, coordinates only) | ❌ | N/A | Same as XYZ — coordinate import only. |
+| JSON session bundle | ✅ (chematic bundle) | ✅ | ✅ | Local review bundle containing the molecule, source path, engine metadata, and deterministic structure fingerprint. It is not a general-purpose chemical interchange format. |
 | SVG | ❌ | ✅ (`to_svg`) | N/A | Export-only, as expected — SVG is a rendering target, not a chemical interchange format. |
 
 ## Known lossy conversions (automatically confirmed before save/export)

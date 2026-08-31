@@ -16,6 +16,12 @@ import * as wasmBridge from './renderer/wasm/wasmBridge';
 import { svgToPngBase64 } from './renderer/lib/svgToPng';
 import * as clipboard from './renderer/lib/clipboard';
 import { exportLossMessage, exportLosses, formatForFilePath, MoleculeExportFormat } from './renderer/lib/exportLoss';
+import { parseSessionBundle, serializeSessionBundle } from './renderer/lib/sessionBundle';
+
+function parseMoleculeDocument(content: string, filePath: string): MoleculeDto {
+  if (filePath.toLowerCase().endsWith('.json')) return parseSessionBundle(content).molecule;
+  return wasmBridge.parseMolecule(content);
+}
 
 function serializeMoleculeForPath(molecule: MoleculeDto, filePath: string): string {
   switch (formatForFilePath(filePath)) {
@@ -194,7 +200,7 @@ function App() {
 
       api.onMenuOpenFile((data: { path: string; content: string }) => {
         try {
-          const mol = wasmBridge.parseMolecule(data.content);
+          const mol = parseMoleculeDocument(data.content, data.path);
           setMolecule(mol);
           setFilePath(data.path);
           setStatus(`Opened: ${data.path}`);
@@ -327,6 +333,16 @@ function App() {
           } else {
             setStatus(`Export failed: ${writeResult.error}`);
           }
+        }
+      });
+
+      api.onMenuExportJson?.(async () => {
+        const result = await api.fileSaveDialog('untitled.schematic.json');
+        if (!result.canceled && result.filePath) {
+          const content = serializeSessionBundle(molecule, filePath);
+          const writeResult = await api.fileWrite(result.filePath, content);
+          if (writeResult.success) setStatus(`Exported session bundle: ${result.filePath}`);
+          else setStatus(`Export failed: ${writeResult.error}`);
         }
       });
 

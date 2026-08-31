@@ -10,7 +10,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     [
       'menu:new', 'menu:open-file', 'menu:save', 'menu:save-as',
       'menu:export-svg', 'menu:export-png', 'menu:export-pdf',
-      'menu:export-mol', 'menu:export-smiles', 'menu:select-all',
+      'menu:export-mol', 'menu:export-smiles', 'menu:export-json', 'menu:select-all',
       'menu:undo', 'menu:redo', 'menu:copy', 'menu:paste',
       'menu:zoom-in', 'menu:zoom-out', 'menu:zoom-reset',
       'menu:toggle-sidebar', 'menu:toggle-theme', 'menu:shortcuts',
@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onMenuExportPdf: (callback) => ipcRenderer.on('menu:export-pdf', callback),
   onMenuExportMol: (callback) => ipcRenderer.on('menu:export-mol', callback),
   onMenuExportSmiles: (callback) => ipcRenderer.on('menu:export-smiles', callback),
+  onMenuExportJson: (callback) => ipcRenderer.on('menu:export-json', callback),
   onMenuSelectAll: (callback) => ipcRenderer.on('menu:select-all', callback),
   onMenuUndo: (callback) => ipcRenderer.on('menu:undo', callback),
   onMenuRedo: (callback) => ipcRenderer.on('menu:redo', callback),
