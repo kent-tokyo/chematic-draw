@@ -180,6 +180,16 @@ export function enumerateStereoisomers(mol: MoleculeDto): MoleculeDto[] {
   return result as MoleculeDto[];
 }
 
+/** Assign verified CIP R/S/E/Z descriptors; ambiguous assignments are omitted. */
+export interface StereoAssignmentDto {
+  atom_id: number;
+  code: 'R' | 'S' | 'E' | 'Z' | 'LowerR' | 'LowerS';
+}
+
+export function assignCip(mol: MoleculeDto): StereoAssignmentDto[] {
+  return wasmModule.assign_cip(mol) as StereoAssignmentDto[];
+}
+
 /**
  * Convert molecule to an InChI-like string via chematic-inchi — a pure-Rust
  * approximation, not bit-exact with the real IUPAC reference implementation

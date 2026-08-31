@@ -250,6 +250,12 @@ describe('WASM contract (real binary, not mocked)', () => {
     expect(wasm.tanimoto_similarity(fp, fp)).toBe(1.0);
   });
 
+  it('assigns a verified E/Z descriptor and omits ambiguous stereo', () => {
+    const transDifluoroethene = wasm.parse_any('F/C=C/F');
+    expect(wasm.assign_cip(transDifluoroethene)).toEqual([{ atom_id: 1, code: 'E' }]);
+    expect(wasm.assign_cip(wasm.parse_any('CCO'))).toEqual([]);
+  });
+
   // v0.3 reliability round: validate_molecule extended from JSON-shape-only
   // checks to real chemistry (chematic-core's validate_valence,
   // Molecule::is_connected/fragments, chematic-perception's

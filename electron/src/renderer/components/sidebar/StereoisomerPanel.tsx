@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
-import { enumerateStereoisomers, StereoisomerResult } from '../../lib/advancedFeatures';
+import { assignCipDescriptors, enumerateStereoisomers, StereoisomerResult, StereoAssignmentDto } from '../../lib/advancedFeatures';
 
 export function StereoisomerPanel() {
   const theme = useUIStore((s) => s.theme);
@@ -12,6 +12,7 @@ export function StereoisomerPanel() {
 
   const [results, setResults] = useState<StereoisomerResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [assignments, setAssignments] = useState<StereoAssignmentDto[] | null>(null);
 
   const bgColor = theme === 'dark' ? '#2f3a47' : '#ffffff';
   const borderColor = theme === 'dark' ? '#3a4a57' : '#e0e0e0';
@@ -30,6 +31,15 @@ export function StereoisomerPanel() {
       setStatus(`Enumeration failed: ${(err as Error).message}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAssignCip = () => {
+    try {
+      setAssignments(assignCipDescriptors(molecule));
+      setStatus('CIP assignment complete; ambiguous centers are omitted');
+    } catch (err) {
+      setStatus(`CIP assignment failed: ${(err as Error).message}`);
     }
   };
 
@@ -56,6 +66,25 @@ export function StereoisomerPanel() {
       >
         {loading ? 'Enumerating...' : 'Enumerate Stereoisomers'}
       </button>
+
+      <button
+        onClick={handleAssignCip}
+        disabled={molecule.atoms.length === 0}
+        style={{ padding: '8px', backgroundColor: 'transparent', color: accentColor, border: `1px solid ${accentColor}`, borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}
+      >
+        Assign CIP descriptors
+      </button>
+
+      {assignments && (
+        <div aria-live="polite" style={{ border: `1px solid ${borderColor}`, borderRadius: '4px', padding: '8px', color: textColor, fontSize: '10px' }}>
+          <strong>Verified descriptors</strong>
+          {assignments.length === 0 ? <div style={{ color: labelColor, marginTop: '6px' }}>No unambiguous R/S/E/Z assignments.</div> : (
+            <ul style={{ margin: '6px 0 0', paddingLeft: '18px' }}>
+              {assignments.map((assignment) => <li key={`${assignment.atom_id}-${assignment.code}`}>Atom {assignment.atom_id}: {assignment.code}</li>)}
+            </ul>
+          )}
+        </div>
+      )}
 
       {results && (
         <div style={{ border: `1px solid ${borderColor}`, borderRadius: '4px', overflow: 'hidden' }}>

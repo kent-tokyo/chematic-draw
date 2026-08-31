@@ -3,6 +3,16 @@
 Notable changes to chematic-draw. Dates use ISO 8601 format. See the git log
 for the full development history.
 
+## [0.8.0] - 2026-08-31
+
+### Added
+
+- Added a verified WASM CIP descriptor API for R/S/E/Z assignments.
+- Added a Stereoisomer panel action that reports verified descriptors and
+  explicitly leaves ambiguous centers unassigned.
+- Added a real WASM contract test for E/Z assignment and updated the
+  known-limitations matrix.
+
 ## [0.7.0] - 2026-08-31
 
 ### Added
@@ -147,6 +157,7 @@ for the full development history.
 
 - Initial Electron application release.
 
+[0.8.0]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.8.0
 [0.7.0]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.7.0
 [0.6.1]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.6.1
 [0.6.0]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.6.0

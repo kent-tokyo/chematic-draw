@@ -102,6 +102,12 @@ pub struct ExtendedPropertiesDto {
     pub num_unspecified_stereocenters: u32,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct StereoAssignmentDto {
+    pub atom_id: u32,
+    pub code: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Atom3dDto {
     pub id: u32,
@@ -811,6 +817,29 @@ pub fn enumerate_stereoisomers(mol_json: &JsValue) -> Result<JsValue, JsValue> {
         .collect();
 
     serde_wasm_bindgen::to_value(&dtos)
+        .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
+}
+
+/// Assign verified CIP descriptors from the molecule's explicit stereo data.
+/// Ambiguous or under-specified centers are omitted rather than guessed.
+#[wasm_bindgen]
+pub fn assign_cip(mol_json: &JsValue) -> Result<JsValue, JsValue> {
+    let dto: MoleculeDto = serde_wasm_bindgen::from_value(mol_json.clone())
+        .map_err(|e| JsValue::from_str(&format!("JSON decode failed: {e}")))?;
+    let chem_mol = dto_to_chem(&dto)?;
+    let assignments = chematic::chem::assign_cip(&chem_mol);
+    let result: Vec<StereoAssignmentDto> = assignments
+        .assignments
+        .into_iter()
+        .filter_map(|(idx, code)| {
+            let atom_id = dto.atoms.get(idx.0 as usize)?.id;
+            Some(StereoAssignmentDto {
+                atom_id,
+                code: format!("{code:?}"),
+            })
+        })
+        .collect();
+    serde_wasm_bindgen::to_value(&result)
         .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
 }
 

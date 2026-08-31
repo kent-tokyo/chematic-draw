@@ -1,5 +1,6 @@
 import { MoleculeDto, MechanismStep } from '../store/types';
 import * as wasmBridge from '../wasm/wasmBridge';
+export type { StereoAssignmentDto } from '../wasm/wasmBridge';
 
 // Phase 6: Stereoisomer Enumeration
 export interface StereoisomerResult {
@@ -29,6 +30,10 @@ export function enumerateStereoisomers(mol: MoleculeDto): StereoisomerResult {
       description: `Enumeration failed: ${message}`,
     };
   }
+}
+
+export function assignCipDescriptors(mol: MoleculeDto): wasmBridge.StereoAssignmentDto[] {
+  return wasmBridge.assignCip(mol);
 }
 
 // Phase 7: Lipinski Rules & Structure Validation

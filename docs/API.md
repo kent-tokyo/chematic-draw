@@ -79,7 +79,7 @@ const benzene: MoleculeDto = {
 
 ## Molecule Operations
 
-### Local Extension API (v0.7.0)
+### Local Extension API (v0.8.0)
 
 Local extensions use the renderer's validated command boundary. A command must
 declare `document:write`; its returned molecule is checked for unique IDs,
@@ -109,6 +109,11 @@ with `document.schema_version: 1`. `parseSessionBundle` accepts v1 bundles and
 migrates their top-level `molecule` into the current document envelope in
 memory. Unknown future bundle versions, malformed molecules, and provenance
 hash mismatches are rejected; source files are never rewritten implicitly.
+
+### assignCip(mol: MoleculeDto): StereoAssignmentDto[]
+
+Assigns the real chematic CIP descriptor for unambiguous R/S/E/Z stereo data.
+Ambiguous or under-specified centers are omitted rather than guessed.
 
 ### parseMolecule(text: string): MoleculeDto
 
