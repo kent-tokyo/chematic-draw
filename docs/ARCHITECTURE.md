@@ -517,6 +517,17 @@ WebWorker anywhere in this codebase; see System Overview above.)
 
 ## Extensibility
 
+### Validated local extensions
+
+`renderer/lib/documentCommands.ts` is the v0.6.1 integration boundary. Local
+extensions register a manifest, validated document commands, or read-only
+analysis providers. Commands require `document:write` and their output is
+checked before application; providers require `analysis:read` and cannot
+mutate editor state through the API. Import/export permissions are reserved
+for explicit adapters, so an extension does not silently gain file or network
+access. This is an in-process API for now; third-party bundle loading and
+schema migrations remain gated on a compatibility policy.
+
 ### Adding a New Feature
 
 **Illustrative example only** — hERG cardiac-toxicity prediction does not

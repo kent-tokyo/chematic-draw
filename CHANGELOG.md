@@ -3,6 +3,15 @@
 Notable changes to chematic-draw. Dates use ISO 8601 format. See the git log
 for the full development history.
 
+## [0.6.1] - 2026-08-31
+
+### Added
+
+- Added a permissioned local extension API for validated document commands and
+  read-only analysis providers.
+- Routed template insertion through the same document validation boundary used
+  by extensions.
+
 ## [0.6.0] - 2026-08-31
 
 ### Added
@@ -123,6 +132,7 @@ for the full development history.
 
 - Initial Electron application release.
 
+[0.6.1]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.6.1
 [0.6.0]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.6.0
 [0.5.7]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.5.7
 [0.5.6]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.5.6

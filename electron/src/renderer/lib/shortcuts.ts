@@ -28,7 +28,11 @@ export function validateShortcutBindings(bindings: Partial<Record<ShortcutAction
 }
 export function matchesShortcut(event: KeyboardEvent, shortcut: string): boolean {
   const parts = normalizeShortcut(shortcut).split('+'); const key = parts.at(-1); if (!key) return false;
-  const isMac = navigator.platform.toUpperCase().includes('MAC'); const primary = isMac ? event.metaKey : event.ctrlKey;
+  // Accept both physical modifier conventions for `primary`. This keeps
+  // Ctrl-based automation and existing cross-platform workflows working on
+  // macOS while displaying Cmd in the UI there.
+  const isMac = navigator.platform.toUpperCase().includes('MAC');
+  const primary = isMac ? event.metaKey || event.ctrlKey : event.ctrlKey;
   if (parts.includes('primary') ? !primary : event.ctrlKey !== parts.includes('ctrl') || event.metaKey !== parts.includes('cmd')) return false;
   if (event.shiftKey !== parts.includes('shift') || event.altKey !== parts.includes('alt')) return false;
   const eventKey = event.key.toLowerCase() === ' ' ? 'space' : event.key.toLowerCase(); return eventKey === key || (key === 'escape' && eventKey === 'esc');

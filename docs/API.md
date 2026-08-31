@@ -79,6 +79,29 @@ const benzene: MoleculeDto = {
 
 ## Molecule Operations
 
+## Local Extension API (v0.6.1)
+
+Local extensions use the renderer's validated command boundary. A command must
+declare `document:write`; its returned molecule is checked for unique IDs,
+valid atom references, finite coordinates, and supported bond orders before it
+can reach the editor. Analysis providers may declare only `analysis:read` and
+receive a molecule for inspection. There is no implicit file or network access.
+
+```typescript
+const host = createExtensionHost();
+host.register(
+  { id: 'example-tools', version: '1.0.0', permissions: ['analysis:read'] },
+  [],
+  [{ id: 'atom-count', description: 'Count atoms', analyze: (mol) => mol.atoms.length }]
+);
+const count = host.analyze('example-tools', 'atom-count', molecule);
+```
+
+Unknown IDs, duplicate registrations, missing permissions, and invalid command
+results are rejected. Import/export permissions are reserved for explicit
+adapters; future plugin loading must preserve this boundary and add an
+explicit schema migration before changing the API contract.
+
 ### parseMolecule(text: string): MoleculeDto
 
 Parse a molecule from text, auto-detecting the format: CDXML, CML, SDF,

@@ -7,8 +7,23 @@ import { useKeyboard } from '../../hooks/useKeyboard';
 import { useCanvasInteraction } from '../../hooks/useCanvasInteraction';
 import { useContextMenu } from '../../hooks/useContextMenu';
 import { CanvasRenderer } from './CanvasRenderer';
-import { Tool } from '../../store/types';
+import { MoleculeDto, Tool } from '../../store/types';
 import { mergeTemplateIntoMolecule } from '../../lib/templateMerge';
+import { createExtensionHost } from '../../lib/documentCommands';
+
+const documentCommandHost = createExtensionHost();
+documentCommandHost.register(
+  { id: 'core', version: '1.0.0', permissions: ['document:write'] },
+  [{
+    id: 'template.insert',
+    description: 'Insert a validated molecule template',
+    requiredPermission: 'document:write',
+    execute: ({ molecule, payload }) => {
+      const { template, offsetX, offsetY } = payload as { template: MoleculeDto; offsetX: number; offsetY: number };
+      return mergeTemplateIntoMolecule(molecule, template, offsetX, offsetY);
+    },
+  }]
+);
 import { calculateArrowPath, distanceToCurve } from '../../lib/arrowGeometry';
 import { useReactionSchemeStore } from '../../store/reactionSchemeStore';
 import * as wasmBridge from '../../wasm/wasmBridge';
@@ -266,7 +281,11 @@ export function MoleculeCanvas() {
       };
 
       pushUndo();
-      const merged = mergeTemplateIntoMolecule(molecule, templateMol, offset.x, offset.y);
+      const merged = documentCommandHost.execute('core', 'template.insert', molecule, {
+        template: templateMol,
+        offsetX: offset.x,
+        offsetY: offset.y,
+      });
       setMolecule(merged);
       setStatus(`Inserted ${name}`);
     } catch (err) {
