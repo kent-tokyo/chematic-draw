@@ -37,6 +37,11 @@ describe('local extension document API', () => {
     expect(validateMoleculeDocument({ ...molecule, bonds: Array.from({ length: MAX_MOLECULE_BONDS + 1 }, (_, id) => ({ id, from: 1, to: 1, order: 1, stereo: 0 })) })).toEqual(expect.arrayContaining([expect.stringMatching(/bond limit/i)]));
   });
 
+  test('rejects non-object atom and bond entries without throwing', () => {
+    expect(validateMoleculeDocument({ ...molecule, atoms: [null as never] })).toContain('Atom entry must be an object');
+    expect(validateMoleculeDocument({ ...molecule, bonds: ['not-a-bond' as never] })).toContain('Bond entry must be an object');
+  });
+
   test('keeps analysis providers read-only by contract', () => {
     const host = createExtensionHost();
     host.register({ id: 'analysis-plugin', version: '1.0.0', permissions: ['analysis:read'] }, [], [{ id: 'count', description: 'count atoms', analyze: (mol) => mol.atoms.length }]);

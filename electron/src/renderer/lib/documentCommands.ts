@@ -44,6 +44,10 @@ export function validateMoleculeDocument(molecule: MoleculeDto): string[] {
   if (molecule.bonds.length > MAX_MOLECULE_BONDS) errors.push(`Document exceeds the ${MAX_MOLECULE_BONDS.toLocaleString()} bond limit`);
   const atomIds = new Set<number>();
   for (const atom of molecule.atoms) {
+    if (!atom || typeof atom !== 'object') {
+      errors.push('Atom entry must be an object');
+      continue;
+    }
     if (!Number.isInteger(atom.id) || atomIds.has(atom.id)) errors.push(`Atom id must be unique: ${atom.id}`);
     atomIds.add(atom.id);
     if (!atom.element || !Number.isFinite(atom.x) || !Number.isFinite(atom.y) || !Number.isInteger(atom.charge) || !Number.isInteger(atom.atom_map)) errors.push(`Atom ${atom.id} has invalid identity, coordinates, charge, or map`);
@@ -52,6 +56,10 @@ export function validateMoleculeDocument(molecule: MoleculeDto): string[] {
   }
   const bondIds = new Set<number>();
   for (const bond of molecule.bonds) {
+    if (!bond || typeof bond !== 'object') {
+      errors.push('Bond entry must be an object');
+      continue;
+    }
     if (!Number.isInteger(bond.id) || bondIds.has(bond.id)) errors.push(`Bond id must be unique: ${bond.id}`);
     bondIds.add(bond.id);
     if (!atomIds.has(bond.from) || !atomIds.has(bond.to)) errors.push(`Bond ${bond.id} references a missing atom`);
