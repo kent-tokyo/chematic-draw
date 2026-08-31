@@ -17,6 +17,8 @@ const AUTOSAVE_TMP_PATH = `${AUTOSAVE_PATH}.tmp`;
 // Set only when the user confirms "Restore" in checkAutosaveRecovery(),
 // consumed exactly once by the 'autosave:get-pending-recovery' IPC handler.
 let pendingRecovery = null;
+let autosaveWriteQueue = Promise.resolve();
+let quittingAfterAutosaveFlush = false;
 
 // Helper functions for settings persistence
 const loadSettings = () => {
@@ -496,11 +498,18 @@ ipcMain.handle('settings:load', async (event, key) => {
 // JSON file, which is worse than no recovery at all — so the write goes to
 // a temp file first and only replaces the real one via an atomic rename.
 ipcMain.handle('autosave:write', async (event, molecule, filePath) => {
-  try {
+  const writeSnapshot = () => {
     const dir = path.dirname(AUTOSAVE_PATH);
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
     writeFileSync(AUTOSAVE_TMP_PATH, JSON.stringify({ molecule, filePath }), 'utf-8');
     renameSync(AUTOSAVE_TMP_PATH, AUTOSAVE_PATH);
+  };
+  // Serialize writes with quit cleanup. This closes the small race where
+  // before-quit could unlink the old snapshot between writeFileSync and the
+  // atomic rename, leaving stale recovery data behind.
+  autosaveWriteQueue = autosaveWriteQueue.then(writeSnapshot, writeSnapshot);
+  try {
+    await autosaveWriteQueue;
     return { success: true };
   } catch (err) {
     return { success: false, error: err.message };
@@ -593,13 +602,21 @@ app.whenReady().then(async () => {
 // A clean quit (menu Quit, Cmd+Q, closing the last window on
 // Windows/Linux) always reaches here, so clearing the snapshot here is
 // what makes its presence at next launch mean "didn't exit cleanly" — a
-// crash or force-kill skips this handler entirely, leaving it behind.
-app.on('before-quit', () => {
-  try {
-    if (existsSync(AUTOSAVE_PATH)) unlinkSync(AUTOSAVE_PATH);
-  } catch (err) {
-    console.error('Failed to clear autosave snapshot on quit:', err);
+// crash or force-kill skips this handler, leaving it behind. Wait for any
+// queued atomic write before clearing it so a write cannot recreate the file
+// after cleanup.
+app.on('before-quit', (event) => {
+  if (quittingAfterAutosaveFlush) {
+    try {
+      if (existsSync(AUTOSAVE_PATH)) unlinkSync(AUTOSAVE_PATH);
+    } catch (err) {
+      console.error('Failed to clear autosave snapshot on quit:', err);
+    }
+    return;
   }
+  event.preventDefault();
+  quittingAfterAutosaveFlush = true;
+  autosaveWriteQueue.then(() => app.quit(), () => app.quit());
 });
 
 // Quit when all windows are closed, except on macOS. There, it's common
