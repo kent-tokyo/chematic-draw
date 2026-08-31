@@ -517,13 +517,13 @@ function App() {
       });
 
       if (result.cancelled) {
-        setStatus(`Batch processing cancelled: ${result.processed} processed, ${result.failed} failed`);
+        setStatus(`Batch processing cancelled: ${result.processed} processed, ${result.failed} failed, ${result.skipped} skipped`);
         return;
       }
 
       if (result.molecules.length > 0) {
         setMolecule(result.molecules[0]);
-        setStatus(`Batch processing complete: ${result.processed} processed, ${result.failed} failed`);
+        setStatus(`Batch processing complete: ${result.processed} processed, ${result.failed} failed, ${result.skipped} skipped`);
       } else {
         setStatus('No molecules matched the filter criteria');
       }

@@ -27,6 +27,8 @@ for the full development history.
   both aggregate counts and the review panel.
 - Autosave validation now rejects duplicate bond IDs before writing a recovery
   snapshot.
+- Batch completion and cancellation status messages now include skipped-item
+  counts alongside processed and failed counts.
 - Sidebar panels now expose full accessible names and explicit tab/tabpanel
   relationships while retaining compact visual labels.
 - Empty canvases now show a concise next-action guide for choosing an atom or
