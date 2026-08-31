@@ -47,4 +47,30 @@ test.describe('PDF export', () => {
     fs.unlinkSync(outPath);
     await electronApp.close();
   });
+
+  test('rejects SVG with executable or external content before creating a PDF window', async () => {
+    const electronApp = await electron.launch({
+      args: [path.resolve(__dirname, '..', '..')],
+    });
+    const window = await electronApp.firstWindow();
+    await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
+      timeout: 15000,
+    });
+
+    const outPath = path.join(os.tmpdir(), `chematic-unsafe-pdf-${Date.now()}.pdf`);
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200">'
+      + '<script>fetch("https://example.com")</script>'
+      + '<image href="https://example.com/pixel.png" />'
+      + '</svg>';
+    const result = await window.evaluate(
+      ({ outPath, svg }) =>
+        (window as unknown as { electronAPI: { exportPdf: (p: string, s: string) => Promise<{ success: boolean; error?: string }> } }).electronAPI.exportPdf(outPath, svg),
+      { outPath, svg }
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('unsafe SVG');
+    expect(fs.existsSync(outPath)).toBe(false);
+    await electronApp.close();
+  });
 });

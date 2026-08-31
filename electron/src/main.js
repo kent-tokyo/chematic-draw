@@ -66,6 +66,9 @@ const readImportText = (filePath) => {
   if (fileSize > MAX_IMPORT_TEXT_BYTES) throw new Error('File read rejected an oversized input.');
   return readFileSync(filePath, 'utf-8');
 };
+const isSafeSvgForPdf = (svgText) => /^\s*(?:<\?xml\b[^>]*>\s*)?<svg\b/i.test(svgText)
+  && !/<\s*(?:script|iframe|object|embed|foreignObject)\b/i.test(svgText)
+  && !/\bon[a-z][\w:-]*\s*=|\b(?:href|src)\s*=\s*["']\s*(?:https?:|\/\/|javascript:)/i.test(svgText);
 
 // Helper functions for settings persistence
 const loadSettings = () => {
@@ -516,6 +519,7 @@ ipcMain.handle('export:pdf', async (event, filePath, svgText) => {
     if (typeof svgText !== 'string' || svgText.length > MAX_FILE_TEXT_LENGTH) {
       throw new Error('PDF export rejected an invalid or oversized SVG payload.');
     }
+    if (!isSafeSvgForPdf(svgText)) throw new Error('PDF export rejected unsafe SVG content.');
     const { width, height } = svgPageSizeInches(svgText);
     const html = `<!DOCTYPE html><html><head><style>html,body{margin:0;padding:0}</style></head><body>${svgText}</body></html>`;
     pdfWindow = new BrowserWindow({ show: false });
