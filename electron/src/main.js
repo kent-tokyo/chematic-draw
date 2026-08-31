@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, dialog, ipcMain, clipboard } from 'electron';
+import { app, BrowserWindow, Menu, dialog, ipcMain, clipboard, shell } from 'electron';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync, renameSync } from 'node:fs';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
@@ -20,6 +20,10 @@ const MAX_AUTOSAVE_FILE_PATH_LENGTH = 4_096;
 const MAX_FILE_TEXT_LENGTH = 10_000_000;
 const MAX_FILE_BINARY_BYTES = 50_000_000;
 const MAX_FILE_PATH_LENGTH = 4_096;
+const ALLOWED_EXTERNAL_HOSTS = new Set([
+  'pubchem.ncbi.nlm.nih.gov',
+  'www.chemspider.com',
+]);
 
 // Set only when the user confirms "Restore" in checkAutosaveRecovery(),
 // consumed exactly once by the 'autosave:get-pending-recovery' IPC handler.
@@ -83,6 +87,43 @@ const createWindow = () => {
       contextIsolation: true,
       nodeIntegration: false,
     },
+  });
+
+  const appDevOrigin = MAIN_WINDOW_VITE_DEV_SERVER_URL
+    ? new URL(MAIN_WINDOW_VITE_DEV_SERVER_URL).origin
+    : null;
+  const isAppNavigation = (url) => {
+    if (appDevOrigin) {
+      try {
+        return new URL(url).origin === appDevOrigin;
+      } catch {
+        return false;
+      }
+    }
+    return url.startsWith('file://');
+  };
+
+  // The renderer is the trusted app UI, but links and document content can
+  // still attempt to navigate it or create a privileged child window. Keep
+  // the app window on its own origin and send only the two deliberate
+  // database links to the user's normal browser. All other popups are
+  // denied, including javascript: and unknown HTTPS destinations.
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (!isAppNavigation(url)) event.preventDefault();
+  });
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol === 'https:' && ALLOWED_EXTERNAL_HOSTS.has(parsed.hostname)) {
+        void shell.openExternal(parsed.toString());
+      }
+    } catch {
+      // Malformed URLs are simply denied.
+    }
+    return { action: 'deny' };
+  });
+  mainWindow.webContents.session.setPermissionRequestHandler((_webContents, _permission, callback) => {
+    callback(false);
   });
 
   // and load the index.html of the app.

@@ -116,6 +116,26 @@ test.describe('Electron Smoke', () => {
     await electronApp.close();
   });
 
+  test('packaged renderer cannot navigate or open an arbitrary popup', async () => {
+    const electronApp = await electron.launch({
+      args: [path.resolve(__dirname, '..', '..')],
+    });
+    const window = await electronApp.firstWindow();
+    await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
+      timeout: 15000,
+    });
+
+    const appUrl = await window.url();
+    const popupWasDenied = await window.evaluate(() => window.open('https://example.com') === null);
+    await window.waitForTimeout(250);
+
+    expect(popupWasDenied).toBe(true);
+    expect(await electronApp.windows()).toHaveLength(1);
+    expect(await window.url()).toBe(appUrl);
+
+    await electronApp.close();
+  });
+
   test('packaged app migrates a v1 session bundle on open', async () => {
     const electronApp = await electron.launch({
       args: [path.resolve(__dirname, '..', '..')],
