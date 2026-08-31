@@ -181,6 +181,8 @@ test.describe('Electron Smoke', () => {
       return Promise.all([
         api.copyToClipboard('text/html', '<script>bad</script>'),
         api.saveSettings('__proto__', { polluted: true }),
+        api.saveSettings('theme', 'neon'),
+        api.saveSettings('sidebarWidth', 999),
         api.loadSettings('unknown-setting'),
       ]);
     });

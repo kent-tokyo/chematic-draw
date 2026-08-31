@@ -15,6 +15,8 @@ for the full development history.
   references before rendering the SVG in a hidden HTML window.
 - Clipboard and settings IPC now validate the renderer sender, supported
   arguments, setting keys, and payload sizes.
+- Settings hydration now rejects invalid theme, sidebar-width, and shortcut
+  value types instead of passing corrupted user-edited settings to the UI.
 - Sidebar panels now expose full accessible names and explicit tab/tabpanel
   relationships while retaining compact visual labels.
 - Empty canvases now show a concise next-action guide for choosing an atom or

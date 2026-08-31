@@ -26,6 +26,10 @@ const ALLOWED_EXTERNAL_HOSTS = new Set([
   'www.chemspider.com',
 ]);
 const ALLOWED_SETTINGS_KEYS = new Set(['theme', 'sidebarWidth', 'shortcutBindings']);
+const SHORTCUT_SETTING_KEYS = new Set([
+  'copy', 'paste', 'cleanLayout', 'export', 'undo', 'redo', 'zoomIn', 'zoomOut',
+  'zoomReset', 'focusMode', 'showShortcuts', 'selectAll', 'delete',
+]);
 const MAX_SETTINGS_VALUE_LENGTH = 100_000;
 
 // Set only when the user confirms "Restore" in checkAutosaveRecovery(),
@@ -72,9 +76,15 @@ const isSafeSvgForPdf = (svgText) => /^\s*(?:<\?xml\b[^>]*>\s*)?<svg\b/i.test(sv
   && !/<\s*(?:script|iframe|object|embed|foreignObject)\b/i.test(svgText)
   && !/\bon[a-z][\w:-]*\s*=|\b(?:href|src)\s*=\s*["']\s*(?:https?:|\/\/|javascript:)/i.test(svgText);
 const isSafeSettingsKey = (key) => typeof key === 'string' && ALLOWED_SETTINGS_KEYS.has(key);
-const isSafeSettingsValue = (value) => {
+const isSafeSettingsValue = (key, value) => {
+  if (key === 'theme') return value === 'dark' || value === 'light';
+  if (key === 'sidebarWidth') return typeof value === 'number' && Number.isFinite(value)
+    && (value === 0 || (value >= 180 && value <= 480));
+  if (key !== 'shortcutBindings' || !value || typeof value !== 'object' || Array.isArray(value)) return false;
+  if (Object.keys(value).some((shortcut) => !SHORTCUT_SETTING_KEYS.has(shortcut))) return false;
   try {
-    return JSON.stringify(value).length <= MAX_SETTINGS_VALUE_LENGTH;
+    return JSON.stringify(value).length <= MAX_SETTINGS_VALUE_LENGTH
+      && Object.values(value).every((shortcut) => typeof shortcut === 'string' && shortcut.length <= 128);
   } catch {
     return false;
   }
@@ -596,7 +606,7 @@ ipcMain.handle('clipboard:read', async (event) => {
 ipcMain.handle('settings:save', async (event, key, value) => {
   try {
     if (!isTrustedRendererEvent(event)) throw new Error('Settings request came from an untrusted renderer.');
-    if (!isSafeSettingsKey(key) || !isSafeSettingsValue(value)) {
+    if (!isSafeSettingsKey(key) || !isSafeSettingsValue(key, value)) {
       throw new Error('Settings request rejected an invalid key or oversized value.');
     }
     const settings = loadSettings();
@@ -613,6 +623,9 @@ ipcMain.handle('settings:load', async (event, key) => {
     if (!isTrustedRendererEvent(event)) throw new Error('Settings request came from an untrusted renderer.');
     if (!isSafeSettingsKey(key)) throw new Error('Settings request rejected an invalid key.');
     const settings = loadSettings();
+    if (settings[key] !== undefined && !isSafeSettingsValue(key, settings[key])) {
+      throw new Error('Stored setting failed validation.');
+    }
     return { success: true, value: settings[key] };
   } catch (err) {
     return { success: false, error: err.message };
