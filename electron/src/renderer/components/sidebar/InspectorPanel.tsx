@@ -159,7 +159,7 @@ function SmartsSection({
 export function InspectorPanel() {
   const theme = useUIStore((s) => s.theme);
   const selectedAtomIdForInspector = useUIStore((s) => s.selectedAtomIdForInspector);
-  const selectedBond = useUIStore((s) => s.selectedBondForInspector);
+  const selectedBondIdForInspector = useUIStore((s) => s.selectedBondIdForInspector);
   const molecule = useMoleculeStore((s) => s.molecule);
   // Derived live, every render, from molecule.atoms + the tracked id — never
   // a stale snapshot. Deliberately NOT gated on the atom's `selected` flag:
@@ -172,6 +172,7 @@ export function InspectorPanel() {
   // order the actions happen, which already matches "most recently
   // selected" for the ordinary case without needing a separate fallback.
   const selectedAtom: AtomDto | null = molecule.atoms.find((a) => a.id === selectedAtomIdForInspector) ?? null;
+  const selectedBond: BondDto | null = molecule.bonds.find((b) => b.id === selectedBondIdForInspector) ?? null;
   const updateAtom = useMoleculeStore((s) => s.updateAtom);
   const updateBond = useMoleculeStore((s) => s.updateBond);
   const pushUndo = useMoleculeStore((s) => s.pushUndo);

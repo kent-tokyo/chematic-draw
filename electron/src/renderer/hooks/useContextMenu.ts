@@ -16,7 +16,7 @@ export function useContextMenu() {
   const canvasState = useMemo(() => ({ offset, zoom }), [offset, zoom]);
   const showContextMenu = useUIStore((s) => s.showContextMenu);
   const setSelectedAtomIdForInspector = useUIStore((s) => s.setSelectedAtomIdForInspector);
-  const setSelectedBondForInspector = useUIStore((s) => s.setSelectedBondForInspector);
+  const setSelectedBondIdForInspector = useUIStore((s) => s.setSelectedBondIdForInspector);
 
   const handleContextMenu = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -34,7 +34,7 @@ export function useContextMenu() {
         // used to both stay non-null, so InspectorPanel rendered both
         // sections' fields stacked on top of each other.
         setSelectedAtomIdForInspector(atomId);
-        setSelectedBondForInspector(null);
+        setSelectedBondIdForInspector(null);
         showContextMenu(e.clientX - rect.left, e.clientY - rect.top, atomId);
         return;
       }
@@ -44,7 +44,7 @@ export function useContextMenu() {
       if (bondId !== null) {
         const bond = molecule.bonds.find((b) => b.id === bondId);
         if (bond) {
-          setSelectedBondForInspector(bond);
+          setSelectedBondIdForInspector(bond.id);
           setSelectedAtomIdForInspector(null);
           showContextMenu(e.clientX - rect.left, e.clientY - rect.top, undefined, bondId);
         }
@@ -54,7 +54,7 @@ export function useContextMenu() {
       // Canvas context menu
       showContextMenu(e.clientX - rect.left, e.clientY - rect.top);
     },
-    [molecule, canvasState, showContextMenu, setSelectedAtomIdForInspector, setSelectedBondForInspector]
+    [molecule, canvasState, showContextMenu, setSelectedAtomIdForInspector, setSelectedBondIdForInspector]
   );
 
   return { handleContextMenu };

@@ -115,7 +115,7 @@ test.describe('Atom context menu', () => {
   });
 
   test('selecting a bond after an atom clears the atom out of the Inspector', async ({ page }) => {
-    // Regression test: selectedAtomIdForInspector and selectedBondForInspector
+    // Regression test: the atom and bond Inspector selection ids
     // are independent uiStore fields — nothing cleared either one when the
     // other was set. Left-click an atom (sets the atom id), then right-click
     // a bond (sets the bond) left both non-null, so InspectorPanel rendered
@@ -148,5 +148,32 @@ test.describe('Atom context menu', () => {
 
     await expect(page.getByRole('button', { name: 'Single Bond', exact: true })).toBeVisible();
     await expect(page.getByText('Atom ID:')).toHaveCount(0);
+  });
+
+  test('editing a bond keeps the Inspector values live', async ({ page }) => {
+    const canvas = page.getByTestId('molecule-canvas');
+    const canvasBox = await canvas.boundingBox();
+    if (!canvasBox) throw new Error('canvas not visible');
+    const posA = { x: canvasBox.width * 0.25, y: canvasBox.height * 0.5 };
+    const posB = { x: canvasBox.width * 0.45, y: canvasBox.height * 0.5 };
+
+    await page.locator('button[title="C [C]"]').click();
+    await canvas.click({ position: posA });
+    await canvas.click({ position: posB });
+    await page.locator('button[title="─ [1]"]').click();
+    await page.mouse.move(canvasBox.x + posA.x, canvasBox.y + posA.y);
+    await page.mouse.down();
+    await page.mouse.move(canvasBox.x + posB.x, canvasBox.y + posB.y);
+    await page.mouse.up();
+
+    await page.locator('button[title="Select [ESC]"]').click();
+    await page.getByTestId('sidebar-tab-inspector').click();
+    const bondMid = { x: (posA.x + posB.x) / 2, y: posA.y };
+    await canvas.click({ position: bondMid, button: 'right' });
+    await page.getByRole('button', { name: 'Double Bond', exact: true }).click();
+
+    // The context-menu mutation updates molecule state. Inspector must derive
+    // the selected bond from that state instead of retaining the old object.
+    await expect(page.locator('select')).toHaveValue('2');
   });
 });

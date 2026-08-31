@@ -42,6 +42,7 @@ for the full development history.
 - Batch filter inputs now preserve zero values and accept decimal molecular
   weight boundaries.
 - Successful batch transformations can now be undone as one document change.
+- Bond Inspector values now stay synchronized after order or stereo edits.
 - Sidebar panels now expose full accessible names and explicit tab/tabpanel
   relationships while retaining compact visual labels.
 - Empty canvases now show a concise next-action guide for choosing an atom or

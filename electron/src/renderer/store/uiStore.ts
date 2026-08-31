@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { UIState, BondDto } from './types';
+import { UIState } from './types';
 import { DEFAULT_SHORTCUT_BINDINGS, ShortcutBindings } from '../lib/shortcuts';
 
 export interface BatchItemSummary {
@@ -34,7 +34,7 @@ interface UIStoreState extends UIState {
   // stale the moment the atom changed after being selected, and plain
   // left-click never touched this at all — only right-click did.
   selectedAtomIdForInspector: number | null;
-  selectedBondForInspector: BondDto | null;
+  selectedBondIdForInspector: number | null;
 
   // Context menu
   contextMenu: { visible: boolean; x: number; y: number; atomId?: number; bondId?: number } | null;
@@ -55,7 +55,7 @@ interface UIStoreState extends UIState {
   setSidebarWidth: (width: number) => void;
   setActiveSidebarPanel: (panel: 'inspector' | 'templates' | 'chat' | 'research' | 'reactions' | 'batch-results' | 'stereoisomers' | 'lipinski' | 'properties' | 'mechanism' | 'database' | '3d') => void;
   setSelectedAtomIdForInspector: (id: number | null) => void;
-  setSelectedBondForInspector: (bond: BondDto | null) => void;
+  setSelectedBondIdForInspector: (id: number | null) => void;
   setFocusMode: (enabled: boolean) => void;
   setStatus: (message: string, durationMs?: number) => void;
   clearStatus: () => void;
@@ -87,7 +87,7 @@ export const useUIStore = create<UIStoreState>((set) => ({
   statusExpiry: 0,
   activeSidebarPanel: 'inspector',
   selectedAtomIdForInspector: null,
-  selectedBondForInspector: null,
+  selectedBondIdForInspector: null,
   contextMenu: null,
   showShortcutsModal: false,
   showUndoModal: false,
@@ -110,7 +110,7 @@ export const useUIStore = create<UIStoreState>((set) => ({
 
   setSelectedAtomIdForInspector: (id) => set({ selectedAtomIdForInspector: id }),
 
-  setSelectedBondForInspector: (bond) => set({ selectedBondForInspector: bond }),
+  setSelectedBondIdForInspector: (id) => set({ selectedBondIdForInspector: id }),
 
   setFocusMode: (enabled) => set({ focusMode: enabled }),
 
