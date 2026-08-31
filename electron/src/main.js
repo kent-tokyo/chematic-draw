@@ -25,6 +25,8 @@ const ALLOWED_EXTERNAL_HOSTS = new Set([
   'pubchem.ncbi.nlm.nih.gov',
   'www.chemspider.com',
 ]);
+const ALLOWED_SETTINGS_KEYS = new Set(['theme', 'sidebarWidth', 'shortcutBindings']);
+const MAX_SETTINGS_VALUE_LENGTH = 100_000;
 
 // Set only when the user confirms "Restore" in checkAutosaveRecovery(),
 // consumed exactly once by the 'autosave:get-pending-recovery' IPC handler.
@@ -69,6 +71,14 @@ const readImportText = (filePath) => {
 const isSafeSvgForPdf = (svgText) => /^\s*(?:<\?xml\b[^>]*>\s*)?<svg\b/i.test(svgText)
   && !/<\s*(?:script|iframe|object|embed|foreignObject)\b/i.test(svgText)
   && !/\bon[a-z][\w:-]*\s*=|\b(?:href|src)\s*=\s*["']\s*(?:https?:|\/\/|javascript:)/i.test(svgText);
+const isSafeSettingsKey = (key) => typeof key === 'string' && ALLOWED_SETTINGS_KEYS.has(key);
+const isSafeSettingsValue = (value) => {
+  try {
+    return JSON.stringify(value).length <= MAX_SETTINGS_VALUE_LENGTH;
+  } catch {
+    return false;
+  }
+};
 
 // Helper functions for settings persistence
 const loadSettings = () => {
@@ -541,6 +551,10 @@ ipcMain.handle('export:pdf', async (event, filePath, svgText) => {
 // IPC Handlers for Clipboard
 ipcMain.handle('clipboard:write', async (event, format, content) => {
   try {
+    if (!isTrustedRendererEvent(event)) throw new Error('Clipboard request came from an untrusted renderer.');
+    if (format !== 'text/plain' || typeof content !== 'string' || content.length > MAX_FILE_TEXT_LENGTH) {
+      throw new Error('Clipboard write rejected an invalid or oversized text payload.');
+    }
     // Awaited, not fire-and-forget: on this Electron build,
     // clipboard.readText() below was found to actually return a Promise
     // (not the plain string its docs describe), not just for read — an
@@ -553,8 +567,9 @@ ipcMain.handle('clipboard:write', async (event, format, content) => {
   }
 });
 
-ipcMain.handle('clipboard:read', async (_event) => {
+ipcMain.handle('clipboard:read', async (event) => {
   try {
+    if (!isTrustedRendererEvent(event)) throw new Error('Clipboard request came from an untrusted renderer.');
     // Must be awaited: clipboard.readText() returns a genuine Promise on
     // this platform/Electron build, not the plain string its docs
     // describe (confirmed empirically — logged its constructor.name as
@@ -568,6 +583,9 @@ ipcMain.handle('clipboard:read', async (_event) => {
     // the packaged app as a result — found while investigating an
     // unrelated menu issue (Edit > Copy/Paste), not by looking for this.
     const text = await clipboard.readText();
+    if (typeof text !== 'string' || text.length > MAX_FILE_TEXT_LENGTH) {
+      throw new Error('Clipboard read rejected an oversized text payload.');
+    }
     return { success: true, content: text };
   } catch (err) {
     return { success: false, error: err.message };
@@ -577,6 +595,10 @@ ipcMain.handle('clipboard:read', async (_event) => {
 // IPC Handlers for Settings Persistence
 ipcMain.handle('settings:save', async (event, key, value) => {
   try {
+    if (!isTrustedRendererEvent(event)) throw new Error('Settings request came from an untrusted renderer.');
+    if (!isSafeSettingsKey(key) || !isSafeSettingsValue(value)) {
+      throw new Error('Settings request rejected an invalid key or oversized value.');
+    }
     const settings = loadSettings();
     settings[key] = value;
     saveSettings(settings);
@@ -588,6 +610,8 @@ ipcMain.handle('settings:save', async (event, key, value) => {
 
 ipcMain.handle('settings:load', async (event, key) => {
   try {
+    if (!isTrustedRendererEvent(event)) throw new Error('Settings request came from an untrusted renderer.');
+    if (!isSafeSettingsKey(key)) throw new Error('Settings request rejected an invalid key.');
     const settings = loadSettings();
     return { success: true, value: settings[key] };
   } catch (err) {

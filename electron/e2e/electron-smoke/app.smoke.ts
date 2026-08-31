@@ -161,6 +161,34 @@ test.describe('Electron Smoke', () => {
     await electronApp.close();
   });
 
+  test('clipboard and settings IPC reject malformed renderer arguments', async () => {
+    const electronApp = await electron.launch({
+      args: [path.resolve(__dirname, '..', '..')],
+    });
+    const window = await electronApp.firstWindow();
+    await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
+      timeout: 15000,
+    });
+
+    const results = await window.evaluate(() => {
+      const api = (window as unknown as {
+        electronAPI: {
+          copyToClipboard: (format: string, content: string) => Promise<{ success: boolean }>;
+          saveSettings: (key: string, value: unknown) => Promise<{ success: boolean }>;
+          loadSettings: (key: string) => Promise<{ success: boolean }>;
+        };
+      }).electronAPI;
+      return Promise.all([
+        api.copyToClipboard('text/html', '<script>bad</script>'),
+        api.saveSettings('__proto__', { polluted: true }),
+        api.loadSettings('unknown-setting'),
+      ]);
+    });
+
+    expect(results.every(({ success }) => success === false)).toBe(true);
+    await electronApp.close();
+  });
+
   test('packaged app migrates a v1 session bundle on open', async () => {
     const electronApp = await electron.launch({
       args: [path.resolve(__dirname, '..', '..')],
