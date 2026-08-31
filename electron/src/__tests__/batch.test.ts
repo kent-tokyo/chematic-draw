@@ -17,6 +17,7 @@ describe('batch processing review results', () => {
 
     expect(result.processed).toBe(2);
     expect(result.failed).toBe(0);
+    expect(result.skipped).toBe(0);
     expect(result.cancelled).toBe(false);
     expect(result.items.map((item) => item.status)).toEqual(['succeeded', 'succeeded']);
     expect(result.items.map((item) => item.index)).toEqual([0, 1]);
@@ -42,7 +43,8 @@ describe('batch processing review results', () => {
     const result = await processBatch([molecule(1)], { operation: 'filter', filterOptions: { minMW: 100 } });
 
     expect(result.processed).toBe(0);
-    expect(result.failed).toBe(1);
+    expect(result.failed).toBe(0);
+    expect(result.skipped).toBe(1);
     expect(result.items[0].status).toBe('skipped');
     expect(result.items[0].warnings).toEqual(['Did not match filter criteria.']);
   });

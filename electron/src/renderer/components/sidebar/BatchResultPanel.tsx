@@ -32,7 +32,7 @@ export function BatchResultPanel({ results }: BatchResultPanelProps) {
       </div>
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
         <div
           style={{
             padding: '8px',
@@ -58,6 +58,19 @@ export function BatchResultPanel({ results }: BatchResultPanelProps) {
         >
           <div style={{ fontWeight: 'bold' }}>{latestResult.failed}</div>
           <div style={{ fontSize: '9px' }}>Failed</div>
+        </div>
+        <div
+          style={{
+            padding: '8px',
+            backgroundColor: latestResult.skipped > 0 ? '#d6a84f' : borderColor,
+            borderRadius: '4px',
+            color: latestResult.skipped > 0 ? 'white' : labelColor,
+            fontSize: '11px',
+            textAlign: 'center',
+          }}
+        >
+          <div style={{ fontWeight: 'bold' }}>{latestResult.skipped}</div>
+          <div style={{ fontSize: '9px' }}>Skipped</div>
         </div>
       </div>
 

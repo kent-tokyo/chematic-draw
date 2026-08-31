@@ -504,7 +504,7 @@ function App() {
         onProgress: ({ completed, total }) => options.onProgress(completed, total),
       });
 
-      addBatchResult(config.operation, result.processed, result.failed, result.errors, {
+      addBatchResult(config.operation, result.processed, result.failed, result.skipped, result.errors, {
         cancelled: result.cancelled,
         items: result.items.map(({ index, status, warnings, error }) => ({
           index,
@@ -534,7 +534,7 @@ function App() {
     } catch (err) {
       setStatus(`Batch processing failed: ${(err as Error).message}`);
       console.error('Batch error:', err);
-      addBatchResult(config.operation, 0, 1, [(err as Error).message], {
+      addBatchResult(config.operation, 0, 1, 0, [(err as Error).message], {
         cancelled: false,
         items: [{ index: 0, status: 'failed', warnings: [], error: (err as Error).message }],
       });

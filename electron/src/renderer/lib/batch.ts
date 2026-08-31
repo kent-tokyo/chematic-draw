@@ -46,6 +46,7 @@ export async function processBatch(
   const results: ProcessResult = {
     processed: 0,
     failed: 0,
+    skipped: 0,
     molecules: [],
     errors: [],
     items: [],
@@ -78,7 +79,7 @@ export async function processBatch(
           (!task.filterOptions?.minLogP || props.logp >= task.filterOptions.minLogP) &&
           (!task.filterOptions?.maxLogP || props.logp <= task.filterOptions.maxLogP);
         if (!passes) {
-          results.failed++;
+          results.skipped++;
           item.status = 'skipped';
           item.warnings.push('Did not match filter criteria.');
           options.onProgress?.({ completed: index + 1, total: molecules.length, item });
@@ -113,6 +114,7 @@ export async function processBatch(
 export interface ProcessResult {
   processed: number;
   failed: number;
+  skipped: number;
   molecules: (MoleculeDto & Partial<{ properties: any }>)[];
   errors: string[];
   items: BatchItemResult[];
