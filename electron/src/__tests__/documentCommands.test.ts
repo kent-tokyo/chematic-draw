@@ -1,4 +1,4 @@
-import { createExtensionHost, EXTENSION_API_VERSION, MAX_MOLECULE_ATOMS, MAX_MOLECULE_BONDS, validateMoleculeDocument } from '../renderer/lib/documentCommands';
+import { createExtensionHost, EXTENSION_API_VERSION, MAX_DISPLAY_LABEL_LENGTH, MAX_MOLECULE_ATOMS, MAX_MOLECULE_BONDS, validateMoleculeDocument } from '../renderer/lib/documentCommands';
 import { MoleculeDto } from '../renderer/store/types';
 
 const molecule: MoleculeDto = {
@@ -40,6 +40,18 @@ describe('local extension document API', () => {
   test('rejects non-object atom and bond entries without throwing', () => {
     expect(validateMoleculeDocument({ ...molecule, atoms: [null as never] })).toContain('Atom entry must be an object');
     expect(validateMoleculeDocument({ ...molecule, bonds: ['not-a-bond' as never] })).toContain('Bond entry must be an object');
+  });
+
+  test('bounds untrusted atom text fields before chemistry processing', () => {
+    expect(validateMoleculeDocument({ ...molecule, atoms: [{ ...molecule.atoms[0], element: { symbol: 'C' } as never }] })).toContain(
+      'Atom 1 has invalid identity, coordinates, charge, or map'
+    );
+    expect(validateMoleculeDocument({ ...molecule, atoms: [{ ...molecule.atoms[0], display_label: 'x'.repeat(MAX_DISPLAY_LABEL_LENGTH + 1) }] })).toContain(
+      'Atom 1 has an invalid display label'
+    );
+    expect(validateMoleculeDocument({ ...molecule, atoms: [{ ...molecule.atoms[0], wildcard: 'yes' as never }] })).toContain(
+      'Atom 1 has an invalid wildcard flag'
+    );
   });
 
   test('keeps analysis providers read-only by contract', () => {

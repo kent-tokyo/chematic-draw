@@ -45,6 +45,8 @@ for the full development history.
 - Bond Inspector values now stay synchronized after order or stereo edits.
 - Malformed molecule arrays now fail with bounded validation errors instead of
   throwing while inspecting an atom or bond entry.
+- Untrusted element and display-label fields are now type- and size-checked
+  before chemistry processing.
 - Sidebar panels now expose full accessible names and explicit tab/tabpanel
   relationships while retaining compact visual labels.
 - Empty canvases now show a concise next-action guide for choosing an atom or

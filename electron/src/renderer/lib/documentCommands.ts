@@ -5,6 +5,8 @@ export type ExtensionPermission = 'document:write' | 'analysis:read' | 'import:r
 export const EXTENSION_API_VERSION = 1;
 export const MAX_MOLECULE_ATOMS = 100_000;
 export const MAX_MOLECULE_BONDS = 200_000;
+export const MAX_ELEMENT_TEXT_LENGTH = 16;
+export const MAX_DISPLAY_LABEL_LENGTH = 256;
 
 export interface ExtensionManifest {
   id: string;
@@ -50,7 +52,9 @@ export function validateMoleculeDocument(molecule: MoleculeDto): string[] {
     }
     if (!Number.isInteger(atom.id) || atomIds.has(atom.id)) errors.push(`Atom id must be unique: ${atom.id}`);
     atomIds.add(atom.id);
-    if (!atom.element || !Number.isFinite(atom.x) || !Number.isFinite(atom.y) || !Number.isInteger(atom.charge) || !Number.isInteger(atom.atom_map)) errors.push(`Atom ${atom.id} has invalid identity, coordinates, charge, or map`);
+    if (typeof atom.element !== 'string' || atom.element.length === 0 || atom.element.length > MAX_ELEMENT_TEXT_LENGTH || !Number.isFinite(atom.x) || !Number.isFinite(atom.y) || !Number.isInteger(atom.charge) || !Number.isInteger(atom.atom_map)) errors.push(`Atom ${atom.id} has invalid identity, coordinates, charge, or map`);
+    if (atom.display_label !== undefined && (typeof atom.display_label !== 'string' || atom.display_label.length > MAX_DISPLAY_LABEL_LENGTH)) errors.push(`Atom ${atom.id} has an invalid display label`);
+    if (atom.wildcard !== undefined && typeof atom.wildcard !== 'boolean') errors.push(`Atom ${atom.id} has an invalid wildcard flag`);
     if (atom.isotope !== undefined && (!Number.isInteger(atom.isotope) || atom.isotope < 1)) errors.push(`Atom ${atom.id} has an invalid isotope`);
     if (atom.hydrogen_count !== undefined && (!Number.isInteger(atom.hydrogen_count) || atom.hydrogen_count < 0)) errors.push(`Atom ${atom.id} has an invalid hydrogen count`);
   }
