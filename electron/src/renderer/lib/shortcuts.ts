@@ -26,6 +26,13 @@ export function validateShortcutBindings(bindings: Partial<Record<ShortcutAction
   }
   return null;
 }
+export function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const contentEditable = target.getAttribute('contenteditable');
+  return target.isContentEditable
+    || (contentEditable !== null && contentEditable !== 'false')
+    || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+}
 export function matchesShortcut(event: KeyboardEvent, shortcut: string): boolean {
   const parts = normalizeShortcut(shortcut).split('+'); const key = parts.at(-1); if (!key) return false;
   // Accept both physical modifier conventions for `primary`. This keeps

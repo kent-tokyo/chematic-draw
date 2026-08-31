@@ -1,6 +1,21 @@
-import { DEFAULT_SHORTCUT_BINDINGS, displayShortcut, matchesShortcut, normalizeShortcut, validateShortcutBindings } from '../renderer/lib/shortcuts';
+import { DEFAULT_SHORTCUT_BINDINGS, displayShortcut, isEditableTarget, matchesShortcut, normalizeShortcut, validateShortcutBindings } from '../renderer/lib/shortcuts';
 
 describe('shortcut configuration', () => {
+  test('recognizes every native editable target', () => {
+    const input = document.createElement('input');
+    const textarea = document.createElement('textarea');
+    const select = document.createElement('select');
+    const editable = document.createElement('div');
+    editable.setAttribute('contenteditable', 'true');
+
+    expect(isEditableTarget(input)).toBe(true);
+    expect(isEditableTarget(textarea)).toBe(true);
+    expect(isEditableTarget(select)).toBe(true);
+    expect(isEditableTarget(editable)).toBe(true);
+    expect(isEditableTarget(document.createElement('canvas'))).toBe(false);
+    expect(isEditableTarget(null)).toBe(false);
+  });
+
   test('normalizes portable primary shortcuts', () => {
     expect(normalizeShortcut('Ctrl + Shift + S')).toBe('ctrl+shift+s');
     expect(normalizeShortcut('Cmd+S')).toBe('cmd+s');

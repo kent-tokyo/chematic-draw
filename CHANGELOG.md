@@ -19,6 +19,10 @@ for the full development history.
   value types instead of passing corrupted user-edited settings to the UI.
 - Local analysis extensions now reject invalid molecule documents before the
   provider is invoked, matching the command execution boundary.
+- Keyboard shortcuts now preserve native editing in textareas, selects, and
+  contenteditable controls, not only single-line inputs.
+- Keyboard shortcuts now preserve native editing in textareas, selects, and
+  contenteditable controls, not only single-line inputs.
 - Sidebar panels now expose full accessible names and explicit tab/tabpanel
   relationships while retaining compact visual labels.
 - Empty canvases now show a concise next-action guide for choosing an atom or

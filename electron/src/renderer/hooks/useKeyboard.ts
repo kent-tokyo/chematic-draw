@@ -5,7 +5,7 @@ import { useUIStore } from '../store/uiStore';
 import { Tool } from '../store/types';
 import * as clipboard from '../lib/clipboard';
 import * as wasmBridge from '../wasm/wasmBridge';
-import { matchesShortcut } from '../lib/shortcuts';
+import { isEditableTarget, matchesShortcut } from '../lib/shortcuts';
 
 export function useKeyboard() {
   const setTool = useCanvasStore((s) => s.setTool);
@@ -30,8 +30,8 @@ export function useKeyboard() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Allow copy/paste in inputs
-      const isInput = (e.target as any).tagName === 'INPUT';
+      // Allow native editing behavior in all editable controls.
+      const isInput = isEditableTarget(e.target);
       const shortcut = (action: keyof typeof shortcutBindings) => matchesShortcut(e, shortcutBindings[action]);
 
       // Copy (Ctrl+C / Cmd+C)
