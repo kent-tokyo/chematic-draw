@@ -3,6 +3,20 @@
 Notable changes to chematic-draw. Dates use ISO 8601 format. See the git log
 for the full development history.
 
+## [0.9.0] - 2026-08-31
+
+### Added
+
+- Added authored reaction integrity diagnostics for element inventory balance
+  and atom-map consistency, with explicit per-step evidence.
+- Reaction-document JSON exports now include the recalculated integrity report.
+  Unannotated reactions remain `not_verified`; the editor never invents atom
+  mappings or products.
+
+### Documentation
+
+- Documented the scope and limits of reaction integrity verification.
+
 ## [0.8.0] - 2026-08-31
 
 ### Added
@@ -158,6 +172,7 @@ for the full development history.
 - Initial Electron application release.
 
 [0.8.0]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.8.0
+[0.9.0]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.9.0
 [0.7.0]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.7.0
 [0.6.1]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.6.1
 [0.6.0]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.6.0

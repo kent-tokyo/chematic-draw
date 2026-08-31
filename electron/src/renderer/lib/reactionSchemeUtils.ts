@@ -11,6 +11,13 @@ export interface ValidationResult {
 export interface ReactionDiagnostics {
   status: 'verified' | 'not_verified';
   issues: string[];
+  stepResults: Array<{
+    stepIndex: number;
+    status: 'verified' | 'not_verified';
+    atomCount: { reactants: number; products: number };
+    atomBalance: { balanced: boolean; differences: string[] };
+    mapping: ReactionDiagnostics['mapping'] & { mappedAtomCount: number };
+  }>;
   atomBalance: {
     balanced: boolean;
     differences: string[];
@@ -43,7 +50,7 @@ function atomBalanceForStep(step: MechanismStep): { balanced: boolean; differenc
   return { balanced: differences.length === 0, differences };
 }
 
-function mappingForStep(step: MechanismStep): ReactionDiagnostics['mapping'] {
+function mappingForStep(step: MechanismStep): ReactionDiagnostics['mapping'] & { mappedAtomCount: number } {
   const reactantMaps = new Map<number, string>();
   const productMaps = new Map<number, string>();
   const duplicateMapNumbers = new Set<number>();
@@ -67,7 +74,9 @@ function mappingForStep(step: MechanismStep): ReactionDiagnostics['mapping'] {
     }
   }
   return {
-    complete: duplicateMapNumbers.size === 0 && unmatched.size === 0,
+    // An unannotated reaction is not evidence of a complete atom mapping.
+    complete: reactantMaps.size > 0 && productMaps.size > 0 && duplicateMapNumbers.size === 0 && unmatched.size === 0,
+    mappedAtomCount: [...reactantMaps.keys()].filter((mapNumber) => productMaps.has(mapNumber)).length,
     duplicateMapNumbers: [...duplicateMapNumbers].sort((a, b) => a - b),
     unmatchedMapNumbers: [...unmatched].sort((a, b) => a - b),
   };
@@ -82,6 +91,7 @@ export function diagnoseReactionScheme(scheme: ReactionSchemeContext): ReactionD
     return {
       status: 'not_verified',
       issues: ['No reaction steps are available for verification.'],
+      stepResults: [],
       atomBalance: { balanced: false, differences: [] },
       mapping: { complete: false, duplicateMapNumbers: [], unmatchedMapNumbers: [] },
     };
@@ -93,6 +103,7 @@ export function diagnoseReactionScheme(scheme: ReactionSchemeContext): ReactionD
   let allMapped = true;
   const duplicateMapNumbers = new Set<number>();
   const unmatchedMapNumbers = new Set<number>();
+  const stepResults: ReactionDiagnostics['stepResults'] = [];
 
   scheme.steps.forEach((step, index) => {
     if (step.reactants.length === 0 || step.products.length === 0) {
@@ -100,6 +111,13 @@ export function diagnoseReactionScheme(scheme: ReactionSchemeContext): ReactionD
       allMapped = false;
       issues.push(`Step ${index + 1}: atom balance is not verified.`);
       issues.push(`Step ${index + 1}: reactants and products are required for mapping verification.`);
+      stepResults.push({
+        stepIndex: index,
+        status: 'not_verified',
+        atomCount: { reactants: step.reactants.reduce((sum, molecule) => sum + molecule.atoms.length, 0), products: step.products.reduce((sum, molecule) => sum + molecule.atoms.length, 0) },
+        atomBalance: { balanced: false, differences: [] },
+        mapping: { complete: false, mappedAtomCount: 0, duplicateMapNumbers: [], unmatchedMapNumbers: [] },
+      });
       return;
     }
     const balance = atomBalanceForStep(step);
@@ -115,12 +133,20 @@ export function diagnoseReactionScheme(scheme: ReactionSchemeContext): ReactionD
       mapping.unmatchedMapNumbers.forEach((number) => unmatchedMapNumbers.add(number));
       issues.push(`Step ${index + 1}: atom mapping is incomplete or inconsistent.`);
     }
+    stepResults.push({
+      stepIndex: index,
+      status: balance.balanced && mapping.complete ? 'verified' : 'not_verified',
+      atomCount: { reactants: step.reactants.reduce((sum, molecule) => sum + molecule.atoms.length, 0), products: step.products.reduce((sum, molecule) => sum + molecule.atoms.length, 0) },
+      atomBalance: balance,
+      mapping,
+    });
   });
 
   if (allMapped && allBalanced) issues.push('Atom balance and mapping verified from authored atoms.');
   return {
     status: allMapped && allBalanced ? 'verified' : 'not_verified',
     issues,
+    stepResults,
     atomBalance: { balanced: allBalanced, differences: allDifferences },
     mapping: {
       complete: allMapped,

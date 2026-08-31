@@ -79,7 +79,7 @@ const benzene: MoleculeDto = {
 
 ## Molecule Operations
 
-### Local Extension API (v0.8.0)
+### Local Extension API (v0.9.0)
 
 Local extensions use the renderer's validated command boundary. A command must
 declare `document:write`; its returned molecule is checked for unique IDs,
@@ -109,6 +109,15 @@ with `document.schema_version: 1`. `parseSessionBundle` accepts v1 bundles and
 migrates their top-level `molecule` into the current document envelope in
 memory. Unknown future bundle versions, malformed molecules, and provenance
 hash mismatches are rejected; source files are never rewritten implicitly.
+
+### Reaction document integrity
+
+Versioned reaction-document JSON exports include `analysis.reactionDiagnostics`.
+The report records per-step element inventory differences, atom-map duplicates or
+unmatched map numbers, and a `verified`/`not_verified` status. Verification is
+limited to atoms explicitly authored in the document: missing atom maps,
+implicit chemistry, stoichiometric coefficients, and reaction mechanisms are not
+inferred or repaired.
 
 ### assignCip(mol: MoleculeDto): StereoAssignmentDto[]
 

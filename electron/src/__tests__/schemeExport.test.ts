@@ -35,6 +35,8 @@ describe('versioned reaction document JSON', () => {
     });
     expect(exported.provenance.result_hash).toMatch(/^fnv1a-32:[0-9a-f]{8}$/);
     expect(exported.scheme).toEqual(scheme);
+    expect(exported.analysis.reactionDiagnostics.status).toBe('not_verified');
+    expect(exported.analysis.reactionDiagnostics.stepResults[0].mapping.complete).toBe(false);
   });
 
   it('imports the current schema and preserves authored data', () => {

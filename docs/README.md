@@ -17,7 +17,7 @@ the two manifests remain authoritative when a version or capability changes.
 
 ## Current release
 
-The current tagged release is `v0.8.0` (2026-08-31). The application version
+The current tagged release is `v0.9.0` (2026-08-31). The application version
 is defined in `electron/package.json` and `crates/chem-wasm/Cargo.toml`; CI
 checks that they stay in sync.
 

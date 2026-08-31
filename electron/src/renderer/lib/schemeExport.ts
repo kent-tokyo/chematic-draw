@@ -1,5 +1,6 @@
 import { ReactionSchemeContext, MechanismStep, MoleculeDto, AtomMapping, ReactionClassification, GreenChemistryMetrics } from '../store/types';
 import { SchemeLayout } from './schemeLayout';
+import { diagnoseReactionScheme, ReactionDiagnostics } from './reactionSchemeUtils';
 
 export const REACTION_DOCUMENT_SCHEMA = 'chematic-draw/reaction-document';
 export const REACTION_DOCUMENT_VERSION = 1;
@@ -14,6 +15,7 @@ interface ReactionDocumentExport {
     atomMappings: unknown;
     reactionClassification: ReactionClassification | null;
     greenMetrics: GreenChemistryMetrics | null;
+    reactionDiagnostics: ReactionDiagnostics;
   };
   provenance: {
     source_format: 'reaction-document-json';
@@ -45,6 +47,9 @@ export function exportSchemeAsJSON(
     atomMappings: atomMappings ? { ...atomMappings, entries: Array.from(atomMappings.entries) } : null,
     reactionClassification,
     greenMetrics,
+    // Recalculate from the authored scheme at export time so stale UI state
+    // cannot make the exported evidence disagree with the document.
+    reactionDiagnostics: diagnoseReactionScheme(scheme),
   };
   const hashPayload = {
     schema: REACTION_DOCUMENT_SCHEMA,

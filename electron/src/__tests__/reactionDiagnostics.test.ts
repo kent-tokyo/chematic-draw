@@ -16,6 +16,8 @@ describe('reaction diagnostics', () => {
     expect(result.status).toBe('verified');
     expect(result.atomBalance.balanced).toBe(true);
     expect(result.mapping.complete).toBe(true);
+    expect(result.stepResults[0].status).toBe('verified');
+    expect(result.stepResults[0].mapping.mappedAtomCount).toBe(1);
   });
 
   it('reports atom balance differences without inventing a product', () => {
@@ -29,5 +31,12 @@ describe('reaction diagnostics', () => {
     const result = diagnoseReactionScheme(scheme('C', 'C', 1, 2));
     expect(result.mapping.complete).toBe(false);
     expect(result.mapping.unmatchedMapNumbers).toEqual([1, 2]);
+  });
+
+  it('does not call an unannotated but element-balanced step fully mapped', () => {
+    const result = diagnoseReactionScheme(scheme('C', 'C', 0, 0));
+    expect(result.atomBalance.balanced).toBe(true);
+    expect(result.mapping.complete).toBe(false);
+    expect(result.status).toBe('not_verified');
   });
 });
