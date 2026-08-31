@@ -26,6 +26,26 @@ test.describe('Molecule Drawing', () => {
     await expect(page.getByTestId('toolbar-summary')).toHaveText(/100%$/);
   });
 
+  test('shows a next-action guide only while the canvas is empty', async ({ page }) => {
+    const canvas = page.getByTestId('molecule-canvas');
+    await canvas.focus();
+    await page.keyboard.press('Control+A');
+    await page.keyboard.press('Delete');
+
+    const guide = page.getByTestId('empty-canvas-guide');
+    await expect(guide).toBeVisible();
+    await expect(guide).toContainText('press C, N, O, S, or P');
+    await expect(canvas).toHaveAttribute('aria-label', 'Molecular structure canvas, empty');
+
+    const canvasBox = await canvas.boundingBox();
+    if (!canvasBox) throw new Error('canvas not visible');
+    await page.locator('button[title="C [C]"]').click();
+    await canvas.click({ position: { x: canvasBox.width / 2, y: canvasBox.height / 2 } });
+
+    await expect(guide).toHaveCount(0);
+    await expect(canvas).toHaveAttribute('aria-label', /1 atom, 0 bonds/);
+  });
+
   test('should load molecule from SMILES input', async ({ page }) => {
     // Open input dialog or use menu
     const fileMenuButton = page.locator('button:has-text("File")').first();

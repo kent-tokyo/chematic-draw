@@ -294,34 +294,62 @@ export function MoleculeCanvas() {
   };
 
   return (
-    <canvas
-      ref={canvasRef}
-      data-testid="molecule-canvas"
-      role="img"
-      aria-label={canvasLabel}
-      tabIndex={0}
-      onFocus={interactionHandlers.onFocus}
-      onKeyDown={interactionHandlers.onKeyDown}
-      style={{
-        flex: 1,
-        // Canvas is a replaced element — its `width`/`height` attributes (set
-        // in the resize handler below) become its intrinsic size, and flex
-        // items default to `min-width: auto`, which for replaced elements
-        // resolves to that intrinsic size. Without this override, the canvas
-        // refuses to shrink below whatever width it was last resized to,
-        // squeezing the sidebar down to ~0px instead of its real width.
-        minWidth: 0,
-        minHeight: 0,
-        cursor: getCursor(),
-        backgroundColor: theme === 'dark' ? '#1e1e1e' : '#ffffff',
-      }}
-      onWheel={handleWheel}
-      onMouseDown={interactionHandlers.onMouseDown}
-      onMouseMove={interactionHandlers.onMouseMove}
-      onMouseUp={interactionHandlers.onMouseUp}
-      onContextMenu={handleContextMenu}
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
-    />
+    <div
+      data-testid="molecule-canvas-shell"
+      style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', display: 'flex' }}
+    >
+      <canvas
+        ref={canvasRef}
+        data-testid="molecule-canvas"
+        role="img"
+        aria-label={canvasLabel}
+        tabIndex={0}
+        onFocus={interactionHandlers.onFocus}
+        onKeyDown={interactionHandlers.onKeyDown}
+        style={{
+          flex: 1,
+          // Canvas is a replaced element — its `width`/`height` attributes
+          // become its intrinsic size. Keep the canvas shrinkable inside its
+          // shell so the sidebar retains its configured width.
+          minWidth: 0,
+          minHeight: 0,
+          width: '100%',
+          height: '100%',
+          cursor: getCursor(),
+          backgroundColor: theme === 'dark' ? '#1e1e1e' : '#ffffff',
+        }}
+        onWheel={handleWheel}
+        onMouseDown={interactionHandlers.onMouseDown}
+        onMouseMove={interactionHandlers.onMouseMove}
+        onMouseUp={interactionHandlers.onMouseUp}
+        onContextMenu={handleContextMenu}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+      />
+      {atomCount === 0 && (
+        <div
+          data-testid="empty-canvas-guide"
+          role="note"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexDirection: 'column',
+            gap: '8px',
+            color: theme === 'dark' ? '#d8deea' : '#1d2430',
+            opacity: 0.72,
+            pointerEvents: 'none',
+            textAlign: 'center',
+            padding: '24px',
+          }}
+        >
+          <strong>Start a molecule</strong>
+          <span>Choose an atom tool, or press C, N, O, S, or P.</span>
+          <span>Choose Select to move atoms and use 1–4 to draw bonds.</span>
+        </div>
+      )}
+    </div>
   );
 }
