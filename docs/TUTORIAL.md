@@ -231,6 +231,11 @@ Once two or more steps exist, the panel shows live **atom mapping**,
 **reaction classification** (single-step/multi-step), and **green
 chemistry metrics** (atom economy, E-factor).
 
+For a single-step scheme, open **Export Scheme** and choose **RXN V2000
+(single step)** to exchange the authored reactants and products with MDL RXN
+tools. Use **JSON (full data)** for multi-step schemes, agents, or complete
+reaction-document metadata.
+
 **Atoms are color-coded in the atom-mapping legend:**
 - 🟢 **Green** = Persistent (atoms present in both steps)
 - 🔵 **Blue** = New

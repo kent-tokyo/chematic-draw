@@ -10,6 +10,7 @@ the editor.
 | R-groups / wildcard atoms | Preserved only where the selected format supports them | Review the [interop matrix](INTEROP.md) before round-tripping |
 | Stereochemistry | Verified WASM CIP assigns unambiguous R/S/E/Z descriptors; ambiguous centers are omitted | Treat omitted assignments as unresolved; inspect wedge/dash input and review before publication |
 | Reaction integrity | Element inventory balance and atom-map consistency are checked from authored atoms; unannotated steps remain not verified | This is not stoichiometric balancing, reaction-mechanism validation, or product prediction; review charges, implicit chemistry, and unmapped atoms independently |
+| RXN exchange | Local next-version work supports V2000 import/export for one-step authored reactants/products | Agents, stoichiometric coefficients, multi-step schemes, and unsupported RXN extensions require the versioned JSON format |
 | Session bundles | v1 is migrated to v2; unknown future versions are rejected | Keep the original file and upgrade through a release that supports its version |
 | Local extensions | In-process registration only; third-party bundle loading is not enabled | Register trusted code in the host application; file/network adapter permissions are reserved |
 | Release authenticity | SHA256 checksums are published; binaries remain unsigned | Verify the checksum and obtain releases from the official repository |
