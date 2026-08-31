@@ -44,4 +44,15 @@ test.describe('Research panel', () => {
 
     await expect(mw).not.toHaveText(carbonMw ?? '', { timeout: 10000 });
   });
+
+  test('shows generated InChI identifiers for the current molecule', async ({ page }) => {
+    await page.getByTestId('sidebar-tab-research').click();
+
+    const identifiers = page.getByTestId('research-identifiers');
+    await expect(identifiers).toBeVisible();
+    await expect(page.getByTestId('research-inchi')).not.toHaveText('Unavailable');
+    await expect(page.getByTestId('research-inchi')).toContainText('InChI=');
+    await expect(page.getByTestId('research-inchikey')).not.toHaveText('Unavailable');
+    await expect(identifiers).toContainText('approximation');
+  });
 });

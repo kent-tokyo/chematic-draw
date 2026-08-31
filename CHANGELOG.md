@@ -3,6 +3,20 @@
 Notable changes to chematic-draw. Dates use ISO 8601 format. See the git log
 for the full development history.
 
+## [0.5.4] - 2026-08-31
+
+### Added
+
+- Added generated InChI and InChIKey display to the Research panel.
+- Added one-click copying for both identifiers through the desktop clipboard.
+- Labeled the pure-Rust InChI output as approximate so it is not confused with
+  PubChem/RDKit-compatible identifiers.
+
+### Fixed
+
+- Serialized Electron smoke tests that share the process-global OS clipboard,
+  removing a local full-suite race that could mask otherwise passing tests.
+
 ## [0.5.3] - 2026-08-31
 
 ### Added
@@ -73,6 +87,7 @@ for the full development history.
 
 - Initial Electron application release.
 
+[0.5.4]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.5.4
 [0.5.3]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.5.3
 [0.5.2]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.5.2
 [0.5.1]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.5.1

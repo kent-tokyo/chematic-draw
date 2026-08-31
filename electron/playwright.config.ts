@@ -52,6 +52,10 @@ export default defineConfig({
     {
       name: 'electron-smoke',
       testMatch: 'electron-smoke/**/*.smoke.ts',
+      // Electron smoke tests share process-global resources such as the OS
+      // clipboard. Keep them serial even outside CI so local full-suite runs
+      // cannot make a passing clipboard test nondeterministically fail.
+      workers: 1,
       // No webServer dependency and no browser device profile — this
       // project launches its own Electron process per test via _electron.
       use: {
