@@ -1,4 +1,4 @@
-import { createExtensionHost, EXTENSION_API_VERSION, validateMoleculeDocument } from '../renderer/lib/documentCommands';
+import { createExtensionHost, EXTENSION_API_VERSION, MAX_MOLECULE_ATOMS, MAX_MOLECULE_BONDS, validateMoleculeDocument } from '../renderer/lib/documentCommands';
 import { MoleculeDto } from '../renderer/store/types';
 
 const molecule: MoleculeDto = {
@@ -25,6 +25,16 @@ describe('local extension document API', () => {
     host.register({ id: 'validator', version: '1.0.0', permissions: ['document:write'] }, [{ id: 'bad', description: 'bad', requiredPermission: 'document:write', execute: ({ molecule }) => ({ ...molecule, bonds: [{ id: 1, from: 1, to: 999, order: 1, stereo: 0 }] }) }]);
     expect(() => host.execute('validator', 'bad', molecule)).toThrow(/invalid document/);
     expect(validateMoleculeDocument(molecule)).toEqual([]);
+  });
+
+  test('rejects unsafe numeric fields and oversized documents', () => {
+    const invalid = { ...molecule, atoms: [{ ...molecule.atoms[0], charge: 0.5 }], bonds: [{ id: 0, from: 1, to: 1, order: 1, stereo: 3 }] };
+    expect(validateMoleculeDocument(invalid)).toEqual([
+      'Atom 1 has invalid identity, coordinates, charge, or map',
+      'Bond 0 has unsupported order or stereo',
+    ]);
+    expect(validateMoleculeDocument({ ...molecule, atoms: Array.from({ length: MAX_MOLECULE_ATOMS + 1 }, (_, id) => ({ ...molecule.atoms[0], id })) })).toEqual(expect.arrayContaining([expect.stringMatching(/atom limit/i)]));
+    expect(validateMoleculeDocument({ ...molecule, bonds: Array.from({ length: MAX_MOLECULE_BONDS + 1 }, (_, id) => ({ id, from: 1, to: 1, order: 1, stereo: 0 })) })).toEqual(expect.arrayContaining([expect.stringMatching(/bond limit/i)]));
   });
 
   test('keeps analysis providers read-only by contract', () => {
