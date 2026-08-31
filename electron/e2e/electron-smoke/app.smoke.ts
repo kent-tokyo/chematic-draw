@@ -136,6 +136,31 @@ test.describe('Electron Smoke', () => {
     await electronApp.close();
   });
 
+  test('recent-file IPC rejects malformed renderer paths', async () => {
+    const electronApp = await electron.launch({
+      args: [path.resolve(__dirname, '..', '..')],
+    });
+    const window = await electronApp.firstWindow();
+    await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
+      timeout: 15000,
+    });
+
+    const results = await window.evaluate(() => {
+      const recordRecentFile = (window as unknown as {
+        electronAPI: {
+          recordRecentFile: (filePath: string) => Promise<{ success: boolean }>;
+        };
+      }).electronAPI.recordRecentFile;
+      return Promise.all([
+        recordRecentFile(''),
+        recordRecentFile('x'.repeat(4_097)),
+      ]);
+    });
+
+    expect(results.every(({ success }) => success === false)).toBe(true);
+    await electronApp.close();
+  });
+
   test('packaged app migrates a v1 session bundle on open', async () => {
     const electronApp = await electron.launch({
       args: [path.resolve(__dirname, '..', '..')],

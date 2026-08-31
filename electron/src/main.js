@@ -1,5 +1,5 @@
 import { app, BrowserWindow, Menu, dialog, ipcMain, clipboard, shell } from 'electron';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync, renameSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync, renameSync, statSync } from 'node:fs';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import { svgPageSizeInches } from './lib/svgPageSize';
@@ -20,6 +20,7 @@ const MAX_AUTOSAVE_FILE_PATH_LENGTH = 4_096;
 const MAX_FILE_TEXT_LENGTH = 10_000_000;
 const MAX_FILE_BINARY_BYTES = 50_000_000;
 const MAX_FILE_PATH_LENGTH = 4_096;
+const MAX_IMPORT_TEXT_BYTES = 10_000_000;
 const ALLOWED_EXTERNAL_HOSTS = new Set([
   'pubchem.ncbi.nlm.nih.gov',
   'www.chemspider.com',
@@ -59,6 +60,12 @@ const isValidFilePath = (filePath) => typeof filePath === 'string'
   && filePath.length > 0 && filePath.length <= MAX_FILE_PATH_LENGTH;
 const isValidBase64 = (value) => typeof value === 'string'
   && value.length % 4 === 0 && /^[A-Za-z0-9+/]*={0,2}$/.test(value);
+const readImportText = (filePath) => {
+  if (!isValidFilePath(filePath)) throw new Error('File read rejected an invalid file path.');
+  const fileSize = statSync(filePath).size;
+  if (fileSize > MAX_IMPORT_TEXT_BYTES) throw new Error('File read rejected an oversized input.');
+  return readFileSync(filePath, 'utf-8');
+};
 
 // Helper functions for settings persistence
 const loadSettings = () => {
@@ -161,7 +168,7 @@ const createMenu = (recentFiles = loadSettings().recentFiles) => {
   // File/Edit/View/Tools/Help item) instead of ours, not just a broken
   // Recent Files submenu.
   const safeRecentFiles = Array.isArray(recentFiles)
-    ? recentFiles.filter((f) => typeof f === 'string')
+    ? recentFiles.filter(isValidFilePath)
     : [];
 
   const recentFilesSubmenu = safeRecentFiles.map((filePath, idx) => ({
@@ -169,7 +176,7 @@ const createMenu = (recentFiles = loadSettings().recentFiles) => {
     accelerator: `Ctrl+${idx + 1}`,
     click: async () => {
       try {
-        const content = readFileSync(filePath, 'utf-8');
+        const content = readImportText(filePath);
         mainWindow.webContents.send('menu:open-file', { path: filePath, content });
       } catch (err) {
         dialog.showErrorBox('Error', `Failed to open: ${err.message}`);
@@ -213,7 +220,7 @@ const createMenu = (recentFiles = loadSettings().recentFiles) => {
             if (!canceled && filePaths.length > 0) {
               const filePath = filePaths[0];
               try {
-                const content = readFileSync(filePath, 'utf-8');
+                const content = readImportText(filePath);
                 mainWindow.webContents.send('menu:open-file', { path: filePath, content });
               } catch (err) {
                 dialog.showErrorBox('Error', `Failed to open file: ${err.message}`);
@@ -675,10 +682,12 @@ const checkAutosaveRecovery = async () => {
 // IPC Handler for Recent Files
 ipcMain.handle('recent-file:add', async (event, filePath) => {
   try {
+    if (!isTrustedRendererEvent(event)) throw new Error('Recent-file request came from an untrusted renderer.');
+    if (!isValidFilePath(filePath)) throw new Error('Recent-file request rejected an invalid file path.');
     const settings = loadSettings();
     let recentFiles = settings.recentFiles || [];
     // Remove duplicate, add to front, keep last 10
-    recentFiles = [filePath, ...recentFiles.filter(f => f !== filePath)].slice(0, 10);
+    recentFiles = [filePath, ...recentFiles.filter(isValidFilePath).filter(f => f !== filePath)].slice(0, 10);
     settings.recentFiles = recentFiles;
     saveSettings(settings);
     createMenu(recentFiles);
