@@ -3,6 +3,14 @@
 Notable changes to chematic-draw. Dates use ISO 8601 format. See the git log
 for the full development history.
 
+## [0.5.2] - 2026-08-31
+
+### Fixed
+
+- Added direct atom element editing to the right-click context menu by
+  reusing the Inspector's element picker.
+- Preserved undo behavior and visible Inspector state for context-menu edits.
+
 ## [0.5.1] - 2026-08-31
 
 ### Changed
@@ -57,6 +65,7 @@ for the full development history.
 
 - Initial Electron application release.
 
+[0.5.2]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.5.2
 [0.5.1]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.5.1
 [0.5.0]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.5.0
 [0.4.0]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.4.0

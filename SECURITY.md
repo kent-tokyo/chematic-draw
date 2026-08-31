@@ -2,14 +2,14 @@
 
 ## Supported Versions
 
-chematic-draw is pre-1.0; the current stable release is `v0.5.1`.
+chematic-draw is pre-1.0; the current stable release is `v0.5.2`.
 Security fixes are made against `main`
 and included in the next tagged pre-release; older pre-releases do not
 receive backports.
 
 | Version | Supported |
 |---|---|
-| `v0.5.1` | :white_check_mark: |
+| `v0.5.2` | :white_check_mark: |
 | `main` / latest pre-release | :white_check_mark: |
 | Older pre-releases | :x: |
 

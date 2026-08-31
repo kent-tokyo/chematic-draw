@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
+import { ElementPicker } from '../inspector/ElementPicker';
 import * as wasmBridge from '../../wasm/wasmBridge';
 
 export function ContextMenu() {
@@ -24,6 +25,7 @@ export function ContextMenu() {
   const updateBond = useMoleculeStore((s) => s.updateBond);
   const setMolecule = useMoleculeStore((s) => s.setMolecule);
   const pushUndo = useMoleculeStore((s) => s.pushUndo);
+  const [showElementPicker, setShowElementPicker] = useState(false);
 
   // Close context menu on escape
   useEffect(() => {
@@ -57,13 +59,17 @@ export function ContextMenu() {
   const hoverBg = theme === 'dark' ? '#3a4a57' : '#f0f0f0';
   const borderColor = theme === 'dark' ? '#3a4a57' : '#e0e0e0';
 
-  const menuItems: Array<{ label: string; action: () => void }> = [];
+  const menuItems: Array<{ label: string; action: () => boolean | void }> = [];
 
   if (selectedAtom) {
-    // No "Set Element" here — that needs the full ElementPicker widget
-    // (Inspector tab), not a single menu action; a stub button that opened
-    // nothing was worse than not offering it.
     menuItems.push(
+      {
+        label: showElementPicker ? 'Hide Element Picker' : 'Set Element…',
+        action: () => {
+          setShowElementPicker((visible) => !visible);
+          return true;
+        },
+      },
       {
         label: 'Charge +1',
         action: () => {
@@ -118,7 +124,9 @@ export function ContextMenu() {
   let x = contextMenu.x;
   let y = contextMenu.y;
   const menuWidth = 160;
-  const menuHeight = menuItems.length * 32;
+  // The picker is rendered below the regular menu items and can be taller
+  // than the menu itself. Include it when clamping the menu to the viewport.
+  const menuHeight = menuItems.length * 32 + (showElementPicker ? 100 : 0);
 
   if (x + menuWidth > window.innerWidth) {
     x = window.innerWidth - menuWidth - 10;
@@ -156,8 +164,8 @@ export function ContextMenu() {
           <button
             key={idx}
             onClick={() => {
-              item.action();
-              hideContextMenu();
+              const keepOpen = item.action();
+              if (!keepOpen) hideContextMenu();
             }}
             style={{
               display: 'block',
@@ -178,6 +186,19 @@ export function ContextMenu() {
           </button>
         )
       ))}
+      {selectedAtom && showElementPicker && (
+        <div data-testid="context-element-picker" style={{ padding: '8px', borderTop: `1px solid ${borderColor}` }}>
+          <ElementPicker
+            currentElement={selectedAtom.element}
+            onSelect={(element) => {
+              pushUndo();
+              updateAtom(selectedAtom.id, { element });
+              hideContextMenu();
+            }}
+            theme={theme}
+          />
+        </div>
+      )}
     </div>
   );
 }

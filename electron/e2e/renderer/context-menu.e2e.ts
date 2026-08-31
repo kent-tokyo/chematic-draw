@@ -12,7 +12,7 @@ test.describe('Atom context menu', () => {
     await waitForAppReady(page);
   });
 
-  test('Set Element is gone; Charge +1 actually changes the atom charge', async ({ page }) => {
+  test('Set Element and Charge +1 change the atom through the real context menu', async ({ page }) => {
     const canvas = page.getByTestId('molecule-canvas');
     const canvasBox = await canvas.boundingBox();
     if (!canvasBox) throw new Error('canvas not visible');
@@ -28,7 +28,18 @@ test.describe('Atom context menu', () => {
     await expect(page.getByRole('button', { name: 'Charge +1' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Charge -1' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Delete Atom' })).toBeVisible();
-    await expect(page.getByText('Set Element')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Set Element…' }).click();
+    const elementPicker = page.getByTestId('context-element-picker');
+    await expect(elementPicker).toBeVisible();
+    await elementPicker.getByRole('button', { name: 'C ▼', exact: true }).click();
+    await elementPicker.getByRole('button', { name: 'N', exact: true }).click();
+
+    // The menu closes after the mutation and the canvas renders the new
+    // element. The Inspector is the user-visible DOM proof of the same atom.
+    await page.getByTestId('sidebar-tab-inspector').click();
+    await expect(page.getByText('N ▼')).toBeVisible();
+
+    await canvas.click({ position: atomPos, button: 'right' });
 
     await page.getByRole('button', { name: 'Charge +1' }).click();
 
