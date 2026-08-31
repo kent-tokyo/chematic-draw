@@ -119,7 +119,8 @@ differences, atom-map duplicates or unmatched map numbers, and a
 `verified`/`not_verified` status. Verification is
 limited to atoms explicitly authored in the document: missing atom maps,
 implicit chemistry, stoichiometric coefficients, and reaction mechanisms are not
-inferred or repaired.
+inferred or repaired. Multi-step reports also record whether an authored product
+continues into a subsequent authored reactant; external reagents are not guessed.
 
 ### assignCip(mol: MoleculeDto): StereoAssignmentDto[]
 

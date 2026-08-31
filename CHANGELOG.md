@@ -18,6 +18,8 @@ for the full development history.
   extensions remain outside the current DTO and are preserved only by JSON.
 - RXN V2000 export now uses the existing loss-warning boundary before writing
   wildcard or isotope data that the format cannot preserve.
+- Multi-step reaction diagnostics now report missing authored intermediate
+  continuity instead of silently treating disconnected steps as one sequence.
 - Reaction integrity diagnostics now include formal-charge conservation in
   addition to authored atom inventory and mapping checks.
 - Reaction integrity diagnostics also account for isotope labels and explicit

@@ -22,4 +22,13 @@ test.describe('Reaction verification', () => {
     await page.getByRole('button', { name: '▼ Export Scheme' }).click();
     await expect(page.getByRole('button', { name: 'RXN V2000 (single step)' })).toBeVisible();
   });
+
+  test('shows disconnected multi-step continuity as not verified', async ({ page }) => {
+    await page.goto('/');
+    await waitForAppReady(page);
+    await page.getByTestId('sidebar-tab-reactions').click();
+    await page.getByRole('button', { name: '+ Add Reaction Step' }).click();
+    await page.getByRole('button', { name: '+ Add Reaction Step' }).click();
+    await expect(page.getByRole('status', { name: 'Reaction verification' })).toContainText('reaction-step continuity is not verified');
+  });
 });

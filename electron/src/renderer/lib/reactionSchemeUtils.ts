@@ -27,6 +27,10 @@ export interface ReactionDiagnostics {
     balanced: boolean;
     difference: number;
   };
+  continuity: {
+    valid: boolean;
+    issues: string[];
+  };
   mapping: {
     complete: boolean;
     duplicateMapNumbers: number[];
@@ -104,6 +108,7 @@ export function diagnoseReactionScheme(scheme: ReactionSchemeContext): ReactionD
       stepResults: [],
       atomBalance: { balanced: false, differences: [] },
       chargeBalance: { balanced: false, difference: 0 },
+      continuity: { valid: false, issues: [] },
       mapping: { complete: false, duplicateMapNumbers: [], unmatchedMapNumbers: [] },
     };
   }
@@ -114,6 +119,7 @@ export function diagnoseReactionScheme(scheme: ReactionSchemeContext): ReactionD
   let allMapped = true;
   let allChargesBalanced = true;
   let totalChargeDifference = 0;
+  const continuityIssues: string[] = [];
   const duplicateMapNumbers = new Set<number>();
   const unmatchedMapNumbers = new Set<number>();
   const stepResults: ReactionDiagnostics['stepResults'] = [];
@@ -162,13 +168,27 @@ export function diagnoseReactionScheme(scheme: ReactionSchemeContext): ReactionD
     });
   });
 
-  if (allMapped && allBalanced && allChargesBalanced) issues.push('Atom balance, formal charge, and mapping verified from authored atoms.');
+  for (let index = 0; index < scheme.steps.length - 1; index += 1) {
+    const current = scheme.steps[index];
+    const next = scheme.steps[index + 1];
+    const hasIntermediate = current.products.some((product) =>
+      next.reactants.some((reactant) => moleculesMatch(product, reactant))
+    );
+    if (!hasIntermediate) {
+      continuityIssues.push(`Step ${index + 1} → Step ${index + 2}: no authored product matches a subsequent reactant.`);
+      issues.push(`Step ${index + 1} → Step ${index + 2}: reaction-step continuity is not verified.`);
+    }
+  }
+
+  const continuityValid = continuityIssues.length === 0;
+  if (allMapped && allBalanced && allChargesBalanced && continuityValid) issues.push('Atom balance, formal charge, mapping, and step continuity verified from authored atoms.');
   return {
-    status: allMapped && allBalanced && allChargesBalanced ? 'verified' : 'not_verified',
+    status: allMapped && allBalanced && allChargesBalanced && continuityValid ? 'verified' : 'not_verified',
     issues,
     stepResults,
     atomBalance: { balanced: allBalanced, differences: allDifferences },
     chargeBalance: { balanced: allChargesBalanced, difference: totalChargeDifference },
+    continuity: { valid: continuityValid, issues: continuityIssues },
     mapping: {
       complete: allMapped,
       duplicateMapNumbers: [...duplicateMapNumbers].sort((a, b) => a - b),
