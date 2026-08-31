@@ -1,4 +1,4 @@
-import { exportRxn, importRxn } from '../renderer/lib/rxnExport';
+import { exportRxn, importRxn, MAX_RXN_MOLECULES, MAX_RXN_TEXT_LENGTH } from '../renderer/lib/rxnExport';
 import { MoleculeDto } from '../renderer/store/types';
 
 const molecule = (element: string): MoleculeDto => ({
@@ -18,5 +18,14 @@ describe('RXN V2000 exchange', () => {
 
   it('rejects missing or extra molecule blocks', () => {
     expect(() => importRxn('$RXN\n\nchematic\n\n  1  1\n$MOL\n', () => molecule('C'))).toThrow(/expected 2/);
+  });
+
+  it('rejects RXN input above the text budget before parsing', () => {
+    expect(() => importRxn('x'.repeat(MAX_RXN_TEXT_LENGTH + 1), () => molecule('C'))).toThrow(/character limit/);
+  });
+
+  it('rejects RXN input above the molecule budget before parsing blocks', () => {
+    const rxn = `$RXN\n\nchematic\n\n ${MAX_RXN_MOLECULES}  1\n`;
+    expect(() => importRxn(rxn, () => molecule('C'))).toThrow(/maximum/);
   });
 });

@@ -30,6 +30,8 @@ stoichiometric coefficients, multi-step schemes, and unsupported extensions are
 not represented and are not guessed. Wildcard and isotope loss is checked before
 RXN export and requires explicit confirmation; multi-step RXN export is blocked
 with an explicit status because RXN V2000 cannot preserve the step boundaries.
+RXN import is bounded to 10,000,000 characters and 256 molecule blocks before
+delegating each block to the molecule parser.
 
 ## Known lossy conversions (automatically confirmed before save/export)
 

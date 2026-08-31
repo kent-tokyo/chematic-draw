@@ -28,6 +28,8 @@ for the full development history.
   consistent across a step boundary.
 - Multi-step RXN export attempts now stop with an explicit status directing
   users to the lossless JSON reaction-document format.
+- RXN import now rejects oversized text and excessive molecule-block counts
+  before invoking the molecule parser.
 - Reaction integrity diagnostics now include formal-charge conservation in
   addition to authored atom inventory and mapping checks.
 - Reaction integrity diagnostics also account for isotope labels and explicit
