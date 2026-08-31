@@ -3,6 +3,8 @@ import {
   importSchemeFromJSON,
   REACTION_DOCUMENT_SCHEMA,
   REACTION_DOCUMENT_VERSION,
+  MAX_REACTION_DOCUMENT_STEPS,
+  MAX_REACTION_DOCUMENT_TEXT_LENGTH,
 } from '../renderer/lib/schemeExport';
 import { ReactionSchemeContext } from '../renderer/store/types';
 
@@ -73,5 +75,20 @@ describe('versioned reaction document JSON', () => {
     const exported = JSON.parse(exportSchemeAsJSON(scheme, null, null, null));
     exported.scheme.title = 'tampered';
     expect(importSchemeFromJSON(JSON.stringify(exported))).toBeNull();
+  });
+
+  it('rejects malformed current-schema steps instead of silently defaulting them', () => {
+    const exported = JSON.parse(exportSchemeAsJSON(scheme, null, null, null));
+    exported.scheme.steps[0].reactants = { invalid: true };
+    expect(importSchemeFromJSON(JSON.stringify(exported))).toBeNull();
+  });
+
+  it('rejects oversized or excessively long reaction documents before processing', () => {
+    expect(importSchemeFromJSON('x'.repeat(MAX_REACTION_DOCUMENT_TEXT_LENGTH + 1))).toBeNull();
+    const oversized = JSON.parse(exportSchemeAsJSON(scheme, null, null, null));
+    oversized.scheme.steps = Array.from({ length: MAX_REACTION_DOCUMENT_STEPS + 1 }, (_, index) => ({
+      ...oversized.scheme.steps[0], id: `step-${index}`,
+    }));
+    expect(importSchemeFromJSON(JSON.stringify(oversized))).toBeNull();
   });
 });

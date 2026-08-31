@@ -114,6 +114,9 @@ integer validation for charges, map numbers, isotopes, hydrogen counts, and
 bond stereo values before extension commands or session imports run. Session
 bundle JSON is limited to 10,000,000 characters before parsing; its source path
 is limited to 4,096 characters and its schema/provenance metadata is validated.
+Versioned reaction-document JSON is likewise limited to 10,000,000 characters
+and 256 steps, and malformed step arrays or molecule DTOs are rejected rather
+than replaced with empty defaults.
 
 ### Reaction document integrity
 

@@ -1,9 +1,12 @@
 import { ReactionSchemeContext, MechanismStep, MoleculeDto, AtomMapping, ReactionClassification, GreenChemistryMetrics } from '../store/types';
 import { SchemeLayout } from './schemeLayout';
 import { diagnoseReactionScheme, ReactionDiagnostics } from './reactionSchemeUtils';
+import { validateMoleculeDocument } from './documentCommands';
 
 export const REACTION_DOCUMENT_SCHEMA = 'chematic-draw/reaction-document';
 export const REACTION_DOCUMENT_VERSION = 1;
+export const MAX_REACTION_DOCUMENT_TEXT_LENGTH = 10_000_000;
+export const MAX_REACTION_DOCUMENT_STEPS = 256;
 
 interface ReactionDocumentExport {
   schema: typeof REACTION_DOCUMENT_SCHEMA;
@@ -81,6 +84,7 @@ export function exportSchemeAsJSON(
  */
 export function importSchemeFromJSON(jsonString: string): ReactionSchemeContext | null {
   try {
+    if (jsonString.length > MAX_REACTION_DOCUMENT_TEXT_LENGTH) return null;
     const data = JSON.parse(jsonString);
     if (!data || typeof data !== 'object' || !data.scheme || !Array.isArray(data.scheme.steps)) {
       return null;
@@ -106,6 +110,15 @@ export function importSchemeFromJSON(jsonString: string): ReactionSchemeContext 
     }
     const scheme = data.scheme as Partial<ReactionSchemeContext>;
     if (scheme.steps.some((step) => !step || typeof step.id !== 'string')) return null;
+    const isVersioned = data.schema === REACTION_DOCUMENT_SCHEMA;
+    if (isVersioned && scheme.steps.length > MAX_REACTION_DOCUMENT_STEPS) return null;
+    if (isVersioned && scheme.steps.some((step) => {
+      if (!Array.isArray(step.reactants) || !Array.isArray(step.products) || !Array.isArray(step.arrows)) return true;
+      if (!['sn2', 'sn1', 'e1', 'e2', 'electrophilic_addition'].includes(step.mechanismType ?? '')) return true;
+      if (!['single', 'double', 'equilibrium', 'retro'].includes(step.arrowType ?? '')) return true;
+      if (!step.conditions || typeof step.conditions !== 'object' || Array.isArray(step.conditions)) return true;
+      return [...step.reactants, ...step.products].some((molecule) => validateMoleculeDocument(molecule).length > 0);
+    })) return null;
     if (typeof scheme.id !== 'string') return null;
     return {
       id: scheme.id,

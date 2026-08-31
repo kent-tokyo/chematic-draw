@@ -35,6 +35,8 @@ for the full development history.
 - Session bundle imports now reject oversized JSON before parsing it.
 - Session bundle imports now validate source-path, schema-version, and provenance
   metadata before accepting a document.
+- Versioned reaction-document imports now reject oversized documents and malformed
+  steps instead of silently defaulting invalid molecule arrays.
 - Reaction integrity diagnostics now include formal-charge conservation in
   addition to authored atom inventory and mapping checks.
 - Reaction integrity diagnostics also account for isotope labels and explicit
