@@ -13,12 +13,39 @@ let mainWindow;
 const SETTINGS_PATH = path.join(app.getPath('userData'), 'settings.json');
 const AUTOSAVE_PATH = path.join(app.getPath('userData'), 'autosave.json');
 const AUTOSAVE_TMP_PATH = `${AUTOSAVE_PATH}.tmp`;
+const MAX_AUTOSAVE_JSON_LENGTH = 10_000_000;
+const MAX_AUTOSAVE_ATOMS = 100_000;
+const MAX_AUTOSAVE_BONDS = 200_000;
+const MAX_AUTOSAVE_FILE_PATH_LENGTH = 4_096;
 
 // Set only when the user confirms "Restore" in checkAutosaveRecovery(),
 // consumed exactly once by the 'autosave:get-pending-recovery' IPC handler.
 let pendingRecovery = null;
 let autosaveWriteQueue = Promise.resolve();
 let quittingAfterAutosaveFlush = false;
+
+const isSafeMolecule = (molecule) => {
+  if (!molecule || !Array.isArray(molecule.atoms) || !Array.isArray(molecule.bonds)) return false;
+  if (molecule.atoms.length > MAX_AUTOSAVE_ATOMS || molecule.bonds.length > MAX_AUTOSAVE_BONDS) return false;
+  const atomIds = new Set();
+  for (const atom of molecule.atoms) {
+    if (!atom || !Number.isInteger(atom.id) || atomIds.has(atom.id) || typeof atom.element !== 'string'
+      || atom.element.length === 0 || !Number.isFinite(atom.x) || !Number.isFinite(atom.y)
+      || !Number.isInteger(atom.charge) || !Number.isInteger(atom.atom_map)) return false;
+    if (atom.isotope !== undefined && (!Number.isInteger(atom.isotope) || atom.isotope < 1)) return false;
+    if (atom.hydrogen_count !== undefined && (!Number.isInteger(atom.hydrogen_count) || atom.hydrogen_count < 0)) return false;
+    atomIds.add(atom.id);
+  }
+  return molecule.bonds.every((bond) => bond && Number.isInteger(bond.id)
+    && Number.isInteger(bond.from) && atomIds.has(bond.from)
+    && Number.isInteger(bond.to) && atomIds.has(bond.to)
+    && [1, 2, 3, 4].includes(bond.order) && [0, 1, 2].includes(bond.stereo));
+};
+
+const isSafeAutosaveSnapshot = (snapshot) => snapshot && typeof snapshot === 'object'
+  && isSafeMolecule(snapshot.molecule)
+  && (snapshot.filePath === undefined || snapshot.filePath === null
+    || (typeof snapshot.filePath === 'string' && snapshot.filePath.length <= MAX_AUTOSAVE_FILE_PATH_LENGTH));
 
 // Helper functions for settings persistence
 const loadSettings = () => {
@@ -499,9 +526,16 @@ ipcMain.handle('settings:load', async (event, key) => {
 // a temp file first and only replaces the real one via an atomic rename.
 ipcMain.handle('autosave:write', async (event, molecule, filePath) => {
   const writeSnapshot = () => {
+    const normalizedFilePath = filePath ?? null;
+    if (!isSafeMolecule(molecule)) throw new Error('Autosave rejected an invalid or oversized molecule.');
+    if (normalizedFilePath !== null && (typeof normalizedFilePath !== 'string' || normalizedFilePath.length > MAX_AUTOSAVE_FILE_PATH_LENGTH)) {
+      throw new Error('Autosave rejected an invalid file path.');
+    }
+    const snapshotText = JSON.stringify({ molecule, filePath: normalizedFilePath });
+    if (snapshotText.length > MAX_AUTOSAVE_JSON_LENGTH) throw new Error('Autosave snapshot exceeds its size limit.');
     const dir = path.dirname(AUTOSAVE_PATH);
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-    writeFileSync(AUTOSAVE_TMP_PATH, JSON.stringify({ molecule, filePath }), 'utf-8');
+    writeFileSync(AUTOSAVE_TMP_PATH, snapshotText, 'utf-8');
     renameSync(AUTOSAVE_TMP_PATH, AUTOSAVE_PATH);
   };
   // Serialize writes with quit cleanup. This closes the small race where
@@ -533,6 +567,7 @@ const checkAutosaveRecovery = async () => {
   if (!existsSync(AUTOSAVE_PATH)) return;
   try {
     const snapshot = JSON.parse(readFileSync(AUTOSAVE_PATH, 'utf-8'));
+    if (!isSafeAutosaveSnapshot(snapshot)) throw new Error('Autosave snapshot failed validation.');
     // Native OS dialogs can't be driven by Playwright's _electron automation
     // (no CDP access outside the web content) — e2e coverage of this branch
     // answers via this env var instead of the real dialog. Never set outside

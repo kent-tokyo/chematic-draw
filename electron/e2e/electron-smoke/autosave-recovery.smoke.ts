@@ -119,6 +119,27 @@ test.describe('Autosave / crash recovery', () => {
     await electronApp.close();
     expect(fs.existsSync(autosavePath)).toBe(false);
   });
+
+  test('autosave:write rejects an invalid molecule at the IPC boundary', async () => {
+    expect(fs.existsSync(autosavePath)).toBe(false);
+    const electronApp = await launch();
+    const window = await electronApp.firstWindow();
+    await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
+      timeout: 15000,
+    });
+
+    const result = await window.evaluate(() => {
+      const api = (window as unknown as {
+        electronAPI: { autosaveWrite: (m: unknown, f: string | null) => Promise<{ success: boolean; error?: string }> }
+      }).electronAPI;
+      return api.autosaveWrite({ atoms: [{ id: 0, element: 'C', x: 0, y: 0, charge: 0.5, atom_map: 0 }], bonds: [] }, null);
+    });
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('invalid');
+    expect(fs.existsSync(autosavePath)).toBe(false);
+
+    await electronApp.close();
+  });
 });
 
 // The three tests above cover write and restore as separate halves: writing
