@@ -391,12 +391,22 @@ function App() {
       // silently did nothing. Same isInput guard as onMenuSelectAll above.
       api.onMenuUndo?.(() => {
         if ((document.activeElement as HTMLElement | null)?.tagName !== 'INPUT') {
-          undo();
+          const changed = undo();
+          const current = useMoleculeStore.getState().molecule;
+          const summary = `${current.atoms.length} atom${current.atoms.length === 1 ? '' : 's'}, ${current.bonds.length} bond${current.bonds.length === 1 ? '' : 's'}`;
+          setStatus(changed
+            ? `Undid last edit. ${summary}.`
+            : 'Nothing to undo.');
         }
       });
       api.onMenuRedo?.(() => {
         if ((document.activeElement as HTMLElement | null)?.tagName !== 'INPUT') {
-          redo();
+          const changed = redo();
+          const current = useMoleculeStore.getState().molecule;
+          const summary = `${current.atoms.length} atom${current.atoms.length === 1 ? '' : 's'}, ${current.bonds.length} bond${current.bonds.length === 1 ? '' : 's'}`;
+          setStatus(changed
+            ? `Redid last edit. ${summary}.`
+            : 'Nothing to redo.');
         }
       });
 

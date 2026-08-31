@@ -85,12 +85,22 @@ export function useKeyboard() {
       // Undo/Redo
       if (shortcut('undo')) {
         e.preventDefault();
-        undo();
+        const changed = undo();
+        const current = useMoleculeStore.getState().molecule;
+        const summary = `${current.atoms.length} atom${current.atoms.length === 1 ? '' : 's'}, ${current.bonds.length} bond${current.bonds.length === 1 ? '' : 's'}`;
+        setStatus(changed
+          ? `Undid last edit. ${summary}.`
+          : 'Nothing to undo.');
         return;
       }
       if (shortcut('redo')) {
         e.preventDefault();
-        redo();
+        const changed = redo();
+        const current = useMoleculeStore.getState().molecule;
+        const summary = `${current.atoms.length} atom${current.atoms.length === 1 ? '' : 's'}, ${current.bonds.length} bond${current.bonds.length === 1 ? '' : 's'}`;
+        setStatus(changed
+          ? `Redid last edit. ${summary}.`
+          : 'Nothing to redo.');
         return;
       }
 

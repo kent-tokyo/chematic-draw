@@ -49,6 +49,24 @@ test.describe('Canvas keyboard editing', () => {
     await expect(canvas).toHaveAttribute('aria-label', /3 atoms, 2 bonds/);
   });
 
+  test('undo and redo announce the resulting structure summary', async ({ page }) => {
+    const canvas = page.getByTestId('molecule-canvas');
+    const status = page.getByRole('status');
+    await clearCanvas(page, canvas);
+
+    await page.keyboard.press('Shift+C');
+    await page.keyboard.press('Shift+N');
+    await expect(canvas).toHaveAttribute('aria-label', /2 atoms, 1 bond/);
+
+    await page.keyboard.press('Control+z');
+    await expect(status).toHaveText('Undid last edit. 1 atom, 0 bonds.');
+    await expect(canvas).toHaveAttribute('aria-label', /1 atom, 0 bonds/);
+
+    await page.keyboard.press('Control+Shift+z');
+    await expect(status).toHaveText('Redid last edit. 2 atoms, 1 bond.');
+    await expect(canvas).toHaveAttribute('aria-label', /2 atoms, 1 bond/);
+  });
+
   test('arrow keys move the roving atom focus between distinct atoms', async ({ page }) => {
     const canvas = page.getByTestId('molecule-canvas');
     const status = page.getByRole('status');

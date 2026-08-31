@@ -19,6 +19,8 @@ for the full development history.
   relationships while retaining compact visual labels.
 - Empty canvases now show a concise next-action guide for choosing an atom or
   bond tool, which disappears after the first edit.
+- Undo and redo now announce whether the action changed the document and show
+  the resulting atom and bond counts.
 - File and PDF export IPC now validates the renderer sender, destination path,
   and payload size before writing user-selected files.
 - Added local RXN V2000 import/export for one-step authored reactant/product

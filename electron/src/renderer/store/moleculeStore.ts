@@ -15,8 +15,8 @@ interface MoleculeStore {
   // Actions
   setMolecule: (mol: MoleculeDto) => void;
   pushUndo: () => void;
-  undo: () => void;
-  redo: () => void;
+  undo: () => boolean;
+  redo: () => boolean;
   clear: () => void;
 
   // Atom operations
@@ -69,8 +69,10 @@ export const useMoleculeStore = create<MoleculeStore>((set, get) => ({
   },
 
   undo: () => {
+    let changed = false;
     set((state) => {
       if (state.undoStack.length === 0) return state;
+      changed = true;
       const newUndo = [...state.undoStack];
       const prev = newUndo.pop()!;
       return {
@@ -79,11 +81,14 @@ export const useMoleculeStore = create<MoleculeStore>((set, get) => ({
         redoStack: [state.molecule, ...state.redoStack],
       };
     });
+    return changed;
   },
 
   redo: () => {
+    let changed = false;
     set((state) => {
       if (state.redoStack.length === 0) return state;
+      changed = true;
       const newRedo = [...state.redoStack];
       const next = newRedo.shift()!;
       return {
@@ -92,6 +97,7 @@ export const useMoleculeStore = create<MoleculeStore>((set, get) => ({
         undoStack: [...state.undoStack, state.molecule],
       };
     });
+    return changed;
   },
 
   clear: () => {
