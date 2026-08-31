@@ -9,7 +9,7 @@ Get chematic-draw up and running in 5 minutes.
 Packaged installers (`.deb`/`.rpm` for Linux, `.zip` for macOS, a Squirrel
 `.exe` installer for Windows) are published on the
 [GitHub Releases page](https://github.com/kent-tokyo/chematic-draw/releases)
-for tagged versions. The current stable release is `v0.5.2`; builds are
+for tagged versions. The current stable release is `v0.5.3`; builds are
 unsigned (no code
 signing/notarization is configured), so macOS/Windows will show an
 unidentified-developer warning on first launch.

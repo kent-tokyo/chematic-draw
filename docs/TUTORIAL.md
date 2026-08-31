@@ -380,11 +380,10 @@ count.
 
 ### Maximum Common Substructure (MCS)
 
-MCS comparison is implemented at the WASM layer (`mcs`/`mcsSimilarity` in
-`wasmBridge.ts`, covered by real tests in `wasmContract.test.ts`), but
-there's currently no sidebar panel exposing it — no "Find MCS" button or
-two-molecule comparison UI exists yet. If you need it today, it's reachable
-programmatically, not through the app's UI.
+MCS comparison is available in the DB tab. Enter a second molecule as SMILES
+and click **Find MCS** to run the bounded local comparison. The result reports
+similarity, common atom/bond counts, and the search budget; malformed input is
+shown as an explicit error instead of being treated as an empty match.
 
 ---
 

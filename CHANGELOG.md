@@ -3,6 +3,14 @@
 Notable changes to chematic-draw. Dates use ISO 8601 format. See the git log
 for the full development history.
 
+## [0.5.3] - 2026-08-31
+
+### Added
+
+- Added an offline Maximum Common Substructure (MCS) comparison to the DB
+  panel, using the current molecule and a second SMILES input.
+- Added explicit MCS result details and malformed-input error states.
+
 ## [0.5.2] - 2026-08-31
 
 ### Fixed
@@ -65,6 +73,7 @@ for the full development history.
 
 - Initial Electron application release.
 
+[0.5.3]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.5.3
 [0.5.2]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.5.2
 [0.5.1]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.5.1
 [0.5.0]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.5.0

@@ -16,7 +16,7 @@ the two manifests remain authoritative when a version or capability changes.
 
 ## Current release
 
-The current tagged release is `v0.5.2` (2026-08-31). The application version
+The current tagged release is `v0.5.3` (2026-08-31). The application version
 is defined in `electron/package.json` and `crates/chem-wasm/Cargo.toml`; CI
 checks that they stay in sync.
 
@@ -25,7 +25,8 @@ checks that they stay in sync.
 - The app is Electron-only; the former native Rust/egui application is gone.
 - PubChem lookup is an exact InChIKey lookup, not similarity search, and needs
   internet access. ChemSpider is present in the selector but not implemented.
-- MCS is available through the WASM API but has no user-facing panel.
+- The DB panel includes an offline MCS comparison using the current molecule and
+  a second SMILES input; the search is bounded and reports its result budget.
 - Stereoisomer enumeration is heuristic and is not a complete CIP assignment.
 - CDXML can be opened but not written; RXN, XYZ, and PDB are import/export
   capabilities limited as described in [INTEROP](INTEROP.md).
