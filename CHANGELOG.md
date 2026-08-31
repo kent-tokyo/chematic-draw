@@ -25,6 +25,8 @@ for the full development history.
   recovers when the settings root is not a JSON object.
 - Batch filter results now distinguish skipped items from actual failures in
   both aggregate counts and the review panel.
+- Autosave validation now rejects duplicate bond IDs before writing a recovery
+  snapshot.
 - Sidebar panels now expose full accessible names and explicit tab/tabpanel
   relationships while retaining compact visual labels.
 - Empty canvases now show a concise next-action guide for choosing an atom or

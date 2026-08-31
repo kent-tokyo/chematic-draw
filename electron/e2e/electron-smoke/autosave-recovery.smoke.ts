@@ -140,6 +140,36 @@ test.describe('Autosave / crash recovery', () => {
 
     await electronApp.close();
   });
+
+  test('autosave:write rejects duplicate bond IDs at the IPC boundary', async () => {
+    expect(fs.existsSync(autosavePath)).toBe(false);
+    const electronApp = await launch();
+    const window = await electronApp.firstWindow();
+    await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
+      timeout: 15000,
+    });
+
+    const result = await window.evaluate(() => {
+      const api = (window as unknown as {
+        electronAPI: { autosaveWrite: (m: unknown, f: string | null) => Promise<{ success: boolean; error?: string }> }
+      }).electronAPI;
+      return api.autosaveWrite({
+        atoms: [
+          { id: 1, element: 'C', x: 0, y: 0, charge: 0, atom_map: 0 },
+          { id: 2, element: 'C', x: 1, y: 0, charge: 0, atom_map: 0 },
+        ],
+        bonds: [
+          { id: 7, from: 1, to: 2, order: 1, stereo: 0 },
+          { id: 7, from: 1, to: 2, order: 1, stereo: 0 },
+        ],
+      }, null);
+    });
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/invalid or oversized molecule/i);
+    expect(fs.existsSync(autosavePath)).toBe(false);
+
+    await electronApp.close();
+  });
 });
 
 // The three tests above cover write and restore as separate halves: writing

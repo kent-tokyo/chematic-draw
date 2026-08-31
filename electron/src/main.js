@@ -51,10 +51,13 @@ const isSafeMolecule = (molecule) => {
     if (atom.hydrogen_count !== undefined && (!Number.isInteger(atom.hydrogen_count) || atom.hydrogen_count < 0)) return false;
     atomIds.add(atom.id);
   }
+  const bondIds = new Set();
   return molecule.bonds.every((bond) => bond && Number.isInteger(bond.id)
+    && !bondIds.has(bond.id)
     && Number.isInteger(bond.from) && atomIds.has(bond.from)
     && Number.isInteger(bond.to) && atomIds.has(bond.to)
-    && [1, 2, 3, 4].includes(bond.order) && [0, 1, 2].includes(bond.stereo));
+    && [1, 2, 3, 4].includes(bond.order) && [0, 1, 2].includes(bond.stereo)
+    && bondIds.add(bond.id));
 };
 
 const isSafeAutosaveSnapshot = (snapshot) => snapshot && typeof snapshot === 'object'
