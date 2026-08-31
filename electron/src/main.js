@@ -113,6 +113,20 @@ const saveSettings = (data) => {
   renameSync(SETTINGS_TMP_PATH, SETTINGS_PATH);
 };
 
+const writeFileAtomically = (filePath, data, options) => {
+  const temporaryPath = `${filePath}.tmp-${process.pid}-${Date.now()}`;
+  try {
+    writeFileSync(temporaryPath, data, options);
+    renameSync(temporaryPath, filePath);
+  } finally {
+    try {
+      if (existsSync(temporaryPath)) unlinkSync(temporaryPath);
+    } catch {
+      // The destination may have been replaced successfully; cleanup is best effort.
+    }
+  }
+};
+
 const createWindow = () => {
   // Create the browser window.
   mainWindow = new BrowserWindow({
@@ -510,7 +524,7 @@ ipcMain.handle('file:write', async (event, filePath, content) => {
     if (typeof content !== 'string' || content.length > MAX_FILE_TEXT_LENGTH) {
       throw new Error('File write rejected an invalid or oversized text payload.');
     }
-    writeFileSync(filePath, content, 'utf-8');
+    writeFileAtomically(filePath, content, 'utf-8');
     return { success: true };
   } catch (err) {
     return { success: false, error: err.message };
@@ -527,7 +541,7 @@ ipcMain.handle('file:write-binary', async (event, filePath, base64Content) => {
     if (!isValidBase64(base64Content)) throw new Error('Binary file write rejected an invalid base64 payload.');
     const buffer = Buffer.from(base64Content, 'base64');
     if (buffer.length > MAX_FILE_BINARY_BYTES) throw new Error('Binary file write payload exceeds its size limit.');
-    writeFileSync(filePath, buffer);
+    writeFileAtomically(filePath, buffer);
     return { success: true };
   } catch (err) {
     return { success: false, error: err.message };
@@ -555,7 +569,7 @@ ipcMain.handle('export:pdf', async (event, filePath, svgText) => {
       pageSize: { width, height },
       margins: { marginType: 'none' },
     });
-    writeFileSync(filePath, buffer);
+    writeFileAtomically(filePath, buffer);
     return { success: true };
   } catch (err) {
     return { success: false, error: err.message };

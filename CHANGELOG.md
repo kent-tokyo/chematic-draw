@@ -35,6 +35,8 @@ for the full development history.
   starting a job.
 - Batch processing now validates each molecule before invoking the chemistry
   engine and records malformed inputs as explicit failed items.
+- File, binary, and PDF exports now write through a temporary file and atomic
+  rename to avoid leaving partially-written output after interruption.
 - Sidebar panels now expose full accessible names and explicit tab/tabpanel
   relationships while retaining compact visual labels.
 - Empty canvases now show a concise next-action guide for choosing an atom or
