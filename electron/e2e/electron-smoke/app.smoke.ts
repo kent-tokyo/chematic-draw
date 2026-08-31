@@ -491,6 +491,24 @@ test.describe('Electron Smoke', () => {
     fs.rmSync(userDataDir, { recursive: true, force: true });
   });
 
+  test('a non-object settings root falls back to safe defaults', async () => {
+    const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chematic-invalid-settings-root-'));
+    fs.writeFileSync(path.join(userDataDir, 'settings.json'), JSON.stringify(['invalid']), 'utf-8');
+
+    const electronApp = await electron.launch({
+      args: [`--user-data-dir=${userDataDir}`, path.resolve(__dirname, '..', '..')],
+    });
+    const window = await electronApp.firstWindow();
+    await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
+    const topLevel = await electronApp.evaluate(
+      ({ Menu }) => Menu.getApplicationMenu()?.items.map((i) => i.label) ?? []
+    );
+    expect(topLevel).toEqual(['File', 'Edit', 'View', 'Tools', 'Help']);
+
+    await electronApp.close();
+    fs.rmSync(userDataDir, { recursive: true, force: true });
+  });
+
   test('closing the sidebar persists across a relaunch', async () => {
     // Regression test: the settings-hydration effect checked
     // `savedSidebarWidth.value` for truthiness before restoring, but a

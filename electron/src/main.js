@@ -11,6 +11,7 @@ if (started) {
 
 let mainWindow;
 const SETTINGS_PATH = path.join(app.getPath('userData'), 'settings.json');
+const SETTINGS_TMP_PATH = `${SETTINGS_PATH}.tmp`;
 const AUTOSAVE_PATH = path.join(app.getPath('userData'), 'autosave.json');
 const AUTOSAVE_TMP_PATH = `${AUTOSAVE_PATH}.tmp`;
 const MAX_AUTOSAVE_JSON_LENGTH = 10_000_000;
@@ -94,7 +95,8 @@ const isSafeSettingsValue = (key, value) => {
 const loadSettings = () => {
   if (!existsSync(SETTINGS_PATH)) return {};
   try {
-    return JSON.parse(readFileSync(SETTINGS_PATH, 'utf-8'));
+    const settings = JSON.parse(readFileSync(SETTINGS_PATH, 'utf-8'));
+    return settings && typeof settings === 'object' && !Array.isArray(settings) ? settings : {};
   } catch (err) {
     console.error('Failed to load settings:', err);
     return {};
@@ -104,7 +106,8 @@ const loadSettings = () => {
 const saveSettings = (data) => {
   const dir = path.dirname(SETTINGS_PATH);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  writeFileSync(SETTINGS_PATH, JSON.stringify(data, null, 2), 'utf-8');
+  writeFileSync(SETTINGS_TMP_PATH, JSON.stringify(data, null, 2), 'utf-8');
+  renameSync(SETTINGS_TMP_PATH, SETTINGS_PATH);
 };
 
 const createWindow = () => {
