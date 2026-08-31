@@ -2,10 +2,12 @@ import { MoleculeDto } from '../store/types';
 
 /** The deliberately small permission vocabulary for local extensions. */
 export type ExtensionPermission = 'document:write' | 'analysis:read' | 'import:read' | 'export:write';
+export const EXTENSION_API_VERSION = 1;
 
 export interface ExtensionManifest {
   id: string;
   version: string;
+  api_version?: number;
   permissions: ExtensionPermission[];
 }
 
@@ -61,6 +63,9 @@ export function createExtensionHost(): ExtensionHost {
   return {
     register(manifest, commands = [], providers = []) {
       if (!/^[a-z][a-z0-9._-]{1,63}$/.test(manifest.id)) throw new Error('Extension id must be lowercase and stable');
+      if (manifest.api_version !== undefined && manifest.api_version !== EXTENSION_API_VERSION) {
+        throw new Error(`Unsupported extension API version: ${manifest.api_version}`);
+      }
       if (extensions.has(manifest.id)) throw new Error(`Extension already registered: ${manifest.id}`);
       const commandMap = new Map<string, DocumentCommand>();
       for (const command of commands) {
@@ -79,6 +84,8 @@ export function createExtensionHost(): ExtensionHost {
     execute(extensionId, commandId, molecule, payload) {
       const extension = extensions.get(extensionId); const command = extension?.commands.get(commandId);
       if (!extension || !command) throw new Error(`Unknown extension command: ${extensionId}/${commandId}`);
+      const inputErrors = validateMoleculeDocument(molecule);
+      if (inputErrors.length > 0) throw new Error(`Command received an invalid document: ${inputErrors.join('; ')}`);
       const next = command.execute({ molecule, payload });
       const errors = validateMoleculeDocument(next);
       if (errors.length > 0) throw new Error(`Command produced an invalid document: ${errors.join('; ')}`);

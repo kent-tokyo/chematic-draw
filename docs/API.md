@@ -79,7 +79,7 @@ const benzene: MoleculeDto = {
 
 ## Molecule Operations
 
-## Local Extension API (v0.6.1)
+### Local Extension API (v0.7.0)
 
 Local extensions use the renderer's validated command boundary. A command must
 declare `document:write`; its returned molecule is checked for unique IDs,
@@ -90,7 +90,7 @@ receive a molecule for inspection. There is no implicit file or network access.
 ```typescript
 const host = createExtensionHost();
 host.register(
-  { id: 'example-tools', version: '1.0.0', permissions: ['analysis:read'] },
+  { id: 'example-tools', version: '1.0.0', api_version: 1, permissions: ['analysis:read'] },
   [],
   [{ id: 'atom-count', description: 'Count atoms', analyze: (mol) => mol.atoms.length }]
 );
@@ -101,6 +101,14 @@ Unknown IDs, duplicate registrations, missing permissions, and invalid command
 results are rejected. Import/export permissions are reserved for explicit
 adapters; future plugin loading must preserve this boundary and add an
 explicit schema migration before changing the API contract.
+
+### Session bundle schema (v2)
+
+`serializeSessionBundle` writes the `chematic-draw/session-bundle` v2 envelope
+with `document.schema_version: 1`. `parseSessionBundle` accepts v1 bundles and
+migrates their top-level `molecule` into the current document envelope in
+memory. Unknown future bundle versions, malformed molecules, and provenance
+hash mismatches are rejected; source files are never rewritten implicitly.
 
 ### parseMolecule(text: string): MoleculeDto
 

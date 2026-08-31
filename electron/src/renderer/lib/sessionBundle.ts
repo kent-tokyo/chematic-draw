@@ -1,15 +1,28 @@
 import { MoleculeDto } from '../store/types';
+import { validateMoleculeDocument } from './documentCommands';
 
 export const SESSION_BUNDLE_SCHEMA = 'chematic-draw/session-bundle';
-export const SESSION_BUNDLE_VERSION = 1;
+export const SESSION_BUNDLE_VERSION = 2;
+export const DOCUMENT_SCHEMA_VERSION = 1;
+export const SESSION_BUNDLE_MIGRATION_POLICY = 'v1-to-v2-only';
 
 export interface SessionBundle {
   schema: typeof SESSION_BUNDLE_SCHEMA;
   schema_version: typeof SESSION_BUNDLE_VERSION;
   app: { name: 'chematic-draw'; engine: 'chematic 0.35.0' };
   source: { file_path: string | null };
-  molecule: MoleculeDto;
+  document: { schema_version: typeof DOCUMENT_SCHEMA_VERSION; molecule: MoleculeDto };
   provenance: { operation: 'export-session-bundle'; structure_hash: string };
+}
+
+interface VersionedInputBundle {
+  schema?: unknown;
+  schema_version?: unknown;
+  app?: SessionBundle['app'];
+  source?: SessionBundle['source'];
+  molecule?: MoleculeDto;
+  document?: SessionBundle['document'];
+  provenance?: SessionBundle['provenance'];
 }
 
 function stableMoleculeJson(molecule: MoleculeDto): string {
@@ -39,7 +52,7 @@ export function createSessionBundle(molecule: MoleculeDto, filePath: string | nu
     schema_version: SESSION_BUNDLE_VERSION,
     app: { name: 'chematic-draw', engine: 'chematic 0.35.0' },
     source: { file_path: filePath },
-    molecule,
+    document: { schema_version: DOCUMENT_SCHEMA_VERSION, molecule },
     provenance: { operation: 'export-session-bundle', structure_hash: structureHash(molecule) },
   };
 }
@@ -54,12 +67,35 @@ export function parseSessionBundle(text: string): SessionBundle {
   let value: unknown;
   try { value = JSON.parse(text); } catch { throw new Error('Session bundle is not valid JSON.'); }
   if (!value || typeof value !== 'object') throw new Error('Session bundle must be a JSON object.');
-  const bundle = value as Partial<SessionBundle>;
-  if (bundle.schema !== SESSION_BUNDLE_SCHEMA || bundle.schema_version !== SESSION_BUNDLE_VERSION) {
+  const bundle = value as VersionedInputBundle;
+  if (bundle.schema !== SESSION_BUNDLE_SCHEMA) {
     throw new Error('Unsupported or unrecognized session bundle.');
   }
-  if (!isMolecule(bundle.molecule)) throw new Error('Session bundle does not contain a molecule.');
-  return bundle as SessionBundle;
+  const normalized = bundle.schema_version === 1
+    ? migrateV1Bundle(bundle)
+    : bundle.schema_version === SESSION_BUNDLE_VERSION ? bundle : null;
+  if (!normalized || !normalized.document || !isMolecule(normalized.document.molecule)) {
+    throw new Error('Session bundle does not contain a molecule.');
+  }
+  const errors = validateMoleculeDocument(normalized.document.molecule);
+  if (errors.length > 0) throw new Error(`Session bundle contains an invalid molecule: ${errors.join('; ')}`);
+  if (normalized.provenance?.structure_hash !== structureHash(normalized.document.molecule)) {
+    throw new Error('Session bundle provenance hash does not match the molecule.');
+  }
+  return normalized as SessionBundle;
+}
+
+function migrateV1Bundle(bundle: VersionedInputBundle): SessionBundle | null {
+  const molecule = bundle.molecule;
+  if (!isMolecule(molecule)) return null;
+  return {
+    schema: SESSION_BUNDLE_SCHEMA,
+    schema_version: SESSION_BUNDLE_VERSION,
+    app: bundle.app ?? { name: 'chematic-draw', engine: 'chematic 0.35.0' },
+    source: bundle.source ?? { file_path: null },
+    document: { schema_version: DOCUMENT_SCHEMA_VERSION, molecule },
+    provenance: bundle.provenance ?? { operation: 'export-session-bundle', structure_hash: structureHash(molecule) },
+  };
 }
 
 export function serializeSessionBundle(molecule: MoleculeDto, filePath: string | null): string {

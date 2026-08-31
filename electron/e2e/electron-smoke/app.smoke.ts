@@ -87,6 +87,33 @@ test.describe('Electron Smoke', () => {
     await electronApp.close();
   });
 
+  test('packaged app migrates a v1 session bundle on open', async () => {
+    const electronApp = await electron.launch({
+      args: [path.resolve(__dirname, '..', '..')],
+    });
+    const window = await electronApp.firstWindow();
+    await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
+      timeout: 15000,
+    });
+
+    const legacyPath = path.join(os.tmpdir(), `chematic-v1-session-${Date.now()}.schematic.json`);
+    const legacyBundle = JSON.stringify({
+      schema: 'chematic-draw/session-bundle',
+      schema_version: 1,
+      app: { name: 'chematic-draw', engine: 'chematic 0.35.0' },
+      source: { file_path: null },
+      molecule: { atoms: [{ id: 0, element: 'N', x: 0, y: 0, charge: 0, atom_map: 0 }], bonds: [] },
+    });
+
+    await electronApp.evaluate(({ BrowserWindow }, data) => {
+      BrowserWindow.getAllWindows()[0].webContents.send('menu:open-file', data);
+    }, { path: legacyPath, content: legacyBundle });
+
+    await expect(window.getByText(/^1a • 0b/)).toBeVisible({ timeout: 10000 });
+    await expect(window.getByTestId('molecule-canvas')).toHaveAttribute('aria-label', /1 atom, 0 bonds/);
+    await electronApp.close();
+  });
+
   test('Edit > Select All menu item actually selects everything', async () => {
     // Same dead-wiring bug class as the Shortcuts modal test above, found
     // by the same sweep once that fix landed: main.js sends 'menu:select-all'

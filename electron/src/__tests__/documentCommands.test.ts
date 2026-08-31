@@ -1,4 +1,4 @@
-import { createExtensionHost, validateMoleculeDocument } from '../renderer/lib/documentCommands';
+import { createExtensionHost, EXTENSION_API_VERSION, validateMoleculeDocument } from '../renderer/lib/documentCommands';
 import { MoleculeDto } from '../renderer/store/types';
 
 const molecule: MoleculeDto = {
@@ -7,6 +7,12 @@ const molecule: MoleculeDto = {
 };
 
 describe('local extension document API', () => {
+  test('exposes the frozen API major version', () => {
+    expect(EXTENSION_API_VERSION).toBe(1);
+    const host = createExtensionHost();
+    expect(() => host.register({ id: 'future-plugin', version: '2.0.0', api_version: 2, permissions: [] })).toThrow(/API version/);
+  });
+
   test('requires write permission and validates command output', () => {
     const host = createExtensionHost();
     expect(() => host.register({ id: 'unsafe', version: '1.0.0', permissions: [] }, [{ id: 'bad', description: 'bad', requiredPermission: 'document:write', execute: () => ({ atoms: [], bonds: [] }) }])).toThrow(/permission/);

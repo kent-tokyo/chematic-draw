@@ -9,6 +9,7 @@ the two manifests remain authoritative when a version or capability changes.
 - [Build Guide](BUILD.md) — toolchain, WASM build, tests, and packaging
 - [User Tutorial](TUTORIAL.md) — common editor workflows
 - [API Reference](API.md) — the Rust/WASM bridge contract
+- [Known Limitations](KNOWN_LIMITATIONS.md) — release-scoped support and risk matrix
 - [Format Interoperability](INTEROP.md) — supported formats and known loss
 - [Architecture](ARCHITECTURE.md) — application structure and data flow
 - [Troubleshooting](TROUBLESHOOTING.md) — common setup and runtime problems
@@ -16,7 +17,7 @@ the two manifests remain authoritative when a version or capability changes.
 
 ## Current release
 
-The current tagged release is `v0.6.1` (2026-08-31). The application version
+The current tagged release is `v0.7.0` (2026-08-31). The application version
 is defined in `electron/package.json` and `crates/chem-wasm/Cargo.toml`; CI
 checks that they stay in sync.
 

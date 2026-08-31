@@ -3,6 +3,21 @@
 Notable changes to chematic-draw. Dates use ISO 8601 format. See the git log
 for the full development history.
 
+## [0.7.0] - 2026-08-31
+
+### Added
+
+- Froze the v1 document schema and local extension API compatibility contract.
+- Session bundle exports now use a v2 envelope with an explicit document schema.
+- Added a safe v1-to-v2 migration path and rejection of unknown future versions.
+- Added provenance hash verification and packaged-app migration coverage.
+- Added release-scoped known-limitations and migration policy documentation.
+
+### Security
+
+- Session bundles reject malformed documents and tampered structure hashes before
+  they reach the editor.
+
 ## [0.6.1] - 2026-08-31
 
 ### Added
@@ -132,6 +147,7 @@ for the full development history.
 
 - Initial Electron application release.
 
+[0.7.0]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.7.0
 [0.6.1]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.6.1
 [0.6.0]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.6.0
 [0.5.7]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.5.7

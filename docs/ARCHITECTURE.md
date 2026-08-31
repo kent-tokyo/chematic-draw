@@ -519,7 +519,7 @@ WebWorker anywhere in this codebase; see System Overview above.)
 
 ### Validated local extensions
 
-`renderer/lib/documentCommands.ts` is the v0.6.1 integration boundary. Local
+`renderer/lib/documentCommands.ts` is the v0.7.0 integration boundary. Local
 extensions register a manifest, validated document commands, or read-only
 analysis providers. Commands require `document:write` and their output is
 checked before application; providers require `analysis:read` and cannot

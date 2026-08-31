@@ -20,7 +20,7 @@ import { parseSessionBundle, serializeSessionBundle } from './renderer/lib/sessi
 import { DEFAULT_SHORTCUT_BINDINGS, validateShortcutBindings, ShortcutBindings } from './renderer/lib/shortcuts';
 
 function parseMoleculeDocument(content: string, filePath: string): MoleculeDto {
-  if (filePath.toLowerCase().endsWith('.json')) return parseSessionBundle(content).molecule;
+  if (filePath.toLowerCase().endsWith('.json')) return parseSessionBundle(content).document.molecule;
   return wasmBridge.parseMolecule(content);
 }
 
