@@ -17,6 +17,9 @@ const MAX_AUTOSAVE_JSON_LENGTH = 10_000_000;
 const MAX_AUTOSAVE_ATOMS = 100_000;
 const MAX_AUTOSAVE_BONDS = 200_000;
 const MAX_AUTOSAVE_FILE_PATH_LENGTH = 4_096;
+const MAX_FILE_TEXT_LENGTH = 10_000_000;
+const MAX_FILE_BINARY_BYTES = 50_000_000;
+const MAX_FILE_PATH_LENGTH = 4_096;
 
 // Set only when the user confirms "Restore" in checkAutosaveRecovery(),
 // consumed exactly once by the 'autosave:get-pending-recovery' IPC handler.
@@ -48,6 +51,10 @@ const isSafeAutosaveSnapshot = (snapshot) => snapshot && typeof snapshot === 'ob
     || (typeof snapshot.filePath === 'string' && snapshot.filePath.length <= MAX_AUTOSAVE_FILE_PATH_LENGTH));
 
 const isTrustedRendererEvent = (event) => Boolean(mainWindow && event?.sender === mainWindow.webContents);
+const isValidFilePath = (filePath) => typeof filePath === 'string'
+  && filePath.length > 0 && filePath.length <= MAX_FILE_PATH_LENGTH;
+const isValidBase64 = (value) => typeof value === 'string'
+  && value.length % 4 === 0 && /^[A-Za-z0-9+/]*={0,2}$/.test(value);
 
 // Helper functions for settings persistence
 const loadSettings = () => {
@@ -400,6 +407,10 @@ const createMenu = (recentFiles = loadSettings().recentFiles) => {
 
 // IPC Handlers for File Operations
 ipcMain.handle('file:save-dialog', async (event, defaultPath) => {
+  if (!isTrustedRendererEvent(event)) return { canceled: true };
+  if (defaultPath !== undefined && defaultPath !== null && !isValidFilePath(defaultPath)) {
+    return { canceled: true };
+  }
   const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
     defaultPath,
     filters: [
@@ -417,6 +428,11 @@ ipcMain.handle('file:save-dialog', async (event, defaultPath) => {
 
 ipcMain.handle('file:write', async (event, filePath, content) => {
   try {
+    if (!isTrustedRendererEvent(event)) throw new Error('File write request came from an untrusted renderer.');
+    if (!isValidFilePath(filePath)) throw new Error('File write rejected an invalid file path.');
+    if (typeof content !== 'string' || content.length > MAX_FILE_TEXT_LENGTH) {
+      throw new Error('File write rejected an invalid or oversized text payload.');
+    }
     writeFileSync(filePath, content, 'utf-8');
     return { success: true };
   } catch (err) {
@@ -429,7 +445,12 @@ ipcMain.handle('file:write', async (event, filePath, content) => {
 // decoded to a raw Buffer here instead.
 ipcMain.handle('file:write-binary', async (event, filePath, base64Content) => {
   try {
-    writeFileSync(filePath, Buffer.from(base64Content, 'base64'));
+    if (!isTrustedRendererEvent(event)) throw new Error('Binary file write request came from an untrusted renderer.');
+    if (!isValidFilePath(filePath)) throw new Error('Binary file write rejected an invalid file path.');
+    if (!isValidBase64(base64Content)) throw new Error('Binary file write rejected an invalid base64 payload.');
+    const buffer = Buffer.from(base64Content, 'base64');
+    if (buffer.length > MAX_FILE_BINARY_BYTES) throw new Error('Binary file write payload exceeds its size limit.');
+    writeFileSync(filePath, buffer);
     return { success: true };
   } catch (err) {
     return { success: false, error: err.message };
@@ -440,10 +461,16 @@ ipcMain.handle('file:write-binary', async (event, filePath, base64Content) => {
 // live editing canvas) and prints that to PDF, so the export is unaffected
 // by canvas zoom/pan/selection highlighting.
 ipcMain.handle('export:pdf', async (event, filePath, svgText) => {
-  const { width, height } = svgPageSizeInches(svgText);
-  const html = `<!DOCTYPE html><html><head><style>html,body{margin:0;padding:0}</style></head><body>${svgText}</body></html>`;
-  const pdfWindow = new BrowserWindow({ show: false });
+  let pdfWindow;
   try {
+    if (!isTrustedRendererEvent(event)) throw new Error('PDF export request came from an untrusted renderer.');
+    if (!isValidFilePath(filePath)) throw new Error('PDF export rejected an invalid file path.');
+    if (typeof svgText !== 'string' || svgText.length > MAX_FILE_TEXT_LENGTH) {
+      throw new Error('PDF export rejected an invalid or oversized SVG payload.');
+    }
+    const { width, height } = svgPageSizeInches(svgText);
+    const html = `<!DOCTYPE html><html><head><style>html,body{margin:0;padding:0}</style></head><body>${svgText}</body></html>`;
+    pdfWindow = new BrowserWindow({ show: false });
     await pdfWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
     const buffer = await pdfWindow.webContents.printToPDF({
       printBackground: true,
@@ -455,7 +482,7 @@ ipcMain.handle('export:pdf', async (event, filePath, svgText) => {
   } catch (err) {
     return { success: false, error: err.message };
   } finally {
-    pdfWindow.destroy();
+    if (pdfWindow && !pdfWindow.isDestroyed()) pdfWindow.destroy();
   }
 });
 

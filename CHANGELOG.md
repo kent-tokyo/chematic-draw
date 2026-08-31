@@ -7,6 +7,8 @@ for the full development history.
 
 ### Added
 
+- File and PDF export IPC now validates the renderer sender, destination path,
+  and payload size before writing user-selected files.
 - Added local RXN V2000 import/export for one-step authored reactant/product
   schemes, using the existing MOL conversion boundary.
 - RXN exchange rejects malformed counts or missing molecule blocks instead of

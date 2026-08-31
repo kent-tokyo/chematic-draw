@@ -87,6 +87,35 @@ test.describe('Electron Smoke', () => {
     await electronApp.close();
   });
 
+  test('file export IPC rejects invalid paths and oversized payloads', async () => {
+    const electronApp = await electron.launch({
+      args: [path.resolve(__dirname, '..', '..')],
+    });
+    const window = await electronApp.firstWindow();
+    await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
+      timeout: 15000,
+    });
+
+    const results = await window.evaluate(() => {
+      const api = (window as unknown as {
+        electronAPI: {
+          fileWrite: (filePath: string, content: string) => Promise<{ success: boolean }>;
+          fileWriteBinary: (filePath: string, content: string) => Promise<{ success: boolean }>;
+          exportPdf: (filePath: string, content: string) => Promise<{ success: boolean }>;
+        };
+      }).electronAPI;
+      return Promise.all([
+        api.fileWrite('', 'valid but pathless'),
+        api.fileWrite('/tmp/chematic-too-large.txt', 'x'.repeat(10_000_001)),
+        api.fileWriteBinary('/tmp/chematic-invalid.bin', 'not base64'),
+        api.exportPdf('/tmp/chematic-too-large.pdf', '<svg>'.concat('x'.repeat(10_000_001), '</svg>')),
+      ]);
+    });
+
+    expect(results.every(({ success }) => success === false)).toBe(true);
+    await electronApp.close();
+  });
+
   test('packaged app migrates a v1 session bundle on open', async () => {
     const electronApp = await electron.launch({
       args: [path.resolve(__dirname, '..', '..')],
