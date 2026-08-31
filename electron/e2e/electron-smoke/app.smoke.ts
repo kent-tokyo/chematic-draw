@@ -295,6 +295,39 @@ test.describe('Electron Smoke', () => {
     await electronApp.close();
   });
 
+  test('a successful batch transformation is one undoable document change', async () => {
+    const electronApp = await electron.launch({
+      args: [path.resolve(__dirname, '..', '..')],
+    });
+    const window = await electronApp.firstWindow();
+    await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
+      timeout: 15000,
+    });
+
+    const canvas = window.getByTestId('molecule-canvas');
+    await window.locator('button[title="C [C]"]').click();
+    await canvas.click({ position: { x: 50, y: 50 } });
+    await expect(canvas).toHaveAttribute('aria-label', /7 atoms, 6 bonds/);
+
+    await electronApp.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0].webContents.send('menu:batch-process');
+    });
+    const dialog = window.getByRole('dialog', { name: 'Batch Process Molecules' });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Process', exact: true }).click();
+    await expect(dialog).toBeHidden();
+
+    // The batch result is currently identical for this standardize operation,
+    // so use the following undo as the observable proof that batch itself
+    // captured a checkpoint: it must leave the 7-atom document unchanged.
+    await window.keyboard.press('Control+z');
+    await expect(canvas).toHaveAttribute('aria-label', /7 atoms, 6 bonds/);
+    await window.keyboard.press('Control+z');
+    await expect(canvas).toHaveAttribute('aria-label', /6 atoms, 6 bonds/);
+
+    await electronApp.close();
+  });
+
   test('electronAPI.pasteFromClipboard() resolves instead of hanging forever', async () => {
     // Found while investigating an unrelated menu issue (Edit > Copy/Paste
     // being wired to Electron's built-in role, not real app logic) —

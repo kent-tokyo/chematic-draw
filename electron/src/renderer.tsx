@@ -522,6 +522,7 @@ function App() {
       }
 
       if (result.molecules.length > 0) {
+        pushUndo();
         setMolecule(result.molecules[0]);
         setStatus(`Batch processing complete: ${result.processed} processed, ${result.failed} failed, ${result.skipped} skipped`);
       } else {
