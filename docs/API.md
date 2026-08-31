@@ -118,6 +118,8 @@ Versioned reaction-document JSON is likewise limited to 10,000,000 characters
 and 256 steps, and malformed step arrays or molecule DTOs are rejected rather
 than replaced with empty defaults. Conditions and mechanism arrows are checked
 for bounded values, supported types, and references to atoms in the same step.
+Current-schema documents must include valid provenance evidence; only legacy
+unversioned documents use migration defaults.
 
 ### Reaction document integrity
 

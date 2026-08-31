@@ -89,9 +89,11 @@ export function importSchemeFromJSON(jsonString: string): ReactionSchemeContext 
     if (!data || typeof data !== 'object' || !data.scheme || !Array.isArray(data.scheme.steps)) {
       return null;
     }
-    if (data.schema && (data.schema !== REACTION_DOCUMENT_SCHEMA || data.schema_version !== REACTION_DOCUMENT_VERSION)) {
+    const isVersioned = data.schema === REACTION_DOCUMENT_SCHEMA;
+    if (data.schema && (!isVersioned || data.schema_version !== REACTION_DOCUMENT_VERSION)) {
       return null;
     }
+    if (isVersioned && !data.provenance) return null;
     if (data.provenance) {
       if (
         data.provenance.source_format !== 'reaction-document-json' ||
@@ -110,7 +112,6 @@ export function importSchemeFromJSON(jsonString: string): ReactionSchemeContext 
     }
     const scheme = data.scheme as Partial<ReactionSchemeContext>;
     if (scheme.steps.some((step) => !step || typeof step.id !== 'string')) return null;
-    const isVersioned = data.schema === REACTION_DOCUMENT_SCHEMA;
     if (isVersioned && scheme.steps.length > MAX_REACTION_DOCUMENT_STEPS) return null;
     if (isVersioned && scheme.steps.some((step) => {
       if (!Array.isArray(step.reactants) || !Array.isArray(step.products) || !Array.isArray(step.arrows)) return true;

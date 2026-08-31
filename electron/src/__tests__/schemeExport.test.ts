@@ -77,6 +77,12 @@ describe('versioned reaction document JSON', () => {
     expect(importSchemeFromJSON(JSON.stringify(exported))).toBeNull();
   });
 
+  it('rejects a current-schema document without provenance evidence', () => {
+    const exported = JSON.parse(exportSchemeAsJSON(scheme, null, null, null));
+    delete exported.provenance;
+    expect(importSchemeFromJSON(JSON.stringify(exported))).toBeNull();
+  });
+
   it('rejects malformed current-schema steps instead of silently defaulting them', () => {
     const exported = JSON.parse(exportSchemeAsJSON(scheme, null, null, null));
     exported.scheme.steps[0].reactants = { invalid: true };

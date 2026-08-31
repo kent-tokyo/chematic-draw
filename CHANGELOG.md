@@ -39,6 +39,8 @@ for the full development history.
   steps instead of silently defaulting invalid molecule arrays.
 - Versioned reaction-document imports now validate mechanism-arrow references and
   bounded reaction-condition values.
+- Current-schema reaction documents without provenance evidence are now rejected
+  instead of being accepted without hash verification.
 - Reaction integrity diagnostics now include formal-charge conservation in
   addition to authored atom inventory and mapping checks.
 - Reaction integrity diagnostics also account for isotope labels and explicit
