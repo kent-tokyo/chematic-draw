@@ -28,7 +28,8 @@ one-step authored reactant/product schemes through the existing MOL conversion
 boundary. The older RXN row above describes the released 0.9.0 baseline; agents,
 stoichiometric coefficients, multi-step schemes, and unsupported extensions are
 not represented and are not guessed. Wildcard and isotope loss is checked before
-RXN export and requires explicit confirmation.
+RXN export and requires explicit confirmation; multi-step RXN export is blocked
+with an explicit status because RXN V2000 cannot preserve the step boundaries.
 
 ## Known lossy conversions (automatically confirmed before save/export)
 

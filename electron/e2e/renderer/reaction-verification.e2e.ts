@@ -32,4 +32,16 @@ test.describe('Reaction verification', () => {
     await expect(page.getByRole('status', { name: 'Reaction verification' })).toContainText('reaction-step continuity is not verified');
     await expect(page.getByTestId('reaction-integrity-continuity')).toContainText('Step 1 → 2: 0 authored intermediates');
   });
+
+  test('blocks RXN export for a multi-step scheme with an explicit status', async ({ page }) => {
+    await page.goto('/');
+    await waitForAppReady(page);
+    await page.getByTestId('sidebar-tab-reactions').click();
+    await page.getByRole('button', { name: '+ Add Reaction Step' }).click();
+    await page.getByRole('button', { name: '+ Add Reaction Step' }).click();
+    await page.getByRole('button', { name: '▼ Export Scheme' }).click();
+    await page.getByRole('button', { name: 'RXN V2000 (single step)' }).click();
+    await expect(page.getByRole('status', { name: 'Reaction export status' }))
+      .toContainText('RXN export supports one authored step; use JSON for multi-step schemes');
+  });
 });

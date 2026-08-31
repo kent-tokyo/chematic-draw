@@ -916,7 +916,7 @@ export function ReactionPanel() {
           + Add Reaction Step
         </button>
         {status && (
-          <div style={{
+          <div role="status" aria-label="Reaction export status" style={{
             fontSize: '10px',
             color: '#4caf50',
             padding: '4px',

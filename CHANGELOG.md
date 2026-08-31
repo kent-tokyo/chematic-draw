@@ -26,6 +26,8 @@ for the full development history.
   multi-step boundary to make continuity evidence reviewable.
 - Intermediate continuity now requires authored atom-map numbers to remain
   consistent across a step boundary.
+- Multi-step RXN export attempts now stop with an explicit status directing
+  users to the lossless JSON reaction-document format.
 - Reaction integrity diagnostics now include formal-charge conservation in
   addition to authored atom inventory and mapping checks.
 - Reaction integrity diagnostics also account for isotope labels and explicit
