@@ -16,6 +16,8 @@ for the full development history.
 
 - RXN agents, stoichiometric coefficients, multi-step schemes, and unsupported
   extensions remain outside the current DTO and are preserved only by JSON.
+- Reaction integrity diagnostics now include formal-charge conservation in
+  addition to authored atom inventory and mapping checks.
 
 ## [0.9.0] - 2026-08-31
 

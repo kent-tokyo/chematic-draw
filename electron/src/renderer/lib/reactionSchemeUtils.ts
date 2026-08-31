@@ -16,11 +16,16 @@ export interface ReactionDiagnostics {
     status: 'verified' | 'not_verified';
     atomCount: { reactants: number; products: number };
     atomBalance: { balanced: boolean; differences: string[] };
+    chargeBalance: { balanced: boolean; difference: number };
     mapping: ReactionDiagnostics['mapping'] & { mappedAtomCount: number };
   }>;
   atomBalance: {
     balanced: boolean;
     differences: string[];
+  };
+  chargeBalance: {
+    balanced: boolean;
+    difference: number;
   };
   mapping: {
     complete: boolean;
@@ -29,13 +34,13 @@ export interface ReactionDiagnostics {
   };
 }
 
-function atomBalanceForStep(step: MechanismStep): { balanced: boolean; differences: string[] } {
+function atomBalanceForStep(step: MechanismStep): { balanced: boolean; differences: string[]; chargeDifference: number } {
   const countAtoms = (molecules: MoleculeDto[]) => {
     const counts = new Map<string, number>();
     for (const molecule of molecules) {
       for (const atom of molecule.atoms) {
         const key = atom.element;
-        counts.set(key, (counts.get(key) ?? 0) + 1);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
       }
     }
     return counts;
@@ -47,7 +52,9 @@ function atomBalanceForStep(step: MechanismStep): { balanced: boolean; differenc
     const delta = (reactants.get(element) ?? 0) - (products.get(element) ?? 0);
     return delta === 0 ? [] : [`${element}: ${delta > 0 ? `${delta} extra on reactants` : `${Math.abs(delta)} missing from reactants`}`];
   });
-  return { balanced: differences.length === 0, differences };
+  const reactantCharge = step.reactants.flatMap((molecule) => molecule.atoms).reduce((sum, atom) => sum + atom.charge, 0);
+  const productCharge = step.products.flatMap((molecule) => molecule.atoms).reduce((sum, atom) => sum + atom.charge, 0);
+  return { balanced: differences.length === 0, differences, chargeDifference: reactantCharge - productCharge };
 }
 
 function mappingForStep(step: MechanismStep): ReactionDiagnostics['mapping'] & { mappedAtomCount: number } {
@@ -93,6 +100,7 @@ export function diagnoseReactionScheme(scheme: ReactionSchemeContext): ReactionD
       issues: ['No reaction steps are available for verification.'],
       stepResults: [],
       atomBalance: { balanced: false, differences: [] },
+      chargeBalance: { balanced: false, difference: 0 },
       mapping: { complete: false, duplicateMapNumbers: [], unmatchedMapNumbers: [] },
     };
   }
@@ -101,6 +109,8 @@ export function diagnoseReactionScheme(scheme: ReactionSchemeContext): ReactionD
   const allDifferences: string[] = [];
   let allBalanced = true;
   let allMapped = true;
+  let allChargesBalanced = true;
+  let totalChargeDifference = 0;
   const duplicateMapNumbers = new Set<number>();
   const unmatchedMapNumbers = new Set<number>();
   const stepResults: ReactionDiagnostics['stepResults'] = [];
@@ -116,6 +126,7 @@ export function diagnoseReactionScheme(scheme: ReactionSchemeContext): ReactionD
         status: 'not_verified',
         atomCount: { reactants: step.reactants.reduce((sum, molecule) => sum + molecule.atoms.length, 0), products: step.products.reduce((sum, molecule) => sum + molecule.atoms.length, 0) },
         atomBalance: { balanced: false, differences: [] },
+        chargeBalance: { balanced: false, difference: 0 },
         mapping: { complete: false, mappedAtomCount: 0, duplicateMapNumbers: [], unmatchedMapNumbers: [] },
       });
       return;
@@ -126,6 +137,11 @@ export function diagnoseReactionScheme(scheme: ReactionSchemeContext): ReactionD
       balance.differences.forEach((difference) => allDifferences.push(`Step ${index + 1}: ${difference}`));
       issues.push(`Step ${index + 1}: atom balance is not verified.`);
     }
+    totalChargeDifference += balance.chargeDifference;
+    if (balance.chargeDifference !== 0) {
+      allChargesBalanced = false;
+      issues.push(`Step ${index + 1}: formal charge is not balanced (${balance.chargeDifference > 0 ? `${balance.chargeDifference} extra charge on reactants` : `${Math.abs(balance.chargeDifference)} extra charge on products`}).`);
+    }
     const mapping = mappingForStep(step);
     if (!mapping.complete) {
       allMapped = false;
@@ -135,19 +151,21 @@ export function diagnoseReactionScheme(scheme: ReactionSchemeContext): ReactionD
     }
     stepResults.push({
       stepIndex: index,
-      status: balance.balanced && mapping.complete ? 'verified' : 'not_verified',
+      status: balance.balanced && balance.chargeDifference === 0 && mapping.complete ? 'verified' : 'not_verified',
       atomCount: { reactants: step.reactants.reduce((sum, molecule) => sum + molecule.atoms.length, 0), products: step.products.reduce((sum, molecule) => sum + molecule.atoms.length, 0) },
       atomBalance: balance,
+      chargeBalance: { balanced: balance.chargeDifference === 0, difference: balance.chargeDifference },
       mapping,
     });
   });
 
-  if (allMapped && allBalanced) issues.push('Atom balance and mapping verified from authored atoms.');
+  if (allMapped && allBalanced && allChargesBalanced) issues.push('Atom balance, formal charge, and mapping verified from authored atoms.');
   return {
-    status: allMapped && allBalanced ? 'verified' : 'not_verified',
+    status: allMapped && allBalanced && allChargesBalanced ? 'verified' : 'not_verified',
     issues,
     stepResults,
     atomBalance: { balanced: allBalanced, differences: allDifferences },
+    chargeBalance: { balanced: allChargesBalanced, difference: totalChargeDifference },
     mapping: {
       complete: allMapped,
       duplicateMapNumbers: [...duplicateMapNumbers].sort((a, b) => a - b),

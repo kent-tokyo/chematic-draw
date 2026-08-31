@@ -15,6 +15,7 @@ describe('reaction diagnostics', () => {
     const result = diagnoseReactionScheme(scheme('C', 'C'));
     expect(result.status).toBe('verified');
     expect(result.atomBalance.balanced).toBe(true);
+    expect(result.chargeBalance.balanced).toBe(true);
     expect(result.mapping.complete).toBe(true);
     expect(result.stepResults[0].status).toBe('verified');
     expect(result.stepResults[0].mapping.mappedAtomCount).toBe(1);
@@ -38,5 +39,14 @@ describe('reaction diagnostics', () => {
     expect(result.atomBalance.balanced).toBe(true);
     expect(result.mapping.complete).toBe(false);
     expect(result.status).toBe('not_verified');
+  });
+
+  it('reports formal charge imbalance as not verified', () => {
+    const charged = scheme('C', 'C');
+    charged.steps[0].products[0].atoms[0].charge = -1;
+    const result = diagnoseReactionScheme(charged);
+    expect(result.status).toBe('not_verified');
+    expect(result.chargeBalance).toEqual({ balanced: false, difference: 1 });
+    expect(result.issues).toContain('Step 1: formal charge is not balanced (1 extra charge on reactants).');
   });
 });
