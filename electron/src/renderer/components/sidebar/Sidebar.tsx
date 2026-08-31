@@ -27,24 +27,25 @@ export function Sidebar() {
 
   interface SidebarTab {
     id: string;
-    label: string;
+    shortLabel: string;
+    accessibleLabel: string;
     icon: IconName;
     badge?: number;
   }
 
   const tabs: SidebarTab[] = [
-    { id: 'inspector', label: 'Inspector', icon: 'search' },
-    { id: 'templates', label: 'Templates', icon: 'templates' },
-    { id: 'reactions', label: 'Reactions', icon: 'reactions' },
-    { id: 'batch-results', label: 'Batch', icon: 'batch', badge: batchResults.length > 0 ? batchResults.length : undefined },
-    { id: 'stereoisomers', label: 'Stereo', icon: 'stereoisomers' },
-    { id: 'lipinski', label: 'Lipinski', icon: 'lipinski' },
-    { id: 'properties', label: 'Props', icon: 'properties' },
-    { id: 'mechanism', label: 'Mech', icon: 'mechanism' },
-    { id: '3d', label: '3D', icon: 'database' },
-    { id: 'database', label: 'DB', icon: 'database' },
-    { id: 'research', label: 'Research', icon: 'research' },
-    { id: 'chat', label: 'Chat', icon: 'chat' },
+    { id: 'inspector', shortLabel: 'Inspector', accessibleLabel: 'Inspector', icon: 'search' },
+    { id: 'templates', shortLabel: 'Templates', accessibleLabel: 'Templates', icon: 'templates' },
+    { id: 'reactions', shortLabel: 'Reactions', accessibleLabel: 'Reactions', icon: 'reactions' },
+    { id: 'batch-results', shortLabel: 'Batch', accessibleLabel: 'Batch results', icon: 'batch', badge: batchResults.length > 0 ? batchResults.length : undefined },
+    { id: 'stereoisomers', shortLabel: 'Stereo', accessibleLabel: 'Stereochemistry', icon: 'stereoisomers' },
+    { id: 'lipinski', shortLabel: 'Lipinski', accessibleLabel: 'Lipinski rules', icon: 'lipinski' },
+    { id: 'properties', shortLabel: 'Props', accessibleLabel: 'Property prediction', icon: 'properties' },
+    { id: 'mechanism', shortLabel: 'Mech', accessibleLabel: 'Reaction mechanism', icon: 'mechanism' },
+    { id: '3d', shortLabel: '3D', accessibleLabel: '3D viewer', icon: 'database' },
+    { id: 'database', shortLabel: 'DB', accessibleLabel: 'Database search', icon: 'database' },
+    { id: 'research', shortLabel: 'Research', accessibleLabel: 'Research identifiers', icon: 'research' },
+    { id: 'chat', shortLabel: 'Chat', accessibleLabel: 'Assistant chat', icon: 'chat' },
   ];
 
   const bgColor = theme === 'dark' ? '#21252c' : '#f3f5f8';
@@ -78,7 +79,11 @@ export function Sidebar() {
           <button
             key={tab.id}
             data-testid={`sidebar-tab-${tab.id}`}
-            aria-pressed={activeSidebarPanel === tab.id}
+            id={`sidebar-tab-${tab.id}`}
+            role="tab"
+            aria-selected={activeSidebarPanel === tab.id}
+            aria-controls={`sidebar-panel-${tab.id}`}
+            aria-label={tab.accessibleLabel}
             onClick={() => setActiveSidebarPanel(tab.id as any)}
             style={{
               flex: 1,
@@ -92,11 +97,11 @@ export function Sidebar() {
               transition: 'background-color 0.2s',
               position: 'relative',
             }}
-            title={tab.label}
+            title={tab.accessibleLabel}
           >
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
               <Icon name={tab.icon} size={20} color={textColor} />
-              <span>{tab.label}</span>
+              <span aria-hidden="true">{tab.shortLabel}</span>
             </div>
             {tab.badge && (
               <span
@@ -141,7 +146,13 @@ export function Sidebar() {
       </div>
 
       {/* Content Panel */}
-      <div data-testid={`sidebar-panel-${activeSidebarPanel}`} style={{ flex: 1, overflow: 'auto', padding: '12px' }}>
+      <div
+        data-testid={`sidebar-panel-${activeSidebarPanel}`}
+        id={`sidebar-panel-${activeSidebarPanel}`}
+        role="tabpanel"
+        aria-labelledby={`sidebar-tab-${activeSidebarPanel}`}
+        style={{ flex: 1, overflow: 'auto', padding: '12px' }}
+      >
         {activeSidebarPanel === 'inspector' && <InspectorPanel />}
         {activeSidebarPanel === 'templates' && <TemplatesPanel />}
         {activeSidebarPanel === 'reactions' && <ReactionPanel />}

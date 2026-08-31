@@ -15,6 +15,8 @@ for the full development history.
   references before rendering the SVG in a hidden HTML window.
 - Clipboard and settings IPC now validate the renderer sender, supported
   arguments, setting keys, and payload sizes.
+- Sidebar panels now expose full accessible names and explicit tab/tabpanel
+  relationships while retaining compact visual labels.
 - File and PDF export IPC now validates the renderer sender, destination path,
   and payload size before writing user-selected files.
 - Added local RXN V2000 import/export for one-step authored reactant/product

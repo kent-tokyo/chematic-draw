@@ -60,6 +60,27 @@ test.describe('Complete Workflows', () => {
     }
   });
 
+  test('should expose full accessible names and tab relationships for sidebar panels', async ({ page }) => {
+    const expectedTabs = [
+      ['properties', 'Property prediction'],
+      ['mechanism', 'Reaction mechanism'],
+      ['3d', '3D viewer'],
+      ['database', 'Database search'],
+    ] as const;
+
+    for (const [tabId, accessibleName] of expectedTabs) {
+      const tab = page.getByTestId(`sidebar-tab-${tabId}`);
+      const panel = page.getByTestId(`sidebar-panel-${tabId}`);
+      await expect(tab).toHaveRole('tab');
+      await expect(tab).toHaveAccessibleName(accessibleName);
+      await expect(tab).toHaveAttribute('aria-controls', `sidebar-panel-${tabId}`);
+      await tab.click();
+      await expect(tab).toHaveAttribute('aria-selected', 'true');
+      await expect(panel).toHaveAttribute('role', 'tabpanel');
+      await expect(panel).toHaveAttribute('aria-labelledby', `sidebar-tab-${tabId}`);
+    }
+  });
+
   test('should handle multiple operations sequentially', async ({ page }) => {
     // Load Inspector
     await page.getByTestId('sidebar-tab-inspector').click();
