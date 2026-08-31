@@ -17,6 +17,7 @@ import { svgToPngBase64 } from './renderer/lib/svgToPng';
 import * as clipboard from './renderer/lib/clipboard';
 import { exportLossMessage, exportLosses, formatForFilePath, MoleculeExportFormat } from './renderer/lib/exportLoss';
 import { parseSessionBundle, serializeSessionBundle } from './renderer/lib/sessionBundle';
+import { DEFAULT_SHORTCUT_BINDINGS, validateShortcutBindings, ShortcutBindings } from './renderer/lib/shortcuts';
 
 function parseMoleculeDocument(content: string, filePath: string): MoleculeDto {
   if (filePath.toLowerCase().endsWith('.json')) return parseSessionBundle(content).molecule;
@@ -71,6 +72,7 @@ function App() {
   const hideModal = useUIStore((s) => s.hideModal);
   const showBatchDialog = useUIStore((s) => s.showBatchDialog);
   const addBatchResult = useUIStore((s) => s.addBatchResult);
+  const shortcutBindings = useUIStore((s) => s.shortcutBindings);
 
   // Initialize WASM and hydrate settings. This is the app's startup
   // boundary: WASM-dependent UI (MoleculeCanvas/Sidebar, below) isn't
@@ -110,6 +112,11 @@ function App() {
               useUIStore.getState().setSidebarWidth(savedSidebarWidth.value);
               useUIStore.setState({ sidebarOpen: true });
             }
+          }
+          const savedShortcuts = await api.loadSettings('shortcutBindings');
+          if (savedShortcuts.success && savedShortcuts.value && typeof savedShortcuts.value === 'object') {
+            const candidate = { ...DEFAULT_SHORTCUT_BINDINGS, ...(savedShortcuts.value as Partial<ShortcutBindings>) };
+            if (!validateShortcutBindings(candidate)) useUIStore.getState().setShortcutBindings(candidate);
           }
         } catch (err) {
           console.error('Failed to hydrate settings:', err);
@@ -185,6 +192,13 @@ function App() {
       return () => clearTimeout(timeout);
     }
   }, [sidebarOpen]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).electronAPI) {
+      const timeout = setTimeout(() => (window as any).electronAPI.saveSettings('shortcutBindings', shortcutBindings), 500);
+      return () => clearTimeout(timeout);
+    }
+  }, [shortcutBindings]);
 
   // Menu event handlers
   useEffect(() => {

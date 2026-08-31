@@ -31,4 +31,20 @@ test.describe('Global keyboard shortcuts (useKeyboard)', () => {
     await page.keyboard.press('=');
     await expect(zoomText).toHaveText('Zoom: 173%'); // 1 * 1.2^3, rounded
   });
+
+  test('shortcut editor saves a custom binding and rejects conflicts', async ({ page }) => {
+    await page.keyboard.press('F1');
+    const dialog = page.getByRole('dialog', { name: 'Keyboard Shortcuts' });
+    await dialog.getByRole('button', { name: 'Editing', exact: true }).click();
+    const undoInput = dialog.getByRole('textbox', { name: 'Undo shortcut' });
+    const redoInput = dialog.getByRole('textbox', { name: 'Redo shortcut' });
+    await undoInput.fill('Ctrl+U');
+    await redoInput.fill('Ctrl+U');
+    await dialog.getByRole('button', { name: 'Save shortcuts' }).click();
+    await expect(dialog).toContainText('Shortcut conflict');
+    await redoInput.fill('Ctrl+Shift+U');
+    await dialog.getByRole('button', { name: 'Save shortcuts' }).click();
+    await expect(dialog).not.toContainText('Shortcut conflict');
+    await expect(undoInput).toHaveValue(/(Ctrl|Cmd)\+U/);
+  });
 });

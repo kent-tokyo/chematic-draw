@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { UIState, BondDto } from './types';
+import { DEFAULT_SHORTCUT_BINDINGS, ShortcutBindings } from '../lib/shortcuts';
 
 export interface BatchItemSummary {
   index: number;
@@ -43,6 +44,7 @@ interface UIStoreState extends UIState {
 
   // Batch results history
   batchResults: BatchResultSummary[];
+  shortcutBindings: ShortcutBindings;
 
   // Actions
   setTheme: (theme: 'dark' | 'light') => void;
@@ -66,6 +68,8 @@ interface UIStoreState extends UIState {
     errors: string[],
     details?: { cancelled: boolean; items: BatchItemSummary[] }
   ) => void;
+  setShortcutBindings: (bindings: ShortcutBindings) => void;
+  resetShortcutBindings: () => void;
 }
 
 export const useUIStore = create<UIStoreState>((set) => ({
@@ -85,6 +89,7 @@ export const useUIStore = create<UIStoreState>((set) => ({
   showUndoModal: false,
   showBatchDialog: false,
   batchResults: [],
+  shortcutBindings: { ...DEFAULT_SHORTCUT_BINDINGS },
 
   setTheme: (theme) => set({ theme }),
 
@@ -148,4 +153,6 @@ export const useUIStore = create<UIStoreState>((set) => ({
       ].slice(-10), // Keep last 10 results
     }));
   },
+  setShortcutBindings: (shortcutBindings) => set({ shortcutBindings }),
+  resetShortcutBindings: () => set({ shortcutBindings: { ...DEFAULT_SHORTCUT_BINDINGS } }),
 }));

@@ -5,6 +5,7 @@ import { useUIStore } from '../store/uiStore';
 import { Tool } from '../store/types';
 import * as clipboard from '../lib/clipboard';
 import * as wasmBridge from '../wasm/wasmBridge';
+import { matchesShortcut } from '../lib/shortcuts';
 
 export function useKeyboard() {
   const setTool = useCanvasStore((s) => s.setTool);
@@ -25,15 +26,16 @@ export function useKeyboard() {
   const molecule = useMoleculeStore((s) => s.molecule);
   const setMolecule = useMoleculeStore((s) => s.setMolecule);
   const setStatus = useUIStore((s) => s.setStatus);
+  const shortcutBindings = useUIStore((s) => s.shortcutBindings);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Allow copy/paste in inputs
       const isInput = (e.target as any).tagName === 'INPUT';
-      const ctrl = e.ctrlKey || e.metaKey;
+      const shortcut = (action: keyof typeof shortcutBindings) => matchesShortcut(e, shortcutBindings[action]);
 
       // Copy (Ctrl+C / Cmd+C)
-      if (ctrl && e.key === 'c') {
+      if (shortcut('copy')) {
         if (!isInput) {
           e.preventDefault();
           clipboard.copyMoleculeSmiles(molecule)
@@ -44,7 +46,7 @@ export function useKeyboard() {
       }
 
       // Paste (Ctrl+V / Cmd+V)
-      if (ctrl && e.key === 'v') {
+      if (shortcut('paste')) {
         if (!isInput) {
           e.preventDefault();
           clipboard.pasteFromClipboard()
@@ -60,7 +62,7 @@ export function useKeyboard() {
       }
 
       // Clean Layout (Ctrl+L / Cmd+L)
-      if (ctrl && e.key === 'l') {
+      if (shortcut('cleanLayout')) {
         e.preventDefault();
         pushUndo();
         const cleaned = wasmBridge.cleanLayout(molecule);
@@ -70,7 +72,7 @@ export function useKeyboard() {
       }
 
       // Export (Ctrl+E / Cmd+E)
-      if (ctrl && e.key === 'e') {
+      if (shortcut('export')) {
         e.preventDefault();
         // Trigger export via menu event (would need IPC bridge)
         setStatus('Use File > Export menu');
@@ -81,43 +83,43 @@ export function useKeyboard() {
       if (isInput) return;
 
       // Undo/Redo
-      if (ctrl && e.key === 'z' && !e.shiftKey) {
+      if (shortcut('undo')) {
         e.preventDefault();
         undo();
         return;
       }
-      if ((ctrl && e.key === 'z' && e.shiftKey) || (ctrl && e.key === 'y')) {
+      if (shortcut('redo')) {
         e.preventDefault();
         redo();
         return;
       }
 
       // Zoom
-      if (e.key === '+' || e.key === '=') {
+      if (shortcut('zoomIn') || (!e.ctrlKey && !e.metaKey && (e.key === '+' || e.key === '='))) {
         e.preventDefault();
         setZoom(zoom * 1.2);
         return;
       }
-      if (e.key === '-') {
+      if (shortcut('zoomOut') || (!e.ctrlKey && !e.metaKey && e.key === '-')) {
         e.preventDefault();
         setZoom(zoom / 1.2);
         return;
       }
-      if (e.key === '0') {
+      if (shortcut('zoomReset') || (!e.ctrlKey && !e.metaKey && e.key === '0')) {
         e.preventDefault();
         setZoom(1);
         return;
       }
 
       // Focus Mode
-      if (ctrl && e.shiftKey && e.key === 'f') {
+      if (shortcut('focusMode')) {
         e.preventDefault();
         setFocusMode(!focusMode);
         return;
       }
 
       // Help: Show Shortcuts
-      if ((ctrl && e.key === '?') || e.key === 'F1') {
+      if (shortcut('showShortcuts') || e.key === 'F1') {
         e.preventDefault();
         showModal('shortcuts');
         return;
@@ -145,7 +147,7 @@ export function useKeyboard() {
       }
 
       // Delete selected
-      if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (shortcut('delete') || e.key === 'Backspace') {
         e.preventDefault();
         const selectedAtoms = getSelectedAtoms();
         const selectedBonds = getSelectedBonds();
@@ -159,7 +161,7 @@ export function useKeyboard() {
       }
 
       // Select All
-      if (ctrl && e.key === 'a') {
+      if (shortcut('selectAll')) {
         if (!isInput) {
           e.preventDefault();
           selectAll();
@@ -196,5 +198,6 @@ export function useKeyboard() {
     molecule,
     setMolecule,
     setStatus,
+    shortcutBindings,
   ]);
 }

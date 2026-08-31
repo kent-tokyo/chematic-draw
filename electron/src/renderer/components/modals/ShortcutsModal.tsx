@@ -1,15 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { useUIStore } from '../../store/uiStore';
-import { SHORTCUTS, ShortcutGroup } from '../../lib/shortcuts';
+import { DEFAULT_SHORTCUT_BINDINGS, SHORTCUTS, displayShortcut, normalizeShortcut, validateShortcutBindings } from '../../lib/shortcuts';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 export function ShortcutsModal() {
   const theme = useUIStore((s) => s.theme);
   const showShortcutsModal = useUIStore((s) => s.showShortcutsModal);
   const hideModal = useUIStore((s) => s.hideModal);
+  const shortcutBindings = useUIStore((s) => s.shortcutBindings);
+  const setShortcutBindings = useUIStore((s) => s.setShortcutBindings);
+  const resetShortcutBindings = useUIStore((s) => s.resetShortcutBindings);
   const [activeTab, setActiveTab] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
+  const [draft, setDraft] = useState(shortcutBindings);
+  const [error, setError] = useState<string | null>(null);
   const dialogRef = useFocusTrap(showShortcutsModal);
+
+  useEffect(() => {
+    if (showShortcutsModal) {
+      setDraft(shortcutBindings);
+      setError(null);
+    }
+  }, [showShortcutsModal, shortcutBindings]);
 
   // Close on Escape
   useEffect(() => {
@@ -34,7 +46,7 @@ export function ShortcutsModal() {
   const currentGroup = SHORTCUTS[activeTab];
   const filtered = currentGroup.shortcuts.filter(
     (s) =>
-      s.keys.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (s.action ? displayShortcut(draft[s.action]) : s.keys).toLowerCase().includes(searchTerm.toLowerCase()) ||
       s.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -156,7 +168,15 @@ export function ShortcutsModal() {
                   }}
                 >
                   <div style={{ fontSize: '11px', fontWeight: '600', color: '#4d8dff', marginBottom: '4px' }}>
-                    {shortcut.keys}
+                    {shortcut.configurable && shortcut.action ? (
+                      <input
+                        aria-label={`${shortcut.description} shortcut`}
+                        value={displayShortcut(draft[shortcut.action])}
+                        onChange={(e) => setDraft({ ...draft, [shortcut.action!]: normalizeShortcut(e.target.value).replace(/^(ctrl|cmd)\+/, 'primary+') })}
+                        onKeyDown={(e) => e.stopPropagation()}
+                        style={{ width: '100%', boxSizing: 'border-box', padding: '3px 5px', color: '#4d8dff', background: 'transparent', border: `1px solid ${borderColor}`, borderRadius: '3px', fontWeight: '600' }}
+                      />
+                    ) : shortcut.keys}
                   </div>
                   <div style={{ fontSize: '12px', color: textColor }}>
                     {shortcut.description}
@@ -177,7 +197,10 @@ export function ShortcutsModal() {
             textAlign: 'center',
           }}
         >
-          Press Esc to close
+          <div style={{ minHeight: '16px', color: '#d9534f', marginBottom: '6px' }}>{error}</div>
+          <button onClick={() => { resetShortcutBindings(); setDraft({ ...DEFAULT_SHORTCUT_BINDINGS }); setError(null); }} style={{ marginRight: '8px', padding: '5px 10px' }}>Reset defaults</button>
+          <button onClick={() => { const validation = validateShortcutBindings(draft); if (validation) { setError(validation); return; } setShortcutBindings(draft); setError(null); }} style={{ padding: '5px 10px' }}>Save shortcuts</button>
+          <div style={{ marginTop: '8px' }}>Enter shortcuts as Ctrl+Shift+S (Cmd is used automatically on macOS).</div>
         </div>
       </div>
     </div>

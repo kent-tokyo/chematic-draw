@@ -3,6 +3,15 @@
 Notable changes to chematic-draw. Dates use ISO 8601 format. See the git log
 for the full development history.
 
+## [0.6.0] - 2026-08-31
+
+### Added
+
+- Added configurable, conflict-checked keyboard shortcuts with portable
+  primary-modifier bindings and persisted settings.
+- Added shortcut editing, validation errors, and reset-to-default controls to
+  the Keyboard Shortcuts dialog.
+
 ## [0.5.7] - 2026-08-31
 
 ### Added
@@ -114,6 +123,7 @@ for the full development history.
 
 - Initial Electron application release.
 
+[0.6.0]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.6.0
 [0.5.7]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.5.7
 [0.5.6]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.5.6
 [0.5.5]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.5.5
