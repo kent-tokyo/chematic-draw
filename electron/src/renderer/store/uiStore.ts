@@ -14,6 +14,7 @@ export interface BatchResultSummary {
   processed: number;
   failed: number;
   skipped: number;
+  resultHash: string;
   errors: string[];
   timestamp: number;
   cancelled?: boolean;
@@ -67,6 +68,7 @@ interface UIStoreState extends UIState {
     processed: number,
     failed: number,
     skipped: number,
+    resultHash: string,
     errors: string[],
     details?: { cancelled: boolean; items: BatchItemSummary[] }
   ) => void;
@@ -147,11 +149,11 @@ export const useUIStore = create<UIStoreState>((set) => ({
     if (type === 'batch') set({ showBatchDialog: false });
   },
 
-  addBatchResult: (operation, processed, failed, skipped, errors, details = { cancelled: false, items: [] }) => {
+  addBatchResult: (operation, processed, failed, skipped, resultHash, errors, details = { cancelled: false, items: [] }) => {
     set((state) => ({
       batchResults: [
         ...state.batchResults,
-        { operation, processed, failed, skipped, errors, timestamp: Date.now(), ...details },
+        { operation, processed, failed, skipped, resultHash, errors, timestamp: Date.now(), ...details },
       ].slice(-10), // Keep last 10 results
     }));
   },

@@ -47,6 +47,7 @@ export async function processBatch(
     processed: 0,
     failed: 0,
     skipped: 0,
+    resultHash: '',
     molecules: [],
     errors: [],
     items: [],
@@ -108,6 +109,7 @@ export async function processBatch(
     options.onProgress?.({ completed: index + 1, total: molecules.length, item });
   }
 
+  results.resultHash = batchResultHash(task, results.items);
   return results;
 }
 
@@ -115,8 +117,24 @@ export interface ProcessResult {
   processed: number;
   failed: number;
   skipped: number;
+  resultHash: string;
   molecules: (MoleculeDto & Partial<{ properties: any }>)[];
   errors: string[];
   items: BatchItemResult[];
   cancelled: boolean;
+}
+
+function batchResultHash(task: BatchTask, items: BatchItemResult[]): string {
+  const payload = JSON.stringify({
+    items: items.map(({ index, status, input, output, warnings, error }) => ({
+      error: error ?? null, index, input, output: output ?? null, status, warnings,
+    })),
+    task,
+  });
+  let hash = 0x811c9dc5;
+  for (const character of payload) {
+    hash ^= character.charCodeAt(0);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return `fnv1a-32:${hash.toString(16).padStart(8, '0')}`;
 }

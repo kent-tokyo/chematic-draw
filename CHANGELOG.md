@@ -29,6 +29,8 @@ for the full development history.
   snapshot.
 - Batch completion and cancellation status messages now include skipped-item
   counts alongside processed and failed counts.
+- Batch results now include a deterministic FNV-1a provenance hash for repeat
+  comparison of the same operation and inputs.
 - Sidebar panels now expose full accessible names and explicit tab/tabpanel
   relationships while retaining compact visual labels.
 - Empty canvases now show a concise next-action guide for choosing an atom or

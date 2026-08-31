@@ -21,6 +21,7 @@ describe('batch processing review results', () => {
     expect(result.cancelled).toBe(false);
     expect(result.items.map((item) => item.status)).toEqual(['succeeded', 'succeeded']);
     expect(result.items.map((item) => item.index)).toEqual([0, 1]);
+    expect(result.resultHash).toMatch(/^fnv1a-32:[0-9a-f]{8}$/);
     expect(progress).toEqual(['0:0:running', '1:0:succeeded', '1:1:running', '2:1:succeeded']);
   });
 
@@ -47,5 +48,11 @@ describe('batch processing review results', () => {
     expect(result.skipped).toBe(1);
     expect(result.items[0].status).toBe('skipped');
     expect(result.items[0].warnings).toEqual(['Did not match filter criteria.']);
+  });
+
+  it('produces the same result hash for the same task and inputs', async () => {
+    const first = await processBatch([molecule(1)], { operation: 'convert' });
+    const second = await processBatch([molecule(1)], { operation: 'convert' });
+    expect(second.resultHash).toBe(first.resultHash);
   });
 });

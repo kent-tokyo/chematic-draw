@@ -30,6 +30,9 @@ export function BatchResultPanel({ results }: BatchResultPanelProps) {
       <div style={{ fontSize: '12px', fontWeight: 'bold', color: textColor }}>
         Last Operation: {latestResult.operation}
       </div>
+      <div aria-label="Batch result hash" style={{ fontSize: '9px', color: labelColor, wordBreak: 'break-all' }}>
+        Result hash: {latestResult.resultHash}
+      </div>
 
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
