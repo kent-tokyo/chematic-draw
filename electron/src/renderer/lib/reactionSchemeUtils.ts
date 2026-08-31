@@ -222,6 +222,7 @@ function moleculesMatch(mol1: MoleculeDto, mol2: MoleculeDto): boolean {
     atom.hydrogen_count ?? null,
     atom.charge,
     atom.wildcard ?? false,
+    atom.atom_map > 0 ? atom.atom_map : null,
   ]);
   const atomSignatures1 = mol1.atoms.map(atomSignature).sort();
   const atomSignatures2 = mol2.atoms.map(atomSignature).sort();

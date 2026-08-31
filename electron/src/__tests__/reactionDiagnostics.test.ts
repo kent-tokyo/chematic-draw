@@ -95,4 +95,14 @@ describe('reaction diagnostics', () => {
     expect(result.status).toBe('not_verified');
     expect(result.continuity.issues).toEqual(['Step 1 → Step 2: no authored product matches a subsequent reactant.']);
   });
+
+  it('does not continue an intermediate when its authored atom map changes', () => {
+    const multiStep = scheme('C', 'C');
+    const nextReactant = { atoms: [{ ...multiStep.steps[0].products[0].atoms[0], atom_map: 2 }], bonds: [] };
+    const nextProduct = { atoms: [{ ...nextReactant.atoms[0] }], bonds: [] };
+    multiStep.steps.push({ ...multiStep.steps[0], id: 'step-2', reactants: [nextReactant], products: [nextProduct] });
+    const result = diagnoseReactionScheme(multiStep);
+    expect(result.status).toBe('not_verified');
+    expect(result.continuity.boundaries).toEqual([{ fromStep: 1, toStep: 2, matchedMoleculeCount: 0 }]);
+  });
 });

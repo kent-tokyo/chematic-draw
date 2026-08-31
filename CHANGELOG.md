@@ -24,6 +24,8 @@ for the full development history.
   wildcard, and bond structure facts instead of element counts alone.
 - Reaction verification now exposes the authored intermediate count for each
   multi-step boundary to make continuity evidence reviewable.
+- Intermediate continuity now requires authored atom-map numbers to remain
+  consistent across a step boundary.
 - Reaction integrity diagnostics now include formal-charge conservation in
   addition to authored atom inventory and mapping checks.
 - Reaction integrity diagnostics also account for isotope labels and explicit
