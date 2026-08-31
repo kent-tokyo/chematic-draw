@@ -20,6 +20,8 @@ for the full development history.
   wildcard or isotope data that the format cannot preserve.
 - Multi-step reaction diagnostics now report missing authored intermediate
   continuity instead of silently treating disconnected steps as one sequence.
+- Intermediate continuity checks now compare authored isotope, hydrogen, charge,
+  wildcard, and bond structure facts instead of element counts alone.
 - Reaction integrity diagnostics now include formal-charge conservation in
   addition to authored atom inventory and mapping checks.
 - Reaction integrity diagnostics also account for isotope labels and explicit

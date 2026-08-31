@@ -198,28 +198,42 @@ export function diagnoseReactionScheme(scheme: ReactionSchemeContext): ReactionD
 }
 
 /**
- * Check if two molecules are equivalent (simplified comparison)
- * Compares SMILES or atom count as proxy for equality
+ * Check whether two authored molecules have the same structure-level facts.
+ * IDs and rendering-only fields are ignored because imports and copies can
+ * assign new client-side IDs. Chemistry-bearing atom fields and bond
+ * topology/order/stereo must still agree before an intermediate is treated as
+ * continuous across steps.
  */
 function moleculesMatch(mol1: MoleculeDto, mol2: MoleculeDto): boolean {
   if (!mol1 || !mol2) return false;
-
-  // Simple comparison: atom count and element composition
   if (mol1.atoms.length !== mol2.atoms.length) return false;
 
-  // Count atoms by element
-  const countAtoms = (mol: MoleculeDto) => {
-    const counts: Record<string, number> = {};
-    mol.atoms.forEach((atom) => {
-      counts[atom.element] = (counts[atom.element] || 0) + 1;
-    });
-    return counts;
+  const atomSignature = (atom: MoleculeDto['atoms'][number]) => JSON.stringify([
+    atom.element,
+    atom.isotope ?? null,
+    atom.hydrogen_count ?? null,
+    atom.charge,
+    atom.wildcard ?? false,
+  ]);
+  const atomSignatures1 = mol1.atoms.map(atomSignature).sort();
+  const atomSignatures2 = mol2.atoms.map(atomSignature).sort();
+  if (JSON.stringify(atomSignatures1) !== JSON.stringify(atomSignatures2)) return false;
+
+  const bondSignature = (molecule: MoleculeDto, bond: MoleculeDto['bonds'][number]) => {
+    const from = molecule.atoms.find((atom) => atom.id === bond.from);
+    const to = molecule.atoms.find((atom) => atom.id === bond.to);
+    if (!from || !to) return null;
+    const endpoints = [atomSignature(from), atomSignature(to)].sort();
+    return JSON.stringify([endpoints[0], endpoints[1], bond.order, bond.stereo]);
   };
-
-  const counts1 = countAtoms(mol1);
-  const counts2 = countAtoms(mol2);
-
-  return JSON.stringify(counts1) === JSON.stringify(counts2);
+  const bondSignatures1 = mol1.bonds.map((bond) => bondSignature(mol1, bond));
+  const bondSignatures2 = mol2.bonds.map((bond) => bondSignature(mol2, bond));
+  if (bondSignatures1.some((signature) => signature === null) || bondSignatures2.some((signature) => signature === null)) {
+    return false;
+  }
+  bondSignatures1.sort();
+  bondSignatures2.sort();
+  return JSON.stringify(bondSignatures1) === JSON.stringify(bondSignatures2);
 }
 
 /**
