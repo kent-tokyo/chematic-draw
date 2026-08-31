@@ -11,7 +11,7 @@ export function ContextMenu() {
   const molecule = useMoleculeStore((s) => s.molecule);
   // What the menu acts on is exactly what was right-clicked — contextMenu's
   // own atomId/bondId, set once per right-click by showContextMenu — not
-  // uiStore's selectedAtomIdForInspector/selectedBondForInspector. Those
+  // uiStore's Inspector selection ids. Those
   // track "what the Inspector should show," which left-click, keyboard
   // roving-focus, and right-click on an *unrelated* atom/bond can all
   // change without a new right-click ever happening here; branching on them
