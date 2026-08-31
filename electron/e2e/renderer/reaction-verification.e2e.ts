@@ -30,5 +30,6 @@ test.describe('Reaction verification', () => {
     await page.getByRole('button', { name: '+ Add Reaction Step' }).click();
     await page.getByRole('button', { name: '+ Add Reaction Step' }).click();
     await expect(page.getByRole('status', { name: 'Reaction verification' })).toContainText('reaction-step continuity is not verified');
+    await expect(page.getByTestId('reaction-integrity-continuity')).toContainText('Step 1 → 2: 0 authored intermediates');
   });
 });

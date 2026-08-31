@@ -500,6 +500,15 @@ export function ReactionPanel() {
               Unmatched map numbers: {reactionDiagnostics.mapping.unmatchedMapNumbers.join(', ')}
             </div>
           )}
+          {reactionDiagnostics.continuity.boundaries.length > 0 && (
+            <div data-testid="reaction-integrity-continuity" style={{ marginTop: '6px', color: labelColor, fontSize: '10px' }}>
+              {reactionDiagnostics.continuity.boundaries.map((boundary) => (
+                <div key={`${boundary.fromStep}-${boundary.toStep}`}>
+                  Step {boundary.fromStep} → {boundary.toStep}: {boundary.matchedMoleculeCount} authored intermediate{boundary.matchedMoleculeCount === 1 ? '' : 's'}
+                </div>
+              ))}
+            </div>
+          )}
           <div data-testid="reaction-integrity-steps" style={{ marginTop: '8px', borderTop: `1px solid ${borderColor}`, paddingTop: '6px' }}>
             {reactionDiagnostics.stepResults.map((step) => (
               <div key={step.stepIndex} style={{ fontSize: '10px', color: labelColor, marginTop: '3px' }}>

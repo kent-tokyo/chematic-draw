@@ -22,6 +22,8 @@ for the full development history.
   continuity instead of silently treating disconnected steps as one sequence.
 - Intermediate continuity checks now compare authored isotope, hydrogen, charge,
   wildcard, and bond structure facts instead of element counts alone.
+- Reaction verification now exposes the authored intermediate count for each
+  multi-step boundary to make continuity evidence reviewable.
 - Reaction integrity diagnostics now include formal-charge conservation in
   addition to authored atom inventory and mapping checks.
 - Reaction integrity diagnostics also account for isotope labels and explicit

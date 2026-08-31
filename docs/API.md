@@ -121,7 +121,8 @@ limited to atoms explicitly authored in the document: missing atom maps,
 implicit chemistry, stoichiometric coefficients, and reaction mechanisms are not
 inferred or repaired. Multi-step reports also record whether an authored product
 continues into a subsequent authored reactant using chemistry-bearing atom and
-bond facts; external reagents are not guessed.
+bond facts; the report also exposes the matched authored-molecule count for each
+step boundary. External reagents are not guessed.
 
 ### assignCip(mol: MoleculeDto): StereoAssignmentDto[]
 

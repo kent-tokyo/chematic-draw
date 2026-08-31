@@ -30,6 +30,11 @@ export interface ReactionDiagnostics {
   continuity: {
     valid: boolean;
     issues: string[];
+    boundaries: Array<{
+      fromStep: number;
+      toStep: number;
+      matchedMoleculeCount: number;
+    }>;
   };
   mapping: {
     complete: boolean;
@@ -108,7 +113,7 @@ export function diagnoseReactionScheme(scheme: ReactionSchemeContext): ReactionD
       stepResults: [],
       atomBalance: { balanced: false, differences: [] },
       chargeBalance: { balanced: false, difference: 0 },
-      continuity: { valid: false, issues: [] },
+      continuity: { valid: false, issues: [], boundaries: [] },
       mapping: { complete: false, duplicateMapNumbers: [], unmatchedMapNumbers: [] },
     };
   }
@@ -120,6 +125,7 @@ export function diagnoseReactionScheme(scheme: ReactionSchemeContext): ReactionD
   let allChargesBalanced = true;
   let totalChargeDifference = 0;
   const continuityIssues: string[] = [];
+  const continuityBoundaries: ReactionDiagnostics['continuity']['boundaries'] = [];
   const duplicateMapNumbers = new Set<number>();
   const unmatchedMapNumbers = new Set<number>();
   const stepResults: ReactionDiagnostics['stepResults'] = [];
@@ -171,9 +177,11 @@ export function diagnoseReactionScheme(scheme: ReactionSchemeContext): ReactionD
   for (let index = 0; index < scheme.steps.length - 1; index += 1) {
     const current = scheme.steps[index];
     const next = scheme.steps[index + 1];
-    const hasIntermediate = current.products.some((product) =>
+    const matchedMoleculeCount = current.products.filter((product) =>
       next.reactants.some((reactant) => moleculesMatch(product, reactant))
-    );
+    ).length;
+    const hasIntermediate = matchedMoleculeCount > 0;
+    continuityBoundaries.push({ fromStep: index + 1, toStep: index + 2, matchedMoleculeCount });
     if (!hasIntermediate) {
       continuityIssues.push(`Step ${index + 1} → Step ${index + 2}: no authored product matches a subsequent reactant.`);
       issues.push(`Step ${index + 1} → Step ${index + 2}: reaction-step continuity is not verified.`);
@@ -188,7 +196,7 @@ export function diagnoseReactionScheme(scheme: ReactionSchemeContext): ReactionD
     stepResults,
     atomBalance: { balanced: allBalanced, differences: allDifferences },
     chargeBalance: { balanced: allChargesBalanced, difference: totalChargeDifference },
-    continuity: { valid: continuityValid, issues: continuityIssues },
+    continuity: { valid: continuityValid, issues: continuityIssues, boundaries: continuityBoundaries },
     mapping: {
       complete: allMapped,
       duplicateMapNumbers: [...duplicateMapNumbers].sort((a, b) => a - b),

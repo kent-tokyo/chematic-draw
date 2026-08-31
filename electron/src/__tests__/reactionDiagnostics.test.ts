@@ -17,6 +17,7 @@ describe('reaction diagnostics', () => {
     expect(result.atomBalance.balanced).toBe(true);
     expect(result.chargeBalance.balanced).toBe(true);
     expect(result.continuity.valid).toBe(true);
+    expect(result.continuity.boundaries).toEqual([]);
     expect(result.mapping.complete).toBe(true);
     expect(result.stepResults[0].status).toBe('verified');
     expect(result.stepResults[0].mapping.mappedAtomCount).toBe(1);
@@ -72,6 +73,17 @@ describe('reaction diagnostics', () => {
     expect(result.status).toBe('not_verified');
     expect(result.continuity.valid).toBe(false);
     expect(result.continuity.issues).toEqual(['Step 1 → Step 2: no authored product matches a subsequent reactant.']);
+    expect(result.continuity.boundaries).toEqual([{ fromStep: 1, toStep: 2, matchedMoleculeCount: 0 }]);
+  });
+
+  it('reports authored intermediate counts for a continuous multi-step scheme', () => {
+    const multiStep = scheme('C', 'C');
+    const nextReactant = { atoms: [{ ...multiStep.steps[0].products[0].atoms[0] }], bonds: [] };
+    const nextProduct = { atoms: [{ ...nextReactant.atoms[0] }], bonds: [] };
+    multiStep.steps.push({ ...multiStep.steps[0], id: 'step-2', reactants: [nextReactant], products: [nextProduct] });
+    const result = diagnoseReactionScheme(multiStep);
+    expect(result.continuity.valid).toBe(true);
+    expect(result.continuity.boundaries).toEqual([{ fromStep: 1, toStep: 2, matchedMoleculeCount: 1 }]);
   });
 
   it('does not treat an isotope or charge change as the same intermediate', () => {
