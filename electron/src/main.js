@@ -47,6 +47,8 @@ const isSafeAutosaveSnapshot = (snapshot) => snapshot && typeof snapshot === 'ob
   && (snapshot.filePath === undefined || snapshot.filePath === null
     || (typeof snapshot.filePath === 'string' && snapshot.filePath.length <= MAX_AUTOSAVE_FILE_PATH_LENGTH));
 
+const isTrustedRendererEvent = (event) => Boolean(mainWindow && event?.sender === mainWindow.webContents);
+
 // Helper functions for settings persistence
 const loadSettings = () => {
   if (!existsSync(SETTINGS_PATH)) return {};
@@ -525,6 +527,7 @@ ipcMain.handle('settings:load', async (event, key) => {
 // JSON file, which is worse than no recovery at all — so the write goes to
 // a temp file first and only replaces the real one via an atomic rename.
 ipcMain.handle('autosave:write', async (event, molecule, filePath) => {
+  if (!isTrustedRendererEvent(event)) return { success: false, error: 'Autosave request came from an untrusted renderer.' };
   const writeSnapshot = () => {
     const normalizedFilePath = filePath ?? null;
     if (!isSafeMolecule(molecule)) throw new Error('Autosave rejected an invalid or oversized molecule.');
@@ -552,7 +555,8 @@ ipcMain.handle('autosave:write', async (event, molecule, filePath) => {
 
 // One-shot pull: the renderer calls this once, after WASM (and therefore
 // setMolecule) is ready, instead of main.js pushing at an uncertain time.
-ipcMain.handle('autosave:get-pending-recovery', async () => {
+ipcMain.handle('autosave:get-pending-recovery', async (event) => {
+  if (!isTrustedRendererEvent(event)) return null;
   const snapshot = pendingRecovery;
   pendingRecovery = null;
   return snapshot;

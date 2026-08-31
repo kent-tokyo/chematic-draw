@@ -45,6 +45,8 @@ for the full development history.
   stale recovery snapshots caused by a write/cleanup race.
 - Autosave IPC now validates molecule shape, numeric fields, references, and size
   before saving or restoring local recovery data.
+- Autosave IPC now accepts requests only from the current application window's
+  renderer.
 - Reaction integrity diagnostics now include formal-charge conservation in
   addition to authored atom inventory and mapping checks.
 - Reaction integrity diagnostics also account for isotope labels and explicit
