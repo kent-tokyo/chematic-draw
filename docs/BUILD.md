@@ -17,9 +17,9 @@ Instructions for building chematic-draw from source.
 ## System Requirements
 
 ### Minimum
-- **Node.js** 24 (see `electron/.nvmrc` / `electron/package.json`'s `engines.node`)
+- **Node.js** 24 (see `.nvmrc` / `electron/package.json`'s `engines.node`)
 - **npm** 9+
-- **Rust** 1.70+
+- **Rust** 1.85+ (the workspace uses Rust edition 2024)
 - **Git** 2.30+
 
 ### Recommended
@@ -95,7 +95,7 @@ cargo install wasm-pack
 # Check versions
 node --version      # Should be 24
 npm --version       # Should be 9+
-rustc --version     # Should be 1.70+
+rustc --version     # Should be 1.85+
 cargo --version
 wasm-pack --version
 ```

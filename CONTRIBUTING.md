@@ -20,7 +20,7 @@ Thank you for your interest in contributing! This guide explains how to contribu
 ### Prerequisites
 
 - **Node.js** 24 (see `electron/package.json`'s `engines.node`)
-- **Rust** 1.70+
+- **Rust** 1.85+ (the workspace uses Rust edition 2024)
 - **Git** 2.30+
 - **GitHub account**
 

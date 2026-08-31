@@ -43,7 +43,7 @@ command not found: node
    sudo apt-get install nodejs
    ```
 
-**Verify:** Node 24+ is required (`electron/package.json`'s `engines.node`, `electron/.nvmrc`)
+**Verify:** Node 24+ is required (`electron/package.json`'s `engines.node`, `.nvmrc`)
 ```bash
 node --version  # Should output v24.x.x or higher
 ```
@@ -622,16 +622,13 @@ When reporting a bug, include:
 ## FAQ
 
 **Q: Is my data secure?**
-A: Nearly all processing happens locally with no network calls. The one
-exception is the DB tab's compound search (`DatabaseSearchPanel.tsx`),
-which looks up the drawn molecule's InChIKey against the public PubChem
-REST API — an exact-match lookup by structure, not a name search (there's
-no name-input field in this panel). ChemSpider is selectable as a source
-in the same panel but unimplemented — it always throws `'ChemSpider
-search not yet implemented'`.
+A: Nearly all processing happens locally with no network calls. The DB tab's
+PubChem lookup sends the generated InChIKey to the public PubChem REST API.
+It is an exact-match structure lookup, not a name or similarity search.
+ChemSpider is visible in the selector but is not implemented.
 
 **Q: Can I use this offline?**
-A: Yes, except for the PubChem-based compound name search noted above —
+A: Yes, except for the PubChem-based compound lookup noted above —
 drawing, editing, export, 3D, and all property calculations work fully
 offline.
 

@@ -147,3 +147,6 @@ lcov.info
 tarpaulin-report.*
 
 internal_docs/
+
+# Local development notes and task tracking are not public documentation.
+electron/tasks/

@@ -358,9 +358,9 @@ count.
 
 ## Search Functionality
 
-### Similarity Search
+### Database Lookup
 
-**Goal:** Find molecules similar to caffeine in an external database.
+**Goal:** Look up the exact compound represented by the current molecule.
 
 #### Steps
 
@@ -369,15 +369,14 @@ count.
      **File → Open...**
 
 2. **Open the "DB" Tab**
-   - Choose a source: **PubChem** or **ChemSpider**
+   - Choose **PubChem** (the implemented source)
    - Click **"Search Compounds"**
 
 3. **Review Results**
-   Each result shows the compound name, source, a similarity percentage
-   (color-coded: green ≥90%, light green ≥70%, orange ≥50%, red below),
-   a few of its properties, and a **"View on PubChem/ChemSpider →"** link
-   that opens the real record in your browser — results don't load
-   directly into the canvas.
+   PubChem results show the compound name, properties, and a link to the
+   public record. The lookup uses the generated InChIKey and may return no
+   result when the local InChI implementation differs from PubChem's record.
+   ChemSpider is visible in the selector but is not implemented.
 
 ### Maximum Common Substructure (MCS)
 
