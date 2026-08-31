@@ -39,6 +39,8 @@ for the full development history.
   rename to avoid leaving partially-written output after interruption.
 - Batch filters now honor valid zero-valued boundaries instead of treating them
   as unspecified.
+- Batch filter inputs now preserve zero values and accept decimal molecular
+  weight boundaries.
 - Sidebar panels now expose full accessible names and explicit tab/tabpanel
   relationships while retaining compact visual labels.
 - Empty canvases now show a concise next-action guide for choosing an atom or

@@ -142,8 +142,8 @@ export function BatchProcessDialog({ onProcess, onCancel }: BatchDialogProps) {
               <input
                 type="number"
                 placeholder="Min MW"
-                value={config.filterMinMW || ''}
-                onChange={(e) => setConfig({ ...config, filterMinMW: e.target.value ? parseInt(e.target.value) : undefined })}
+                value={config.filterMinMW ?? ''}
+                onChange={(e) => setConfig({ ...config, filterMinMW: e.target.value ? parseFloat(e.target.value) : undefined })}
                 style={{
                   padding: '6px',
                   border: `1px solid ${borderColor}`,
@@ -156,8 +156,8 @@ export function BatchProcessDialog({ onProcess, onCancel }: BatchDialogProps) {
               <input
                 type="number"
                 placeholder="Max MW"
-                value={config.filterMaxMW || ''}
-                onChange={(e) => setConfig({ ...config, filterMaxMW: e.target.value ? parseInt(e.target.value) : undefined })}
+                value={config.filterMaxMW ?? ''}
+                onChange={(e) => setConfig({ ...config, filterMaxMW: e.target.value ? parseFloat(e.target.value) : undefined })}
                 style={{
                   padding: '6px',
                   border: `1px solid ${borderColor}`,
