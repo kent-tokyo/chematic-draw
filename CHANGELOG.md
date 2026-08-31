@@ -33,6 +33,8 @@ for the full development history.
   comparison of the same operation and inputs.
 - Batch processing now rejects non-finite or contradictory filter ranges before
   starting a job.
+- Batch processing now validates each molecule before invoking the chemistry
+  engine and records malformed inputs as explicit failed items.
 - Sidebar panels now expose full accessible names and explicit tab/tabpanel
   relationships while retaining compact visual labels.
 - Empty canvases now show a concise next-action guide for choosing an atom or

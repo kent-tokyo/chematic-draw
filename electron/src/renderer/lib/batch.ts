@@ -1,5 +1,6 @@
 import * as wasmBridge from '../wasm/wasmBridge';
 import { MoleculeDto } from '../store/types';
+import { validateMoleculeDocument } from './documentCommands';
 
 export type BatchOperation = 'convert' | 'standardize' | 'filter' | 'properties';
 
@@ -92,6 +93,8 @@ export async function processBatch(
     results.items.push(item);
     options.onProgress?.({ completed: index, total: molecules.length, item });
     try {
+      const inputErrors = validateMoleculeDocument(mol);
+      if (inputErrors.length > 0) throw new Error(`Invalid molecule: ${inputErrors.join('; ')}`);
       let processed: MoleculeDto & Partial<{ properties: any }> = mol;
 
       if (task.operation === 'standardize') {
