@@ -47,4 +47,14 @@ test.describe('Global keyboard shortcuts (useKeyboard)', () => {
     await expect(dialog).not.toContainText('Shortcut conflict');
     await expect(undoInput).toHaveValue(/(Ctrl|Cmd)\+U/);
   });
+
+  test('preserves native select-all in the reaction description textarea', async ({ page }) => {
+    await page.getByTestId('sidebar-tab-reactions').click();
+    const description = page.getByPlaceholder('Reaction description...');
+    await description.fill('old description');
+    const modifier = await page.evaluate(() => navigator.platform.toUpperCase().includes('MAC') ? 'Meta' : 'Control');
+    await description.press(`${modifier}+A`);
+    await description.type('new description');
+    await expect(description).toHaveValue('new description');
+  });
 });

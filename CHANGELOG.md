@@ -23,6 +23,8 @@ for the full development history.
   contenteditable controls, not only single-line inputs.
 - Keyboard shortcuts now preserve native editing in textareas, selects, and
   contenteditable controls, not only single-line inputs.
+- Keyboard shortcuts now preserve native editing in textareas, selects, and
+  contenteditable controls, not only single-line inputs.
 - Sidebar panels now expose full accessible names and explicit tab/tabpanel
   relationships while retaining compact visual labels.
 - Empty canvases now show a concise next-action guide for choosing an atom or
