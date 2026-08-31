@@ -102,7 +102,7 @@ Two separate tabs cover this, not one:
 1. **"Reactions" tab** — add steps manually, or run a built-in SMIRKS
    template (carboxylic acid → amide, ester → acid, etc.) against the
    loaded molecule to generate a step automatically. Multi-step schemes
-   show live atom-mapping, a step/single-step classification, and green
+   show live atom-mapping, reaction integrity diagnostics, a step/single-step classification, and green
    chemistry metrics (atom economy, E-factor) once a step exists.
 2. **"Mech" tab** — draw electron-pushing arrows: click "+ Add Arrow", then
    click a source atom and a sink atom on the canvas, and pick the arrow

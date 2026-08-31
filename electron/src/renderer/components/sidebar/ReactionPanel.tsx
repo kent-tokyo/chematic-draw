@@ -5,6 +5,8 @@ import { executeReaction, SMIRKS_TEMPLATES } from '../../lib/reactions';
 import { useReactionSchemeStore } from '../../store/reactionSchemeStore';
 import { MechanismStep, ReactionCondition } from '../../store/types';
 import { exportSchemeAsJSON, importSchemeFromJSON, exportSchemeAsSVG, exportSchemeAsCSV } from '../../lib/schemeExport';
+import { exportRxn, importRxn } from '../../lib/rxnExport';
+import * as wasmBridge from '../../wasm/wasmBridge';
 
 export function ReactionPanel() {
   const theme = useUIStore((s) => s.theme);
@@ -184,13 +186,37 @@ export function ReactionPanel() {
     setStatus('Exported as CSV');
   };
 
+  const handleExportRXN = () => {
+    const reactants = scheme.steps.flatMap((step) => step.reactants);
+    const products = scheme.steps.length === 1 ? scheme.steps[0].products : [];
+    if (scheme.steps.length !== 1) {
+      setStatus('RXN export supports one authored step; use JSON for multi-step schemes');
+      return;
+    }
+    const rxn = exportRxn({ reactants, products }, wasmBridge.toMolV2000);
+    downloadFile(rxn, `${scheme.title || 'reaction'}_export.rxn`, 'chemical/x-mdl-rxn');
+    setStatus('Exported as RXN V2000');
+  };
+
   const handleImportJSON = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     try {
       const text = await file.text();
-      const importedScheme = importSchemeFromJSON(text);
+      const importedScheme = file.name.toLowerCase().endsWith('.rxn')
+        ? (() => {
+          const rxn = importRxn(text, wasmBridge.parseMolecule);
+          return {
+            id: `scheme-${Date.now()}`,
+            title: file.name.replace(/\.rxn$/i, ''),
+            description: 'Imported from RXN V2000',
+            steps: [{ id: `step-${Date.now()}`, reactants: rxn.reactants, products: rxn.products, arrows: [], mechanismType: 'sn2' as const, conditions: {}, arrowType: 'single' as const }],
+            currentStepIndex: 0,
+            viewMode: 'step' as const,
+          };
+        })()
+        : importSchemeFromJSON(text);
       if (importedScheme) {
         useReactionSchemeStore.getState().createScheme(importedScheme.title, importedScheme.description);
         const state = useReactionSchemeStore.getState();
@@ -289,6 +315,9 @@ export function ReactionPanel() {
                 <button onClick={handleExportSVG} style={{ padding: '4px 6px', fontSize: '9px', ...buttonStyle }}>
                   SVG Image
                 </button>
+                <button onClick={handleExportRXN} style={{ padding: '4px 6px', fontSize: '9px', ...buttonStyle }}>
+                  RXN V2000 (single step)
+                </button>
                 <button onClick={handleExportCSV} style={{ padding: '4px 6px', fontSize: '9px', ...buttonStyle }}>
                   CSV Report
                 </button>
@@ -297,7 +326,7 @@ export function ReactionPanel() {
 
             <input
               type="file"
-              accept=".json"
+              accept=".json,.rxn"
               onChange={handleImportJSON}
               ref={fileInputRef}
               style={{ display: 'none' }}
@@ -315,7 +344,7 @@ export function ReactionPanel() {
                 fontWeight: 'bold',
               }}
             >
-              Import from JSON
+              Import JSON or RXN
             </button>
           </div>
         </div>

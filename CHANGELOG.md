@@ -3,6 +3,20 @@
 Notable changes to chematic-draw. Dates use ISO 8601 format. See the git log
 for the full development history.
 
+## [Unreleased]
+
+### Added
+
+- Added local RXN V2000 import/export for one-step authored reactant/product
+  schemes, using the existing MOL conversion boundary.
+- RXN exchange rejects malformed counts or missing molecule blocks instead of
+  silently dropping reaction components.
+
+### Limitations
+
+- RXN agents, stoichiometric coefficients, multi-step schemes, and unsupported
+  extensions remain outside the current DTO and are preserved only by JSON.
+
 ## [0.9.0] - 2026-08-31
 
 ### Added

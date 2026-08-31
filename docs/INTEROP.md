@@ -23,6 +23,12 @@ survive unchanged; the *chemical structure* is).
 | JSON reaction document | ✅ (version 1) | ✅ (version 1) | ✅ | Versioned reaction-scheme envelope with safe migration from the legacy unversioned export. Unknown future schemas are rejected. |
 | SVG | ❌ | ✅ (`to_svg`) | N/A | Export-only, as expected — SVG is a rendering target, not a chemical interchange format. |
 
+The local next-version implementation now supports RXN V2000 import/export for
+one-step authored reactant/product schemes through the existing MOL conversion
+boundary. The older RXN row above describes the released 0.9.0 baseline; agents,
+stoichiometric coefficients, multi-step schemes, and unsupported extensions are
+not represented and are not guessed.
+
 ## Known lossy conversions (automatically confirmed before save/export)
 
 The renderer checks the target format before molecule saves and explicit MOL /
