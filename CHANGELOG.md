@@ -37,6 +37,8 @@ for the full development history.
   metadata before accepting a document.
 - Versioned reaction-document imports now reject oversized documents and malformed
   steps instead of silently defaulting invalid molecule arrays.
+- Versioned reaction-document imports now validate mechanism-arrow references and
+  bounded reaction-condition values.
 - Reaction integrity diagnostics now include formal-charge conservation in
   addition to authored atom inventory and mapping checks.
 - Reaction integrity diagnostics also account for isotope labels and explicit

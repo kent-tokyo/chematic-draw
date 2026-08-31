@@ -83,6 +83,19 @@ describe('versioned reaction document JSON', () => {
     expect(importSchemeFromJSON(JSON.stringify(exported))).toBeNull();
   });
 
+  it('rejects current-schema arrows with invalid atom references', () => {
+    const exported = JSON.parse(exportSchemeAsJSON({
+      ...scheme,
+      steps: [{
+        ...scheme.steps[0],
+        reactants: [{ atoms: [{ id: 1, element: 'C', x: 0, y: 0, charge: 0, atom_map: 0 }], bonds: [] }],
+        arrows: [{ id: 'arrow-1', sourceAtomId: 1, sinkAtomId: 999, type: 'forward', stepId: 'step-1' }],
+      }],
+    }, null, null, null));
+    delete exported.provenance;
+    expect(importSchemeFromJSON(JSON.stringify(exported))).toBeNull();
+  });
+
   it('rejects oversized or excessively long reaction documents before processing', () => {
     expect(importSchemeFromJSON('x'.repeat(MAX_REACTION_DOCUMENT_TEXT_LENGTH + 1))).toBeNull();
     const oversized = JSON.parse(exportSchemeAsJSON(scheme, null, null, null));

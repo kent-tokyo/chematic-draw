@@ -117,7 +117,21 @@ export function importSchemeFromJSON(jsonString: string): ReactionSchemeContext 
       if (!['sn2', 'sn1', 'e1', 'e2', 'electrophilic_addition'].includes(step.mechanismType ?? '')) return true;
       if (!['single', 'double', 'equilibrium', 'retro'].includes(step.arrowType ?? '')) return true;
       if (!step.conditions || typeof step.conditions !== 'object' || Array.isArray(step.conditions)) return true;
-      return [...step.reactants, ...step.products].some((molecule) => validateMoleculeDocument(molecule).length > 0);
+      if (Object.entries(step.conditions).some(([key, value]) => {
+        if (!['temperature', 'catalyst', 'solvent', 'time', 'yield', 'notes'].includes(key)) return true;
+        if (['temperature', 'catalyst', 'solvent', 'time', 'notes'].includes(key)) return typeof value !== 'string' || value.length > 1_024;
+        return typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 100;
+      })) return true;
+      const molecules = [...step.reactants, ...step.products];
+      if (molecules.some((molecule) => validateMoleculeDocument(molecule).length > 0)) return true;
+      const atomIds = new Set(molecules.flatMap((molecule) => molecule.atoms.map((atom) => atom.id)));
+      return step.arrows.some((arrow) => !arrow
+        || typeof arrow.id !== 'string' || arrow.id.length === 0 || arrow.id.length > 256
+        || !['forward', 'retro', 'resonance'].includes(arrow.type)
+        || arrow.stepId !== step.id
+        || !Number.isInteger(arrow.sourceAtomId) || !atomIds.has(arrow.sourceAtomId)
+        || !Number.isInteger(arrow.sinkAtomId) || !atomIds.has(arrow.sinkAtomId)
+        || (arrow.label !== undefined && (typeof arrow.label !== 'string' || arrow.label.length > 1_024)));
     })) return null;
     if (typeof scheme.id !== 'string') return null;
     return {
