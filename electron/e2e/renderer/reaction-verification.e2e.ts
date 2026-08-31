@@ -11,6 +11,7 @@ test.describe('Reaction verification', () => {
     const verification = page.getByRole('status', { name: 'Reaction verification' });
     await expect(verification).toContainText('NOT VERIFIED');
     await expect(verification).toContainText('atom balance is not verified');
+    await expect(page.getByTestId('reaction-integrity-steps')).toContainText('Step 1: atoms ⚠ · charge ⚠ · mapping ⚠');
   });
 
   test('exposes the local RXN V2000 export for a single authored step', async ({ page }) => {

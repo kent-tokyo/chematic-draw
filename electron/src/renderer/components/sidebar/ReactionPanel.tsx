@@ -494,6 +494,14 @@ export function ReactionPanel() {
               Unmatched map numbers: {reactionDiagnostics.mapping.unmatchedMapNumbers.join(', ')}
             </div>
           )}
+          <div data-testid="reaction-integrity-steps" style={{ marginTop: '8px', borderTop: `1px solid ${borderColor}`, paddingTop: '6px' }}>
+            {reactionDiagnostics.stepResults.map((step) => (
+              <div key={step.stepIndex} style={{ fontSize: '10px', color: labelColor, marginTop: '3px' }}>
+                Step {step.stepIndex + 1}: atoms {step.atomBalance.balanced ? '✓' : '⚠'} · charge {step.chargeBalance.balanced ? '✓' : '⚠'} · mapping {step.mapping.complete ? '✓' : '⚠'}
+                {step.mapping.mappedAtomCount > 0 ? ` (${step.mapping.mappedAtomCount} mapped)` : ''}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
