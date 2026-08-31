@@ -38,11 +38,38 @@ export interface ProcessBatchOptions {
   onProgress?: (progress: BatchProgress) => void;
 }
 
+export function validateBatchTask(task: BatchTask): string[] {
+  const errors: string[] = [];
+  if (!task || !['convert', 'standardize', 'filter', 'properties'].includes(task.operation)) {
+    return ['Unsupported batch operation'];
+  }
+  const filters = task.filterOptions;
+  if (filters) {
+    for (const [name, value] of Object.entries(filters)) {
+      if (value !== undefined && !Number.isFinite(value)) errors.push(`${name} must be finite`);
+    }
+    if (filters.minMW !== undefined && filters.minMW < 0) errors.push('minMW must not be negative');
+    if (filters.maxMW !== undefined && filters.maxMW < 0) errors.push('maxMW must not be negative');
+    if (filters.minMW !== undefined && filters.maxMW !== undefined && filters.minMW > filters.maxMW) {
+      errors.push('minMW must not exceed maxMW');
+    }
+    if (filters.minLogP !== undefined && filters.maxLogP !== undefined && filters.minLogP > filters.maxLogP) {
+      errors.push('minLogP must not exceed maxLogP');
+    }
+  }
+  if (task.smartsPattern !== undefined && task.smartsPattern.length > 10_000) {
+    errors.push('smartsPattern exceeds the 10,000 character limit');
+  }
+  return errors;
+}
+
 export async function processBatch(
   molecules: MoleculeDto[],
   task: BatchTask,
   options: ProcessBatchOptions = {}
 ): Promise<ProcessResult> {
+  const taskErrors = validateBatchTask(task);
+  if (taskErrors.length > 0) throw new Error(`Invalid batch task: ${taskErrors.join('; ')}`);
   const results: ProcessResult = {
     processed: 0,
     failed: 0,

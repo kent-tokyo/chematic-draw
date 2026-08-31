@@ -31,6 +31,8 @@ for the full development history.
   counts alongside processed and failed counts.
 - Batch results now include a deterministic FNV-1a provenance hash for repeat
   comparison of the same operation and inputs.
+- Batch processing now rejects non-finite or contradictory filter ranges before
+  starting a job.
 - Sidebar panels now expose full accessible names and explicit tab/tabpanel
   relationships while retaining compact visual labels.
 - Empty canvases now show a concise next-action guide for choosing an atom or

@@ -1,4 +1,4 @@
-import { processBatch } from '../renderer/lib/batch';
+import { processBatch, validateBatchTask } from '../renderer/lib/batch';
 import * as wasmBridge from '../renderer/wasm/wasmBridge';
 
 jest.mock('../renderer/wasm/wasmBridge');
@@ -9,6 +9,12 @@ const molecule = (id: number) => ({
 });
 
 describe('batch processing review results', () => {
+  it('rejects invalid filter ranges before processing', async () => {
+    expect(validateBatchTask({ operation: 'filter', filterOptions: { minMW: 200, maxMW: 100 } })).toEqual(['minMW must not exceed maxMW']);
+    await expect(processBatch([molecule(1)], { operation: 'filter', filterOptions: { minMW: 200, maxMW: 100 } }))
+      .rejects.toThrow(/Invalid batch task/);
+  });
+
   it('keeps deterministic per-item order and reports progress', async () => {
     const progress: string[] = [];
     const result = await processBatch([molecule(1), molecule(2)], { operation: 'convert' }, {
