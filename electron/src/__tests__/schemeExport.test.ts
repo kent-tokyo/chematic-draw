@@ -28,6 +28,12 @@ describe('versioned reaction document JSON', () => {
     const exported = JSON.parse(exportSchemeAsJSON(scheme, null, null, null));
     expect(exported.schema).toBe(REACTION_DOCUMENT_SCHEMA);
     expect(exported.schema_version).toBe(REACTION_DOCUMENT_VERSION);
+    expect(exported.provenance).toMatchObject({
+      source_format: 'reaction-document-json',
+      operation: 'export-reaction-document',
+      engine: 'chematic 0.35.0',
+    });
+    expect(exported.provenance.result_hash).toMatch(/^fnv1a-32:[0-9a-f]{8}$/);
     expect(exported.scheme).toEqual(scheme);
   });
 
@@ -59,5 +65,11 @@ describe('versioned reaction document JSON', () => {
       schema_version: 99,
       scheme: { steps: [] },
     }))).toBeNull();
+  });
+
+  it('rejects a current document whose provenance hash no longer matches', () => {
+    const exported = JSON.parse(exportSchemeAsJSON(scheme, null, null, null));
+    exported.scheme.title = 'tampered';
+    expect(importSchemeFromJSON(JSON.stringify(exported))).toBeNull();
   });
 });

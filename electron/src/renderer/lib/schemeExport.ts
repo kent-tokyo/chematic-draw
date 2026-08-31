@@ -15,6 +15,21 @@ interface ReactionDocumentExport {
     reactionClassification: ReactionClassification | null;
     greenMetrics: GreenChemistryMetrics | null;
   };
+  provenance: {
+    source_format: 'reaction-document-json';
+    operation: 'export-reaction-document';
+    engine: 'chematic 0.35.0';
+    result_hash: string;
+  };
+}
+
+function documentHash(payload: unknown): string {
+  let hash = 0x811c9dc5;
+  for (const character of JSON.stringify(payload)) {
+    hash ^= character.charCodeAt(0);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return `fnv1a-32:${hash.toString(16).padStart(8, '0')}`;
 }
 
 /**
@@ -26,16 +41,30 @@ export function exportSchemeAsJSON(
   reactionClassification: ReactionClassification | null,
   greenMetrics: GreenChemistryMetrics | null
 ): string {
+  const analysis = {
+    atomMappings: atomMappings ? { ...atomMappings, entries: Array.from(atomMappings.entries) } : null,
+    reactionClassification,
+    greenMetrics,
+  };
+  const hashPayload = {
+    schema: REACTION_DOCUMENT_SCHEMA,
+    schema_version: REACTION_DOCUMENT_VERSION,
+    version: '1.0' as const,
+    scheme,
+    analysis,
+  };
   const exportData: ReactionDocumentExport = {
     schema: REACTION_DOCUMENT_SCHEMA,
     schema_version: REACTION_DOCUMENT_VERSION,
     version: '1.0',
     exportDate: new Date().toISOString(),
     scheme,
-    analysis: {
-      atomMappings: atomMappings ? { ...atomMappings, entries: Array.from(atomMappings.entries) } : null,
-      reactionClassification,
-      greenMetrics,
+    analysis,
+    provenance: {
+      source_format: 'reaction-document-json',
+      operation: 'export-reaction-document',
+      engine: 'chematic 0.35.0',
+      result_hash: documentHash(hashPayload),
     },
   };
 
@@ -53,6 +82,22 @@ export function importSchemeFromJSON(jsonString: string): ReactionSchemeContext 
     }
     if (data.schema && (data.schema !== REACTION_DOCUMENT_SCHEMA || data.schema_version !== REACTION_DOCUMENT_VERSION)) {
       return null;
+    }
+    if (data.provenance) {
+      if (
+        data.provenance.source_format !== 'reaction-document-json' ||
+        data.provenance.operation !== 'export-reaction-document' ||
+        data.provenance.engine !== 'chematic 0.35.0' ||
+        typeof data.provenance.result_hash !== 'string'
+      ) return null;
+      const hashPayload = {
+        schema: data.schema,
+        schema_version: data.schema_version,
+        version: data.version,
+        scheme: data.scheme,
+        analysis: data.analysis,
+      };
+      if (data.provenance.result_hash !== documentHash(hashPayload)) return null;
     }
     const scheme = data.scheme as Partial<ReactionSchemeContext>;
     if (scheme.steps.some((step) => !step || typeof step.id !== 'string')) return null;
