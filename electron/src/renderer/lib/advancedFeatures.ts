@@ -123,7 +123,7 @@ export interface DatabaseResult {
   name: string;
   source: 'pubchem' | 'chemspider' | 'zinc';
   similarity: number;
-  properties: Record<string, any>;
+  properties: Record<string, string | number>;
 }
 
 export async function searchDatabase(mol: MoleculeDto, source: 'pubchem' | 'chemspider'): Promise<DatabaseResult[]> {
@@ -196,18 +196,24 @@ async function searchPubChem(inchiKey: string): Promise<DatabaseResult[]> {
     const detailData = await detailResponse.json();
     const detailCompound = detailData.PC_Compounds?.[0];
 
-    const properties: Record<string, any> = {};
+    const properties: Record<string, string | number> = {};
 
     // Extract molecular properties if available
     if (detailCompound?.props) {
       for (const prop of detailCompound.props) {
         if (prop.urn?.label && prop.value) {
-          properties[prop.urn.label] = prop.value.sval || prop.value.ival || prop.value.fval;
+          const value = prop.value.sval ?? prop.value.ival ?? prop.value.fval;
+          if (typeof value === 'string' || typeof value === 'number') {
+            properties[prop.urn.label] = value;
+          }
         }
       }
     }
 
-    const iupacName = properties['IUPAC Name'] || `Compound ${cid}`;
+    const iupacValue = properties['IUPAC Name'];
+    const iupacName = typeof iupacValue === 'string' && iupacValue.length > 0
+      ? iupacValue
+      : `Compound ${cid}`;
 
     return [
       {
