@@ -18,7 +18,7 @@ export interface BatchProvenance {
   engine: 'chematic 0.35.0';
   inputFormat?: string;
   outputFormat?: string;
-  filterOptions?: { minMW?: number; maxMW?: number };
+  filterOptions?: { minMW?: number; maxMW?: number; minLogP?: number; maxLogP?: number };
   smartsPattern?: string;
 }
 

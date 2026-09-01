@@ -16,6 +16,8 @@ export interface BatchConfig {
   outputFormat?: string;
   filterMinMW?: number;
   filterMaxMW?: number;
+  filterMinLogP?: number;
+  filterMaxLogP?: number;
   filterSmarts?: string;
 }
 
@@ -162,6 +164,31 @@ export function BatchProcessDialog({ onProcess, onCancel }: BatchDialogProps) {
                   backgroundColor: theme === 'dark' ? '#1e2530' : '#ffffff',
                   color: textColor,
                   fontSize: '11px',
+                }}
+              />
+            </div>
+            <label style={{ fontSize: '11px', color: labelColor, display: 'block', marginTop: '10px' }}>LogP Range</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '8px' }}>
+              <input
+                type="number"
+                step="any"
+                placeholder="Min LogP"
+                value={config.filterMinLogP ?? ''}
+                onChange={(e) => setConfig({ ...config, filterMinLogP: e.target.value ? parseFloat(e.target.value) : undefined })}
+                style={{
+                  padding: '6px', border: `1px solid ${borderColor}`, borderRadius: '3px',
+                  backgroundColor: theme === 'dark' ? '#1e2530' : '#ffffff', color: textColor, fontSize: '11px',
+                }}
+              />
+              <input
+                type="number"
+                step="any"
+                placeholder="Max LogP"
+                value={config.filterMaxLogP ?? ''}
+                onChange={(e) => setConfig({ ...config, filterMaxLogP: e.target.value ? parseFloat(e.target.value) : undefined })}
+                style={{
+                  padding: '6px', border: `1px solid ${borderColor}`, borderRadius: '3px',
+                  backgroundColor: theme === 'dark' ? '#1e2530' : '#ffffff', color: textColor, fontSize: '11px',
                 }}
               />
             </div>

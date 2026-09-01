@@ -496,6 +496,8 @@ function App() {
         filterOptions: config.operation === 'filter' ? {
           minMW: config.filterMinMW,
           maxMW: config.filterMaxMW,
+          minLogP: config.filterMinLogP,
+          maxLogP: config.filterMaxLogP,
         } : undefined,
         smartsPattern: config.operation === 'filter' ? config.filterSmarts : undefined,
       };
@@ -512,6 +514,8 @@ function App() {
         filterOptions: config.operation === 'filter' ? {
           minMW: config.filterMinMW,
           maxMW: config.filterMaxMW,
+          minLogP: config.filterMinLogP,
+          maxLogP: config.filterMaxLogP,
         } : undefined,
         smartsPattern: config.operation === 'filter' ? config.filterSmarts : undefined,
       };

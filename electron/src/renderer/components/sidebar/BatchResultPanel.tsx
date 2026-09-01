@@ -67,7 +67,7 @@ export function BatchResultPanel({ results }: BatchResultPanelProps) {
         Engine: {latestResult.provenance.engine}
         {latestResult.provenance.inputFormat && `; Input: ${latestResult.provenance.inputFormat}`}
         {latestResult.provenance.outputFormat && `; Output: ${latestResult.provenance.outputFormat}`}
-        {latestResult.provenance.filterOptions && `; MW: ${latestResult.provenance.filterOptions.minMW ?? '—'}–${latestResult.provenance.filterOptions.maxMW ?? '—'}`}
+        {latestResult.provenance.filterOptions && `; MW: ${latestResult.provenance.filterOptions.minMW ?? '—'}–${latestResult.provenance.filterOptions.maxMW ?? '—'}; LogP: ${latestResult.provenance.filterOptions.minLogP ?? '—'}–${latestResult.provenance.filterOptions.maxLogP ?? '—'}`}
         {latestResult.provenance.smartsPattern && `; SMARTS: ${latestResult.provenance.smartsPattern}`}
       </div>
 
