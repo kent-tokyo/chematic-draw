@@ -15,6 +15,13 @@ describe('batch processing review results', () => {
       .rejects.toThrow(/Invalid batch task/);
   });
 
+  it('rejects unknown filter options instead of silently ignoring them', () => {
+    expect(validateBatchTask({
+      operation: 'filter',
+      filterOptions: { minMW: 0, unexpected: 1 } as never,
+    })).toEqual(['Unknown filter option: unexpected']);
+  });
+
   it('records invalid molecules as failed items before invoking the engine', async () => {
     const invalid = { ...molecule(1), atoms: [{ ...molecule(1).atoms[0], charge: 0.5 }] };
     const result = await processBatch([invalid], { operation: 'standardize' });

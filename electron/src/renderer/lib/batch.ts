@@ -47,6 +47,10 @@ export function validateBatchTask(task: BatchTask): string[] {
   const filters = task.filterOptions;
   if (filters) {
     for (const [name, value] of Object.entries(filters)) {
+      if (!['minMW', 'maxMW', 'minLogP', 'maxLogP'].includes(name)) {
+        errors.push(`Unknown filter option: ${name}`);
+        continue;
+      }
       if (value !== undefined && !Number.isFinite(value)) errors.push(`${name} must be finite`);
     }
     if (filters.minMW !== undefined && filters.minMW < 0) errors.push('minMW must not be negative');
