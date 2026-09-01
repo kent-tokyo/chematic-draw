@@ -10,7 +10,7 @@ export interface StereoisomerResult {
 }
 
 export function enumerateStereoisomers(mol: MoleculeDto): StereoisomerResult {
-  // Use chematic 0.1.36 API: enumerate_stereoisomers
+  // Use the pinned chematic API: enumerate_stereoisomers
   try {
     const isomers = wasmBridge.enumerateStereoisomers(mol);
     return {
@@ -65,7 +65,7 @@ export interface PropertyPrediction {
 }
 
 export function predictProperties(mol: MoleculeDto): PropertyPrediction[] {
-  // Use chematic 0.1.36 API: get extended properties
+  // Use the pinned chematic API: get extended properties
   try {
     const props = wasmBridge.getExtendedProperties(mol);
     const predictions: PropertyPrediction[] = [

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { MoleculeDto, AtomDto, BondDto } from './types';
+import { MoleculeDto, AtomDto, BondDto, PropertiesDto } from './types';
 
 interface MoleculeStore {
   // Current molecule
@@ -10,7 +10,7 @@ interface MoleculeStore {
   redoStack: MoleculeDto[];
 
   // Molecule metadata
-  properties: any; // PropertiesDto, computed on demand
+  properties: PropertiesDto | null; // computed on demand
 
   // Actions
   setMolecule: (mol: MoleculeDto) => void;
