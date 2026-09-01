@@ -11,7 +11,7 @@ export interface BatchDialogProps {
 }
 
 export interface BatchConfig {
-  operation: 'convert' | 'standardize' | 'filter';
+  operation: 'convert' | 'standardize' | 'filter' | 'properties';
   inputFormat?: string;
   outputFormat?: string;
   filterMinMW?: number;
@@ -21,7 +21,7 @@ export interface BatchConfig {
 
 export function BatchProcessDialog({ onProcess, onCancel }: BatchDialogProps) {
   const theme = useUIStore((s) => s.theme);
-  const [operation, setOperation] = useState<'convert' | 'standardize' | 'filter'>('standardize');
+  const [operation, setOperation] = useState<'convert' | 'standardize' | 'filter' | 'properties'>('standardize');
   const [config, setConfig] = useState<BatchConfig>({ operation: 'standardize' });
   const [progress, setProgress] = useState(0);
   const [processing, setProcessing] = useState(false);
@@ -108,8 +108,8 @@ export function BatchProcessDialog({ onProcess, onCancel }: BatchDialogProps) {
           <label style={{ fontSize: '12px', color: labelColor, display: 'block', marginBottom: '8px' }}>
             Operation
           </label>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-            {(['standardize', 'convert', 'filter'] as const).map((op) => (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+            {(['standardize', 'convert', 'filter', 'properties'] as const).map((op) => (
               <button
                 key={op}
                 onClick={() => {

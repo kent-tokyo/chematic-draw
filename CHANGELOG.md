@@ -49,6 +49,8 @@ for the full development history.
   before chemistry processing.
 - Self-referential bonds and whitespace-padded element values are now rejected
   before chemistry processing.
+- Batch processing now exposes the existing property-calculation operation in
+  the dialog.
 - Sidebar panels now expose full accessible names and explicit tab/tabpanel
   relationships while retaining compact visual labels.
 - Empty canvases now show a concise next-action guide for choosing an atom or

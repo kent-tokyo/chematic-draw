@@ -328,6 +328,31 @@ test.describe('Electron Smoke', () => {
     await electronApp.close();
   });
 
+  test('the batch dialog exposes property calculation results', async () => {
+    const electronApp = await electron.launch({
+      args: [path.resolve(__dirname, '..', '..')],
+    });
+    const window = await electronApp.firstWindow();
+    await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
+      timeout: 15000,
+    });
+
+    await electronApp.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0].webContents.send('menu:batch-process');
+    });
+    const dialog = window.getByRole('dialog', { name: 'Batch Process Molecules' });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Properties', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Process', exact: true }).click();
+    await expect(dialog).toBeHidden();
+
+    await window.getByTestId('sidebar-tab-batch-results').click();
+    await expect(window.getByText('Last Operation: properties')).toBeVisible();
+    await expect(window.getByLabel('Batch result hash')).toContainText('fnv1a-32:');
+
+    await electronApp.close();
+  });
+
   test('electronAPI.pasteFromClipboard() resolves instead of hanging forever', async () => {
     // Found while investigating an unrelated menu issue (Edit > Copy/Paste
     // being wired to Electron's built-in role, not real app logic) —
