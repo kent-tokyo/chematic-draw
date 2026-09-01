@@ -49,6 +49,8 @@ for the full development history.
   before chemistry processing.
 - Self-referential bonds and whitespace-padded element values are now rejected
   before chemistry processing.
+- Duplicate bonds between the same atom pair are now rejected before chemistry
+  processing.
 - Batch processing now exposes the existing property-calculation operation in
   the dialog.
 - Batch property results now show formula, molecular weight, LogP, and TPSA for

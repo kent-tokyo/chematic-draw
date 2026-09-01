@@ -59,6 +59,7 @@ export function validateMoleculeDocument(molecule: MoleculeDto): string[] {
     if (atom.hydrogen_count !== undefined && (!Number.isInteger(atom.hydrogen_count) || atom.hydrogen_count < 0)) errors.push(`Atom ${atom.id} has an invalid hydrogen count`);
   }
   const bondIds = new Set<number>();
+  const bondEndpoints = new Set<string>();
   for (const bond of molecule.bonds) {
     if (!bond || typeof bond !== 'object') {
       errors.push('Bond entry must be an object');
@@ -68,6 +69,11 @@ export function validateMoleculeDocument(molecule: MoleculeDto): string[] {
     bondIds.add(bond.id);
     if (!Number.isInteger(bond.from) || !Number.isInteger(bond.to) || !atomIds.has(bond.from) || !atomIds.has(bond.to)) errors.push(`Bond ${bond.id} references a missing atom`);
     if (bond.from === bond.to) errors.push(`Bond ${bond.id} must connect two different atoms`);
+    if (Number.isInteger(bond.from) && Number.isInteger(bond.to) && bond.from !== bond.to) {
+      const endpoints = bond.from < bond.to ? `${bond.from}:${bond.to}` : `${bond.to}:${bond.from}`;
+      if (bondEndpoints.has(endpoints)) errors.push(`Bond ${bond.id} duplicates an existing atom pair`);
+      bondEndpoints.add(endpoints);
+    }
     if (![1, 2, 3, 4].includes(bond.order) || ![0, 1, 2].includes(bond.stereo)) errors.push(`Bond ${bond.id} has unsupported order or stereo`);
   }
   return errors;

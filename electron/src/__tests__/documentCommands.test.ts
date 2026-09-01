@@ -64,6 +64,18 @@ describe('local extension document API', () => {
     );
   });
 
+  test('rejects duplicate bonds between the same atom pair', () => {
+    const duplicate = {
+      ...molecule,
+      atoms: [molecule.atoms[0], { ...molecule.atoms[0], id: 2, x: 1 }],
+      bonds: [
+        { id: 0, from: 1, to: 2, order: 1, stereo: 0 },
+        { id: 1, from: 2, to: 1, order: 2, stereo: 0 },
+      ],
+    };
+    expect(validateMoleculeDocument(duplicate)).toContain('Bond 1 duplicates an existing atom pair');
+  });
+
   test('keeps analysis providers read-only by contract', () => {
     const host = createExtensionHost();
     host.register({ id: 'analysis-plugin', version: '1.0.0', permissions: ['analysis:read'] }, [], [{ id: 'count', description: 'count atoms', analyze: (mol) => mol.atoms.length }]);
