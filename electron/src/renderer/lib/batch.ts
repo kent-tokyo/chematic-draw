@@ -46,6 +46,10 @@ export function validateBatchTask(task: BatchTask): string[] {
   }
   const filters = task.filterOptions;
   if (filters) {
+    if (typeof filters !== 'object' || Array.isArray(filters)) {
+      errors.push('filterOptions must be an object');
+      return errors;
+    }
     for (const [name, value] of Object.entries(filters)) {
       if (!['minMW', 'maxMW', 'minLogP', 'maxLogP'].includes(name)) {
         errors.push(`Unknown filter option: ${name}`);

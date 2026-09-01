@@ -35,6 +35,11 @@ describe('batch processing review results', () => {
     ]);
   });
 
+  it('rejects non-object filter options', () => {
+    expect(validateBatchTask({ operation: 'filter', filterOptions: [] as never }))
+      .toEqual(['filterOptions must be an object']);
+  });
+
   it('records invalid molecules as failed items before invoking the engine', async () => {
     const invalid = { ...molecule(1), atoms: [{ ...molecule(1).atoms[0], charge: 0.5 }] };
     const result = await processBatch([invalid], { operation: 'standardize' });
