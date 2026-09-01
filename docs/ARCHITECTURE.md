@@ -85,7 +85,7 @@ call run synchronously on the main (renderer) thread, called directly from
 | **Styling** | Inline styles | No CSS/Tailwind framework | — |
 | **State** | Zustand | Lightweight store | 5.0.15 |
 | **Canvas** | Canvas 2D API | 2D drawing, 3D projection | Native |
-| **Chemistry Engine** | chematic (Rust) | Molecule operations | 0.20.1 |
+| **Chemistry Engine** | chematic (Rust) | Molecule operations | 0.35.0 (`v0.35.0`) |
 | **WASM** | wasm-bindgen | Rust → JavaScript bridge | via wasm-pack |
 | **Build** | Vite | Bundler and dev server | 7.3.6 (pinned exact — see Round 1 CI notes) |
 | **WASM Build** | wasm-pack | Rust → WASM compilation | 0.13.x |
@@ -332,7 +332,7 @@ module (the one genuinely async step is the one-time `initWasm()` load).
 | `runReactants` | MoleculeDto + SMIRKS | ReactionRunResult | Reaction execution |
 | `findMcs` | 2 MoleculeDtos | McsResultDto | Maximum common substructure |
 | `toSvg` / `toMolV2000` / `toMolV3000` / `toSdf` / `toCml` / `toSmiles` / `toCanonicalSmiles` | MoleculeDto | string | Format export |
-| `getProperties` | MoleculeDto | Record<string, any> | Physicochemical properties |
+| `getProperties` | MoleculeDto | PropertiesDto | Physicochemical properties |
 
 (There is no `parseSmilesWasm` — that name never existed in this codebase.
 `predictProperties` is **not** a direct WASM wrapper at all — it's a

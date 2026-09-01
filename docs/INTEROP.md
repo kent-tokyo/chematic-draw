@@ -15,7 +15,7 @@ survive unchanged; the *chemical structure* is).
 | SDF | ✅ | ✅ | ✅ | Multi-record files: only the first record is read by `parseMolecule`/`parseAny`. |
 | CML | ✅ | ✅ | ✅ | |
 | CDXML | ✅ (read only) | ❌ | N/A | `chematic-mol` has no CDXML writer at all — this is a real gap, not an oversight in the WASM bridge. A ChemDraw-format round-trip (open a `.cdxml`, edit, save back to `.cdxml`) is not possible; editing a CDXML file forces a save to a different format. |
-| RXN (reaction file) | ❌ | ❌ | N/A | **Not exposed via WASM, but the underlying support exists**: `chematic_mol::rxn::{parse_rxn_file, write_rxn_file}` are real, implemented functions in the `chematic-mol` crate this project already depends on — chem-wasm simply never calls them. Wiring these up is new WASM-API + DTO + UI surface (a `ReactionDocumentDto` distinct from `MoleculeDto`, since a reaction has reactants/products/agents), not a one-line fix. Tracked as a concrete, scoped future item. |
+| RXN (reaction file) | ✅ (V2000, one step) | ✅ (V2000, one step) | ✅ | Reactants and products are exchanged through the versioned reaction document. Agents, stoichiometric coefficients, multi-step schemes, and unsupported extensions are not represented. |
 | InChI | ❌ | ✅ (`molToInchi`, one-way) | N/A | InChI is intentionally one-directional here: `molToInchi` produces an InChI string from a molecule, and `inchiToInchiKey` hashes an InChI string to its InChIKey — there is no `inchiToMol`. This matches upstream chemistry-informatics convention (InChI is an identifier/hash format, not meant to be a lossless structure-interchange format), so this is not treated as a gap to close, just a direction that doesn't exist. |
 | XYZ | ✅ (`parseXyz`, coordinates only) | ❌ | N/A | Import only, for 3D viewer input. No bond/connectivity information in the format itself. |
 | PDB | ✅ (`parsePdb`, coordinates only) | ❌ | N/A | Same as XYZ — coordinate import only. |
@@ -23,9 +23,9 @@ survive unchanged; the *chemical structure* is).
 | JSON reaction document | ✅ (version 1) | ✅ (version 1) | ✅ | Versioned reaction-scheme envelope with safe migration from the legacy unversioned export. Unknown future schemas are rejected. |
 | SVG | ❌ | ✅ (`to_svg`) | N/A | Export-only, as expected — SVG is a rendering target, not a chemical interchange format. |
 
-The local next-version implementation now supports RXN V2000 import/export for
+The current implementation supports RXN V2000 import/export for
 one-step authored reactant/product schemes through the existing MOL conversion
-boundary. The older RXN row above describes the released 0.9.0 baseline; agents,
+boundary. Agents,
 stoichiometric coefficients, multi-step schemes, and unsupported extensions are
 not represented and are not guessed. Wildcard and isotope loss is checked before
 RXN export and requires explicit confirmation; multi-step RXN export is blocked
