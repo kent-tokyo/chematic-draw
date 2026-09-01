@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { UIState } from './types';
+import { PropertiesDto, UIState } from './types';
 import { DEFAULT_SHORTCUT_BINDINGS, ShortcutBindings } from '../lib/shortcuts';
 
 export interface BatchItemSummary {
@@ -11,12 +11,7 @@ export interface BatchItemSummary {
   inputBondCount?: number;
   outputAtomCount?: number;
   outputBondCount?: number;
-  properties?: {
-    formula: string;
-    molecular_weight: number;
-    logp: number;
-    tpsa: number;
-  };
+  properties?: Pick<PropertiesDto, 'formula' | 'molecular_weight' | 'logp' | 'tpsa'>;
 }
 
 export interface BatchProvenance {
