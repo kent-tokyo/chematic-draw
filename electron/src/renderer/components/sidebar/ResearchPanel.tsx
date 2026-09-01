@@ -1,21 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
+import { PropertiesDto } from '../../store/types';
 import { copyText } from '../../lib/clipboard';
 import * as wasmBridge from '../../wasm/wasmBridge';
 
-interface Properties {
-  molecular_weight?: number;
-  logp?: number;
-  tpsa?: number;
-  hba?: number;
-  hbd?: number;
-  rotatable_bonds?: number;
-}
-
 type ResearchState =
   | { status: 'idle' | 'loading' }
-  | { status: 'success'; properties: Properties; iupacName: string; inchi: string; inchikey: string; identifierError?: string }
+  | { status: 'success'; properties: PropertiesDto; iupacName: string; inchi: string; inchikey: string; identifierError?: string }
   | { status: 'error'; message: string };
 
 export function ResearchPanel() {

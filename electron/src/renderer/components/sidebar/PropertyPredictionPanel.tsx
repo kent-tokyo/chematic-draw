@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
+import { PropertiesDto } from '../../store/types';
 import { predictProperties, PropertyPrediction } from '../../lib/advancedFeatures';
 import * as wasmBridge from '../../wasm/wasmBridge';
 
 type PredictionState =
   | { status: 'idle' | 'loading' }
-  | { status: 'success'; molecularProps: Record<string, any>; predictions: PropertyPrediction[] }
+  | { status: 'success'; molecularProps: PropertiesDto; predictions: PropertyPrediction[] }
   | { status: 'error'; message: string };
 
 export function PropertyPredictionPanel() {

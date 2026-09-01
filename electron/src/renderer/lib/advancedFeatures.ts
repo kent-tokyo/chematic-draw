@@ -1,4 +1,4 @@
-import { MoleculeDto, MechanismStep } from '../store/types';
+import { MechanismStep, MoleculeDto, PropertiesDto } from '../store/types';
 import * as wasmBridge from '../wasm/wasmBridge';
 export type { StereoAssignmentDto } from '../wasm/wasmBridge';
 
@@ -44,7 +44,7 @@ export interface LipinskiViolation {
   violated: boolean;
 }
 
-export function checkLipinski(props: any): LipinskiViolation[] {
+export function checkLipinski(props: PropertiesDto): LipinskiViolation[] {
   const violations: LipinskiViolation[] = [
     { rule: 'MW ≤ 500', value: props.molecular_weight || 0, limit: 500, violated: (props.molecular_weight || 0) > 500 },
     { rule: 'LogP ≤ 5', value: props.logp || 0, limit: 5, violated: (props.logp || 0) > 5 },
