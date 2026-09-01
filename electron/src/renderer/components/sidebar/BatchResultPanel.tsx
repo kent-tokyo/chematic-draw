@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BatchResultSummary, useUIStore } from '../../store/uiStore';
 
 interface BatchResultPanelProps {
@@ -7,6 +7,7 @@ interface BatchResultPanelProps {
 
 export function BatchResultPanel({ results }: BatchResultPanelProps) {
   const theme = useUIStore((s) => s.theme);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
   const bgColor = theme === 'dark' ? '#2f3a47' : '#ffffff';
   const borderColor = theme === 'dark' ? '#3a4a57' : '#e0e0e0';
@@ -23,10 +24,35 @@ export function BatchResultPanel({ results }: BatchResultPanelProps) {
     );
   }
 
-  const latestResult = results[results.length - 1];
+  const resultIndex = selectedIndex !== null && selectedIndex < results.length ? selectedIndex : results.length - 1;
+  const latestResult = results[resultIndex];
 
   return (
     <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      {results.length > 1 && (
+        <div aria-label="Batch history" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div style={{ fontSize: '10px', fontWeight: 'bold', color: textColor }}>Batch history</div>
+          {results.map((result, index) => (
+            <button
+              key={`${result.timestamp}-${index}`}
+              aria-label={`Batch history item ${index + 1}: ${result.operation}`}
+              onClick={() => setSelectedIndex(index)}
+              style={{
+                padding: '5px 7px',
+                border: `1px solid ${borderColor}`,
+                borderRadius: '3px',
+                backgroundColor: index === resultIndex ? (theme === 'dark' ? '#3a4a57' : '#e4e9f1') : 'transparent',
+                color: textColor,
+                textAlign: 'left',
+                fontSize: '10px',
+                cursor: 'pointer',
+              }}
+            >
+              {index + 1}. {result.operation} — {result.processed} processed, {result.failed} failed
+            </button>
+          ))}
+        </div>
+      )}
       <div style={{ fontSize: '12px', fontWeight: 'bold', color: textColor }}>
         Last Operation: {latestResult.operation}
       </div>

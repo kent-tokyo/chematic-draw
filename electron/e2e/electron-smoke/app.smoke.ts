@@ -353,6 +353,16 @@ test.describe('Electron Smoke', () => {
     await expect(window.getByLabel('Batch properties for item 1')).toContainText('Formula: C6H6');
     await expect(window.getByLabel('Batch properties for item 1')).toContainText('MW: 78.11');
 
+    await electronApp.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0].webContents.send('menu:batch-process');
+    });
+    const secondDialog = window.getByRole('dialog', { name: 'Batch Process Molecules' });
+    await expect(secondDialog).toBeVisible();
+    await secondDialog.getByRole('button', { name: 'Process', exact: true }).click();
+    await expect(secondDialog).toBeHidden();
+    await window.getByLabel('Batch history item 1: properties').click();
+    await expect(window.getByText('Last Operation: properties')).toBeVisible();
+
     await electronApp.close();
   });
 
