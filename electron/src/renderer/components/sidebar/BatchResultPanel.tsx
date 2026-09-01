@@ -33,6 +33,12 @@ export function BatchResultPanel({ results }: BatchResultPanelProps) {
       <div aria-label="Batch result hash" style={{ fontSize: '9px', color: labelColor, wordBreak: 'break-all' }}>
         Result hash: {latestResult.resultHash}
       </div>
+      <div aria-label="Batch provenance" style={{ fontSize: '9px', color: labelColor }}>
+        Engine: {latestResult.provenance.engine}
+        {latestResult.provenance.inputFormat && `; Input: ${latestResult.provenance.inputFormat}`}
+        {latestResult.provenance.outputFormat && `; Output: ${latestResult.provenance.outputFormat}`}
+        {latestResult.provenance.filterOptions && `; MW: ${latestResult.provenance.filterOptions.minMW ?? '—'}–${latestResult.provenance.filterOptions.maxMW ?? '—'}`}
+      </div>
 
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>

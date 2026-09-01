@@ -55,6 +55,8 @@ for the full development history.
   the dialog.
 - Batch property results now show formula, molecular weight, LogP, and TPSA for
   review alongside the deterministic result hash.
+- Batch history now records the chemistry engine and execution options as
+  provenance alongside each result.
 - Sidebar panels now expose full accessible names and explicit tab/tabpanel
   relationships while retaining compact visual labels.
 - Empty canvases now show a concise next-action guide for choosing an atom or

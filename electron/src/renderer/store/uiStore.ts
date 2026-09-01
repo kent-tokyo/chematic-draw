@@ -15,6 +15,13 @@ export interface BatchItemSummary {
   };
 }
 
+export interface BatchProvenance {
+  engine: 'chematic 0.35.0';
+  inputFormat?: string;
+  outputFormat?: string;
+  filterOptions?: { minMW?: number; maxMW?: number };
+}
+
 export interface BatchResultSummary {
   operation: string;
   processed: number;
@@ -23,6 +30,7 @@ export interface BatchResultSummary {
   resultHash: string;
   errors: string[];
   timestamp: number;
+  provenance: BatchProvenance;
   cancelled?: boolean;
   items: BatchItemSummary[];
 }
@@ -76,6 +84,7 @@ interface UIStoreState extends UIState {
     skipped: number,
     resultHash: string,
     errors: string[],
+    provenance: BatchProvenance,
     details?: { cancelled: boolean; items: BatchItemSummary[] }
   ) => void;
   setShortcutBindings: (bindings: ShortcutBindings) => void;
@@ -155,11 +164,11 @@ export const useUIStore = create<UIStoreState>((set) => ({
     if (type === 'batch') set({ showBatchDialog: false });
   },
 
-  addBatchResult: (operation, processed, failed, skipped, resultHash, errors, details = { cancelled: false, items: [] }) => {
+  addBatchResult: (operation, processed, failed, skipped, resultHash, errors, provenance, details = { cancelled: false, items: [] }) => {
     set((state) => ({
       batchResults: [
         ...state.batchResults,
-        { operation, processed, failed, skipped, resultHash, errors, timestamp: Date.now(), ...details },
+        { operation, processed, failed, skipped, resultHash, errors, provenance, timestamp: Date.now(), ...details },
       ].slice(-10), // Keep last 10 results
     }));
   },

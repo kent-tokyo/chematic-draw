@@ -504,7 +504,16 @@ function App() {
         onProgress: ({ completed, total }) => options.onProgress(completed, total),
       });
 
-      addBatchResult(config.operation, result.processed, result.failed, result.skipped, result.resultHash, result.errors, {
+      const provenance = {
+        engine: 'chematic 0.35.0' as const,
+        inputFormat: config.inputFormat,
+        outputFormat: config.outputFormat,
+        filterOptions: config.operation === 'filter' ? {
+          minMW: config.filterMinMW,
+          maxMW: config.filterMaxMW,
+        } : undefined,
+      };
+      addBatchResult(config.operation, result.processed, result.failed, result.skipped, result.resultHash, result.errors, provenance, {
         cancelled: result.cancelled,
         items: result.items.map(({ index, status, warnings, error, output }) => ({
           index,
@@ -542,6 +551,10 @@ function App() {
       setStatus(`Batch processing failed: ${(err as Error).message}`);
       console.error('Batch error:', err);
       addBatchResult(config.operation, 0, 1, 0, 'fnv1a-32:00000000', [(err as Error).message], {
+        engine: 'chematic 0.35.0',
+        inputFormat: config.inputFormat,
+        outputFormat: config.outputFormat,
+      }, {
         cancelled: false,
         items: [{ index: 0, status: 'failed', warnings: [], error: (err as Error).message }],
       });
