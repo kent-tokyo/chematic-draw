@@ -62,8 +62,17 @@ export function validateBatchTask(task: BatchTask): string[] {
       errors.push('minLogP must not exceed maxLogP');
     }
   }
-  if (task.smartsPattern !== undefined && task.smartsPattern.length > 10_000) {
-    errors.push('smartsPattern exceeds the 10,000 character limit');
+  if (task.smartsPattern !== undefined) {
+    if (typeof task.smartsPattern !== 'string') {
+      errors.push('smartsPattern must be a string');
+    } else if (task.smartsPattern.length > 10_000) {
+      errors.push('smartsPattern exceeds the 10,000 character limit');
+    }
+  }
+  for (const [name, value] of [['inputFormat', task.inputFormat], ['outputFormat', task.outputFormat]] as const) {
+    if (value !== undefined && (typeof value !== 'string' || value.length === 0 || value.length > 64)) {
+      errors.push(`${name} must be a non-empty string of at most 64 characters`);
+    }
   }
   return errors;
 }

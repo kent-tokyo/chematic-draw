@@ -22,6 +22,19 @@ describe('batch processing review results', () => {
     })).toEqual(['Unknown filter option: unexpected']);
   });
 
+  it('rejects malformed SMARTS and format metadata', () => {
+    expect(validateBatchTask({
+      operation: 'convert',
+      smartsPattern: 42 as never,
+      inputFormat: '' ,
+      outputFormat: 'x'.repeat(65),
+    })).toEqual([
+      'smartsPattern must be a string',
+      'inputFormat must be a non-empty string of at most 64 characters',
+      'outputFormat must be a non-empty string of at most 64 characters',
+    ]);
+  });
+
   it('records invalid molecules as failed items before invoking the engine', async () => {
     const invalid = { ...molecule(1), atoms: [{ ...molecule(1).atoms[0], charge: 0.5 }] };
     const result = await processBatch([invalid], { operation: 'standardize' });
