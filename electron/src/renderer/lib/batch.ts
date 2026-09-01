@@ -37,6 +37,8 @@ export interface BatchProgress {
 export interface ProcessBatchOptions {
   signal?: AbortSignal;
   onProgress?: (progress: BatchProgress) => void;
+  /** Restrict processing to these original molecule indexes (for retries). */
+  indices?: number[];
 }
 
 export function validateBatchTask(task: BatchTask): string[] {
@@ -99,7 +101,11 @@ export async function processBatch(
     cancelled: false,
   };
 
-  for (const [index, mol] of molecules.entries()) {
+  const entries = (options.indices ?? molecules.map((_, index) => index))
+    .map((index) => [index, molecules[index]] as const)
+    .filter((entry): entry is readonly [number, MoleculeDto] => entry[1] !== undefined);
+
+  for (const [position, [index, mol]] of entries.entries()) {
     if (options.signal?.aborted) {
       results.cancelled = true;
       results.items.push({ index, status: 'cancelled', input: mol, warnings: [] });
@@ -108,7 +114,7 @@ export async function processBatch(
 
     const item: BatchItemResult = { index, status: 'running', input: mol, warnings: [] };
     results.items.push(item);
-    options.onProgress?.({ completed: index, total: molecules.length, item });
+    options.onProgress?.({ completed: position, total: entries.length, item });
     try {
       const inputErrors = validateMoleculeDocument(mol);
       if (inputErrors.length > 0) throw new Error(`Invalid molecule: ${inputErrors.join('; ')}`);
@@ -131,7 +137,7 @@ export async function processBatch(
           results.skipped++;
           item.status = 'skipped';
           item.warnings.push('Did not match filter criteria.');
-          options.onProgress?.({ completed: index + 1, total: molecules.length, item });
+          options.onProgress?.({ completed: position + 1, total: entries.length, item });
           continue;
         }
         processed = mol;
@@ -154,11 +160,24 @@ export async function processBatch(
       item.status = 'failed';
       item.error = message;
     }
-    options.onProgress?.({ completed: index + 1, total: molecules.length, item });
+    options.onProgress?.({ completed: position + 1, total: entries.length, item });
   }
 
   results.resultHash = batchResultHash(task, results.items);
   return results;
+}
+
+/** Reprocess only failed items from a previous run, preserving original indexes. */
+export function retryFailedBatchItems(
+  molecules: MoleculeDto[],
+  task: BatchTask,
+  previous: ProcessResult,
+  options: Omit<ProcessBatchOptions, 'indices'> = {}
+): Promise<ProcessResult> {
+  const indices = previous.items
+    .filter((item) => item.status === 'failed')
+    .map((item) => item.index);
+  return processBatch(molecules, task, { ...options, indices });
 }
 
 export interface ProcessResult {

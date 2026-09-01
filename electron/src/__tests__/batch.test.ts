@@ -1,4 +1,4 @@
-import { processBatch, validateBatchTask } from '../renderer/lib/batch';
+import { processBatch, retryFailedBatchItems, validateBatchTask } from '../renderer/lib/batch';
 import * as wasmBridge from '../renderer/wasm/wasmBridge';
 
 jest.mock('../renderer/wasm/wasmBridge');
@@ -85,6 +85,15 @@ describe('batch processing review results', () => {
     expect(result.processed).toBe(1);
     expect(result.cancelled).toBe(true);
     expect(result.items.map((item) => item.status)).toEqual(['succeeded', 'cancelled']);
+  });
+
+  it('retries only failed items while preserving their original indexes', async () => {
+    const invalid = { ...molecule(2), atoms: [{ ...molecule(2).atoms[0], charge: 0.5 }] };
+    const previous = await processBatch([molecule(1), invalid], { operation: 'standardize' });
+    const retry = await retryFailedBatchItems([molecule(1), invalid], { operation: 'standardize' }, previous);
+
+    expect(retry.items).toHaveLength(1);
+    expect(retry.items[0]).toMatchObject({ index: 1, status: 'failed' });
   });
 
   it('records filtered items as skipped with an explicit warning', async () => {
