@@ -7,7 +7,7 @@ interface BatchResultPanelProps {
 
 export function BatchResultPanel({ results }: BatchResultPanelProps) {
   const theme = useUIStore((s) => s.theme);
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [selectedResult, setSelectedResult] = useState<BatchResultSummary | null>(null);
 
   const bgColor = theme === 'dark' ? '#2f3a47' : '#ffffff';
   const borderColor = theme === 'dark' ? '#3a4a57' : '#e0e0e0';
@@ -24,7 +24,8 @@ export function BatchResultPanel({ results }: BatchResultPanelProps) {
     );
   }
 
-  const resultIndex = selectedIndex !== null && selectedIndex < results.length ? selectedIndex : results.length - 1;
+  const selectedIndex = selectedResult === null ? -1 : results.indexOf(selectedResult);
+  const resultIndex = selectedIndex >= 0 ? selectedIndex : results.length - 1;
   const latestResult = results[resultIndex];
 
   return (
@@ -36,7 +37,7 @@ export function BatchResultPanel({ results }: BatchResultPanelProps) {
             <button
               key={`${result.timestamp}-${index}`}
               aria-label={`Batch history item ${index + 1}: ${result.operation}`}
-              onClick={() => setSelectedIndex(index)}
+              onClick={() => setSelectedResult(result)}
               style={{
                 padding: '5px 7px',
                 border: `1px solid ${borderColor}`,
