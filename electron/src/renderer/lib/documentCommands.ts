@@ -52,7 +52,7 @@ export function validateMoleculeDocument(molecule: MoleculeDto): string[] {
     }
     if (!Number.isInteger(atom.id) || atomIds.has(atom.id)) errors.push(`Atom id must be unique: ${atom.id}`);
     atomIds.add(atom.id);
-    if (typeof atom.element !== 'string' || atom.element.length === 0 || atom.element.length > MAX_ELEMENT_TEXT_LENGTH || !Number.isFinite(atom.x) || !Number.isFinite(atom.y) || !Number.isInteger(atom.charge) || !Number.isInteger(atom.atom_map)) errors.push(`Atom ${atom.id} has invalid identity, coordinates, charge, or map`);
+    if (typeof atom.element !== 'string' || atom.element.length === 0 || atom.element.length > MAX_ELEMENT_TEXT_LENGTH || atom.element.trim() !== atom.element || !Number.isFinite(atom.x) || !Number.isFinite(atom.y) || !Number.isInteger(atom.charge) || !Number.isInteger(atom.atom_map)) errors.push(`Atom ${atom.id} has invalid identity, coordinates, charge, or map`);
     if (atom.display_label !== undefined && (typeof atom.display_label !== 'string' || atom.display_label.length > MAX_DISPLAY_LABEL_LENGTH)) errors.push(`Atom ${atom.id} has an invalid display label`);
     if (atom.wildcard !== undefined && typeof atom.wildcard !== 'boolean') errors.push(`Atom ${atom.id} has an invalid wildcard flag`);
     if (atom.isotope !== undefined && (!Number.isInteger(atom.isotope) || atom.isotope < 1)) errors.push(`Atom ${atom.id} has an invalid isotope`);
@@ -66,7 +66,8 @@ export function validateMoleculeDocument(molecule: MoleculeDto): string[] {
     }
     if (!Number.isInteger(bond.id) || bondIds.has(bond.id)) errors.push(`Bond id must be unique: ${bond.id}`);
     bondIds.add(bond.id);
-    if (!atomIds.has(bond.from) || !atomIds.has(bond.to)) errors.push(`Bond ${bond.id} references a missing atom`);
+    if (!Number.isInteger(bond.from) || !Number.isInteger(bond.to) || !atomIds.has(bond.from) || !atomIds.has(bond.to)) errors.push(`Bond ${bond.id} references a missing atom`);
+    if (bond.from === bond.to) errors.push(`Bond ${bond.id} must connect two different atoms`);
     if (![1, 2, 3, 4].includes(bond.order) || ![0, 1, 2].includes(bond.stereo)) errors.push(`Bond ${bond.id} has unsupported order or stereo`);
   }
   return errors;

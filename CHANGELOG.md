@@ -47,6 +47,8 @@ for the full development history.
   throwing while inspecting an atom or bond entry.
 - Untrusted element and display-label fields are now type- and size-checked
   before chemistry processing.
+- Self-referential bonds and whitespace-padded element values are now rejected
+  before chemistry processing.
 - Sidebar panels now expose full accessible names and explicit tab/tabpanel
   relationships while retaining compact visual labels.
 - Empty canvases now show a concise next-action guide for choosing an atom or

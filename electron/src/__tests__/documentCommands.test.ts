@@ -31,6 +31,7 @@ describe('local extension document API', () => {
     const invalid = { ...molecule, atoms: [{ ...molecule.atoms[0], charge: 0.5 }], bonds: [{ id: 0, from: 1, to: 1, order: 1, stereo: 3 }] };
     expect(validateMoleculeDocument(invalid)).toEqual([
       'Atom 1 has invalid identity, coordinates, charge, or map',
+      'Bond 0 must connect two different atoms',
       'Bond 0 has unsupported order or stereo',
     ]);
     expect(validateMoleculeDocument({ ...molecule, atoms: Array.from({ length: MAX_MOLECULE_ATOMS + 1 }, (_, id) => ({ ...molecule.atoms[0], id })) })).toEqual(expect.arrayContaining([expect.stringMatching(/atom limit/i)]));
@@ -49,8 +50,17 @@ describe('local extension document API', () => {
     expect(validateMoleculeDocument({ ...molecule, atoms: [{ ...molecule.atoms[0], display_label: 'x'.repeat(MAX_DISPLAY_LABEL_LENGTH + 1) }] })).toContain(
       'Atom 1 has an invalid display label'
     );
+    expect(validateMoleculeDocument({ ...molecule, atoms: [{ ...molecule.atoms[0], element: ' C' }] })).toContain(
+      'Atom 1 has invalid identity, coordinates, charge, or map'
+    );
     expect(validateMoleculeDocument({ ...molecule, atoms: [{ ...molecule.atoms[0], wildcard: 'yes' as never }] })).toContain(
       'Atom 1 has an invalid wildcard flag'
+    );
+  });
+
+  test('rejects self-referential bonds before chemistry processing', () => {
+    expect(validateMoleculeDocument({ ...molecule, bonds: [{ id: 0, from: 1, to: 1, order: 1, stereo: 0 }] })).toContain(
+      'Bond 0 must connect two different atoms'
     );
   });
 
