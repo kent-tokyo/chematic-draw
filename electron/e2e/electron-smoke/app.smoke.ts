@@ -363,6 +363,8 @@ test.describe('Electron Smoke', () => {
     await expect(secondDialog).toBeHidden();
     await window.getByLabel('Batch history item 1: properties').click();
     await expect(window.getByText('Last Operation: properties')).toBeVisible();
+    await window.getByLabel('Batch item status filter').selectOption('failed');
+    await expect(window.getByText('No items match this status.')).toBeVisible();
 
     await electronApp.close();
   });

@@ -8,11 +8,13 @@ interface BatchResultPanelProps {
 export function BatchResultPanel({ results }: BatchResultPanelProps) {
   const theme = useUIStore((s) => s.theme);
   const [selectedResult, setSelectedResult] = useState<BatchResultSummary | null>(null);
+  const [itemFilter, setItemFilter] = useState<'all' | 'succeeded' | 'failed' | 'skipped' | 'cancelled'>('all');
 
   const bgColor = theme === 'dark' ? '#2f3a47' : '#ffffff';
   const borderColor = theme === 'dark' ? '#3a4a57' : '#e0e0e0';
   const textColor = theme === 'dark' ? '#d8deea' : '#1d2430';
   const labelColor = theme === 'dark' ? '#a0a8b8' : '#555555';
+  const inputBg = theme === 'dark' ? '#1e2530' : '#ffffff';
   const successColor = '#4caf50';
   const errorColor = '#d94545';
 
@@ -27,6 +29,7 @@ export function BatchResultPanel({ results }: BatchResultPanelProps) {
   const selectedIndex = selectedResult === null ? -1 : results.indexOf(selectedResult);
   const resultIndex = selectedIndex >= 0 ? selectedIndex : results.length - 1;
   const latestResult = results[resultIndex];
+  const visibleItems = latestResult.items.filter((item) => itemFilter === 'all' || item.status === itemFilter);
 
   return (
     <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -147,9 +150,24 @@ export function BatchResultPanel({ results }: BatchResultPanelProps) {
           }}
         >
           <div style={{ fontSize: '10px', fontWeight: 'bold', color: textColor, marginBottom: '5px' }}>
-            Item review{latestResult.cancelled ? ' (cancelled)' : ''}
+            <span>Item review{latestResult.cancelled ? ' (cancelled)' : ''}</span>
+            <select
+              aria-label="Batch item status filter"
+              value={itemFilter}
+              onChange={(event) => setItemFilter(event.target.value as typeof itemFilter)}
+              style={{ marginLeft: '8px', fontSize: '9px', color: textColor, backgroundColor: inputBg, border: `1px solid ${borderColor}` }}
+            >
+              <option value="all">All</option>
+              <option value="succeeded">Succeeded</option>
+              <option value="failed">Failed</option>
+              <option value="skipped">Skipped</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
           </div>
-          {latestResult.items.map((item) => (
+          {visibleItems.length === 0 && (
+            <div style={{ fontSize: '9px', color: labelColor }}>No items match this status.</div>
+          )}
+          {visibleItems.map((item) => (
             <div key={item.index} style={{ fontSize: '9px', color: labelColor, marginBottom: '3px' }}>
               Item {item.index + 1}: <strong>{item.status}</strong>
               {item.error ? ` — ${item.error}` : ''}

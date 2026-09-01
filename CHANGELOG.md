@@ -60,6 +60,8 @@ for the full development history.
 - Batch review now includes per-item before/after Atom and Bond counts.
 - Batch history selection now remains tied to the selected result when older
   entries are evicted from the bounded history.
+- Batch item review now supports filtering by succeeded, failed, skipped, or
+  cancelled status.
 - Sidebar panels now expose full accessible names and explicit tab/tabpanel
   relationships while retaining compact visual labels.
 - Empty canvases now show a concise next-action guide for choosing an atom or
