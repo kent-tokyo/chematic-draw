@@ -64,6 +64,8 @@ for the full development history.
   cancelled status.
 - Batch result hashes now normalize task key order, making equivalent execution
   options produce the same deterministic hash.
+- Batch hash key ordering now uses locale-independent code-point ordering for
+  cross-environment reproducibility.
 - Sidebar panels now expose full accessible names and explicit tab/tabpanel
   relationships while retaining compact visual labels.
 - Empty canvases now show a concise next-action guide for choosing an atom or
