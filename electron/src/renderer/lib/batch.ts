@@ -155,7 +155,7 @@ export interface ProcessResult {
 }
 
 function batchResultHash(task: BatchTask, items: BatchItemResult[]): string {
-  const payload = JSON.stringify({
+  const payload = stableJson({
     items: items.map(({ index, status, input, output, warnings, error }) => ({
       error: error ?? null, index, input, output: output ?? null, status, warnings,
     })),
@@ -167,4 +167,13 @@ function batchResultHash(task: BatchTask, items: BatchItemResult[]): string {
     hash = Math.imul(hash, 0x01000193) >>> 0;
   }
   return `fnv1a-32:${hash.toString(16).padStart(8, '0')}`;
+}
+
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value).filter(([, entry]) => entry !== undefined).sort(([a], [b]) => a.localeCompare(b));
+    return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${stableJson(entry)}`).join(',')}}`;
+  }
+  return JSON.stringify(value) ?? 'null';
 }

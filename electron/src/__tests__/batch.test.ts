@@ -83,4 +83,11 @@ describe('batch processing review results', () => {
     const second = await processBatch([molecule(1)], { operation: 'convert' });
     expect(second.resultHash).toBe(first.resultHash);
   });
+
+  it('normalizes task key order before hashing a result', async () => {
+    (wasmBridge.getProperties as jest.Mock).mockReturnValue({ molecular_weight: 50, logp: 0 });
+    const first = await processBatch([molecule(1)], { operation: 'filter', filterOptions: { minMW: 0, maxMW: 100 } });
+    const second = await processBatch([molecule(1)], { filterOptions: { maxMW: 100, minMW: 0 }, operation: 'filter' });
+    expect(second.resultHash).toBe(first.resultHash);
+  });
 });
