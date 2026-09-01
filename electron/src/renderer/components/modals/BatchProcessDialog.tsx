@@ -48,13 +48,10 @@ export function BatchProcessDialog({ onProcess, onCancel }: BatchDialogProps) {
     const controller = new AbortController();
     controllerRef.current = controller;
     try {
-      const promise = onProcess({ ...config, operation }, {
+      await onProcess({ ...config, operation }, {
         signal: controller.signal,
         onProgress: (completed, total) => setProgress(total === 0 ? 100 : Math.round((completed / total) * 100)),
       });
-      if (promise instanceof Promise) {
-        await promise;
-      }
       setProgress(100);
     } catch (err) {
       console.error('Batch process failed:', err);
