@@ -131,7 +131,7 @@ export async function processBatch(
       item.output = processed;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      results.errors.push(message);
+      results.errors.push(`Item ${index + 1}: ${message}`);
       results.failed++;
       item.status = 'failed';
       item.error = message;

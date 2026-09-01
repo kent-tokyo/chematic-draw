@@ -25,6 +25,13 @@ describe('batch processing review results', () => {
     expect(result.molecules).toHaveLength(0);
   });
 
+  it('identifies the item in aggregated errors when multiple items fail', async () => {
+    const invalid = { ...molecule(1), atoms: [{ ...molecule(1).atoms[0], charge: 0.5 }] };
+    const result = await processBatch([molecule(1), invalid], { operation: 'standardize' });
+
+    expect(result.errors).toEqual([expect.stringMatching(/^Item 2: Invalid molecule:/)]);
+  });
+
   it('keeps deterministic per-item order and reports progress', async () => {
     const progress: string[] = [];
     const result = await processBatch([molecule(1), molecule(2)], { operation: 'convert' }, {
