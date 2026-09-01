@@ -1,5 +1,5 @@
 import * as wasmBridge from '../wasm/wasmBridge';
-import { MoleculeDto } from '../store/types';
+import { MoleculeDto, PropertiesDto } from '../store/types';
 import { validateMoleculeDocument } from './documentCommands';
 
 export type BatchOperation = 'convert' | 'standardize' | 'filter' | 'properties';
@@ -23,7 +23,7 @@ export interface BatchItemResult {
   index: number;
   status: BatchItemStatus;
   input: MoleculeDto;
-  output?: MoleculeDto & Partial<{ properties: any }>;
+  output?: MoleculeDto & Partial<{ properties: PropertiesDto }>;
   warnings: string[];
   error?: string;
 }
@@ -95,7 +95,7 @@ export async function processBatch(
     try {
       const inputErrors = validateMoleculeDocument(mol);
       if (inputErrors.length > 0) throw new Error(`Invalid molecule: ${inputErrors.join('; ')}`);
-      let processed: MoleculeDto & Partial<{ properties: any }> = mol;
+      let processed: MoleculeDto & Partial<{ properties: PropertiesDto }> = mol;
 
       if (task.operation === 'standardize') {
         processed = wasmBridge.standardizeMolecule(mol);
@@ -148,7 +148,7 @@ export interface ProcessResult {
   failed: number;
   skipped: number;
   resultHash: string;
-  molecules: (MoleculeDto & Partial<{ properties: any }>)[];
+  molecules: (MoleculeDto & Partial<{ properties: PropertiesDto }>)[];
   errors: string[];
   items: BatchItemResult[];
   cancelled: boolean;
