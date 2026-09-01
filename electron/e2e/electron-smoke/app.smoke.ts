@@ -352,6 +352,7 @@ test.describe('Electron Smoke', () => {
     await expect(window.getByLabel('Batch provenance')).toContainText('Engine: chematic 0.35.0');
     await expect(window.getByLabel('Batch properties for item 1')).toContainText('Formula: C6H6');
     await expect(window.getByLabel('Batch properties for item 1')).toContainText('MW: 78.11');
+    await expect(window.getByLabel('Batch structure comparison for item 1')).toContainText('6 atoms / 6 bonds → 6 atoms / 6 bonds');
 
     await electronApp.evaluate(({ BrowserWindow }) => {
       BrowserWindow.getAllWindows()[0].webContents.send('menu:batch-process');

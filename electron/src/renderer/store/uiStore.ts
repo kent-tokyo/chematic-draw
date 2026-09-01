@@ -7,6 +7,10 @@ export interface BatchItemSummary {
   status: 'succeeded' | 'failed' | 'skipped' | 'cancelled';
   warnings: string[];
   error?: string;
+  inputAtomCount?: number;
+  inputBondCount?: number;
+  outputAtomCount?: number;
+  outputBondCount?: number;
   properties?: {
     formula: string;
     molecular_weight: number;

@@ -57,6 +57,7 @@ for the full development history.
   review alongside the deterministic result hash.
 - Batch history now records the chemistry engine and execution options as
   provenance alongside each result.
+- Batch review now includes per-item before/after Atom and Bond counts.
 - Sidebar panels now expose full accessible names and explicit tab/tabpanel
   relationships while retaining compact visual labels.
 - Empty canvases now show a concise next-action guide for choosing an atom or

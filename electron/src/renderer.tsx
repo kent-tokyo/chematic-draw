@@ -515,13 +515,17 @@ function App() {
       };
       addBatchResult(config.operation, result.processed, result.failed, result.skipped, result.resultHash, result.errors, provenance, {
         cancelled: result.cancelled,
-        items: result.items.map(({ index, status, warnings, error, output }) => ({
+        items: result.items.map(({ index, status, warnings, error, input, output }) => ({
           index,
           status: status === 'succeeded' || status === 'failed' || status === 'skipped' || status === 'cancelled'
             ? status
             : 'cancelled',
           warnings,
           error,
+          inputAtomCount: input.atoms.length,
+          inputBondCount: input.bonds.length,
+          outputAtomCount: output?.atoms.length,
+          outputBondCount: output?.bonds.length,
           properties: output?.properties && {
             formula: output.properties.formula,
             molecular_weight: output.properties.molecular_weight,

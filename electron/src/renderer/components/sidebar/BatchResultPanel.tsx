@@ -153,6 +153,11 @@ export function BatchResultPanel({ results }: BatchResultPanelProps) {
               Item {item.index + 1}: <strong>{item.status}</strong>
               {item.error ? ` — ${item.error}` : ''}
               {item.warnings.length > 0 ? ` — ${item.warnings.join('; ')}` : ''}
+              {item.inputAtomCount !== undefined && item.inputBondCount !== undefined && item.outputAtomCount !== undefined && item.outputBondCount !== undefined && (
+                <div aria-label={`Batch structure comparison for item ${item.index + 1}`} style={{ marginLeft: '12px' }}>
+                  Structure: {item.inputAtomCount} atoms / {item.inputBondCount} bonds → {item.outputAtomCount} atoms / {item.outputBondCount} bonds
+                </div>
+              )}
               {item.properties && (
                 <div aria-label={`Batch properties for item ${item.index + 1}`} style={{ marginLeft: '12px' }}>
                   Formula: {item.properties.formula}; MW: {item.properties.molecular_weight.toFixed(2)};
