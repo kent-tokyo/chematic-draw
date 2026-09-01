@@ -165,6 +165,19 @@ export function BatchProcessDialog({ onProcess, onCancel }: BatchDialogProps) {
                 }}
               />
             </div>
+            <label style={{ fontSize: '11px', color: labelColor, display: 'block', marginTop: '10px' }}>SMARTS pattern</label>
+            <input
+              type="text"
+              aria-label="SMARTS filter pattern"
+              placeholder="Optional SMARTS pattern"
+              value={config.filterSmarts ?? ''}
+              onChange={(e) => setConfig({ ...config, filterSmarts: e.target.value || undefined })}
+              style={{
+                width: '100%', boxSizing: 'border-box', marginTop: '6px', padding: '6px',
+                border: `1px solid ${borderColor}`, borderRadius: '3px',
+                backgroundColor: theme === 'dark' ? '#1e2530' : '#ffffff', color: textColor, fontSize: '11px',
+              }}
+            />
           </div>
         )}
 

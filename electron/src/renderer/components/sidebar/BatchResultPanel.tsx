@@ -68,6 +68,7 @@ export function BatchResultPanel({ results }: BatchResultPanelProps) {
         {latestResult.provenance.inputFormat && `; Input: ${latestResult.provenance.inputFormat}`}
         {latestResult.provenance.outputFormat && `; Output: ${latestResult.provenance.outputFormat}`}
         {latestResult.provenance.filterOptions && `; MW: ${latestResult.provenance.filterOptions.minMW ?? '—'}–${latestResult.provenance.filterOptions.maxMW ?? '—'}`}
+        {latestResult.provenance.smartsPattern && `; SMARTS: ${latestResult.provenance.smartsPattern}`}
       </div>
 
       {/* Stats */}

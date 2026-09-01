@@ -497,6 +497,7 @@ function App() {
           minMW: config.filterMinMW,
           maxMW: config.filterMaxMW,
         } : undefined,
+        smartsPattern: config.operation === 'filter' ? config.filterSmarts : undefined,
       };
 
       const result = await batchLib.processBatch([molecule], task, {
@@ -512,6 +513,7 @@ function App() {
           minMW: config.filterMinMW,
           maxMW: config.filterMaxMW,
         } : undefined,
+        smartsPattern: config.operation === 'filter' ? config.filterSmarts : undefined,
       };
       addBatchResult(config.operation, result.processed, result.failed, result.skipped, result.resultHash, result.errors, provenance, {
         cancelled: result.cancelled,

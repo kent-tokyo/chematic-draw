@@ -98,6 +98,16 @@ describe('batch processing review results', () => {
     expect(result.items[0].warnings).toEqual(['Did not match filter criteria.']);
   });
 
+  it('applies a SMARTS filter and skips molecules without a match', async () => {
+    (wasmBridge.getProperties as jest.Mock).mockReturnValue({ molecular_weight: 50, logp: 0 });
+    (wasmBridge.smarts as jest.Mock).mockReturnValue([]);
+    const result = await processBatch([molecule(1)], { operation: 'filter', smartsPattern: '[N]' });
+
+    expect(wasmBridge.smarts).toHaveBeenCalledWith(expect.anything(), '[N]');
+    expect(result.skipped).toBe(1);
+    expect(result.items[0].status).toBe('skipped');
+  });
+
   it('honors zero-valued filter boundaries', async () => {
     (wasmBridge.getProperties as jest.Mock).mockReturnValue({ molecular_weight: 0, logp: 0 });
     const result = await processBatch([molecule(1)], {

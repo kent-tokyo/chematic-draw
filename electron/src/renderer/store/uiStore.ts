@@ -19,6 +19,7 @@ export interface BatchProvenance {
   inputFormat?: string;
   outputFormat?: string;
   filterOptions?: { minMW?: number; maxMW?: number };
+  smartsPattern?: string;
 }
 
 export interface BatchResultSummary {

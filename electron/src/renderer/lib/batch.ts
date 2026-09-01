@@ -125,7 +125,8 @@ export async function processBatch(
           (task.filterOptions?.minMW === undefined || props.molecular_weight >= task.filterOptions.minMW) &&
           (task.filterOptions?.maxMW === undefined || props.molecular_weight <= task.filterOptions.maxMW) &&
           (task.filterOptions?.minLogP === undefined || props.logp >= task.filterOptions.minLogP) &&
-          (task.filterOptions?.maxLogP === undefined || props.logp <= task.filterOptions.maxLogP);
+          (task.filterOptions?.maxLogP === undefined || props.logp <= task.filterOptions.maxLogP) &&
+          (task.smartsPattern === undefined || wasmBridge.smarts(mol, task.smartsPattern).length > 0);
         if (!passes) {
           results.skipped++;
           item.status = 'skipped';
