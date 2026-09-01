@@ -51,6 +51,8 @@ for the full development history.
   before chemistry processing.
 - Batch processing now exposes the existing property-calculation operation in
   the dialog.
+- Batch property results now show formula, molecular weight, LogP, and TPSA for
+  review alongside the deterministic result hash.
 - Sidebar panels now expose full accessible names and explicit tab/tabpanel
   relationships while retaining compact visual labels.
 - Empty canvases now show a concise next-action guide for choosing an atom or

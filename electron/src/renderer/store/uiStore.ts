@@ -7,6 +7,12 @@ export interface BatchItemSummary {
   status: 'succeeded' | 'failed' | 'skipped' | 'cancelled';
   warnings: string[];
   error?: string;
+  properties?: {
+    formula: string;
+    molecular_weight: number;
+    logp: number;
+    tpsa: number;
+  };
 }
 
 export interface BatchResultSummary {

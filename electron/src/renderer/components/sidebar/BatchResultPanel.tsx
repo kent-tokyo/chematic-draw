@@ -121,6 +121,12 @@ export function BatchResultPanel({ results }: BatchResultPanelProps) {
               Item {item.index + 1}: <strong>{item.status}</strong>
               {item.error ? ` — ${item.error}` : ''}
               {item.warnings.length > 0 ? ` — ${item.warnings.join('; ')}` : ''}
+              {item.properties && (
+                <div aria-label={`Batch properties for item ${item.index + 1}`} style={{ marginLeft: '12px' }}>
+                  Formula: {item.properties.formula}; MW: {item.properties.molecular_weight.toFixed(2)};
+                  {' '}LogP: {item.properties.logp.toFixed(2)}; TPSA: {item.properties.tpsa.toFixed(2)}
+                </div>
+              )}
             </div>
           ))}
         </div>

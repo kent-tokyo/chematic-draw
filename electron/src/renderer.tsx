@@ -506,13 +506,19 @@ function App() {
 
       addBatchResult(config.operation, result.processed, result.failed, result.skipped, result.resultHash, result.errors, {
         cancelled: result.cancelled,
-        items: result.items.map(({ index, status, warnings, error }) => ({
+        items: result.items.map(({ index, status, warnings, error, output }) => ({
           index,
           status: status === 'succeeded' || status === 'failed' || status === 'skipped' || status === 'cancelled'
             ? status
             : 'cancelled',
           warnings,
           error,
+          properties: output?.properties && {
+            formula: output.properties.formula,
+            molecular_weight: output.properties.molecular_weight,
+            logp: output.properties.logp,
+            tpsa: output.properties.tpsa,
+          },
         })),
       });
 
