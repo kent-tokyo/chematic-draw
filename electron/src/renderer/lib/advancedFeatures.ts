@@ -1,14 +1,10 @@
 import { MechanismStep, MoleculeDto, PropertiesDto } from '../store/types';
 import * as wasmBridge from '../wasm/wasmBridge';
 export type { StereoAssignmentDto } from '../wasm/wasmBridge';
+export type { DatabaseResult, LipinskiViolation, PropertyPrediction, StereoisomerResult } from '../../../../packages/chematic-contract/src/index';
+import type { DatabaseResult, LipinskiViolation, PropertyPrediction, StereoisomerResult } from '../../../../packages/chematic-contract/src/index';
 
 // Phase 6: Stereoisomer Enumeration
-export interface StereoisomerResult {
-  stereoisomers: MoleculeDto[];
-  count: number;
-  description: string;
-}
-
 export function enumerateStereoisomers(mol: MoleculeDto): StereoisomerResult {
   // Use the pinned chematic API: enumerate_stereoisomers
   try {
@@ -37,13 +33,6 @@ export function assignCipDescriptors(mol: MoleculeDto): wasmBridge.StereoAssignm
 }
 
 // Phase 7: Lipinski Rules & Structure Validation
-export interface LipinskiViolation {
-  rule: string;
-  value: number;
-  limit: number;
-  violated: boolean;
-}
-
 export function checkLipinski(props: PropertiesDto): LipinskiViolation[] {
   const violations: LipinskiViolation[] = [
     { rule: 'MW ≤ 500', value: props.molecular_weight || 0, limit: 500, violated: (props.molecular_weight || 0) > 500 },
@@ -58,12 +47,6 @@ export function checkLipinski(props: PropertiesDto): LipinskiViolation[] {
 // Named "prediction" historically, but these are deterministic descriptor
 // calculations (chematic-chem), not statistical/ML predictions — there's no real
 // confidence interval to report, so this no longer fabricates one.
-export interface PropertyPrediction {
-  property: string;
-  predictedValue: number | string;
-  source: string;
-}
-
 export function predictProperties(mol: MoleculeDto): PropertyPrediction[] {
   // Use the pinned chematic API: get extended properties
   try {
@@ -118,14 +101,6 @@ export function createMechanismStep(id: string): MechanismStep {
 }
 
 // Phase 10: Database Search
-export interface DatabaseResult {
-  molId: string;
-  name: string;
-  source: 'pubchem' | 'chemspider' | 'zinc';
-  similarity: number;
-  properties: Record<string, string | number>;
-}
-
 export async function searchDatabase(mol: MoleculeDto, source: 'pubchem' | 'chemspider'): Promise<DatabaseResult[]> {
   try {
     // Get InChIKey from the molecule. Note: chematic-inchi's InChI is a pure-Rust

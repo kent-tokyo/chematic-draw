@@ -1,42 +1,8 @@
 import { create } from 'zustand';
-import { PropertiesDto, UIState } from './types';
+import { UIState } from './types';
 import { DEFAULT_SHORTCUT_BINDINGS, ShortcutBindings } from '../lib/shortcuts';
-import type { BatchTask } from '../lib/batch';
-import type { MoleculeDto } from './types';
-
-export interface BatchItemSummary {
-  index: number;
-  status: 'succeeded' | 'failed' | 'skipped' | 'cancelled';
-  warnings: string[];
-  error?: string;
-  inputAtomCount?: number;
-  inputBondCount?: number;
-  outputAtomCount?: number;
-  outputBondCount?: number;
-  properties?: Pick<PropertiesDto, 'formula' | 'molecular_weight' | 'logp' | 'tpsa'>;
-}
-
-export interface BatchProvenance {
-  engine: 'chematic 0.35.0';
-  inputFormat?: string;
-  outputFormat?: string;
-  filterOptions?: { minMW?: number; maxMW?: number; minLogP?: number; maxLogP?: number };
-  smartsPattern?: string;
-}
-
-export interface BatchResultSummary {
-  operation: string;
-  processed: number;
-  failed: number;
-  skipped: number;
-  resultHash: string;
-  errors: string[];
-  timestamp: number;
-  provenance: BatchProvenance;
-  cancelled?: boolean;
-  items: BatchItemSummary[];
-  retry?: { task: BatchTask; molecules: MoleculeDto[] };
-}
+export type { BatchItemSummary, BatchProvenance, BatchResultSummary } from '../../../../packages/chematic-contract/src/index';
+import type { BatchItemSummary, BatchProvenance, BatchResultSummary } from '../../../../packages/chematic-contract/src/index';
 
 interface UIStoreState extends UIState {
   // Status bar

@@ -1,4 +1,3 @@
-import type { MechanismArrow as ContractMechanismArrow } from '../../../../packages/chematic-contract/src/index';
 export type { CanvasState, MechanismState, UIState } from '../../../../packages/chematic-contract/src/index';
 
 // Chemistry DTOs are owned by the Electron-free contract package. UI-only
@@ -8,7 +7,6 @@ export type { Properties as PropertiesDto } from '../../../../packages/chematic-
 export type { MechanismArrow, ReactionCondition, MechanismStep, ReactionScheme as ReactionSchemeContext } from '../../../../packages/chematic-contract/src/index';
 export type { AtomMapEntry, AtomMapping, ReactionClassification, GreenChemistryMetrics } from '../../../../packages/chematic-contract/src/index';
 export type { ElectronCandidate, ArrowSuggestion } from '../../../../packages/chematic-contract/src/index';
-type MechanismArrow = ContractMechanismArrow;
 
 // Tool enum
 export enum Tool {

@@ -1,5 +1,5 @@
 import { MoleculeDto } from '../store/types';
-import type { QueryAtomConstraint, QueryBond, QueryBondOrder, QueryDocument as ContractQueryDocument, QueryValidationError } from '../../../../packages/chematic-contract/src/index';
+import type { QueryBondOrder, QueryDocument as ContractQueryDocument, QueryValidationError } from '../../../../packages/chematic-contract/src/index';
 export type { QueryAtomConstraint, QueryBond, QueryBondOrder, QueryValidationError } from '../../../../packages/chematic-contract/src/index';
 export type { MarkushDefinition, PolymerDefinition } from '../../../../packages/chematic-contract/src/index';
 

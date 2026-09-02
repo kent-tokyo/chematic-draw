@@ -70,6 +70,14 @@ export interface BatchProcessResult {
   molecules: (Molecule & Partial<{ properties: Properties }>)[];
   errors: string[]; items: BatchItemResult[]; cancelled: boolean;
 }
+export interface BatchItemSummary { index: number; status: Exclude<BatchItemStatus, 'pending' | 'running'>; warnings: string[]; error?: string; inputAtomCount?: number; inputBondCount?: number; outputAtomCount?: number; outputBondCount?: number; properties?: Pick<Properties, 'formula' | 'molecular_weight' | 'logp' | 'tpsa'>; }
+export interface BatchProvenance { engine: 'chematic 0.35.0'; inputFormat?: string; outputFormat?: string; filterOptions?: BatchTask['filterOptions']; smartsPattern?: string; }
+export interface BatchResultSummary { operation: string; processed: number; failed: number; skipped: number; resultHash: string; errors: string[]; timestamp: number; provenance: BatchProvenance; cancelled?: boolean; items: BatchItemSummary[]; retry?: { task: BatchTask; molecules: Molecule[] }; }
+export interface StereoisomerResult { stereoisomers: Molecule[]; count: number; description: string; }
+export interface LipinskiViolation { rule: string; value: number; limit: number; violated: boolean; }
+export interface PropertyPrediction { property: string; predictedValue: number | string; source: string; }
+export interface DatabaseResult { molId: string; name: string; source: 'pubchem' | 'chemspider' | 'zinc'; similarity: number; properties: Record<string, string | number>; }
+export interface SessionBundle { schema: 'chematic-draw/session-bundle'; schema_version: 2; app: { name: 'chematic-draw'; engine: 'chematic 0.35.0' }; source: { file_path: string | null }; document: { schema_version: 1; molecule: Molecule }; provenance: { operation: 'export-session-bundle'; structure_hash: string }; }
 export type ReactionDocumentIssueCode = 'duplicate-step-id' | 'component-id' | 'continuity' | 'map-scope' | 'provenance';
 export interface ReactionDocumentIssue { code: ReactionDocumentIssueCode; path: string; message: string; }
 export interface RxnDocument { reactants: Molecule[]; products: Molecule[]; agents?: Molecule[]; reactantCoefficients?: number[]; productCoefficients?: number[]; }

@@ -9,7 +9,6 @@ import {
 export type {
   AnalysisProvider,
   DocumentCommand,
-  DocumentCommandContext,
   ExtensionHost,
   ExtensionManifest,
   ExtensionPermission,

@@ -1,5 +1,7 @@
 import { MoleculeDto } from '../store/types';
 import { validateMoleculeDocument } from './documentCommands';
+import type { SessionBundle as ContractSessionBundle } from '../../../../packages/chematic-contract/src/index';
+export type { SessionBundle } from '../../../../packages/chematic-contract/src/index';
 
 export const SESSION_BUNDLE_SCHEMA = 'chematic-draw/session-bundle';
 export const SESSION_BUNDLE_VERSION = 2;
@@ -8,14 +10,7 @@ export const SESSION_BUNDLE_MIGRATION_POLICY = 'v1-to-v2-only';
 export const MAX_SESSION_BUNDLE_TEXT_LENGTH = 10_000_000;
 export const MAX_SESSION_SOURCE_PATH_LENGTH = 4_096;
 
-export interface SessionBundle {
-  schema: typeof SESSION_BUNDLE_SCHEMA;
-  schema_version: typeof SESSION_BUNDLE_VERSION;
-  app: { name: 'chematic-draw'; engine: 'chematic 0.35.0' };
-  source: { file_path: string | null };
-  document: { schema_version: typeof DOCUMENT_SCHEMA_VERSION; molecule: MoleculeDto };
-  provenance: { operation: 'export-session-bundle'; structure_hash: string };
-}
+type SessionBundle = ContractSessionBundle;
 
 interface VersionedInputBundle {
   schema?: unknown;

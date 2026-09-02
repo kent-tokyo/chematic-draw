@@ -4,6 +4,8 @@
   "private": true,
   "description": "Electron-free serializable molecule and query contracts",
   "type": "module",
+  "sideEffects": false,
+  "files": ["src", "conformance", "README.md"],
   "types": "./src/index.ts",
   "exports": { ".": { "types": "./src/index.ts", "default": "./src/index.ts" } }
 }
