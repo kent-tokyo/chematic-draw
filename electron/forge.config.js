@@ -12,6 +12,21 @@ module.exports = {
     // the Electron app binary" once productName stopped being a bare,
     // space-free identifier that happened to double as the executable name.
     executableName: 'chematic-draw',
+    // Signing is opt-in and secret-backed. Local builds remain unsigned, while
+    // release CI signs only when the corresponding credentials are present.
+    ...(process.env.CSC_LINK && process.env.CSC_KEY_PASSWORD ? {
+      osxSign: { identity: process.env.CSC_NAME },
+      osxNotarize: process.env.APPLE_ID && process.env.APPLE_APP_SPECIFIC_PASSWORD && process.env.APPLE_TEAM_ID ? {
+        appleId: process.env.APPLE_ID,
+        appleIdPassword: process.env.APPLE_APP_SPECIFIC_PASSWORD,
+        teamId: process.env.APPLE_TEAM_ID,
+      } : undefined,
+    } : {}),
+    ...(process.env.WIN_CSC_LINK && process.env.WIN_CSC_KEY_PASSWORD ? {
+      certificateFile: process.env.WIN_CSC_LINK,
+      certificatePassword: process.env.WIN_CSC_KEY_PASSWORD,
+      signingHashAlgorithms: ['sha256'],
+    } : {}),
   },
   rebuildConfig: {},
   makers: [

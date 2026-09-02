@@ -11,6 +11,7 @@ the two manifests remain authoritative when a version or capability changes.
 - [API Reference](API.md) — the Rust/WASM bridge contract
 - [Known Limitations](KNOWN_LIMITATIONS.md) — release-scoped support and risk matrix
 - [Format Interoperability](INTEROP.md) — supported formats and known loss
+- [Release Readiness](RELEASE_READINESS.md) — evidence matrix for release gates
 - [Architecture](ARCHITECTURE.md) — application structure and data flow
 - [Troubleshooting](TROUBLESHOOTING.md) — common setup and runtime problems
 - [CI/CD](CI_CD.md) — GitHub Actions and release artifacts

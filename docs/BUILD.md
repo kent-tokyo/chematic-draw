@@ -538,6 +538,15 @@ npm run make
 
 See [Electron docs](https://www.electronjs.org/docs/tutorial/code-signing) for details.
 
+The Forge configuration enables signing/notarization only when the release
+workflow provides the secret-backed `APPLE_CERTIFICATE_BASE64`,
+`APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`,
+`APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID` values. Windows signing is
+enabled by `WINDOWS_CERTIFICATE_BASE64` and `WINDOWS_CERTIFICATE_PASSWORD`.
+Without these secrets builds are intentionally unsigned; checksum files do not
+replace code signing. Run `scripts/verify-clean-env.sh` for a clean local
+installation and test pass.
+
 ---
 
 ## Performance Optimization
