@@ -4,7 +4,7 @@ import { useCanvasStore } from '../store/canvasStore';
 import { useUIStore } from '../store/uiStore';
 import { useMechanismStore } from '../store/mechanismStore';
 import { Tool, MechanismArrow, MoleculeDto } from '../store/types';
-import { hitTestAtom, hitTestBond, calculateBondedAtomPosition, getConnectedComponent } from '../lib/geometry';
+import { hitTestAtom, hitTestBond, calculateBondedAtomPosition } from '../lib/geometry';
 import { calculateArrowPath, distanceToCurve } from '../lib/arrowGeometry';
 import { getStepBoxAtPosition } from '../lib/schemeLayout';
 import { useReactionSchemeStore } from '../store/reactionSchemeStore';
@@ -62,7 +62,6 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
   const removeBond = useMoleculeStore((s) => s.removeBond);
   const removeAtom = useMoleculeStore((s) => s.removeAtom);
   const selectAtom = useMoleculeStore((s) => s.selectAtom);
-  const selectBond = useMoleculeStore((s) => s.selectBond);
   const deselectAll = useMoleculeStore((s) => s.deselectAll);
   const pushUndo = useMoleculeStore((s) => s.pushUndo);
   const setSelectedAtomIdForInspector = useUIStore((s) => s.setSelectedAtomIdForInspector);

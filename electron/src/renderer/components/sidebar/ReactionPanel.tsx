@@ -12,8 +12,6 @@ import { exportLossMessage, exportLosses } from '../../lib/exportLoss';
 export function ReactionPanel() {
   const theme = useUIStore((s) => s.theme);
   const [expandedStepId, setExpandedStepId] = useState<string | null>(null);
-  const [newStepReactants, setNewStepReactants] = useState<number>(1);
-  const [newStepProducts, setNewStepProducts] = useState<number>(1);
   const [smirlksInput, setSmirlksInput] = useState<string>('');
   const [selectedTemplate, setSelectedTemplate] = useState<string>('carboxylic_acid_to_amide');
   const [reactionError, setReactionError] = useState<string>('');
@@ -244,7 +242,7 @@ export function ReactionPanel() {
       } else {
         setStatus('Failed to import JSON');
       }
-    } catch (error) {
+    } catch {
       setStatus('Error reading file');
     }
     if (fileInputRef.current) fileInputRef.current.value = '';

@@ -77,7 +77,7 @@ export function TemplatesPanel() {
       pushUndo();
       setMolecule(mol);
       setStatus(`Inserted ${name}`);
-    } catch (_err) {
+    } catch {
       setStatus(`Failed to insert ${name}`);
     }
   };

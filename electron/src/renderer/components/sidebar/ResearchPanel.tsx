@@ -43,7 +43,7 @@ export function ResearchPanel() {
       let iupacName: string;
       try {
         iupacName = wasmBridge.getIupacName(molecule);
-      } catch (_err) {
+      } catch {
         iupacName = '(unavailable)';
       }
       let inchi = '';
@@ -86,7 +86,7 @@ export function ResearchPanel() {
     try {
       await copyText(value);
       setStatus(`${label} copied to clipboard`);
-    } catch (err) {
+    } catch {
       setStatus(`${label} copy failed`);
     }
   };

@@ -5,7 +5,6 @@ import { useMechanismStore } from '../../store/mechanismStore';
 import { useReactionSchemeStore } from '../../store/reactionSchemeStore';
 import { ArrowTypeDialog } from '../modals/ArrowTypeDialog';
 import { useElectronSuggestions } from '../../hooks/useElectronSuggestions';
-import { suggestArrowPairs } from '../../lib/electronDetection';
 import { ArrowSuggestion } from '../../store/types';
 import { MechanismArrow } from '../../store/types';
 
