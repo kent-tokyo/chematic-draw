@@ -1,4 +1,6 @@
 import { ReactionSchemeContext, MechanismStep, MoleculeDto } from '../store/types';
+import type { ReactionDiagnostics as ContractReactionDiagnostics } from '../../../../packages/chematic-contract/src/index';
+export type { ReactionDiagnostics } from '../../../../packages/chematic-contract/src/index';
 
 /**
  * Validation result for reaction scheme
@@ -8,40 +10,7 @@ export interface ValidationResult {
   issues: string[];
 }
 
-export interface ReactionDiagnostics {
-  status: 'verified' | 'not_verified';
-  issues: string[];
-  stepResults: Array<{
-    stepIndex: number;
-    status: 'verified' | 'not_verified';
-    atomCount: { reactants: number; products: number };
-    atomBalance: { balanced: boolean; differences: string[] };
-    chargeBalance: { balanced: boolean; difference: number };
-    mapping: ReactionDiagnostics['mapping'] & { mappedAtomCount: number };
-  }>;
-  atomBalance: {
-    balanced: boolean;
-    differences: string[];
-  };
-  chargeBalance: {
-    balanced: boolean;
-    difference: number;
-  };
-  continuity: {
-    valid: boolean;
-    issues: string[];
-    boundaries: Array<{
-      fromStep: number;
-      toStep: number;
-      matchedMoleculeCount: number;
-    }>;
-  };
-  mapping: {
-    complete: boolean;
-    duplicateMapNumbers: number[];
-    unmatchedMapNumbers: number[];
-  };
-}
+type ReactionDiagnostics = ContractReactionDiagnostics;
 
 function atomBalanceForStep(step: MechanismStep): { balanced: boolean; differences: string[]; chargeDifference: number } {
   const countAtoms = (molecules: MoleculeDto[]) => {

@@ -15,6 +15,15 @@ export interface ReactionClassification { type: 'single_step' | 'multi_step' | '
 export interface GreenChemistryMetrics { atomEconomy: number; eFactorApprox: number; stepWaste: Array<{ stepIndex: number; wasteAtoms: number; percentage: number }>; }
 export interface ElectronCandidate { atomId: number; element: string; type: 'source' | 'sink'; confidence: number; reason: string; }
 export interface ArrowSuggestion { sourceAtomId: number; sinkAtomId: number; sourceConfidence: number; sinkConfidence: number; confidence: number; reason: string; }
+export interface ReactionDiagnostics {
+  status: 'verified' | 'not_verified';
+  issues: string[];
+  stepResults: Array<{ stepIndex: number; status: 'verified' | 'not_verified'; atomCount: { reactants: number; products: number }; atomBalance: { balanced: boolean; differences: string[] }; chargeBalance: { balanced: boolean; difference: number }; mapping: ReactionDiagnostics['mapping'] & { mappedAtomCount: number } }>;
+  atomBalance: { balanced: boolean; differences: string[] };
+  chargeBalance: { balanced: boolean; difference: number };
+  continuity: { valid: boolean; issues: string[]; boundaries: Array<{ fromStep: number; toStep: number; matchedMoleculeCount: number }> };
+  mapping: { complete: boolean; duplicateMapNumbers: number[]; unmatchedMapNumbers: number[] };
+}
 export interface QueryAtomConstraint { elements?: string[]; wildcard?: boolean; charge?: number; isotope?: number; aromatic?: boolean; valence?: number; hydrogens?: number; ring?: boolean; }
 export interface QueryAtom { id: number; x: number; y: number; constraint: QueryAtomConstraint; }
 export interface QueryBond { id: number; from: number; to: number; constraint: { order: string }; }
