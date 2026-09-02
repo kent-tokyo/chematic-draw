@@ -28,7 +28,7 @@ export function rxnV2000Losses(document: RxnDocument): RxnV2000Loss[] {
 }
 
 export function rxnSchemeV2000Losses(stepCount: number): RxnV2000Loss[] {
-  return stepCount === 1 ? [] : [{ code: 'multi-step', message: 'RXN V2000 cannot preserve multiple reaction-step boundaries; export reaction-document JSON v2 instead.' }];
+  return stepCount === 1 ? [] : [{ code: 'multi-step', message: 'RXN export supports one authored step; use JSON for multi-step schemes. RXN V2000 cannot preserve multiple reaction-step boundaries.' }];
 }
 
 type MolWriter = (molecule: MoleculeDto) => string;
