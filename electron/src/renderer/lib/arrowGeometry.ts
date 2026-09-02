@@ -1,19 +1,6 @@
 import { AtomDto, MoleculeDto, MechanismArrow } from '../store/types';
-
-export interface CanvasState {
-  offset: { x: number; y: number };
-  zoom: number;
-}
-
-export interface ArrowPath {
-  startX: number;
-  startY: number;
-  controlX: number;
-  controlY: number;
-  endX: number;
-  endY: number;
-  endAngle: number;
-}
+import type { ArrowPath, GeometryCanvasState } from '../../../../packages/chematic-contract/src/index';
+export type { ArrowPath, GeometryCanvasState as CanvasState } from '../../../../packages/chematic-contract/src/index';
 
 const ARROW_CURVE_OFFSET = 30;
 const ARROW_HEAD_LENGTH = 15;
@@ -22,7 +9,7 @@ const ARROW_HEAD_WIDTH = 10;
 export function calculateArrowPath(
   molecule: MoleculeDto,
   arrow: MechanismArrow,
-  state: CanvasState
+  state: GeometryCanvasState
 ): ArrowPath | null {
   const source = molecule.atoms.find((a) => a.id === arrow.sourceAtomId);
   const sink = molecule.atoms.find((a) => a.id === arrow.sinkAtomId);

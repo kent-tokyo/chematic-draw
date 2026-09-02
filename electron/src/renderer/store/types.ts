@@ -1,4 +1,5 @@
 import type { MechanismArrow as ContractMechanismArrow } from '../../../../packages/chematic-contract/src/index';
+export type { CanvasState, MechanismState, UIState } from '../../../../packages/chematic-contract/src/index';
 
 // Chemistry DTOs are owned by the Electron-free contract package. UI-only
 // selection remains optional so the renderer can keep its existing state shape.
@@ -25,30 +26,3 @@ export enum Tool {
 }
 
 // Canvas state
-export interface CanvasState {
-  offset: { x: number; y: number };
-  zoom: number;
-  activeTool: Tool;
-  hoverAtomId: number | null;
-  hoverBondId: number | null;
-  selectedAtomIds: Set<number>;
-  selectedBondIds: Set<number>;
-}
-
-// UI state
-export interface UIState {
-  theme: 'dark' | 'light';
-  language: 'en' | 'ja';
-  sidebarOpen: boolean;
-  sidebarWidth: number;
-  focusMode: boolean;
-}
-
-export interface MechanismState {
-  arrows: MechanismArrow[];
-  selectedArrowId: string | null;
-  arrowSelectionMode: 'idle' | 'awaitingSink';
-  pendingSourceAtomId: number | null;
-  pendingSinkAtomId: number | null;
-  hoverArrowId: string | null;
-}

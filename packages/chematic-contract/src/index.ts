@@ -2,6 +2,10 @@
 export interface MoleculeAtom { id: number; element: string; x: number; y: number; charge: number; atom_map: number; isotope?: number; hydrogen_count?: number; wildcard?: boolean; display_label?: string | null; selected?: boolean; }
 export interface MoleculeBond { id: number; from: number; to: number; order: number; stereo: number; selected?: boolean; }
 export interface Molecule { atoms: MoleculeAtom[]; bonds: MoleculeBond[]; }
+export type ToolName = 'select' | 'atom_c' | 'atom_n' | 'atom_o' | 'atom_s' | 'atom_p' | 'bond_single' | 'bond_double' | 'bond_triple' | 'bond_aromatic' | 'eraser';
+export interface CanvasState { offset: { x: number; y: number }; zoom: number; activeTool: ToolName; hoverAtomId: number | null; hoverBondId: number | null; selectedAtomIds: Set<number>; selectedBondIds: Set<number>; }
+export interface UIState { theme: 'dark' | 'light'; language: 'en' | 'ja'; sidebarOpen: boolean; sidebarWidth: number; focusMode: boolean; }
+export interface MechanismState { arrows: MechanismArrow[]; selectedArrowId: string | null; arrowSelectionMode: 'idle' | 'awaitingSink'; pendingSourceAtomId: number | null; pendingSinkAtomId: number | null; hoverArrowId: string | null; }
 export interface Properties { formula: string; atom_count: number; bond_count: number; molecular_weight: number; logp: number; tpsa: number; hba: number; hbd: number; rotatable_bonds: number; lipinski_pass: boolean; valence_errors: string[]; ring_count: number; }
 export interface ExtendedProperties { sa_score: number; esol_solubility: number; fsp3: number; pains_violations: boolean; num_stereocenters: number; num_unspecified_stereocenters: number; }
 export interface Fingerprint { hex: string; kind: string; radius: number; bit_length: number; mode: string; }
@@ -83,11 +87,16 @@ export type MoleculeExportFormat = 'smiles' | 'mol-v2000' | 'rxn-v2000' | 'sdf' 
 export interface ExportLoss { code: 'wildcard' | 'isotope' | 'unsupported-format'; message: string; }
 export interface QueryAtomConstraint { elements?: string[]; wildcard?: boolean; charge?: number; isotope?: number; aromatic?: boolean; valence?: number; hydrogens?: number; ring?: boolean; }
 export interface QueryAtom { id: number; x: number; y: number; constraint: QueryAtomConstraint; }
-export interface QueryBond { id: number; from: number; to: number; constraint: { order: string }; }
+export type QueryBondOrder = 'single' | 'double' | 'triple' | 'aromatic' | 'any' | 'single-or-aromatic' | 'single-or-double';
+export interface QueryBond { id: number; from: number; to: number; constraint: { order: QueryBondOrder }; }
 export interface MarkushDefinition { id: string; label: string; attachmentAtomIds: number[]; allowedSubstituentSmarts: string[]; }
 export interface PolymerDefinition { id: string; repeatUnitAtomIds: number[]; linkageBondIds: number[]; attachmentAtomIds: number[]; endGroups?: { left?: string; right?: string }; }
 export interface QueryDocument { schema: 'chematic-draw/query-document'; schema_version: 1; atoms: QueryAtom[]; bonds: QueryBond[]; opaque?: Array<{ kind: 'markush' | 'polymer' | 'smarts-token'; raw: string }>; markush?: MarkushDefinition[]; polymers?: PolymerDefinition[]; }
 export interface QueryWorkerResult { pattern: string; matches: number[]; }
+export interface QueryValidationError { code: 'invalid' | 'unsupported'; path: string; message: string; }
+export interface HitResult { type: 'atom' | 'bond' | 'empty'; id?: number; }
+export interface GeometryCanvasState { offset: { x: number; y: number }; zoom: number; }
+export interface ArrowPath { startX: number; startY: number; controlX: number; controlY: number; endX: number; endY: number; endAngle: number; }
 
 export function validateMolecule(molecule: Molecule): string[] {
   if (!molecule || !Array.isArray(molecule.atoms) || !Array.isArray(molecule.bonds)) return ['Molecule must contain atoms and bonds arrays'];

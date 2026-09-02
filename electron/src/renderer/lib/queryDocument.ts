@@ -1,46 +1,16 @@
 import { MoleculeDto } from '../store/types';
-import type { QueryDocument as ContractQueryDocument } from '../../../../packages/chematic-contract/src/index';
+import type { QueryAtomConstraint, QueryBond, QueryBondOrder, QueryDocument as ContractQueryDocument, QueryValidationError } from '../../../../packages/chematic-contract/src/index';
+export type { QueryAtomConstraint, QueryBond, QueryBondOrder, QueryValidationError } from '../../../../packages/chematic-contract/src/index';
 export type { MarkushDefinition, PolymerDefinition } from '../../../../packages/chematic-contract/src/index';
 
 /** Versioned, UI-independent query representation. Unsupported constructs are
  * retained as typed opaque nodes so they cannot silently become concrete atoms. */
 export const QUERY_DOCUMENT_VERSION = 1;
 
-export type QueryAtomConstraint = {
-  elements?: string[];
-  wildcard?: boolean;
-  charge?: number;
-  isotope?: number;
-  aromatic?: boolean;
-  valence?: number;
-  hydrogens?: number;
-  ring?: boolean;
-};
-
-export type QueryBondConstraint = {
-  order: 'single' | 'double' | 'triple' | 'aromatic' | 'any' | 'single-or-aromatic' | 'single-or-double';
-};
-
-export interface QueryAtom {
-  id: number;
-  x: number;
-  y: number;
-  constraint: QueryAtomConstraint;
-}
-
-export interface QueryBond {
-  id: number;
-  from: number;
-  to: number;
-  constraint: QueryBondConstraint;
-}
-
 export type QueryDocument = ContractQueryDocument;
 
-export type QueryValidationError = { code: 'invalid' | 'unsupported'; path: string; message: string };
-
 const ELEMENT = /^[A-Z][a-z]?$/;
-const BOND_ORDERS = new Set<string>(['single', 'double', 'triple', 'aromatic', 'any', 'single-or-aromatic', 'single-or-double']);
+const BOND_ORDERS = new Set<QueryBondOrder>(['single', 'double', 'triple', 'aromatic', 'any', 'single-or-aromatic', 'single-or-double']);
 
 export function validateQueryDocument(document: QueryDocument): QueryValidationError[] {
   const errors: QueryValidationError[] = [];

@@ -1,13 +1,9 @@
 import { AtomDto, BondDto, MoleculeDto } from '../store/types';
-import { CanvasState } from '../store/types';
+import type { CanvasState } from '../../../../packages/chematic-contract/src/index';
+export type { HitResult } from '../../../../packages/chematic-contract/src/index';
 
 const SNAP_THRESHOLD = 10;
 const ATOM_RADIUS = 8;
-
-export interface HitResult {
-  type: 'atom' | 'bond' | 'empty';
-  id?: number;
-}
 
 /**
  * Find which atom (if any) is under the given screen coordinates.
