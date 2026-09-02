@@ -1,14 +1,11 @@
 import { ReactionSchemeContext, MechanismStep, MoleculeDto } from '../store/types';
 import type { ReactionDiagnostics as ContractReactionDiagnostics } from '../../../../packages/chematic-contract/src/index';
-export type { ReactionDiagnostics } from '../../../../packages/chematic-contract/src/index';
+export type { ReactionDiagnostics, ValidationResult } from '../../../../packages/chematic-contract/src/index';
 
 /**
  * Validation result for reaction scheme
  */
-export interface ValidationResult {
-  valid: boolean;
-  issues: string[];
-}
+import type { ValidationResult } from '../../../../packages/chematic-contract/src/index';
 
 type ReactionDiagnostics = ContractReactionDiagnostics;
 
