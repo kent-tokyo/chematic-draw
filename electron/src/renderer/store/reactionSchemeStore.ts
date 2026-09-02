@@ -133,7 +133,7 @@ export const useReactionSchemeStore = create<ReactionSchemeStore>((set, get) => 
 
   // Scheme CRUD
   createScheme: (title: string, description?: string) => {
-    set((state) => {
+    set(() => {
       const newScheme: ReactionSchemeContext = {
         id: `scheme-${Date.now()}`,
         title,

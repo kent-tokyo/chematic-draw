@@ -52,7 +52,7 @@ export const useMoleculeStore = create<MoleculeStore>((set, get) => ({
   properties: null,
 
   setMolecule: (mol) => {
-    set((state) => ({
+    set(() => ({
       molecule: mol,
       redoStack: [],
     }));

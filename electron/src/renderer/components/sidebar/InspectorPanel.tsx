@@ -263,7 +263,7 @@ export function InspectorPanel() {
       const result = wasmBridge.validateMolecule(molecule);
       setValidationErrors(result?.errors ?? []);
       setValidationWarnings(result?.warnings ?? []);
-    } catch (err) {
+    } catch (_err) {
       setValidationErrors(['Validation error']);
       setValidationWarnings([]);
     }
@@ -278,7 +278,7 @@ export function InspectorPanel() {
     try {
       const matches = wasmBridge.smarts(molecule, smartsPattern);
       setSmartsMatches(matches);
-    } catch (err) {
+    } catch (_err) {
       setSmartsMatches([]);
     }
   };
@@ -289,7 +289,7 @@ export function InspectorPanel() {
       try {
         const groups = wasmBridge.identifyFunctionalGroups(molecule);
         setFunctionalGroups(groups);
-      } catch (err) {
+      } catch (_err) {
         setFunctionalGroups([]);
       }
     } else {

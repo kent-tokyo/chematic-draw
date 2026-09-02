@@ -43,7 +43,7 @@ export function ResearchPanel() {
       let iupacName: string;
       try {
         iupacName = wasmBridge.getIupacName(molecule);
-      } catch (err) {
+      } catch (_err) {
         iupacName = '(unavailable)';
       }
       let inchi = '';

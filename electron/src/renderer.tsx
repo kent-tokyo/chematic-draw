@@ -249,7 +249,6 @@ function App() {
         const result = await api.fileSaveDialog('untitled.mol');
         if (!result.canceled && result.filePath) {
           if (!confirmLossAwareExport(molecule, result.filePath)) {
-            const format = formatForFilePath(result.filePath);
             setStatus('Save cancelled');
             return;
           }
