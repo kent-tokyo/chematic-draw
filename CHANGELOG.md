@@ -62,6 +62,10 @@ for the full development history.
   entries are evicted from the bounded history.
 - Batch item review now supports filtering by succeeded, failed, skipped, or
   cancelled status.
+- Batch history now offers a guarded Retry failed action that disables itself
+  during async work and applies successful output as one undoable change.
+- Batch retry and direct index selections now reject out-of-range, non-integer,
+  or duplicate item indexes.
 - Batch result hashes now normalize task key order, making equivalent execution
   options produce the same deterministic hash.
 - Batch hash key ordering now uses locale-independent code-point ordering for
