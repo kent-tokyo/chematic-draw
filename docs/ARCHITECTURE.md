@@ -148,7 +148,7 @@ tabs, not the ~10 the old tree implied).
 |-----------|---------|------------------|
 | **MoleculeCanvas** | 2D structure editor | moleculeStore + canvasStore |
 | **Sidebar** | Panel container | uiStore |
-| **InspectorPanel** | Atom/bond details | uiStore (`selectedAtomForInspector`/`selectedBondForInspector`) + moleculeStore for mutations |
+| **InspectorPanel** | Atom/bond details | uiStore (`selectedAtomIdForInspector`/`selectedBondIdForInspector`) + moleculeStore for live document data and mutations |
 | **Viewer3DPanel** | 3D visualization | Local component state + WASM |
 | **ReactionPanel** | Reaction step builder | reactionSchemeStore (single source of truth — see State Management) |
 | **MechanismPanel** | Electron-pushing arrows | mechanismStore (+ mirrors into reactionSchemeStore when a scheme exists) |
