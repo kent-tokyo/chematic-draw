@@ -24,6 +24,9 @@ export interface ReactionDiagnostics {
   continuity: { valid: boolean; issues: string[]; boundaries: Array<{ fromStep: number; toStep: number; matchedMoleculeCount: number }> };
   mapping: { complete: boolean; duplicateMapNumbers: number[]; unmatchedMapNumbers: number[] };
 }
+export interface RxnDocument { reactants: Molecule[]; products: Molecule[]; agents?: Molecule[]; reactantCoefficients?: number[]; productCoefficients?: number[]; }
+export type RxnV2000LossCode = 'agents' | 'coefficients' | 'multi-step';
+export interface RxnV2000Loss { code: RxnV2000LossCode; message: string; }
 export interface QueryAtomConstraint { elements?: string[]; wildcard?: boolean; charge?: number; isotope?: number; aromatic?: boolean; valence?: number; hydrogens?: number; ring?: boolean; }
 export interface QueryAtom { id: number; x: number; y: number; constraint: QueryAtomConstraint; }
 export interface QueryBond { id: number; from: number; to: number; constraint: { order: string }; }

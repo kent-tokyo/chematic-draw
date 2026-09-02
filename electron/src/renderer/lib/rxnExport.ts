@@ -1,19 +1,8 @@
 import { MoleculeDto } from '../store/types';
-
-export interface RxnDocument {
-  reactants: MoleculeDto[];
-  products: MoleculeDto[];
-  agents?: MoleculeDto[];
-  reactantCoefficients?: number[];
-  productCoefficients?: number[];
-}
-
-export type RxnV2000LossCode = 'agents' | 'coefficients' | 'multi-step';
-
-export interface RxnV2000Loss {
-  code: RxnV2000LossCode;
-  message: string;
-}
+import type { RxnDocument as ContractRxnDocument, RxnV2000Loss as ContractRxnV2000Loss } from '../../../../packages/chematic-contract/src/index';
+export type { RxnDocument, RxnV2000Loss, RxnV2000LossCode } from '../../../../packages/chematic-contract/src/index';
+type RxnDocument = ContractRxnDocument;
+type RxnV2000Loss = ContractRxnV2000Loss;
 
 /** Return semantic fields that RXN V2000 cannot represent. */
 export function rxnV2000Losses(document: RxnDocument): RxnV2000Loss[] {
