@@ -4,7 +4,8 @@ import { useMoleculeStore } from '../../store/moleculeStore';
 import { ElementPicker } from '../inspector/ElementPicker';
 import { AtomDto, BondDto } from '../../store/types';
 import * as wasmBridge from '../../wasm/wasmBridge';
-import { QueryDocument, queryDocumentFromMolecule, queryDocumentToMolecule, queryDocumentToSmarts, validateQueryDocument } from '../../lib/queryDocument';
+import { QueryDocument, queryDocumentFromMolecule, queryDocumentToMolecule, validateQueryDocument } from '../../lib/queryDocument';
+import { runQueryInWorker } from '../../lib/queryWorkerClient';
 
 // Hoisted out of InspectorPanel's render body: defining a component inline
 // in a render function gives it a new identity every render, so React
@@ -193,7 +194,13 @@ function QueryEditorSection({
   const validate = () => {
     const errors = validateQueryDocument(draft);
     if (errors.length) setStatus(errors.map((error) => `${error.path}: ${error.message}`).join('; '));
-    else setStatus(`Valid query; SMARTS: ${queryDocumentToSmarts(draft)}`);
+    else if (draft.atoms.length === 0) setStatus('Valid query; SMARTS: (empty); matches: 0');
+    else {
+      setStatus('Valid query; checking WASM worker…');
+      void runQueryInWorker(draft, molecule)
+        .then((result) => setStatus(`Valid query; SMARTS: ${result.pattern}; matches: ${result.matches.length}`))
+        .catch((error) => setStatus(error instanceof Error ? error.message : String(error)));
+    }
   };
   const apply = () => {
     try {

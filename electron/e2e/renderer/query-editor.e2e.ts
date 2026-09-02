@@ -7,7 +7,8 @@ test.describe('query editor contract', () => {
     await waitForAppReady(page);
     const editor = page.getByLabel('Query document editor');
     await expect(editor).toBeVisible();
+    await editor.fill(JSON.stringify({ schema: 'chematic-draw/query-document', schema_version: 1, atoms: [{ id: 1, x: 0, y: 0, constraint: { elements: ['O'] } }], bonds: [] }, null, 2));
     await page.getByRole('button', { name: 'Validate / SMARTS' }).click();
-    await expect(page.getByRole('status')).toContainText('Valid query; SMARTS:');
+    await expect(page.getByRole('status').filter({ hasText: /Valid query; SMARTS:/ })).toBeVisible();
   });
 });
