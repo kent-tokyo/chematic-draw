@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { UIState } from './types';
 import { DEFAULT_SHORTCUT_BINDINGS, ShortcutBindings } from '../lib/shortcuts';
+export type { ContextMenuState, ModalType, SidebarPanel } from '../../../../packages/chematic-contract/src/index';
+import type { ContextMenuState, ModalType, SidebarPanel } from '../../../../packages/chematic-contract/src/index';
 export type { BatchItemSummary, BatchProvenance, BatchResultSummary } from '../../../../packages/chematic-contract/src/index';
 import type { BatchItemSummary, BatchProvenance, BatchResultSummary } from '../../../../packages/chematic-contract/src/index';
 
@@ -10,7 +12,7 @@ interface UIStoreState extends UIState {
   statusExpiry: number; // timestamp
 
   // Sidebar
-  activeSidebarPanel: 'inspector' | 'templates' | 'chat' | 'research' | 'reactions' | 'batch-results' | 'stereoisomers' | 'lipinski' | 'properties' | 'mechanism' | 'database' | '3d';
+  activeSidebarPanel: SidebarPanel;
   // Just the id, not a snapshot: both left-click (Select tool) and
   // right-click (context menu) set this, and InspectorPanel looks the atom
   // up in `molecule.atoms` live on every render. A stored AtomDto used to go
@@ -20,7 +22,7 @@ interface UIStoreState extends UIState {
   selectedBondIdForInspector: number | null;
 
   // Context menu
-  contextMenu: { visible: boolean; x: number; y: number; atomId?: number; bondId?: number } | null;
+  contextMenu: ContextMenuState | null;
 
   // Modals
   showShortcutsModal: boolean;
@@ -44,8 +46,8 @@ interface UIStoreState extends UIState {
   clearStatus: () => void;
   showContextMenu: (x: number, y: number, atomId?: number, bondId?: number) => void;
   hideContextMenu: () => void;
-  showModal: (type: 'shortcuts' | 'export' | 'undo' | 'batch') => void;
-  hideModal: (type: 'shortcuts' | 'export' | 'undo' | 'batch') => void;
+  showModal: (type: ModalType) => void;
+  hideModal: (type: ModalType) => void;
   addBatchResult: (
     operation: string,
     processed: number,
