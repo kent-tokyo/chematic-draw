@@ -33,11 +33,9 @@ export function Viewer3DPanel() {
   useEffect(() => {
     setCoords3d(null);
     setGenerationError(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [molecule]);
 
   const bgColor = theme === 'dark' ? '#1a1f2a' : '#ffffff';
-  const textColor = theme === 'dark' ? '#d8deea' : '#1d2430';
   const labelColor = theme === 'dark' ? '#a0a8b8' : '#555555';
   const accentColor = '#4d8dff';
 

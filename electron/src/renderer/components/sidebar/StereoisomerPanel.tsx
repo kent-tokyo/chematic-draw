@@ -14,7 +14,6 @@ export function StereoisomerPanel() {
   const [loading, setLoading] = useState(false);
   const [assignments, setAssignments] = useState<StereoAssignmentDto[] | null>(null);
 
-  const bgColor = theme === 'dark' ? '#2f3a47' : '#ffffff';
   const borderColor = theme === 'dark' ? '#3a4a57' : '#e0e0e0';
   const textColor = theme === 'dark' ? '#d8deea' : '#1d2430';
   const labelColor = theme === 'dark' ? '#a0a8b8' : '#555555';
