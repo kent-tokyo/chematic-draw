@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { BatchResultPanel } from '../renderer/components/sidebar/BatchResultPanel';
 import type { BatchResultSummary } from '../renderer/store/uiStore';
 
@@ -24,13 +24,20 @@ const failedResult: BatchResultSummary = {
 };
 
 describe('BatchResultPanel retry control', () => {
-  it('shows a retry control for failed results and passes the selected result', () => {
-    const onRetry = jest.fn();
+  it('shows a retry control for failed results and passes the selected result', async () => {
+    let resolveRetry!: () => void;
+    const onRetry = jest.fn(() => new Promise<void>((resolve) => { resolveRetry = resolve; }));
     render(<BatchResultPanel results={[failedResult]} onRetry={onRetry} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Retry failed batch items' }));
+    const retryButton = screen.getByRole('button', { name: 'Retry failed batch items' });
+    fireEvent.click(retryButton);
 
     expect(onRetry).toHaveBeenCalledWith(failedResult);
+    expect(retryButton).toBeDisabled();
+    expect(retryButton).toHaveTextContent('Retrying...');
+
+    resolveRetry();
+    await waitFor(() => expect(retryButton).toBeEnabled());
   });
 
   it('does not show retry when the latest result has no failures', () => {

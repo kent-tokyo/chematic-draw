@@ -3,15 +3,15 @@ import { BatchResultSummary, useUIStore } from '../../store/uiStore';
 
 interface BatchResultPanelProps {
   results: BatchResultSummary[];
-  onRetry?: (result: BatchResultSummary) => void;
+  onRetry?: (result: BatchResultSummary) => Promise<void> | void;
 }
 
 export function BatchResultPanel({ results, onRetry }: BatchResultPanelProps) {
   const theme = useUIStore((s) => s.theme);
   const [selectedResult, setSelectedResult] = useState<BatchResultSummary | null>(null);
   const [itemFilter, setItemFilter] = useState<'all' | 'succeeded' | 'failed' | 'skipped' | 'cancelled'>('all');
+  const [retrying, setRetrying] = useState(false);
 
-  const bgColor = theme === 'dark' ? '#2f3a47' : '#ffffff';
   const borderColor = theme === 'dark' ? '#3a4a57' : '#e0e0e0';
   const textColor = theme === 'dark' ? '#d8deea' : '#1d2430';
   const labelColor = theme === 'dark' ? '#a0a8b8' : '#555555';
@@ -75,10 +75,19 @@ export function BatchResultPanel({ results, onRetry }: BatchResultPanelProps) {
         <button
           type="button"
           aria-label="Retry failed batch items"
-          onClick={() => onRetry(latestResult)}
+          disabled={retrying}
+          aria-busy={retrying}
+          onClick={async () => {
+            setRetrying(true);
+            try {
+              await onRetry(latestResult);
+            } finally {
+              setRetrying(false);
+            }
+          }}
           style={{ alignSelf: 'flex-start', padding: '6px 10px', border: `1px solid ${borderColor}`, borderRadius: '3px', backgroundColor: inputBg, color: textColor, cursor: 'pointer', fontSize: '10px' }}
         >
-          Retry failed ({latestResult.failed})
+          {retrying ? 'Retrying...' : `Retry failed (${latestResult.failed})`}
         </button>
       )}
 
