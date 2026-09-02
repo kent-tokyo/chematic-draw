@@ -5,12 +5,13 @@ Step-by-step guides for all major features in chematic-draw.
 ## Table of Contents
 
 1. [Drawing Molecules](#drawing-molecules)
-2. [3D Molecular Viewer](#3d-molecular-viewer)
-3. [Reaction Mechanisms](#reaction-mechanisms)
-4. [Property Prediction](#property-prediction)
-5. [Stereochemistry](#stereochemistry)
-6. [Search Functionality](#search-functionality)
-7. [Advanced Workflows](#advanced-workflows)
+2. [Batch Processing](#batch-processing)
+3. [3D Molecular Viewer](#3d-molecular-viewer)
+4. [Reaction Mechanisms](#reaction-mechanisms)
+5. [Property Prediction](#property-prediction)
+6. [Stereochemistry](#stereochemistry)
+7. [Search Functionality](#search-functionality)
+8. [Advanced Workflows](#advanced-workflows)
 
 ---
 
@@ -112,6 +113,23 @@ each show different options.
    - **HBD:** 0 (hydrogen bond donors)
 
 ---
+
+## Batch Processing
+
+Use the **Batch** sidebar tab to run a bounded operation on the current
+molecule and inspect its per-item result.
+
+1. Choose **Standardize**, **Convert**, **Filter**, or **Properties**.
+2. For **Filter**, optionally set MW/LogP bounds or a SMARTS pattern.
+3. Click **Process** and monitor the progress indicator.
+4. Open the Batch Results panel to review status, warnings, provenance, and
+   before/after atom and bond counts.
+5. If processing fails, click **Retry failed**. The retry runs only failed
+   items; its button is disabled while processing, and a successful result is
+   one undoable document change.
+
+The result history is bounded. A retry does not rewrite the source file or
+change the application version.
 
 ## 3D Molecular Viewer
 
