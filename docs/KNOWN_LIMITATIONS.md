@@ -7,6 +7,7 @@ the editor.
 | Area | v0.9.0 behavior | Risk / workaround |
 |---|---|---|
 | CDXML | Supported subset is writable; advanced ChemDraw attributes are not preserved | Check wildcard loss warnings; unsupported advanced attributes remain outside the current matrix |
+| Query / SMARTS | Versioned query model and deterministic linear SMARTS writer cover a bounded subset | Full SMARTS parsing/editor UI and cross-runtime matching are not yet complete; preserve Markush/R-group/polymer constructs as query JSON |
 | R-groups / wildcard atoms | Preserved only where the selected format supports them | Review the [interop matrix](INTEROP.md) before round-tripping |
 | Stereochemistry | Verified WASM CIP assigns unambiguous R/S/E/Z descriptors; ambiguous centers are omitted | Treat omitted assignments as unresolved; inspect wedge/dash input and review before publication |
 | Reaction integrity | Element/isotope inventory, explicitly authored hydrogen count, formal-charge balance, atom-map consistency, and authored intermediate continuity are checked with atom/bond structure facts; unannotated steps remain not verified | This is not stoichiometric balancing, reaction-mechanism validation, or product prediction; omitted implicit chemistry and unmapped atoms still require independent review |

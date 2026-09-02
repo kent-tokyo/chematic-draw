@@ -23,6 +23,16 @@ survive unchanged; the *chemical structure* is).
 | JSON reaction document | ✅ (version 2; v1 migration) | ✅ (version 2) | ✅ | Versioned reaction-scheme envelope preserves agents and aligned stoichiometric coefficients; unknown future schemas are rejected. |
 | SVG | ❌ | ✅ (`to_svg`) | N/A | Export-only, as expected — SVG is a rendering target, not a chemical interchange format. |
 
+## Query and special-chemistry boundary
+
+The editor now has a versioned query document model for editable element lists,
+wildcards, charge/isotope, aromaticity, valence, hydrogen, ring, and query-bond
+orders. A deterministic SMARTS writer covers connected linear queries. Markush,
+R-group, polymer, and opaque SMARTS constructs are retained as typed opaque
+records and rejected by concrete-molecule export; they are not silently
+converted to carbon or wildcard atoms. Full UI editing, SMARTS parsing, and
+cross-runtime matching remain future work.
+
 The current implementation supports RXN V2000 import/export for
 one-step authored reactant/product schemes through the existing MOL conversion
 boundary. Agents, stoichiometric coefficients, and multi-step schemes are
@@ -40,10 +50,9 @@ SMILES exports. If a known loss is detected, it explains the affected fields
 and asks the user to continue. Known cases where a round-trip through this
 app's own supported formats is *not* lossless are:
 
-- **CDXML → (any writable format) → re-save as CDXML**: impossible outright
-  (no CDXML writer), so this isn't silent data loss so much as a forced
-  format change — worth surfacing in the UI when a `.cdxml` file is open,
-  so a "Save" that can't write back to the original format isn't a surprise.
+- **CDXML advanced attributes**: the supported writer subset round-trips;
+  advanced ChemDraw attributes remain outside the current matrix and are not
+  synthesized by the writer.
 - **3D coordinates through a 2D-only format** (MOL V2000/V3000, SDF, and CML
   all *can* carry a Z coordinate; SMILES and CDXML cannot): converting a
   molecule with `generate3dCoords` output to SMILES, then back, drops the
@@ -55,8 +64,9 @@ app's own supported formats is *not* lossless are:
   atom** when written to and re-parsed from MOL V2000, MOL V3000, SDF, or
   CML — confirmed empirically (`parse_any('[*]CC')` → write → re-parse:
   `wildcard` is `false` and `element` is `"C"` on all four, with no error
-  or warning). CDXML wildcard round-tripping is untested (no writer exists
-  to test the full cycle either way).
+  or warning). The supported CDXML writer emits carbon and is covered by the
+  explicit loss warning; advanced query objects remain outside the writer
+  subset.
 - **Depiction labels** (`display_label` in `AtomDto`, e.g. condensed "CH3"
   notation) are cosmetic and derived fresh on every `chem_to_dto` call —
   they are never written to or read from any file format, so there is
