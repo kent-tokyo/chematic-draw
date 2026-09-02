@@ -71,6 +71,8 @@ export function validateBatchTask(task: BatchTask): string[] {
   if (task.smartsPattern !== undefined) {
     if (typeof task.smartsPattern !== 'string') {
       errors.push('smartsPattern must be a string');
+    } else if (task.smartsPattern.trim().length === 0) {
+      errors.push('smartsPattern must not be empty');
     } else if (task.smartsPattern.length > 10_000) {
       errors.push('smartsPattern exceeds the 10,000 character limit');
     }

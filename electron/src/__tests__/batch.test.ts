@@ -40,6 +40,11 @@ describe('batch processing review results', () => {
       .toEqual(['filterOptions must be an object']);
   });
 
+  it('rejects an empty SMARTS filter', () => {
+    expect(validateBatchTask({ operation: 'filter', smartsPattern: '  ' }))
+      .toEqual(['smartsPattern must not be empty']);
+  });
+
   it('records invalid molecules as failed items before invoking the engine', async () => {
     const invalid = { ...molecule(1), atoms: [{ ...molecule(1).atoms[0], charge: 0.5 }] };
     const result = await processBatch([invalid], { operation: 'standardize' });
