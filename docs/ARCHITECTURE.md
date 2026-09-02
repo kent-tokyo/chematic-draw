@@ -232,7 +232,8 @@ interface UIStoreState {
   showUndoModal: boolean;
   showBatchDialog: boolean;
   batchResults: Array<BatchResultSummary>;
-  // + setTheme, setActiveSidebarPanel, setSelectedAtomForInspector,
+  // + setTheme, setActiveSidebarPanel, setSelectedAtomIdForInspector,
+  //   setSelectedBondIdForInspector,
   //   showContextMenu/hideContextMenu, showModal/hideModal,
   //   setStatus/clearStatus, addBatchResult, ...
 }
