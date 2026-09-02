@@ -31,7 +31,9 @@ describe('BatchResultPanel retry control', () => {
 
     const retryButton = screen.getByRole('button', { name: 'Retry failed batch items' });
     fireEvent.click(retryButton);
+    fireEvent.click(retryButton);
 
+    expect(onRetry).toHaveBeenCalledTimes(1);
     expect(onRetry).toHaveBeenCalledWith(failedResult);
     expect(retryButton).toBeDisabled();
     expect(retryButton).toHaveTextContent('Retrying...');
