@@ -85,7 +85,7 @@ export function BatchResultPanel({ results, onRetry }: BatchResultPanelProps) {
               setRetrying(false);
             }
           }}
-          style={{ alignSelf: 'flex-start', padding: '6px 10px', border: `1px solid ${borderColor}`, borderRadius: '3px', backgroundColor: inputBg, color: textColor, cursor: 'pointer', fontSize: '10px' }}
+          style={{ alignSelf: 'flex-start', padding: '6px 10px', border: `1px solid ${borderColor}`, borderRadius: '3px', backgroundColor: inputBg, color: textColor, cursor: retrying ? 'wait' : 'pointer', fontSize: '10px' }}
         >
           {retrying ? 'Retrying...' : `Retry failed (${latestResult.failed})`}
         </button>

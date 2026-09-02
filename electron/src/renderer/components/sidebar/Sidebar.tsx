@@ -15,7 +15,7 @@ import { DatabaseSearchPanel } from './DatabaseSearchPanel';
 import { Viewer3DPanel } from './Viewer3DPanel';
 import type { BatchResultSummary } from '../../store/uiStore';
 
-export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultSummary) => void }) {
+export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultSummary) => Promise<void> | void }) {
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
   const sidebarWidth = useUIStore((s) => s.sidebarWidth);
   const activeSidebarPanel = useUIStore((s) => s.activeSidebarPanel);
