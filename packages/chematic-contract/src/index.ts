@@ -35,6 +35,21 @@ export interface ReactionDiagnostics {
   mapping: { complete: boolean; duplicateMapNumbers: number[]; unmatchedMapNumbers: number[] };
 }
 export interface ValidationResult { valid: boolean; issues: string[]; }
+export type ExtensionPermission = 'document:write' | 'analysis:read' | 'import:read' | 'export:write';
+export const EXTENSION_API_VERSION = 1;
+export const MAX_MOLECULE_ATOMS = 100_000;
+export const MAX_MOLECULE_BONDS = 200_000;
+export const MAX_ELEMENT_TEXT_LENGTH = 16;
+export const MAX_DISPLAY_LABEL_LENGTH = 256;
+export interface ExtensionManifest { id: string; version: string; api_version?: number; permissions: ExtensionPermission[]; }
+export interface DocumentCommandContext { molecule: Molecule; payload?: unknown; }
+export interface DocumentCommand { id: string; description: string; requiredPermission: 'document:write'; execute: (context: DocumentCommandContext) => Molecule; }
+export interface AnalysisProvider { id: string; description: string; analyze: (molecule: Molecule) => unknown; }
+export interface ExtensionHost {
+  register(manifest: ExtensionManifest, commands?: DocumentCommand[], providers?: AnalysisProvider[]): void;
+  execute(extensionId: string, commandId: string, molecule: Molecule, payload?: unknown): Molecule;
+  analyze(extensionId: string, providerId: string, molecule: Molecule): unknown;
+}
 export type ReactionDocumentIssueCode = 'duplicate-step-id' | 'component-id' | 'continuity' | 'map-scope' | 'provenance';
 export interface ReactionDocumentIssue { code: ReactionDocumentIssueCode; path: string; message: string; }
 export interface RxnDocument { reactants: Molecule[]; products: Molecule[]; agents?: Molecule[]; reactantCoefficients?: number[]; productCoefficients?: number[]; }

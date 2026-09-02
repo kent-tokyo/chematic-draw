@@ -1,43 +1,30 @@
 import { MoleculeDto } from '../store/types';
+import {
+  EXTENSION_API_VERSION,
+  MAX_DISPLAY_LABEL_LENGTH,
+  MAX_ELEMENT_TEXT_LENGTH,
+  MAX_MOLECULE_ATOMS,
+  MAX_MOLECULE_BONDS,
+} from '../../../../packages/chematic-contract/src/index';
+export type {
+  AnalysisProvider,
+  DocumentCommand,
+  DocumentCommandContext,
+  ExtensionHost,
+  ExtensionManifest,
+  ExtensionPermission,
+} from '../../../../packages/chematic-contract/src/index';
+import type {
+  AnalysisProvider,
+  DocumentCommand,
+  DocumentCommandContext,
+  ExtensionHost,
+  ExtensionManifest,
+  ExtensionPermission,
+} from '../../../../packages/chematic-contract/src/index';
 
 /** The deliberately small permission vocabulary for local extensions. */
-export type ExtensionPermission = 'document:write' | 'analysis:read' | 'import:read' | 'export:write';
-export const EXTENSION_API_VERSION = 1;
-export const MAX_MOLECULE_ATOMS = 100_000;
-export const MAX_MOLECULE_BONDS = 200_000;
-export const MAX_ELEMENT_TEXT_LENGTH = 16;
-export const MAX_DISPLAY_LABEL_LENGTH = 256;
-
-export interface ExtensionManifest {
-  id: string;
-  version: string;
-  api_version?: number;
-  permissions: ExtensionPermission[];
-}
-
-export interface DocumentCommandContext {
-  molecule: MoleculeDto;
-  payload?: unknown;
-}
-
-export interface DocumentCommand {
-  id: string;
-  description: string;
-  requiredPermission: 'document:write';
-  execute: (context: DocumentCommandContext) => MoleculeDto;
-}
-
-export interface AnalysisProvider {
-  id: string;
-  description: string;
-  analyze: (molecule: MoleculeDto) => unknown;
-}
-
-export interface ExtensionHost {
-  register(manifest: ExtensionManifest, commands?: DocumentCommand[], providers?: AnalysisProvider[]): void;
-  execute(extensionId: string, commandId: string, molecule: MoleculeDto, payload?: unknown): MoleculeDto;
-  analyze(extensionId: string, providerId: string, molecule: MoleculeDto): unknown;
-}
+export { EXTENSION_API_VERSION, MAX_DISPLAY_LABEL_LENGTH, MAX_ELEMENT_TEXT_LENGTH, MAX_MOLECULE_ATOMS, MAX_MOLECULE_BONDS } from '../../../../packages/chematic-contract/src/index';
 
 export function validateMoleculeDocument(molecule: MoleculeDto): string[] {
   const errors: string[] = [];
