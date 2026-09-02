@@ -46,6 +46,9 @@ export function validateBatchTask(task: BatchTask): string[] {
   if (!task || !['convert', 'standardize', 'filter', 'properties'].includes(task.operation)) {
     return ['Unsupported batch operation'];
   }
+  if (task.operation !== 'filter' && (task.filterOptions !== undefined || task.smartsPattern !== undefined)) {
+    errors.push('Filter options require the filter operation');
+  }
   const filters = task.filterOptions;
   if (filters) {
     if (typeof filters !== 'object' || Array.isArray(filters)) {

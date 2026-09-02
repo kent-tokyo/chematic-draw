@@ -24,7 +24,7 @@ describe('batch processing review results', () => {
 
   it('rejects malformed SMARTS and format metadata', () => {
     expect(validateBatchTask({
-      operation: 'convert',
+      operation: 'filter',
       smartsPattern: 42 as never,
       inputFormat: '' ,
       outputFormat: 'x'.repeat(65),
@@ -43,6 +43,11 @@ describe('batch processing review results', () => {
   it('rejects an empty SMARTS filter', () => {
     expect(validateBatchTask({ operation: 'filter', smartsPattern: '  ' }))
       .toEqual(['smartsPattern must not be empty']);
+  });
+
+  it('rejects filter criteria attached to a non-filter operation', () => {
+    expect(validateBatchTask({ operation: 'properties', smartsPattern: '[N]' }))
+      .toEqual(['Filter options require the filter operation']);
   });
 
   it('records invalid molecules as failed items before invoking the engine', async () => {
