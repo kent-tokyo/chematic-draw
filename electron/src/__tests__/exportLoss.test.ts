@@ -37,9 +37,9 @@ describe('export loss analysis', () => {
     ]);
   });
 
-  it('treats CDXML as explicitly unsupported instead of lossy output', () => {
+  it('warns before writing wildcard atoms to CDXML', () => {
     expect(exportLosses(molecule, 'cdxml')).toEqual([
-      expect.objectContaining({ code: 'unsupported-format' }),
+      expect.objectContaining({ code: 'wildcard' }),
     ]);
   });
 

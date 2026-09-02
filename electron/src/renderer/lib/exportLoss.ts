@@ -26,17 +26,16 @@ export function exportLosses(molecule: MoleculeDto, format: MoleculeExportFormat
   const losses: ExportLoss[] = [];
   const wildcardCount = molecule.atoms.filter((atom) => atom.wildcard === true).length;
   const isotopeCount = molecule.atoms.filter((atom) => atom.isotope !== undefined).length;
-  const molFormats: MoleculeExportFormat[] = ['mol-v2000', 'rxn-v2000', 'sdf', 'cml'];
+  const molFormats: MoleculeExportFormat[] = ['mol-v2000', 'rxn-v2000', 'sdf', 'cml', 'cdxml'];
 
-  if (format === 'cdxml') {
+  if (format === 'cdxml' && molecule.atoms.some((atom) => atom.wildcard === true)) {
     losses.push({
-      code: 'unsupported-format',
-      message: 'CDXML is read-only. Save this document to a different format instead.',
+      code: 'wildcard',
+      message: 'Wildcard atoms will be written as ordinary carbon in CDXML.',
     });
-    return losses;
   }
 
-  if (wildcardCount > 0 && molFormats.includes(format)) {
+  if (wildcardCount > 0 && molFormats.includes(format) && format !== 'cdxml') {
     losses.push({
       code: 'wildcard',
       message: `${wildcardCount} wildcard atom${wildcardCount === 1 ? '' : 's'} will be written as ordinary carbon by this format.`,

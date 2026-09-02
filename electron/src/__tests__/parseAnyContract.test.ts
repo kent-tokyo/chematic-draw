@@ -73,8 +73,8 @@ beforeAll(() => {
     mol_v3000: wasm.to_mol_v3000(chlorobenzoate),
     sdf: wasm.to_sdf(chlorobenzoate),
     cml: wasm.to_cml(chlorobenzoate),
-    // No to_cdxml writer exists in this bridge (CDXML is read-only, per
-    // internal_docs/ROADMAP.md) — hand-crafted using chematic-mol's own
+    // CDXML writer is a TypeScript-side supported-subset writer; this fixture
+    // remains hand-crafted using chematic-mol's own
     // documented CDXML atom/bond syntax (Element by atomic number: 6=C,
     // 8=O, 17=Cl; Charge as a plain integer attribute).
     cdxml: `<?xml version="1.0" encoding="UTF-8"?>

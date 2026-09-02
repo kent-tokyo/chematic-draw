@@ -6,7 +6,7 @@ the editor.
 
 | Area | v0.9.0 behavior | Risk / workaround |
 |---|---|---|
-| CDXML | Import only; CDXML is not written | Save as MOL, SDF, CML, or SMILES after checking the export-loss message |
+| CDXML | Supported subset is writable; advanced ChemDraw attributes are not preserved | Check wildcard loss warnings; unsupported advanced attributes remain outside the current matrix |
 | R-groups / wildcard atoms | Preserved only where the selected format supports them | Review the [interop matrix](INTEROP.md) before round-tripping |
 | Stereochemistry | Verified WASM CIP assigns unambiguous R/S/E/Z descriptors; ambiguous centers are omitted | Treat omitted assignments as unresolved; inspect wedge/dash input and review before publication |
 | Reaction integrity | Element/isotope inventory, explicitly authored hydrogen count, formal-charge balance, atom-map consistency, and authored intermediate continuity are checked with atom/bond structure facts; unannotated steps remain not verified | This is not stoichiometric balancing, reaction-mechanism validation, or product prediction; omitted implicit chemistry and unmapped atoms still require independent review |

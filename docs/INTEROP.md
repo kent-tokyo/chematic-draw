@@ -14,20 +14,20 @@ survive unchanged; the *chemical structure* is).
 | MOL V3000 | ✅ | ✅ | ✅ | Needed for >999 atoms/bonds (V2000's fixed-width count fields overflow). |
 | SDF | ✅ | ✅ | ✅ | Multi-record files: only the first record is read by `parseMolecule`/`parseAny`. |
 | CML | ✅ | ✅ | ✅ | |
-| CDXML | ✅ (read only) | ❌ | N/A | `chematic-mol` has no CDXML writer at all — this is a real gap, not an oversight in the WASM bridge. A ChemDraw-format round-trip (open a `.cdxml`, edit, save back to `.cdxml`) is not possible; editing a CDXML file forces a save to a different format. |
-| RXN (reaction file) | ✅ (V2000, one step) | ✅ (V2000, one step) | ✅ | Reactants and products are exchanged through the versioned reaction document. Agents, stoichiometric coefficients, multi-step schemes, and unsupported extensions are not represented. |
+| CDXML | ✅ (supported subset) | ✅ (supported subset) | ✅ (fixture corpus) | Writer preserves supported elements, coordinates, bonds, charge, and isotope; wildcard atoms require a loss confirmation and become carbon. Unsupported advanced CDXML attributes are outside the current matrix. |
+| RXN (reaction file) | ✅ (V2000, one step) | ✅ (V2000, one step) | ✅ | V2000 is a lossy interchange; agents, stoichiometric coefficients, and multi-step schemes are preserved by reaction-document JSON v2 instead. |
 | InChI | ❌ | ✅ (`molToInchi`, one-way) | N/A | InChI is intentionally one-directional here: `molToInchi` produces an InChI string from a molecule, and `inchiToInchiKey` hashes an InChI string to its InChIKey — there is no `inchiToMol`. This matches upstream chemistry-informatics convention (InChI is an identifier/hash format, not meant to be a lossless structure-interchange format), so this is not treated as a gap to close, just a direction that doesn't exist. |
 | XYZ | ✅ (`parseXyz`, coordinates only) | ❌ | N/A | Import only, for 3D viewer input. No bond/connectivity information in the format itself. |
 | PDB | ✅ (`parsePdb`, coordinates only) | ❌ | N/A | Same as XYZ — coordinate import only. |
 | JSON session bundle | ✅ (chematic bundle) | ✅ | ✅ | Local review bundle containing the molecule, source path, engine metadata, and deterministic structure fingerprint. It is not a general-purpose chemical interchange format. |
-| JSON reaction document | ✅ (version 1) | ✅ (version 1) | ✅ | Versioned reaction-scheme envelope with safe migration from the legacy unversioned export. Unknown future schemas are rejected. |
+| JSON reaction document | ✅ (version 2; v1 migration) | ✅ (version 2) | ✅ | Versioned reaction-scheme envelope preserves agents and aligned stoichiometric coefficients; unknown future schemas are rejected. |
 | SVG | ❌ | ✅ (`to_svg`) | N/A | Export-only, as expected — SVG is a rendering target, not a chemical interchange format. |
 
 The current implementation supports RXN V2000 import/export for
 one-step authored reactant/product schemes through the existing MOL conversion
-boundary. Agents,
-stoichiometric coefficients, multi-step schemes, and unsupported extensions are
-not represented and are not guessed. Wildcard and isotope loss is checked before
+boundary. Agents, stoichiometric coefficients, and multi-step schemes are
+preserved in reaction-document JSON v2 rather than guessed into RXN V2000.
+Wildcard and isotope loss is checked before
 RXN export and requires explicit confirmation; multi-step RXN export is blocked
 with an explicit status because RXN V2000 cannot preserve the step boundaries.
 RXN import is bounded to 10,000,000 characters and 256 molecule blocks before
@@ -72,8 +72,8 @@ app's own supported formats is *not* lossless are:
   field, not something this bridge's `chem_to_dto`/`dto_to_chem` can fix.
   Pinned as skipped regression tests in `wasmContract.test.ts`.
 
-CDXML remains a hard stop rather than a confirmation: the format is read-only
-and the user must choose another extension. 3D-coordinate loss is not inferred
+CDXML export is available for the supported subset and uses the same loss
+confirmation boundary for wildcard atoms. 3D-coordinate loss is not inferred
 from `MoleculeDto`, because the current document model does not retain a 3D
 conformer after the viewer operation; this remains an explicit future model
 item rather than an invented warning.

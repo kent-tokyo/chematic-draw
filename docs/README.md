@@ -29,7 +29,7 @@ checks that they stay in sync.
 - The DB panel includes an offline MCS comparison using the current molecule and
   a second SMILES input; the search is bounded and reports its result budget.
 - Stereoisomer enumeration is heuristic and is not a complete CIP assignment.
-- CDXML can be opened but not written; RXN, XYZ, and PDB are import/export
+- CDXML supports a bounded writer subset; RXN V2000, XYZ, and PDB are import/export
   capabilities limited as described in [INTEROP](INTEROP.md).
 
 ## Development commands

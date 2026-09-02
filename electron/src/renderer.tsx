@@ -18,6 +18,7 @@ import * as clipboard from './renderer/lib/clipboard';
 import { exportLossMessage, exportLosses, formatForFilePath, MoleculeExportFormat } from './renderer/lib/exportLoss';
 import { parseSessionBundle, serializeSessionBundle } from './renderer/lib/sessionBundle';
 import { DEFAULT_SHORTCUT_BINDINGS, validateShortcutBindings, ShortcutBindings } from './renderer/lib/shortcuts';
+import { exportCdxml } from './renderer/lib/cdxmlExport';
 
 function parseMoleculeDocument(content: string, filePath: string): MoleculeDto {
   if (filePath.toLowerCase().endsWith('.json')) return parseSessionBundle(content).document.molecule;
@@ -35,7 +36,7 @@ function serializeMoleculeForPath(molecule: MoleculeDto, filePath: string): stri
     case 'mol-v2000':
       return wasmBridge.toMolV2000(molecule);
     case 'cdxml':
-      throw new Error('CDXML is read-only; choose a different file extension.');
+      return exportCdxml(molecule);
   }
 }
 
@@ -228,10 +229,6 @@ function App() {
       api.onMenuSave(async () => {
         if (filePath) {
           const format = formatForFilePath(filePath);
-          if (format === 'cdxml') {
-            setStatus('CDXML is read-only. Use Save As and choose MOL, SDF, CML, or SMILES.');
-            return;
-          }
           if (!confirmLossAwareExport(molecule, filePath)) {
             if (exportLosses(molecule, format).length > 0) setStatus('Save cancelled');
             return;
@@ -253,7 +250,7 @@ function App() {
         if (!result.canceled && result.filePath) {
           if (!confirmLossAwareExport(molecule, result.filePath)) {
             const format = formatForFilePath(result.filePath);
-            setStatus(format === 'cdxml' ? 'CDXML is read-only. Choose a different format.' : 'Save cancelled');
+            setStatus('Save cancelled');
             return;
           }
           const content = serializeMoleculeForPath(molecule, result.filePath);

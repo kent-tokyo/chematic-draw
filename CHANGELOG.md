@@ -68,6 +68,10 @@ for the full development history.
   or duplicate item indexes.
 - Native offline differential fixtures now compare ECFP4 encoding and MCS
   cardinality/similarity against independent upstream calculations.
+- Reaction-document JSON v2 now preserves agents and aligned stoichiometric
+  coefficients, with safe migration from v1.
+- CDXML now has a deterministic supported-subset writer with wildcard loss
+  confirmation and parser-backed round-trip fixtures.
 - Batch result hashes now normalize task key order, making equivalent execution
   options produce the same deterministic hash.
 - Batch hash key ordering now uses locale-independent code-point ordering for
