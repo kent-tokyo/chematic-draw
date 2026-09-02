@@ -6,8 +6,8 @@ the editor.
 
 | Area | v0.9.0 behavior | Risk / workaround |
 |---|---|---|
-| CDXML | Single-fragment parser-backed writer plus multi-page/page-attribute writer; advanced ChemDraw attributes are not preserved | Review the CDXML loss matrix; upstream parser compatibility for page annotations remains bounded |
-| Query / SMARTS | Versioned query model, typed Markush/polymer definitions, deterministic linear SMARTS writer, and WASM worker matching | Full semantic Markush/polymer expansion and serialized upstream QueryMolecule AST remain outside the contract |
+| CDXML | Document parser/writer round-trips the supported multi-page subset: page IDs/dimensions, titles, text, arrows, fragment IDs, labels, charge/isotope, coordinates, and stereo hints | Advanced upstream presentation attributes remain outside the lossless subset |
+| Query / SMARTS | Versioned query model, immutable Markush/polymer editing, allowed-substituent selection, deterministic two-attachment polymer expansion, linear SMARTS writer, and WASM worker matching | Arbitrary upstream QueryMolecule semantics remain outside the contract |
 | R-groups / wildcard atoms | Preserved only where the selected format supports them | Review the [interop matrix](INTEROP.md) before round-tripping |
 | Stereochemistry | Verified WASM CIP assigns unambiguous R/S/E/Z descriptors; ambiguous centers are omitted | Treat omitted assignments as unresolved; inspect wedge/dash input and review before publication |
 | Reaction integrity | Element/isotope inventory, explicitly authored hydrogen count, formal-charge balance, atom-map consistency, and authored intermediate continuity are checked with atom/bond structure facts; unannotated steps remain not verified | This is not stoichiometric balancing, reaction-mechanism validation, or product prediction; omitted implicit chemistry and unmapped atoms still require independent review |

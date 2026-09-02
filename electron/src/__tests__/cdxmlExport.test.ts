@@ -45,9 +45,9 @@ describe('CDXML writer', () => {
     const xml = exportCdxml(molecule);
     expect(xml).toContain('<CDXML>');
     expect(xml).toContain('<fragment id="1" Name="chematic-draw">');
-    expect(xml).toContain('<n id="1" p="0 -12" Element="6"/>');
-    expect(xml).toContain('<n id="2" p="40 -12" Element="8" Charge="-1" Isotope="18"/>');
-    expect(xml).toContain('<b B="1" E="2" Order="2"/>');
+    expect(xml).toContain('<n id="10" p="0 -12" Element="6"/>');
+    expect(xml).toContain('<n id="20" p="40 -12" Element="8" Charge="-1" Isotope="18"/>');
+    expect(xml).toContain('<b B="10" E="20" Order="2"/>');
   });
 
   it('rejects elements outside the supported CDXML mapping', () => {

@@ -23,11 +23,11 @@ export interface CdxmlPage {
 export interface CdxmlDocument { pages: CdxmlPage[]; }
 
 function writeFragment(molecule: MoleculeDto): string {
-  const idByAtomId = new Map(molecule.atoms.map((atom, index) => [atom.id, index + 1]));
-  const nodes = molecule.atoms.map((atom, index) => {
+  const idByAtomId = new Map(molecule.atoms.map((atom) => [atom.id, atom.id]));
+  const nodes = molecule.atoms.map((atom) => {
     const atomicNumber = ELEMENT_ATOMIC_NUMBERS[atom.element];
     if (atomicNumber === undefined && atom.wildcard !== true) throw new Error(`CDXML does not support element: ${atom.element}`);
-    const attrs = [`id="${index + 1}"`, `p="${atom.x} ${-atom.y}"`, `Element="${atomicNumber ?? 6}"`];
+    const attrs = [`id="${atom.id}"`, `p="${atom.x} ${-atom.y}"`, `Element="${atomicNumber ?? 6}"`];
     if (atom.charge !== 0) attrs.push(`Charge="${atom.charge}"`);
     if (atom.isotope !== undefined) attrs.push(`Isotope="${atom.isotope}"`);
     if (atom.display_label) attrs.push(`Label="${escapeXml(atom.display_label)}"`);
