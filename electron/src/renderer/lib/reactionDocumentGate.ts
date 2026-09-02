@@ -1,7 +1,6 @@
 import { ReactionSchemeContext } from '../store/types';
-
-export type ReactionDocumentIssueCode = 'duplicate-step-id' | 'component-id' | 'continuity' | 'map-scope' | 'provenance';
-export interface ReactionDocumentIssue { code: ReactionDocumentIssueCode; path: string; message: string; }
+export type { ReactionDocumentIssue, ReactionDocumentIssueCode } from '../../../../packages/chematic-contract/src/index';
+import type { ReactionDocumentIssue } from '../../../../packages/chematic-contract/src/index';
 
 /** Structural gate for authored multi-step documents. It checks identity and
  * provenance facts only; it does not infer chemistry or balance reactions. */

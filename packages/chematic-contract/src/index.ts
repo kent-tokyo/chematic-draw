@@ -34,6 +34,8 @@ export interface ReactionDiagnostics {
   continuity: { valid: boolean; issues: string[]; boundaries: Array<{ fromStep: number; toStep: number; matchedMoleculeCount: number }> };
   mapping: { complete: boolean; duplicateMapNumbers: number[]; unmatchedMapNumbers: number[] };
 }
+export type ReactionDocumentIssueCode = 'duplicate-step-id' | 'component-id' | 'continuity' | 'map-scope' | 'provenance';
+export interface ReactionDocumentIssue { code: ReactionDocumentIssueCode; path: string; message: string; }
 export interface RxnDocument { reactants: Molecule[]; products: Molecule[]; agents?: Molecule[]; reactantCoefficients?: number[]; productCoefficients?: number[]; }
 export type RxnV2000LossCode = 'agents' | 'coefficients' | 'multi-step';
 export interface RxnV2000Loss { code: RxnV2000LossCode; message: string; }
