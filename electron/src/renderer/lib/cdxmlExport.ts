@@ -1,4 +1,6 @@
 import { MoleculeDto } from '../store/types';
+import type { CdxmlDocument as ContractCdxmlDocument, CdxmlPage as ContractCdxmlPage } from '../../../../packages/chematic-contract/src/index';
+export type { CdxmlDocument, CdxmlPage, CdxmlText, CdxmlArrow } from '../../../../packages/chematic-contract/src/index';
 
 const ELEMENT_ATOMIC_NUMBERS: Record<string, number> = {
   H: 1, He: 2, Li: 3, Be: 4, B: 5, C: 6, N: 7, O: 8, F: 9, Ne: 10,
@@ -10,19 +12,8 @@ function escapeXml(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-export interface CdxmlPage {
-  id: string;
-  molecule: MoleculeDto;
-  title?: string;
-  width?: number;
-  height?: number;
-  text?: Array<{ id: string; x: number; y: number; value: string }>;
-  arrows?: Array<{ id: string; x1: number; y1: number; x2: number; y2: number; label?: string }>;
-  /** Unknown upstream page attributes are retained for loss-aware round-trip. */
-  attributes?: Record<string, string>;
-}
-
-export interface CdxmlDocument { pages: CdxmlPage[]; }
+type CdxmlPage = ContractCdxmlPage;
+type CdxmlDocument = ContractCdxmlDocument;
 
 function writeFragment(molecule: MoleculeDto): string {
   const idByAtomId = new Map(molecule.atoms.map((atom) => [atom.id, atom.id]));

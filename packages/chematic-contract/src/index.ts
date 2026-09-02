@@ -27,6 +27,10 @@ export interface ReactionDiagnostics {
 export interface RxnDocument { reactants: Molecule[]; products: Molecule[]; agents?: Molecule[]; reactantCoefficients?: number[]; productCoefficients?: number[]; }
 export type RxnV2000LossCode = 'agents' | 'coefficients' | 'multi-step';
 export interface RxnV2000Loss { code: RxnV2000LossCode; message: string; }
+export interface CdxmlText { id: string; x: number; y: number; value: string; }
+export interface CdxmlArrow { id: string; x1: number; y1: number; x2: number; y2: number; label?: string; }
+export interface CdxmlPage { id: string; molecule: Molecule; title?: string; width?: number; height?: number; text?: CdxmlText[]; arrows?: CdxmlArrow[]; attributes?: Record<string, string>; }
+export interface CdxmlDocument { pages: CdxmlPage[]; }
 export interface QueryAtomConstraint { elements?: string[]; wildcard?: boolean; charge?: number; isotope?: number; aromatic?: boolean; valence?: number; hydrogens?: number; ring?: boolean; }
 export interface QueryAtom { id: number; x: number; y: number; constraint: QueryAtomConstraint; }
 export interface QueryBond { id: number; from: number; to: number; constraint: { order: string }; }
