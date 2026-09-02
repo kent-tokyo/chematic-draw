@@ -379,8 +379,7 @@ React re-renders affected components
     ↓
 Canvas redraws with new atom
     ↓
-InspectorPanel updates (only if that atom is the right-clicked selection —
-see uiStore's selectedAtomForInspector quirk above)
+InspectorPanel derives the selected atom ID from the current molecule
 ```
 
 ### 3D Visualization Flow
@@ -469,8 +468,7 @@ byte comparison for `to_svg`/`clean_layout`/`generate_3d_coords`).
 
 **Trade-off:** Slightly less type safety than Redux typed selectors; five
 independent stores also means cross-store synchronization has to be done by
-hand — see the two real quirks noted in State Management above, both
-instances of exactly this trade-off.
+hand — see the mechanism-store quirk noted in State Management above.
 
 ### 2. Why Canvas 2D (not WebGL)?
 
