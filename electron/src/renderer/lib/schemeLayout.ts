@@ -1,41 +1,14 @@
 import { ReactionSchemeContext, MoleculeDto } from '../store/types';
 import { MechanismStep } from '../store/types';
+import type { SchemeLayout as ContractSchemeLayout, StepBox as ContractStepBox, StepArrow as ContractStepArrow } from '../../../../packages/chematic-contract/src/index';
+export type { SchemeLayout, StepBox, StepArrow } from '../../../../packages/chematic-contract/src/index';
 
 /**
  * Represents a step box in the scheme layout
  */
-export interface StepBox {
-  stepIndex: number;
-  x: number;           // screen position
-  y: number;
-  width: number;       // box dimensions
-  height: number;
-  selected: boolean;
-  hovered: boolean;
-}
-
-/**
- * Arrow between two consecutive steps
- */
-export interface StepArrow {
-  fromIndex: number;
-  toIndex: number;
-  x1: number;          // start position
-  y1: number;
-  x2: number;          // end position
-  y2: number;
-}
-
-/**
- * Complete scheme layout
- */
-export interface SchemeLayout {
-  stepBoxes: StepBox[];
-  stepArrows: StepArrow[];
-  canvasWidth: number;
-  canvasHeight: number;
-  padding: number;
-}
+type StepBox = ContractStepBox;
+type StepArrow = ContractStepArrow;
+type SchemeLayout = ContractSchemeLayout;
 
 // Constants for layout
 const BOX_WIDTH = 300;
