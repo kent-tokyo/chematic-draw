@@ -1,6 +1,6 @@
 /** Electron-free public data contract. Keep this file dependency-free. */
-export interface MoleculeAtom { id: number; element: string; x: number; y: number; charge: number; atom_map: number; isotope?: number; hydrogen_count?: number; wildcard?: boolean; }
-export interface MoleculeBond { id: number; from: number; to: number; order: number; stereo: number; }
+export interface MoleculeAtom { id: number; element: string; x: number; y: number; charge: number; atom_map: number; isotope?: number; hydrogen_count?: number; wildcard?: boolean; display_label?: string | null; selected?: boolean; }
+export interface MoleculeBond { id: number; from: number; to: number; order: number; stereo: number; selected?: boolean; }
 export interface Molecule { atoms: MoleculeAtom[]; bonds: MoleculeBond[]; }
 export interface QueryAtomConstraint { elements?: string[]; wildcard?: boolean; charge?: number; isotope?: number; aromatic?: boolean; valence?: number; hydrogens?: number; ring?: boolean; }
 export interface QueryAtom { id: number; x: number; y: number; constraint: QueryAtomConstraint; }
