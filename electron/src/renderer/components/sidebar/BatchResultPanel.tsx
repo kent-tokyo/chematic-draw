@@ -3,9 +3,10 @@ import { BatchResultSummary, useUIStore } from '../../store/uiStore';
 
 interface BatchResultPanelProps {
   results: BatchResultSummary[];
+  onRetry?: (result: BatchResultSummary) => void;
 }
 
-export function BatchResultPanel({ results }: BatchResultPanelProps) {
+export function BatchResultPanel({ results, onRetry }: BatchResultPanelProps) {
   const theme = useUIStore((s) => s.theme);
   const [selectedResult, setSelectedResult] = useState<BatchResultSummary | null>(null);
   const [itemFilter, setItemFilter] = useState<'all' | 'succeeded' | 'failed' | 'skipped' | 'cancelled'>('all');
@@ -70,6 +71,16 @@ export function BatchResultPanel({ results }: BatchResultPanelProps) {
         {latestResult.provenance.filterOptions && `; MW: ${latestResult.provenance.filterOptions.minMW ?? '—'}–${latestResult.provenance.filterOptions.maxMW ?? '—'}; LogP: ${latestResult.provenance.filterOptions.minLogP ?? '—'}–${latestResult.provenance.filterOptions.maxLogP ?? '—'}`}
         {latestResult.provenance.smartsPattern && `; SMARTS: ${latestResult.provenance.smartsPattern}`}
       </div>
+      {latestResult.failed > 0 && latestResult.retry && onRetry && (
+        <button
+          type="button"
+          aria-label="Retry failed batch items"
+          onClick={() => onRetry(latestResult)}
+          style={{ alignSelf: 'flex-start', padding: '6px 10px', border: `1px solid ${borderColor}`, borderRadius: '3px', backgroundColor: inputBg, color: textColor, cursor: 'pointer', fontSize: '10px' }}
+        >
+          Retry failed ({latestResult.failed})
+        </button>
+      )}
 
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>

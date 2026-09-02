@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { PropertiesDto, UIState } from './types';
 import { DEFAULT_SHORTCUT_BINDINGS, ShortcutBindings } from '../lib/shortcuts';
+import type { BatchTask } from '../lib/batch';
+import type { MoleculeDto } from './types';
 
 export interface BatchItemSummary {
   index: number;
@@ -33,6 +35,7 @@ export interface BatchResultSummary {
   provenance: BatchProvenance;
   cancelled?: boolean;
   items: BatchItemSummary[];
+  retry?: { task: BatchTask; molecules: MoleculeDto[] };
 }
 
 interface UIStoreState extends UIState {
@@ -85,7 +88,7 @@ interface UIStoreState extends UIState {
     resultHash: string,
     errors: string[],
     provenance: BatchProvenance,
-    details?: { cancelled: boolean; items: BatchItemSummary[] }
+    details?: { cancelled: boolean; items: BatchItemSummary[]; retry?: BatchResultSummary['retry'] }
   ) => void;
   setShortcutBindings: (bindings: ShortcutBindings) => void;
   resetShortcutBindings: () => void;

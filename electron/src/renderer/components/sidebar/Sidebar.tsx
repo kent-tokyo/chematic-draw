@@ -13,8 +13,9 @@ import { PropertyPredictionPanel } from './PropertyPredictionPanel';
 import { MechanismPanel } from './MechanismPanel';
 import { DatabaseSearchPanel } from './DatabaseSearchPanel';
 import { Viewer3DPanel } from './Viewer3DPanel';
+import type { BatchResultSummary } from '../../store/uiStore';
 
-export function Sidebar() {
+export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultSummary) => void }) {
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
   const sidebarWidth = useUIStore((s) => s.sidebarWidth);
   const activeSidebarPanel = useUIStore((s) => s.activeSidebarPanel);
@@ -156,7 +157,7 @@ export function Sidebar() {
         {activeSidebarPanel === 'inspector' && <InspectorPanel />}
         {activeSidebarPanel === 'templates' && <TemplatesPanel />}
         {activeSidebarPanel === 'reactions' && <ReactionPanel />}
-        {activeSidebarPanel === 'batch-results' && <BatchResultPanel results={batchResults} />}
+        {activeSidebarPanel === 'batch-results' && <BatchResultPanel results={batchResults} onRetry={onRetryBatch} />}
         {activeSidebarPanel === 'stereoisomers' && <StereoisomerPanel />}
         {activeSidebarPanel === 'lipinski' && <LipinskiPanel />}
         {activeSidebarPanel === 'properties' && <PropertyPredictionPanel />}

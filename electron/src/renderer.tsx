@@ -7,7 +7,7 @@ import { ContextMenu } from './renderer/components/menu/ContextMenu';
 import { ShortcutsModal } from './renderer/components/modals/ShortcutsModal';
 import { UndoTimelineModal } from './renderer/components/modals/UndoTimeline';
 import { BatchProcessDialog, BatchConfig } from './renderer/components/modals/BatchProcessDialog';
-import { useUIStore } from './renderer/store/uiStore';
+import { BatchResultSummary, useUIStore } from './renderer/store/uiStore';
 import * as batchLib from './renderer/lib/batch';
 import { useMoleculeStore } from './renderer/store/moleculeStore';
 import { useCanvasStore } from './renderer/store/canvasStore';
@@ -521,6 +521,7 @@ function App() {
       };
       addBatchResult(config.operation, result.processed, result.failed, result.skipped, result.resultHash, result.errors, provenance, {
         cancelled: result.cancelled,
+        retry: { task, molecules: [molecule] },
         items: result.items.map(({ index, status, warnings, error, input, output }) => ({
           index,
           status: status === 'succeeded' || status === 'failed' || status === 'skipped' || status === 'cancelled'
@@ -570,6 +571,38 @@ function App() {
       });
     }
     hideModal('batch');
+  };
+
+  const handleRetryBatch = async (previous: BatchResultSummary) => {
+    if (!previous.retry) return;
+    setStatus(`Retrying ${previous.failed} failed batch item${previous.failed === 1 ? '' : 's'}...`);
+    try {
+      const result = await batchLib.retryFailedBatchItems(previous.retry.molecules, previous.retry.task, {
+        processed: 0, failed: previous.failed, skipped: previous.skipped, resultHash: previous.resultHash,
+        molecules: [], errors: previous.errors, items: previous.items.map((item) => ({
+          index: item.index, status: item.status, input: previous.retry!.molecules[item.index], warnings: item.warnings, error: item.error,
+        })), cancelled: previous.cancelled ?? false,
+      });
+      const task = previous.retry.task;
+      addBatchResult(task.operation, result.processed, result.failed, result.skipped, result.resultHash, result.errors, previous.provenance, {
+        cancelled: result.cancelled,
+        retry: previous.retry,
+        items: result.items.map(({ index, status, warnings, error, input, output }) => ({
+          index,
+          status: status === 'succeeded' || status === 'failed' || status === 'skipped' || status === 'cancelled' ? status : 'cancelled',
+          warnings, error, inputAtomCount: input.atoms.length, inputBondCount: input.bonds.length,
+          outputAtomCount: output?.atoms.length, outputBondCount: output?.bonds.length,
+          properties: output?.properties && { formula: output.properties.formula, molecular_weight: output.properties.molecular_weight, logp: output.properties.logp, tpsa: output.properties.tpsa },
+        })),
+      });
+      if (result.molecules.length > 0) {
+        pushUndo();
+        setMolecule(result.molecules[0]);
+      }
+      setStatus(`Batch retry complete: ${result.processed} processed, ${result.failed} failed`);
+    } catch (err) {
+      setStatus(`Batch retry failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
   };
 
   const toolButtons: Array<{ tool: Tool; label: string; key: string; ariaLabel: string }> = [
@@ -701,7 +734,7 @@ function App() {
         {wasmStatus === 'ready' && (
           <>
             <MoleculeCanvas />
-            <Sidebar />
+            <Sidebar onRetryBatch={handleRetryBatch} />
           </>
         )}
         {(wasmStatus === 'idle' || wasmStatus === 'loading') && (
