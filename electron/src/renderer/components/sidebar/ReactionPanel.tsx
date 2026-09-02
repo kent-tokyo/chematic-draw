@@ -5,7 +5,7 @@ import { executeReaction, SMIRKS_TEMPLATES } from '../../lib/reactions';
 import { useReactionSchemeStore } from '../../store/reactionSchemeStore';
 import { MechanismStep, ReactionCondition } from '../../store/types';
 import { exportSchemeAsJSON, importSchemeFromJSON, exportSchemeAsSVG, exportSchemeAsCSV } from '../../lib/schemeExport';
-import { exportRxn, importRxn, rxnV2000Losses } from '../../lib/rxnExport';
+import { exportRxn, importRxn, rxnSchemeV2000Losses, rxnV2000Losses } from '../../lib/rxnExport';
 import * as wasmBridge from '../../wasm/wasmBridge';
 import { exportLossMessage, exportLosses } from '../../lib/exportLoss';
 
@@ -191,8 +191,9 @@ export function ReactionPanel() {
     const step = scheme.steps[0];
     const reactants = scheme.steps.flatMap((currentStep) => currentStep.reactants);
     const products = scheme.steps.length === 1 ? scheme.steps[0].products : [];
-    if (scheme.steps.length !== 1) {
-      setStatus('RXN export supports one authored step; use JSON for multi-step schemes');
+    const stepLosses = rxnSchemeV2000Losses(scheme.steps.length);
+    if (stepLosses.length > 0) {
+      setStatus(stepLosses[0].message);
       return;
     }
     const semanticLosses = rxnV2000Losses({

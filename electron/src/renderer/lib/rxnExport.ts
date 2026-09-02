@@ -8,7 +8,7 @@ export interface RxnDocument {
   productCoefficients?: number[];
 }
 
-export type RxnV2000LossCode = 'agents' | 'coefficients';
+export type RxnV2000LossCode = 'agents' | 'coefficients' | 'multi-step';
 
 export interface RxnV2000Loss {
   code: RxnV2000LossCode;
@@ -25,6 +25,10 @@ export function rxnV2000Losses(document: RxnDocument): RxnV2000Loss[] {
     losses.push({ code: 'coefficients', message: 'RXN V2000 cannot preserve stoichiometric coefficients; export reaction-document JSON v2 instead.' });
   }
   return losses;
+}
+
+export function rxnSchemeV2000Losses(stepCount: number): RxnV2000Loss[] {
+  return stepCount === 1 ? [] : [{ code: 'multi-step', message: 'RXN V2000 cannot preserve multiple reaction-step boundaries; export reaction-document JSON v2 instead.' }];
 }
 
 type MolWriter = (molecule: MoleculeDto) => string;
