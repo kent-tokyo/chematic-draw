@@ -225,27 +225,28 @@ interface UIStoreState {
     | 'inspector' | 'templates' | 'chat' | 'research' | 'reactions'
     | 'batch-results' | 'stereoisomers' | 'lipinski' | 'properties'
     | 'mechanism' | 'database' | '3d';
-  selectedAtomForInspector: AtomDto | null;
-  selectedBondForInspector: BondDto | null;
+  selectedAtomIdForInspector: number | null;
+  selectedBondIdForInspector: number | null;
   contextMenu: { visible: boolean; x: number; y: number; atomId?: number; bondId?: number } | null;
   showShortcutsModal: boolean;
   showUndoModal: boolean;
   showBatchDialog: boolean;
-  batchResults: Array<{ operation: string; processed: number; failed: number; errors: string[]; timestamp: number }>;
+  batchResults: Array<BatchResultSummary>;
   // + setTheme, setActiveSidebarPanel, setSelectedAtomForInspector,
   //   showContextMenu/hideContextMenu, showModal/hideModal,
   //   setStatus/clearStatus, addBatchResult, ...
 }
 ```
 
-**A real, currently-unresolved quirk worth knowing:** `selectedAtomForInspector`
-is only ever set by `useContextMenu.ts`'s right-click handler — plain
-left-click atom selection goes through `moleculeStore.selectAtom` instead
-(a different, purely-visual mechanism the Inspector panel doesn't read).
-Net effect: the Inspector tab can only show atom details after a
-right-click on that atom (even if you immediately dismiss the menu), and
-even then `selectedAtomForInspector` is a snapshot taken at click time, not
-a live reference, so it goes stale until the next right-click.
+`BatchResultSummary` retains per-item status, compact before/after counts,
+provenance, and the original retry payload. The Batch Result panel can retry
+failed items once at a time; the control is disabled while the async retry is
+running and successful output is committed through the normal undo boundary.
+
+The inspector stores atom and bond IDs and derives the selected objects from
+the current molecule. This keeps left-click and context-menu selection on the
+same path and prevents displayed inspector values from becoming stale after an
+edit.
 
 #### 4. **mechanismStore**
 Electron-pushing-arrow drawing state: the arrow list, click-source→click-sink

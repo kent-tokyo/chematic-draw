@@ -14,7 +14,8 @@ ChemDoodle, Ketcher, or ChemSketch.
 - Properties, Lipinski checks, stereoisomer enumeration, and SMARTS search
 - 3D viewer with rotation, zoom, and XYZ export
 - Authored reaction schemes and mechanism arrows with verification diagnostics
-- Batch processing with per-item results, filtering, progress, and cancellation
+- Batch processing with per-item results, filtering, progress, cancellation,
+  and failed-item retry
 - SMILES, MOL V2000/V3000, SDF, and CML import/export; CDXML import only
 - SVG, PNG, and PDF drawing export
 - PubChem lookup by generated InChIKey (network access is required)
