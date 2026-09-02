@@ -7,6 +7,8 @@ export interface ExtendedProperties { sa_score: number; esol_solubility: number;
 export interface Fingerprint { hex: string; kind: string; radius: number; bit_length: number; mode: string; }
 export interface McsResult { common_atoms: number[]; common_bonds: number[]; similarity: number; search_budget_ms: number; }
 export interface StereoAssignment { atom_id: number; code: 'R' | 'S' | 'E' | 'Z' | 'LowerR' | 'LowerS'; }
+export interface Atom3d { id: number; element: string; x: number; y: number; z: number; }
+export interface Coords3d { atoms: Atom3d[]; }
 export type ReactionRunResult =
   | { status: 'applied'; products: Molecule[] }
   | { status: 'no_match' }

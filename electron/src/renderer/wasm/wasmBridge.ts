@@ -1,8 +1,8 @@
 import * as wasmModule from './pkg';
 import { MoleculeDto, PropertiesDto } from '../store/types';
 import type { ExtendedProperties, Fingerprint } from '../../../../packages/chematic-contract/src/index';
-import type { McsResult, ReactionRunResult as ContractReactionRunResult, StereoAssignment } from '../../../../packages/chematic-contract/src/index';
-export type { ExtendedProperties as ExtendedPropertiesDto, Fingerprint as FingerprintDto, McsResult, ReactionRunResult as ContractReactionRunResult, StereoAssignment } from '../../../../packages/chematic-contract/src/index';
+import type { Atom3d, Coords3d, McsResult, ReactionRunResult as ContractReactionRunResult, StereoAssignment } from '../../../../packages/chematic-contract/src/index';
+export type { Atom3d, Coords3d, ExtendedProperties as ExtendedPropertiesDto, Fingerprint as FingerprintDto, McsResult, ReactionRunResult as ContractReactionRunResult, StereoAssignment } from '../../../../packages/chematic-contract/src/index';
 
 /**
  * WASM module lifecycle. Every WASM-calling function in this file assumes
@@ -305,17 +305,8 @@ export function findMcs(molA: MoleculeDto, molB: MoleculeDto): McsResultDto {
  * 3D Molecular Geometry (chematic 0.1.40+)
  */
 
-export interface Atom3dDto {
-  id: number;
-  element: string;
-  x: number;
-  y: number;
-  z: number;
-}
-
-export interface Coords3dDto {
-  atoms: Atom3dDto[];
-}
+export type Atom3dDto = Atom3d;
+export type Coords3dDto = Coords3d;
 
 /**
  * Generate initial 3D coordinates using distance geometry.
