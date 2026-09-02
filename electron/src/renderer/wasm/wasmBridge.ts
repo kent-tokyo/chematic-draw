@@ -1,5 +1,7 @@
 import * as wasmModule from './pkg';
 import { MoleculeDto, PropertiesDto } from '../store/types';
+import type { ExtendedProperties, Fingerprint } from '../../../../packages/chematic-contract/src/index';
+export type { ExtendedProperties as ExtendedPropertiesDto, Fingerprint as FingerprintDto } from '../../../../packages/chematic-contract/src/index';
 
 /**
  * WASM module lifecycle. Every WASM-calling function in this file assumes
@@ -211,17 +213,8 @@ export function inchiToInchikey(inchi: string): string {
 /**
  * Get extended properties: sa_score, esol, fsp3, pains, stereocenters.
  */
-export interface ExtendedPropertiesDto {
-  sa_score: number;
-  esol_solubility: number;
-  fsp3: number;
-  pains_violations: boolean;
-  num_stereocenters: number;
-  num_unspecified_stereocenters: number;
-}
-
-export function getExtendedProperties(mol: MoleculeDto): ExtendedPropertiesDto {
-  return wasmModule.get_extended_properties(mol) as ExtendedPropertiesDto;
+export function getExtendedProperties(mol: MoleculeDto): ExtendedProperties {
+  return wasmModule.get_extended_properties(mol) as ExtendedProperties;
 }
 
 /**
@@ -236,23 +229,13 @@ export function getFingerprint(mol: MoleculeDto): string {
  * chematic's own `EcfpConfig` (see chem-wasm's `FingerprintDto`) rather than
  * assumed from the "ECFP4" name.
  */
-export interface FingerprintDto {
-  hex: string;
-  /** Algorithm identifier, e.g. "ECFP4". */
-  kind: string;
-  radius: number;
-  bit_length: number;
-  /** "bit": each position is a 0/1 presence flag, not an occurrence count. */
-  mode: string;
-}
-
 /**
  * Get the ECFP4 fingerprint together with its real algorithm parameters. Use this
  * over `getFingerprint` when the caller needs to know/display what was actually
  * computed (radius, bit length, bit-vs-count mode) rather than just a hex blob.
  */
-export function getFingerprintWithMetadata(mol: MoleculeDto): FingerprintDto {
-  return wasmModule.get_fingerprint_with_metadata(mol) as FingerprintDto;
+export function getFingerprintWithMetadata(mol: MoleculeDto): Fingerprint {
+  return wasmModule.get_fingerprint_with_metadata(mol) as Fingerprint;
 }
 
 /**

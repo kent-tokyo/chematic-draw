@@ -3,6 +3,8 @@ export interface MoleculeAtom { id: number; element: string; x: number; y: numbe
 export interface MoleculeBond { id: number; from: number; to: number; order: number; stereo: number; selected?: boolean; }
 export interface Molecule { atoms: MoleculeAtom[]; bonds: MoleculeBond[]; }
 export interface Properties { formula: string; atom_count: number; bond_count: number; molecular_weight: number; logp: number; tpsa: number; hba: number; hbd: number; rotatable_bonds: number; lipinski_pass: boolean; valence_errors: string[]; ring_count: number; }
+export interface ExtendedProperties { sa_score: number; esol_solubility: number; fsp3: number; pains_violations: boolean; num_stereocenters: number; num_unspecified_stereocenters: number; }
+export interface Fingerprint { hex: string; kind: string; radius: number; bit_length: number; mode: string; }
 export interface QueryAtomConstraint { elements?: string[]; wildcard?: boolean; charge?: number; isotope?: number; aromatic?: boolean; valence?: number; hydrogens?: number; ring?: boolean; }
 export interface QueryAtom { id: number; x: number; y: number; constraint: QueryAtomConstraint; }
 export interface QueryBond { id: number; from: number; to: number; constraint: { order: string }; }
