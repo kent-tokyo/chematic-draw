@@ -131,6 +131,11 @@ export interface MechanismStep {
   products: MoleculeDto[];
   /** Non-participating molecules retained by the versioned reaction document. */
   agents?: MoleculeDto[];
+  reactantComponentIds?: string[];
+  productComponentIds?: string[];
+  agentComponentIds?: string[];
+  authored?: boolean;
+  derivedFrom?: string;
   /** Positive integer stoichiometric coefficients aligned with molecule arrays. */
   reactantCoefficients?: number[];
   productCoefficients?: number[];

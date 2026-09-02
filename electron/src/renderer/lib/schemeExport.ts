@@ -130,6 +130,11 @@ export function importSchemeFromJSON(jsonString: string): ReactionSchemeContext 
       for (const [coefficients, expectedLength] of [[step.reactantCoefficients, step.reactants.length], [step.productCoefficients, step.products.length]] as const) {
         if (coefficients !== undefined && (coefficients.length !== expectedLength || coefficients.some((coefficient) => !Number.isInteger(coefficient) || coefficient < 1 || coefficient > 1_000_000))) return true;
       }
+      for (const [ids, expectedLength] of [[step.reactantComponentIds, step.reactants.length], [step.productComponentIds, step.products.length], [step.agentComponentIds, (step.agents ?? []).length]] as const) {
+        if (ids !== undefined && (ids.length !== expectedLength || new Set(ids).size !== ids.length || ids.some((id) => typeof id !== 'string' || id.length === 0 || id.length > 256))) return true;
+      }
+      if (step.authored !== undefined && typeof step.authored !== 'boolean') return true;
+      if (step.derivedFrom !== undefined && (typeof step.derivedFrom !== 'string' || step.derivedFrom.length === 0 || step.derivedFrom.length > 256)) return true;
       const atomIds = new Set(molecules.flatMap((molecule) => molecule.atoms.map((atom) => atom.id)));
       return step.arrows.some((arrow) => !arrow
         || typeof arrow.id !== 'string' || arrow.id.length === 0 || arrow.id.length > 256

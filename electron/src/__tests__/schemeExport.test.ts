@@ -54,8 +54,13 @@ describe('versioned reaction document JSON', () => {
         reactants: [molecule('C')],
         products: [molecule('O')],
         agents: [molecule('N')],
+        reactantComponentIds: ['reactant-1'],
+        productComponentIds: ['product-1'],
+        agentComponentIds: ['agent-1'],
         reactantCoefficients: [2],
         productCoefficients: [1],
+        authored: true,
+        derivedFrom: 'step-source-1',
       }],
     };
     const exported = JSON.parse(exportSchemeAsJSON(v2Scheme, null, null, null));
@@ -66,6 +71,12 @@ describe('versioned reaction document JSON', () => {
   it('rejects v2 coefficient arrays that do not align with molecule arrays', () => {
     const exported = JSON.parse(exportSchemeAsJSON(scheme, null, null, null));
     exported.scheme.steps[0].reactantCoefficients = [0];
+    expect(importSchemeFromJSON(JSON.stringify(exported))).toBeNull();
+  });
+
+  it('rejects duplicate or misaligned v2 component IDs', () => {
+    const exported = JSON.parse(exportSchemeAsJSON(scheme, null, null, null));
+    exported.scheme.steps[0].reactantComponentIds = ['a', 'a'];
     expect(importSchemeFromJSON(JSON.stringify(exported))).toBeNull();
   });
 
