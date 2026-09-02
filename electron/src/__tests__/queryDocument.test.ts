@@ -21,6 +21,12 @@ describe('query document contract', () => {
     expect(() => queryDocumentToMolecule(query)).toThrow(/Markush\/polymer/);
   });
 
+  it('validates typed Markush and polymer references', () => {
+    const query = { ...queryDocumentFromMolecule(molecule), markush: [{ id: 'R1', label: 'R', attachmentAtomIds: [1], allowedSubstituentSmarts: ['C', 'N'] }], polymers: [{ id: 'poly-1', repeatUnitAtomIds: [1], linkageBondIds: [], attachmentAtomIds: [1] }] };
+    expect(validateQueryDocument(query)).toEqual([]);
+    expect(() => queryDocumentToMolecule(query)).toThrow(/Markush\/polymer/);
+  });
+
   it('writes a deterministic SMARTS subset and rejects disconnected queries', () => {
     const query = queryDocumentFromMolecule({ atoms: [{ id: 1, element: 'C', x: 0, y: 0, charge: 0, atom_map: 0 }, { id: 2, element: 'O', x: 1, y: 0, charge: 0, atom_map: 0 }], bonds: [{ id: 1, from: 1, to: 2, order: 1, stereo: 0 }] });
     expect(queryDocumentToSmarts(query)).toBe('C-O');

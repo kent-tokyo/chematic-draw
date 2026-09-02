@@ -40,6 +40,23 @@ export interface QueryDocument {
   bonds: QueryBond[];
   /** Explicitly preserved constructs that this editor cannot interpret. */
   opaque?: Array<{ kind: 'markush' | 'polymer' | 'smarts-token'; raw: string }>;
+  markush?: MarkushDefinition[];
+  polymers?: PolymerDefinition[];
+}
+
+export interface MarkushDefinition {
+  id: string;
+  label: string;
+  attachmentAtomIds: number[];
+  allowedSubstituentSmarts: string[];
+}
+
+export interface PolymerDefinition {
+  id: string;
+  repeatUnitAtomIds: number[];
+  linkageBondIds: number[];
+  attachmentAtomIds: number[];
+  endGroups?: { left?: string; right?: string };
 }
 
 export type QueryValidationError = { code: 'invalid' | 'unsupported'; path: string; message: string };
@@ -71,6 +88,12 @@ export function validateQueryDocument(document: QueryDocument): QueryValidationE
     bondIds.add(bond.id);
   }
   for (const [index, opaque] of (document.opaque ?? []).entries()) if (!['markush', 'polymer', 'smarts-token'].includes(opaque.kind) || typeof opaque.raw !== 'string' || opaque.raw.length > 10_000) errors.push({ code: 'unsupported', path: `opaque.${index}`, message: 'Opaque special-chemistry data is invalid' });
+  for (const [index, definition] of (document.markush ?? []).entries()) {
+    if (!definition.id || !definition.label || !Array.isArray(definition.attachmentAtomIds) || !Array.isArray(definition.allowedSubstituentSmarts) || definition.allowedSubstituentSmarts.length === 0 || definition.attachmentAtomIds.some((id) => !atomIds.has(id)) || definition.allowedSubstituentSmarts.some((pattern) => typeof pattern !== 'string' || pattern.length === 0)) errors.push({ code: 'unsupported', path: `markush.${index}`, message: 'Markush definition requires attachment atoms and allowed SMARTS substituents' });
+  }
+  for (const [index, definition] of (document.polymers ?? []).entries()) {
+    if (!definition.id || !Array.isArray(definition.repeatUnitAtomIds) || definition.repeatUnitAtomIds.length === 0 || !Array.isArray(definition.linkageBondIds) || !Array.isArray(definition.attachmentAtomIds) || definition.repeatUnitAtomIds.some((id) => !atomIds.has(id)) || definition.linkageBondIds.some((id) => !bondIds.has(id)) || definition.attachmentAtomIds.some((id) => !atomIds.has(id))) errors.push({ code: 'unsupported', path: `polymers.${index}`, message: 'Polymer definition requires repeat-unit, linkage, and attachment references' });
+  }
   return errors;
 }
 
@@ -85,7 +108,7 @@ export function queryDocumentFromMolecule(molecule: MoleculeDto): QueryDocument 
 export function queryDocumentToMolecule(document: QueryDocument): MoleculeDto {
   const errors = validateQueryDocument(document);
   if (errors.length) throw new Error(`Query document cannot be converted without loss: ${errors.map((e) => e.message).join('; ')}`);
-  if (document.opaque?.length) throw new Error('Query document contains Markush/polymer/opaque SMARTS constructs; preserve the query document instead of exporting as a molecule');
+  if (document.opaque?.length || document.markush?.length || document.polymers?.length) throw new Error('Query document contains Markush/polymer/opaque SMARTS constructs; preserve the query document instead of exporting as a molecule');
   if (document.atoms.some((atom) => atom.constraint.elements?.length !== 1 || atom.constraint.wildcard || atom.constraint.aromatic !== undefined || atom.constraint.valence !== undefined || atom.constraint.ring !== undefined)) throw new Error('Query atom constraints cannot be represented by a concrete molecule');
   if (document.bonds.some((bond) => !['single', 'double', 'triple', 'aromatic'].includes(bond.constraint.order))) throw new Error('Query bond constraint cannot be represented by a concrete molecule');
   return { atoms: document.atoms.map((a) => ({ id: a.id, element: a.constraint.elements![0], x: a.x, y: a.y, charge: a.constraint.charge ?? 0, atom_map: 0, isotope: a.constraint.isotope, hydrogen_count: a.constraint.hydrogens })), bonds: document.bonds.map((b) => ({ id: b.id, from: b.from, to: b.to, order: ({ single: 1, double: 2, triple: 3, aromatic: 4 } as const)[b.constraint.order], stereo: 0 })) };
@@ -97,7 +120,7 @@ export function queryDocumentToMolecule(document: QueryDocument): MoleculeDto {
 export function queryDocumentToSmarts(document: QueryDocument): string {
   const errors = validateQueryDocument(document);
   if (errors.length) throw new Error(`Invalid query document: ${errors.map((e) => e.message).join('; ')}`);
-  if (document.opaque?.length) throw new Error('Markush/polymer/opaque SMARTS constructs require query JSON preservation');
+  if (document.opaque?.length || document.markush?.length || document.polymers?.length) throw new Error('Markush/polymer/opaque SMARTS constructs require query JSON preservation');
   if (document.bonds.length !== Math.max(0, document.atoms.length - 1)) throw new Error('SMARTS subset writer only supports a single connected linear query');
   const atomText = document.atoms.map((atom) => {
     const c = atom.constraint;

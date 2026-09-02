@@ -1,5 +1,5 @@
 /** @jest-environment node */
-import { exportCdxml } from '../renderer/lib/cdxmlExport';
+import { exportCdxml, exportCdxmlDocument } from '../renderer/lib/cdxmlExport';
 import type { MoleculeDto } from '../renderer/store/types';
 
 const molecule: MoleculeDto = {
@@ -11,6 +11,14 @@ const molecule: MoleculeDto = {
 };
 
 describe('CDXML writer', () => {
+  it('writes multiple pages with labels, text, arrows, and stereo attributes', () => {
+    const xml = exportCdxmlDocument({ pages: [{ id: 'p1', title: 'Page 1', width: 612, height: 792, molecule: { atoms: [{ id: 1, element: 'C', x: 1, y: 2, charge: 0, atom_map: 0, display_label: 'Me' }], bonds: [] }, text: [{ id: 'note', x: 3, y: 4, value: 'A & B' }], arrows: [{ id: 'a1', x1: 0, y1: 0, x2: 10, y2: 10, label: 'heat' }] }, { id: 'p2', molecule: { atoms: [], bonds: [] } }] });
+    expect(xml.match(/<page /g)).toHaveLength(2);
+    expect(xml).toContain('Width="612"');
+    expect(xml).toContain('Label="A &amp; B"');
+    expect(xml).toContain('<arrow');
+    expect(xml).toContain('Label="Me"');
+  });
   it('round-trips the supported corpus through the real CDXML parser', () => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const wasm = require('../renderer/wasm/pkg-node/chem_wasm') as { parse_any: (text: string) => MoleculeDto };
