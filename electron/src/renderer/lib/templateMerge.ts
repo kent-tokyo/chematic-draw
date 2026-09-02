@@ -1,4 +1,4 @@
-import { MoleculeDto, AtomDto, BondDto } from '../store/types';
+import { MoleculeDto } from '../store/types';
 
 export function mergeTemplateIntoMolecule(baseMol: MoleculeDto, templateMol: MoleculeDto, offsetX: number = 0, offsetY: number = 0): MoleculeDto {
   // Find max ID in base molecule

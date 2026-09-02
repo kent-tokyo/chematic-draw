@@ -1,4 +1,4 @@
-import { AtomDto, MoleculeDto, MechanismArrow } from '../store/types';
+import { MoleculeDto, MechanismArrow } from '../store/types';
 import type { ArrowPath, GeometryCanvasState } from '../../../../packages/chematic-contract/src/index';
 export type { ArrowPath, GeometryCanvasState as CanvasState } from '../../../../packages/chematic-contract/src/index';
 

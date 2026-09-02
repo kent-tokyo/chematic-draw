@@ -1,4 +1,4 @@
-import { ReactionSchemeContext, MoleculeDto } from '../store/types';
+import { ReactionSchemeContext } from '../store/types';
 import { MechanismStep } from '../store/types';
 import type { SchemeLayout as ContractSchemeLayout, StepBox as ContractStepBox, StepArrow as ContractStepArrow } from '../../../../packages/chematic-contract/src/index';
 export type { SchemeLayout, StepBox, StepArrow } from '../../../../packages/chematic-contract/src/index';

@@ -1,5 +1,5 @@
 import { MoleculeDto } from '../store/types';
-import type { CdxmlDocument as ContractCdxmlDocument, CdxmlPage as ContractCdxmlPage } from '../../../../packages/chematic-contract/src/index';
+import type { CdxmlDocument as ContractCdxmlDocument } from '../../../../packages/chematic-contract/src/index';
 export type { CdxmlDocument, CdxmlPage, CdxmlText, CdxmlArrow } from '../../../../packages/chematic-contract/src/index';
 
 const ELEMENT_ATOMIC_NUMBERS: Record<string, number> = {
@@ -12,7 +12,6 @@ function escapeXml(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-type CdxmlPage = ContractCdxmlPage;
 type CdxmlDocument = ContractCdxmlDocument;
 
 function writeFragment(molecule: MoleculeDto): string {

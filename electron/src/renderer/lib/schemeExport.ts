@@ -1,4 +1,4 @@
-import { ReactionSchemeContext, MechanismStep, MoleculeDto, AtomMapping, ReactionClassification, GreenChemistryMetrics } from '../store/types';
+import { ReactionSchemeContext, MoleculeDto, AtomMapping, ReactionClassification, GreenChemistryMetrics } from '../store/types';
 import { SchemeLayout } from './schemeLayout';
 import { diagnoseReactionScheme, ReactionDiagnostics } from './reactionSchemeUtils';
 import { validateMoleculeDocument } from './documentCommands';
