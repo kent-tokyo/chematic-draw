@@ -95,6 +95,13 @@ export async function processBatch(
 ): Promise<ProcessResult> {
   const taskErrors = validateBatchTask(task);
   if (taskErrors.length > 0) throw new Error(`Invalid batch task: ${taskErrors.join('; ')}`);
+  if (
+    options.indices !== undefined &&
+    (new Set(options.indices).size !== options.indices.length ||
+      options.indices.some((index) => !Number.isInteger(index) || index < 0 || index >= molecules.length))
+  ) {
+    throw new Error('Invalid batch item index');
+  }
   const results: ProcessResult = {
     processed: 0,
     failed: 0,

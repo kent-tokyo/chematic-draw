@@ -120,6 +120,13 @@ describe('batch processing review results', () => {
       .rejects.toThrow('Invalid failed-item index for retry');
   });
 
+  it('rejects invalid direct process indexes instead of silently dropping entries', async () => {
+    await expect(processBatch([molecule(1)], { operation: 'convert' }, { indices: [1] }))
+      .rejects.toThrow('Invalid batch item index');
+    await expect(processBatch([molecule(1)], { operation: 'convert' }, { indices: [0, 0] }))
+      .rejects.toThrow('Invalid batch item index');
+  });
+
   it('records filtered items as skipped with an explicit warning', async () => {
     (wasmBridge.getProperties as jest.Mock).mockReturnValue({ molecular_weight: 50, logp: 0 });
     const result = await processBatch([molecule(1)], { operation: 'filter', filterOptions: { minMW: 100 } });
