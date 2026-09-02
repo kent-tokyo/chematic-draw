@@ -22,7 +22,8 @@ export function parseCdxmlDocument(xml: string): CdxmlDocument {
     const text = [...body.matchAll(/<t\s+([^>]*)\/>/g)].map((match) => { const a = attrs(match[1]); const [x, y] = numberPair(a.p); return { id: a.id, x, y, value: a.Label ?? '' }; }).filter((item) => !item.id.endsWith('-title'));
     const title = [...body.matchAll(/<t\s+([^>]*)\/>/g)].map((match) => attrs(match[1])).find((a) => a.id === `${pageAttrs.id}-title`)?.Label;
     const arrows = [...body.matchAll(/<arrow\s+([^>]*)\/>/g)].map((match) => { const a = attrs(match[1]); const [x1, y1] = numberPair(a.Begin); const [x2, y2] = numberPair(a.End); return { id: a.id, x1, y1, x2, y2, label: a.Label }; });
-    pages.push({ id: pageAttrs.id || `page-${index + 1}`, molecule: { atoms, bonds }, ...(title !== undefined ? { title } : {}), ...(pageAttrs.Width ? { width: Number(pageAttrs.Width) } : {}), ...(pageAttrs.Height ? { height: Number(pageAttrs.Height) } : {}), ...(text.length ? { text } : {}), ...(arrows.length ? { arrows } : {}) });
+    const attributes = Object.fromEntries(Object.entries(pageAttrs).filter(([key]) => !['id', 'Width', 'Height'].includes(key)));
+    pages.push({ id: pageAttrs.id || `page-${index + 1}`, molecule: { atoms, bonds }, ...(title !== undefined ? { title } : {}), ...(pageAttrs.Width ? { width: Number(pageAttrs.Width) } : {}), ...(pageAttrs.Height ? { height: Number(pageAttrs.Height) } : {}), ...(text.length ? { text } : {}), ...(arrows.length ? { arrows } : {}), ...(Object.keys(attributes).length ? { attributes } : {}) });
   }
   return { pages };
 }

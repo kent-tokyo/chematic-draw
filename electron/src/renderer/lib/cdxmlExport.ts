@@ -18,6 +18,8 @@ export interface CdxmlPage {
   height?: number;
   text?: Array<{ id: string; x: number; y: number; value: string }>;
   arrows?: Array<{ id: string; x1: number; y1: number; x2: number; y2: number; label?: string }>;
+  /** Unknown upstream page attributes are retained for loss-aware round-trip. */
+  attributes?: Record<string, string>;
 }
 
 export interface CdxmlDocument { pages: CdxmlPage[]; }
@@ -49,7 +51,7 @@ function writeFragment(molecule: MoleculeDto): string {
 export function exportCdxmlDocument(document: CdxmlDocument): string {
   if (!document.pages.length) throw new Error('CDXML document must contain at least one page');
   const pages = document.pages.map((page) => {
-    const attrs = [`id="${escapeXml(page.id)}"`];
+    const attrs = [`id="${escapeXml(page.id)}"`, ...Object.entries(page.attributes ?? {}).map(([key, value]) => `${key}="${escapeXml(value)}"`)];
     if (page.width !== undefined) attrs.push(`Width="${page.width}"`);
     if (page.height !== undefined) attrs.push(`Height="${page.height}"`);
     const title = page.title ? `<t id="${escapeXml(`${page.id}-title`)}" p="0 0" Label="${escapeXml(page.title)}"/>` : '';

@@ -83,6 +83,21 @@ jobs:
             echo "WIN_CSC_LINK=$RUNNER_TEMP/chematic-draw-signing.pfx" >> "$GITHUB_ENV"
           fi
 
+      - name: Verify release signing credentials
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          RUNNER_OS: ${{ runner.os }}
+          GITHUB_REF: ${{ github.ref }}
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: ./scripts/verify-signing-env.sh
+
       - name: Prepare macOS signing certificate
         if: runner.os == 'macOS'
         shell: bash
