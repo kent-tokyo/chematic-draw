@@ -599,8 +599,8 @@ When reporting a bug, include:
 
 ```markdown
 **OS:** macOS 13.5
-**Version:** chematic-draw 0.2.0
-**Browser:** Chrome 120
+**Version:** chematic-draw 0.9.0
+**Runtime:** Electron (pinned version in `electron/package.json`)
 
 **Steps to Reproduce:**
 1. Load benzene (c1ccccc1)
