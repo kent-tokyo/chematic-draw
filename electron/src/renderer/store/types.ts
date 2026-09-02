@@ -129,6 +129,11 @@ export interface MechanismStep {
   id: string;
   reactants: MoleculeDto[];
   products: MoleculeDto[];
+  /** Non-participating molecules retained by the versioned reaction document. */
+  agents?: MoleculeDto[];
+  /** Positive integer stoichiometric coefficients aligned with molecule arrays. */
+  reactantCoefficients?: number[];
+  productCoefficients?: number[];
   arrows: MechanismArrow[];
   mechanismType: 'sn2' | 'sn1' | 'e1' | 'e2' | 'electrophilic_addition';
   // Set by the SMIRKS/manual reaction-step flow (ReactionPanel); absent on

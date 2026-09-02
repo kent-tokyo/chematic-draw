@@ -4,7 +4,8 @@ import { diagnoseReactionScheme, ReactionDiagnostics } from './reactionSchemeUti
 import { validateMoleculeDocument } from './documentCommands';
 
 export const REACTION_DOCUMENT_SCHEMA = 'chematic-draw/reaction-document';
-export const REACTION_DOCUMENT_VERSION = 1;
+export const REACTION_DOCUMENT_VERSION = 2;
+export const LEGACY_REACTION_DOCUMENT_VERSION = 1;
 export const MAX_REACTION_DOCUMENT_TEXT_LENGTH = 10_000_000;
 export const MAX_REACTION_DOCUMENT_STEPS = 256;
 
@@ -90,7 +91,7 @@ export function importSchemeFromJSON(jsonString: string): ReactionSchemeContext 
       return null;
     }
     const isVersioned = data.schema === REACTION_DOCUMENT_SCHEMA;
-    if (data.schema && (!isVersioned || data.schema_version !== REACTION_DOCUMENT_VERSION)) {
+    if (data.schema && (!isVersioned || ![LEGACY_REACTION_DOCUMENT_VERSION, REACTION_DOCUMENT_VERSION].includes(data.schema_version))) {
       return null;
     }
     if (isVersioned && !data.provenance) return null;
@@ -123,8 +124,12 @@ export function importSchemeFromJSON(jsonString: string): ReactionSchemeContext 
         if (['temperature', 'catalyst', 'solvent', 'time', 'notes'].includes(key)) return typeof value !== 'string' || value.length > 1_024;
         return typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 100;
       })) return true;
-      const molecules = [...step.reactants, ...step.products];
+      if (step.agents !== undefined && !Array.isArray(step.agents)) return true;
+      const molecules = [...step.reactants, ...step.products, ...(step.agents ?? [])];
       if (molecules.some((molecule) => validateMoleculeDocument(molecule).length > 0)) return true;
+      for (const [coefficients, expectedLength] of [[step.reactantCoefficients, step.reactants.length], [step.productCoefficients, step.products.length]] as const) {
+        if (coefficients !== undefined && (coefficients.length !== expectedLength || coefficients.some((coefficient) => !Number.isInteger(coefficient) || coefficient < 1 || coefficient > 1_000_000))) return true;
+      }
       const atomIds = new Set(molecules.flatMap((molecule) => molecule.atoms.map((atom) => atom.id)));
       return step.arrows.some((arrow) => !arrow
         || typeof arrow.id !== 'string' || arrow.id.length === 0 || arrow.id.length > 256

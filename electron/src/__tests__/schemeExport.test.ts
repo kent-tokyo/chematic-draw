@@ -46,6 +46,29 @@ describe('versioned reaction document JSON', () => {
     expect(imported).toEqual(scheme);
   });
 
+  it('round-trips v2 agents and stoichiometric coefficients', () => {
+    const v2Scheme: ReactionSchemeContext = {
+      ...scheme,
+      steps: [{
+        ...scheme.steps[0],
+        reactants: [molecule('C')],
+        products: [molecule('O')],
+        agents: [molecule('N')],
+        reactantCoefficients: [2],
+        productCoefficients: [1],
+      }],
+    };
+    const exported = JSON.parse(exportSchemeAsJSON(v2Scheme, null, null, null));
+    expect(exported.schema_version).toBe(2);
+    expect(importSchemeFromJSON(JSON.stringify(exported))).toEqual(v2Scheme);
+  });
+
+  it('rejects v2 coefficient arrays that do not align with molecule arrays', () => {
+    const exported = JSON.parse(exportSchemeAsJSON(scheme, null, null, null));
+    exported.scheme.steps[0].reactantCoefficients = [0];
+    expect(importSchemeFromJSON(JSON.stringify(exported))).toBeNull();
+  });
+
   it('migrates the legacy unversioned envelope with safe defaults', () => {
     const legacy = JSON.stringify({
       version: '1.0',
@@ -111,3 +134,7 @@ describe('versioned reaction document JSON', () => {
     expect(importSchemeFromJSON(JSON.stringify(oversized))).toBeNull();
   });
 });
+
+function molecule(element: string) {
+  return { atoms: [{ id: 1, element, x: 0, y: 0, charge: 0, atom_map: 0 }], bonds: [] };
+}
