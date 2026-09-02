@@ -106,6 +106,20 @@ describe('batch processing review results', () => {
     expect(retry.items[0]).toMatchObject({ index: 1, status: 'failed' });
   });
 
+  it('rejects invalid or duplicate failed-item indexes during retry', async () => {
+    const previous = await processBatch([molecule(1)], { operation: 'convert' });
+    const invalidPrevious = {
+      ...previous,
+      items: [
+        { ...previous.items[0], index: 4, status: 'failed' as const },
+        { ...previous.items[0], index: 4, status: 'failed' as const },
+      ],
+    };
+
+    await expect(retryFailedBatchItems([molecule(1)], { operation: 'convert' }, invalidPrevious))
+      .rejects.toThrow('Invalid failed-item index for retry');
+  });
+
   it('records filtered items as skipped with an explicit warning', async () => {
     (wasmBridge.getProperties as jest.Mock).mockReturnValue({ molecular_weight: 50, logp: 0 });
     const result = await processBatch([molecule(1)], { operation: 'filter', filterOptions: { minMW: 100 } });

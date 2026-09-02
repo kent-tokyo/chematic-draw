@@ -182,6 +182,13 @@ export function retryFailedBatchItems(
   const indices = previous.items
     .filter((item) => item.status === 'failed')
     .map((item) => item.index);
+  const uniqueIndices = new Set(indices);
+  if (
+    uniqueIndices.size !== indices.length ||
+    indices.some((index) => !Number.isInteger(index) || index < 0 || index >= molecules.length)
+  ) {
+    return Promise.reject(new Error('Invalid failed-item index for retry'));
+  }
   return processBatch(molecules, task, { ...options, indices });
 }
 
