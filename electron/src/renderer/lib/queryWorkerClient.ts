@@ -1,7 +1,7 @@
 import { MoleculeDto } from '../store/types';
 import { QueryDocument } from './queryDocument';
-
-export interface QueryWorkerResult { pattern: string; matches: number[]; }
+export type { QueryWorkerResult } from '../../../../packages/chematic-contract/src/index';
+import type { QueryWorkerResult } from '../../../../packages/chematic-contract/src/index';
 
 /** Worker-first query execution. The query document is cloned by postMessage,
  * so callers cannot accidentally share mutable editor state with WASM. */
