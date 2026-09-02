@@ -100,6 +100,16 @@ cargo --version
 wasm-pack --version
 ```
 
+For the native differential oracle covering ECFP4 and MCS, run the Rust crate
+tests without network access:
+
+```bash
+cargo test -p chem-wasm --offline
+```
+
+The oracle compares independently derived native `chematic` results with the
+bridge's pure Rust core; it does not add a separate native desktop product.
+
 ---
 
 ## Building

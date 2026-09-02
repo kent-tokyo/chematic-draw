@@ -1441,6 +1441,39 @@ mod correctness_tests {
         );
     }
 
+    // Native differential oracle: keep the hex encoder independent from the
+    // bridge helper so a bit-order or serialization regression is observable
+    // even though both sides use the same upstream ECFP4 implementation.
+    fn native_reference_fingerprint(molecule: &chematic::core::Molecule) -> String {
+        let bits = chematic::fp::ecfp4(molecule);
+        (0..256)
+            .map(|byte_idx| {
+                let byte = (0..8).fold(0u8, |byte, bit_in_byte| {
+                    if bits.get(byte_idx * 8 + bit_in_byte) {
+                        byte | (1 << bit_in_byte)
+                    } else {
+                        byte
+                    }
+                });
+                format!("{byte:02x}")
+            })
+            .collect()
+    }
+
+    #[test]
+    fn native_fingerprint_oracle_matches_wasm_core_for_fixture_set() {
+        for smiles in ["CCO", "c1ccccc1", "CC(=O)Oc1ccccc1C(=O)O"] {
+            let molecule = mol(smiles);
+            let bridge = fingerprint_with_metadata(&molecule);
+            assert_eq!(
+                bridge.hex,
+                native_reference_fingerprint(&molecule),
+                "fixture: {smiles}"
+            );
+            assert_eq!(bridge.hex.len(), 512);
+        }
+    }
+
     #[test]
     fn tanimoto_and_dice_are_one_for_identical_molecules() {
         let fp = bitvec_to_hex(&chematic::fp::ecfp4(&mol("CCO")));
@@ -1649,6 +1682,44 @@ mod correctness_tests {
             result.common_atoms.len()
         );
         assert!(result.similarity > 0.0 && result.similarity < 1.0);
+    }
+
+    #[test]
+    fn native_mcs_oracle_matches_wasm_core_for_fixture_set() {
+        use chematic::smarts;
+
+        for (left, right) in [("CCO", "CCCO"), ("c1ccccc1", "c1ccncc1"), ("C", "N")] {
+            let native_left = mol(left);
+            let native_right = mol(right);
+            let config = smarts::McsConfig {
+                timeout_ms: Some(MCS_SEARCH_BUDGET_MS),
+                ..Default::default()
+            };
+            let query = smarts::find_mcs_with_config(&[&native_left, &native_right], &config);
+            let native_match = smarts::find_matches(&query, &native_left)
+                .first()
+                .map(|mapping| mapping.len())
+                .unwrap_or(0);
+            let denominator =
+                (native_left.atom_count() + native_right.atom_count() - native_match) as f64;
+            let native_similarity = if denominator <= 0.0 {
+                1.0
+            } else {
+                native_match as f64 / denominator
+            };
+
+            let bridge = compute_mcs(&native_left, &native_right);
+            assert_eq!(
+                bridge.common_atoms.len(),
+                native_match,
+                "fixture: {left} vs {right}"
+            );
+            assert_eq!(
+                bridge.similarity, native_similarity,
+                "fixture: {left} vs {right}"
+            );
+            assert_eq!(bridge.search_budget_ms, MCS_SEARCH_BUDGET_MS);
+        }
     }
 
     // ── Reaction execution: real success/no-match/error states, never a fake product ──

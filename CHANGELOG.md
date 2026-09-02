@@ -66,6 +66,8 @@ for the full development history.
   during async work and applies successful output as one undoable change.
 - Batch retry and direct index selections now reject out-of-range, non-integer,
   or duplicate item indexes.
+- Native offline differential fixtures now compare ECFP4 encoding and MCS
+  cardinality/similarity against independent upstream calculations.
 - Batch result hashes now normalize task key order, making equivalent execution
   options produce the same deterministic hash.
 - Batch hash key ordering now uses locale-independent code-point ordering for
