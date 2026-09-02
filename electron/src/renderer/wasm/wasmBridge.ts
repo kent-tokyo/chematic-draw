@@ -1,8 +1,8 @@
 import * as wasmModule from './pkg';
 import { MoleculeDto, PropertiesDto } from '../store/types';
 import type { ExtendedProperties, Fingerprint } from '../../../../packages/chematic-contract/src/index';
-import type { McsResult } from '../../../../packages/chematic-contract/src/index';
-export type { ExtendedProperties as ExtendedPropertiesDto, Fingerprint as FingerprintDto, McsResult } from '../../../../packages/chematic-contract/src/index';
+import type { McsResult, ReactionRunResult as ContractReactionRunResult, StereoAssignment } from '../../../../packages/chematic-contract/src/index';
+export type { ExtendedProperties as ExtendedPropertiesDto, Fingerprint as FingerprintDto, McsResult, ReactionRunResult as ContractReactionRunResult, StereoAssignment } from '../../../../packages/chematic-contract/src/index';
 
 /**
  * WASM module lifecycle. Every WASM-calling function in this file assumes
@@ -184,10 +184,7 @@ export function enumerateStereoisomers(mol: MoleculeDto): MoleculeDto[] {
 }
 
 /** Assign verified CIP R/S/E/Z descriptors; ambiguous assignments are omitted. */
-export interface StereoAssignmentDto {
-  atom_id: number;
-  code: 'R' | 'S' | 'E' | 'Z' | 'LowerR' | 'LowerS';
-}
+export type StereoAssignmentDto = StereoAssignment;
 
 export function assignCip(mol: MoleculeDto): StereoAssignmentDto[] {
   return wasmModule.assign_cip(mol) as StereoAssignmentDto[];
@@ -277,12 +274,7 @@ export function identifyFunctionalGroups(mol: MoleculeDto): string[] {
  * Collapsing any of these into the same `[]` or into each other is exactly the
  * bug this type exists to prevent.
  */
-export type ReactionRunResult =
-  | { status: 'applied'; products: MoleculeDto[] }
-  | { status: 'no_match' }
-  | { status: 'invalid_reaction'; message: string }
-  | { status: 'unsupported_chemistry'; message: string }
-  | { status: 'error'; message: string };
+export type ReactionRunResult = ContractReactionRunResult;
 
 /**
  * Execute SMIRKS-based reaction on a molecule.
