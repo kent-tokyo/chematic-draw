@@ -1,12 +1,7 @@
 import { SchemeLayout } from './schemeLayout';
-
-export interface LayoutMetrics {
-  boxOverlaps: number;
-  arrowCrossings: number;
-  clippedBoxes: number;
-  arrowOverflow: number;
-  deterministicKey: string;
-}
+import type { LayoutMetrics as ContractLayoutMetrics } from '../../../../packages/chematic-contract/src/index';
+export type { LayoutMetrics } from '../../../../packages/chematic-contract/src/index';
+type LayoutMetrics = ContractLayoutMetrics;
 
 function intersects(a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }): boolean {
   return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;

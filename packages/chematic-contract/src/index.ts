@@ -34,6 +34,7 @@ export interface CdxmlDocument { pages: CdxmlPage[]; }
 export interface StepBox { stepIndex: number; x: number; y: number; width: number; height: number; selected: boolean; hovered: boolean; }
 export interface StepArrow { fromIndex: number; toIndex: number; x1: number; y1: number; x2: number; y2: number; }
 export interface SchemeLayout { stepBoxes: StepBox[]; stepArrows: StepArrow[]; canvasWidth: number; canvasHeight: number; padding: number; }
+export interface LayoutMetrics { boxOverlaps: number; arrowCrossings: number; clippedBoxes: number; arrowOverflow: number; deterministicKey: string; }
 export interface QueryAtomConstraint { elements?: string[]; wildcard?: boolean; charge?: number; isotope?: number; aromatic?: boolean; valence?: number; hydrogens?: number; ring?: boolean; }
 export interface QueryAtom { id: number; x: number; y: number; constraint: QueryAtomConstraint; }
 export interface QueryBond { id: number; from: number; to: number; constraint: { order: string }; }
