@@ -1,7 +1,8 @@
 import * as wasmModule from './pkg';
 import { MoleculeDto, PropertiesDto } from '../store/types';
 import type { ExtendedProperties, Fingerprint } from '../../../../packages/chematic-contract/src/index';
-export type { ExtendedProperties as ExtendedPropertiesDto, Fingerprint as FingerprintDto } from '../../../../packages/chematic-contract/src/index';
+import type { McsResult } from '../../../../packages/chematic-contract/src/index';
+export type { ExtendedProperties as ExtendedPropertiesDto, Fingerprint as FingerprintDto, McsResult } from '../../../../packages/chematic-contract/src/index';
 
 /**
  * WASM module lifecycle. Every WASM-calling function in this file assumes
@@ -302,14 +303,7 @@ export function runReactants(mol: MoleculeDto, smirks: string): ReactionRunResul
  * Maximum Common Substructure (MCS)
  */
 
-export interface McsResultDto {
-  common_atoms: number[];
-  common_bonds: number[];
-  similarity: number;
-  /** Time budget (ms) applied to the search; the result may be a partial
-   * best-effort match rather than the true maximum if this budget was hit. */
-  search_budget_ms: number;
-}
+export type McsResultDto = McsResult;
 
 export function findMcs(molA: MoleculeDto, molB: MoleculeDto): McsResultDto {
   return wasmModule.find_mcs(molA, molB) as McsResultDto;
