@@ -1,73 +1,12 @@
-import type { Molecule } from '../../../../packages/chematic-contract/src/index';
+import type { Molecule, Properties } from '../../../../packages/chematic-contract/src/index';
 
 // Chemistry DTOs are owned by the Electron-free contract package. UI-only
 // selection remains optional so the renderer can keep its existing state shape.
 export type { MoleculeAtom as AtomDto, MoleculeBond as BondDto, Molecule as MoleculeDto } from '../../../../packages/chematic-contract/src/index';
 type MoleculeDto = Molecule;
-/*
-export interface AtomDto {
-  id: number;
-  /** Always a real periodic-table symbol ("C", "N", "Cl", ...) — never a
-   * depiction label and never an R-group token. See `display_label` for
-   * the cosmetic rendering form, and `wildcard` before trusting this field
-   * for an R-group atom (chematic has no real element for those; this will
-   * be a meaningless placeholder). * /
-  element: string;
-  x: number;
-  y: number;
-  charge: number;
-  atom_map: number;
-  /** Explicit hydrogen count. Present on any DTO chem-wasm produced;
-   * `undefined` only for older/hand-built DTOs that predate this field. * /
-  hydrogen_count?: number;
-  /** True for an R-group/variable-attachment atom. `element` is a
-   * meaningless placeholder when this is true. * /
-  wildcard?: boolean;
-  /** Condensed 2D rendering label ("CH3", "OH", "" to suppress the label
-   * entirely for a skeletal interior carbon). Derived and cosmetic only —
-   * never use this as chemistry input. `undefined`/`null` means no label
-   * info is available; fall back to `element`. An explicit `""` means
-   * "deliberately show nothing," not "no data." * /
-  display_label?: string | null;
-  /** Mass number of a specific isotope (e.g. `13` for ¹³C). `undefined`
-   * means natural-abundance element (no isotope specified). * /
-  isotope?: number;
-  /** Canvas selection highlight. Client-side UI state only — chem-wasm
-   * never produces this field and never reads it back. * /
-  selected?: boolean;
-}
 
-export interface BondDto {
-  id: number;
-  from: number;
-  to: number;
-  order: number; // 1=Single, 2=Double, 3=Triple, 4=Aromatic
-  stereo: number; // 0=None, 1=WedgeUp, 2=WedgeDown
-  /** Canvas selection highlight. Client-side UI state only — chem-wasm
-   * never produces this field and never reads it back. * /
-  selected?: boolean;
-}
-
-export interface MoleculeDto {
-  atoms: AtomDto[];
-  bonds: BondDto[];
-}
-*/
-
-export interface PropertiesDto {
-  formula: string;
-  atom_count: number;
-  bond_count: number;
-  molecular_weight: number;
-  logp: number;
-  tpsa: number;
-  hba: number;
-  hbd: number;
-  rotatable_bonds: number;
-  lipinski_pass: boolean;
-  valence_errors: string[];
-  ring_count: number;
-}
+export type { Properties as PropertiesDto } from '../../../../packages/chematic-contract/src/index';
+type PropertiesDto = Properties;
 
 // Tool enum
 export enum Tool {
