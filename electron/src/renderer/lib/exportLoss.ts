@@ -1,11 +1,7 @@
 import { MoleculeDto } from '../store/types';
+import type { ExportLoss, MoleculeExportFormat } from '../../../../packages/chematic-contract/src/index';
 
-export type MoleculeExportFormat = 'smiles' | 'mol-v2000' | 'rxn-v2000' | 'sdf' | 'cml' | 'cdxml';
-
-export interface ExportLoss {
-  code: 'wildcard' | 'isotope' | 'unsupported-format';
-  message: string;
-}
+export type { ExportLoss, MoleculeExportFormat } from '../../../../packages/chematic-contract/src/index';
 
 const extensionToFormat: Record<string, MoleculeExportFormat> = {
   smi: 'smiles',
