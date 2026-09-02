@@ -50,6 +50,22 @@ export interface ExtensionHost {
   execute(extensionId: string, commandId: string, molecule: Molecule, payload?: unknown): Molecule;
   analyze(extensionId: string, providerId: string, molecule: Molecule): unknown;
 }
+export type BatchOperation = 'convert' | 'standardize' | 'filter' | 'properties';
+export interface BatchTask {
+  operation: BatchOperation;
+  inputFormat?: string;
+  outputFormat?: string;
+  filterOptions?: { minMW?: number; maxMW?: number; minLogP?: number; maxLogP?: number };
+  smartsPattern?: string;
+}
+export type BatchItemStatus = 'pending' | 'running' | 'succeeded' | 'failed' | 'skipped' | 'cancelled';
+export interface BatchItemResult { index: number; status: BatchItemStatus; input: Molecule; output?: Molecule & Partial<{ properties: Properties }>; warnings: string[]; error?: string; }
+export interface BatchProgress { completed: number; total: number; item: BatchItemResult; }
+export interface BatchProcessResult {
+  processed: number; failed: number; skipped: number; resultHash: string;
+  molecules: (Molecule & Partial<{ properties: Properties }>)[];
+  errors: string[]; items: BatchItemResult[]; cancelled: boolean;
+}
 export type ReactionDocumentIssueCode = 'duplicate-step-id' | 'component-id' | 'continuity' | 'map-scope' | 'provenance';
 export interface ReactionDocumentIssue { code: ReactionDocumentIssueCode; path: string; message: string; }
 export interface RxnDocument { reactants: Molecule[]; products: Molecule[]; agents?: Molecule[]; reactantCoefficients?: number[]; productCoefficients?: number[]; }

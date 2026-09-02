@@ -1,38 +1,8 @@
 import * as wasmBridge from '../wasm/wasmBridge';
 import { MoleculeDto, PropertiesDto } from '../store/types';
 import { validateMoleculeDocument } from './documentCommands';
-
-export type BatchOperation = 'convert' | 'standardize' | 'filter' | 'properties';
-
-export interface BatchTask {
-  operation: BatchOperation;
-  inputFormat?: string; // 'smiles', 'mol', 'sdf'
-  outputFormat?: string;
-  filterOptions?: {
-    minMW?: number;
-    maxMW?: number;
-    minLogP?: number;
-    maxLogP?: number;
-  };
-  smartsPattern?: string;
-}
-
-export type BatchItemStatus = 'pending' | 'running' | 'succeeded' | 'failed' | 'skipped' | 'cancelled';
-
-export interface BatchItemResult {
-  index: number;
-  status: BatchItemStatus;
-  input: MoleculeDto;
-  output?: MoleculeDto & Partial<{ properties: PropertiesDto }>;
-  warnings: string[];
-  error?: string;
-}
-
-export interface BatchProgress {
-  completed: number;
-  total: number;
-  item: BatchItemResult;
-}
+export type { BatchItemResult, BatchItemStatus, BatchOperation, BatchProcessResult, BatchProgress, BatchTask } from '../../../../packages/chematic-contract/src/index';
+import type { BatchItemResult, BatchProcessResult, BatchProgress, BatchTask } from '../../../../packages/chematic-contract/src/index';
 
 export interface ProcessBatchOptions {
   signal?: AbortSignal;
@@ -199,16 +169,7 @@ export function retryFailedBatchItems(
   return processBatch(molecules, task, { ...options, indices });
 }
 
-export interface ProcessResult {
-  processed: number;
-  failed: number;
-  skipped: number;
-  resultHash: string;
-  molecules: (MoleculeDto & Partial<{ properties: PropertiesDto }>)[];
-  errors: string[];
-  items: BatchItemResult[];
-  cancelled: boolean;
-}
+export type ProcessResult = BatchProcessResult;
 
 function batchResultHash(task: BatchTask, items: BatchItemResult[]): string {
   const payload = stableJson({
