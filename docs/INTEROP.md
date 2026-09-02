@@ -30,8 +30,9 @@ wildcards, charge/isotope, aromaticity, valence, hydrogen, ring, and query-bond
 orders. A deterministic SMARTS writer covers connected linear queries. Markush,
 R-group, polymer, and opaque SMARTS constructs are retained as typed opaque
 records and rejected by concrete-molecule export; they are not silently
-converted to carbon or wildcard atoms. Full UI editing, SMARTS parsing, and
-cross-runtime matching remain future work.
+converted to carbon or wildcard atoms. The renderer provides query JSON
+editing and delegates SMARTS validation/search to the pinned WASM engine.
+Serialized query AST transfer to workers remains future work.
 
 The current implementation supports RXN V2000 import/export for
 one-step authored reactant/product schemes through the existing MOL conversion

@@ -4,6 +4,7 @@ import { useMoleculeStore } from '../../store/moleculeStore';
 import { ElementPicker } from '../inspector/ElementPicker';
 import { AtomDto, BondDto } from '../../store/types';
 import * as wasmBridge from '../../wasm/wasmBridge';
+import { QueryDocument, queryDocumentFromMolecule, queryDocumentToMolecule, queryDocumentToSmarts, validateQueryDocument } from '../../lib/queryDocument';
 
 // Hoisted out of InspectorPanel's render body: defining a component inline
 // in a render function gives it a new identity every render, so React
@@ -156,11 +157,71 @@ function SmartsSection({
   );
 }
 
+function QueryEditorSection({
+  molecule,
+  theme,
+  textColor,
+  bgColor,
+  labelColor,
+  pushUndo,
+  setMolecule,
+}: {
+  molecule: import('../../store/types').MoleculeDto;
+  theme: string;
+  textColor: string;
+  bgColor: string;
+  labelColor: string;
+  pushUndo: () => void;
+  setMolecule: (molecule: import('../../store/types').MoleculeDto) => void;
+}) {
+  const [draft, setDraft] = useState<QueryDocument>(() => queryDocumentFromMolecule(molecule));
+  const [status, setStatus] = useState('');
+  useEffect(() => {
+    setDraft(queryDocumentFromMolecule(molecule));
+    setStatus('');
+  }, [molecule]);
+  const updateDraft = (value: string) => {
+    try {
+      const parsed = JSON.parse(value) as QueryDocument;
+      setDraft(parsed);
+      setStatus('');
+    } catch {
+      setStatus('Invalid JSON');
+    }
+  };
+  const json = JSON.stringify(draft, null, 2);
+  const validate = () => {
+    const errors = validateQueryDocument(draft);
+    if (errors.length) setStatus(errors.map((error) => `${error.path}: ${error.message}`).join('; '));
+    else setStatus(`Valid query; SMARTS: ${queryDocumentToSmarts(draft)}`);
+  };
+  const apply = () => {
+    try {
+      const next = queryDocumentToMolecule(draft);
+      pushUndo();
+      setMolecule(next);
+      setStatus('Applied without query loss');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error));
+    }
+  };
+  return <div style={{ padding: '12px', backgroundColor: bgColor, borderRadius: '4px', border: `1px solid ${labelColor}` }}>
+    <div style={{ fontSize: '11px', fontWeight: 'bold', color: textColor, marginBottom: '8px' }}>Query editor</div>
+    <textarea aria-label="Query document editor" value={json} onChange={(event) => updateDraft(event.target.value)} rows={8} style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'monospace', fontSize: '9px', backgroundColor: theme === 'dark' ? '#1e2530' : '#fff', color: textColor, border: `1px solid ${labelColor}` }} />
+    <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
+      <button onClick={validate} style={{ flex: 1 }}>Validate / SMARTS</button>
+      <button onClick={apply} style={{ flex: 1 }}>Apply concrete</button>
+    </div>
+    {status && <div role="status" style={{ marginTop: '6px', color: textColor, fontSize: '10px', overflowWrap: 'anywhere' }}>{status}</div>}
+  </div>;
+}
+
 export function InspectorPanel() {
   const theme = useUIStore((s) => s.theme);
   const selectedAtomIdForInspector = useUIStore((s) => s.selectedAtomIdForInspector);
   const selectedBondIdForInspector = useUIStore((s) => s.selectedBondIdForInspector);
   const molecule = useMoleculeStore((s) => s.molecule);
+  const setMolecule = useMoleculeStore((s) => s.setMolecule);
   // Derived live, every render, from molecule.atoms + the tracked id — never
   // a stale snapshot. Deliberately NOT gated on the atom's `selected` flag:
   // right-click sets this id without ever touching `selected` (and bonds
@@ -258,6 +319,7 @@ export function InspectorPanel() {
         <FunctionalGroupsSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} functionalGroups={functionalGroups} />
         <ValidationSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} validationErrors={validationErrors} validationWarnings={validationWarnings} />
         <SmartsSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} theme={theme} smartsPattern={smartsPattern} setSmartsPattern={setSmartsPattern} smartsMatches={smartsMatches} handleSmartsSearch={handleSmartsSearch} />
+        <QueryEditorSection molecule={molecule} theme={theme} textColor={textColor} bgColor={bgColor} labelColor={labelColor} pushUndo={pushUndo} setMolecule={setMolecule} />
       </div>
     );
   }
@@ -396,6 +458,8 @@ export function InspectorPanel() {
           </div>
         </>
       )}
+
+      <QueryEditorSection molecule={molecule} theme={theme} textColor={textColor} bgColor={bgColor} labelColor={labelColor} pushUndo={pushUndo} setMolecule={setMolecule} />
 
     </div>
   );
