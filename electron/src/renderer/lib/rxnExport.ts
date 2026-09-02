@@ -3,6 +3,28 @@ import { MoleculeDto } from '../store/types';
 export interface RxnDocument {
   reactants: MoleculeDto[];
   products: MoleculeDto[];
+  agents?: MoleculeDto[];
+  reactantCoefficients?: number[];
+  productCoefficients?: number[];
+}
+
+export type RxnV2000LossCode = 'agents' | 'coefficients';
+
+export interface RxnV2000Loss {
+  code: RxnV2000LossCode;
+  message: string;
+}
+
+/** Return semantic fields that RXN V2000 cannot represent. */
+export function rxnV2000Losses(document: RxnDocument): RxnV2000Loss[] {
+  const losses: RxnV2000Loss[] = [];
+  if (document.agents && document.agents.length > 0) {
+    losses.push({ code: 'agents', message: 'RXN V2000 cannot preserve non-participating agents; export reaction-document JSON v2 instead.' });
+  }
+  if (document.reactantCoefficients?.some((coefficient) => coefficient !== 1) || document.productCoefficients?.some((coefficient) => coefficient !== 1)) {
+    losses.push({ code: 'coefficients', message: 'RXN V2000 cannot preserve stoichiometric coefficients; export reaction-document JSON v2 instead.' });
+  }
+  return losses;
 }
 
 type MolWriter = (molecule: MoleculeDto) => string;

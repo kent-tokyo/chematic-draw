@@ -1,4 +1,4 @@
-import { exportRxn, importRxn, MAX_RXN_MOLECULES, MAX_RXN_TEXT_LENGTH } from '../renderer/lib/rxnExport';
+import { exportRxn, importRxn, rxnV2000Losses, MAX_RXN_MOLECULES, MAX_RXN_TEXT_LENGTH } from '../renderer/lib/rxnExport';
 import { MoleculeDto } from '../renderer/store/types';
 
 const molecule = (element: string): MoleculeDto => ({
@@ -27,5 +27,13 @@ describe('RXN V2000 exchange', () => {
   it('rejects RXN input above the molecule budget before parsing blocks', () => {
     const rxn = `$RXN\n\nchematic\n\n ${MAX_RXN_MOLECULES}  1\n`;
     expect(() => importRxn(rxn, () => molecule('C'))).toThrow(/maximum/);
+  });
+
+  it('reports v2 semantics that cannot be represented by RXN V2000', () => {
+    expect(rxnV2000Losses({ reactants: [molecule('C')], products: [molecule('O')], agents: [molecule('N')], reactantCoefficients: [2], productCoefficients: [1] })).toEqual([
+      expect.objectContaining({ code: 'agents' }),
+      expect.objectContaining({ code: 'coefficients' }),
+    ]);
+    expect(rxnV2000Losses({ reactants: [molecule('C')], products: [molecule('O')], reactantCoefficients: [1], productCoefficients: [1] })).toEqual([]);
   });
 });
