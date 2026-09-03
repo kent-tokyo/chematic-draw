@@ -47,8 +47,8 @@ export function MoleculeCanvas() {
   const molecule = useMoleculeStore((s) => s.molecule);
   const hoverAtomId = useCanvasStore.getState().hoverAtomId;
   const hoverBondId = useCanvasStore.getState().hoverBondId;
-  const activeTool = useCanvasStore.getState().activeTool;
-  const theme = useUIStore.getState().theme;
+  const activeTool = useCanvasStore((s) => s.activeTool);
+  const theme = useUIStore((s) => s.theme);
   const language = useUIStore((s) => s.language);
   const bondDragPos = useCanvasStore.getState().bondDragPos;
   const bondDragFrom = useCanvasStore.getState().bondDragFrom;
