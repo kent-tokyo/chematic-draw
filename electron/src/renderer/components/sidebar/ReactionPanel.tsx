@@ -11,6 +11,7 @@ import { exportLossMessage, exportLosses } from '../../lib/exportLoss';
 
 export function ReactionPanel() {
   const theme = useUIStore((s) => s.theme);
+  const language = useUIStore((s) => s.language);
   const [expandedStepId, setExpandedStepId] = useState<string | null>(null);
   const [smirlksInput, setSmirlksInput] = useState<string>('');
   const [selectedTemplate, setSelectedTemplate] = useState<string>('carboxylic_acid_to_amide');
@@ -19,6 +20,7 @@ export function ReactionPanel() {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const schemeLayout = useReactionSchemeStore((s) => s.schemeLayout);
+  const isJapanese = language === 'ja';
 
   // Single source of truth for the reaction scheme (steps, conditions, arrows,
   // atom mapping, green metrics). Previously this panel also read/wrote a second,
@@ -91,31 +93,31 @@ export function ReactionPanel() {
 
   const handleRunReaction = () => {
     if (!molecule || molecule.atoms.length === 0) {
-      setReactionError('No molecule selected');
+      setReactionError(isJapanese ? '分子が選択されていません' : 'No molecule selected');
       return;
     }
 
     const smirks = smirlksInput || SMIRKS_TEMPLATES[selectedTemplate as keyof typeof SMIRKS_TEMPLATES];
     if (!smirks) {
-      setReactionError('No SMIRKS pattern provided');
+      setReactionError(isJapanese ? 'SMIRKSパターンが指定されていません' : 'No SMIRKS pattern provided');
       return;
     }
 
     const result = executeReaction(molecule, smirks);
     if (result.status === 'no_match') {
-      setReactionError('SMIRKS pattern did not match this molecule.');
+      setReactionError(isJapanese ? 'SMIRKSパターンはこの分子に一致しませんでした。' : 'SMIRKS pattern did not match this molecule.');
       return;
     }
     if (result.status === 'invalid_reaction') {
-      setReactionError(`Invalid SMIRKS pattern: ${result.message}`);
+      setReactionError(`${isJapanese ? '無効なSMIRKSパターン' : 'Invalid SMIRKS pattern'}: ${result.message}`);
       return;
     }
     if (result.status === 'unsupported_chemistry') {
-      setReactionError(`Unsupported reaction: ${result.message}`);
+      setReactionError(`${isJapanese ? '未対応の反応' : 'Unsupported reaction'}: ${result.message}`);
       return;
     }
     if (result.status === 'error') {
-      setReactionError(`Reaction execution failed: ${result.message}`);
+      setReactionError(`${isJapanese ? '反応の実行に失敗しました' : 'Reaction execution failed'}: ${result.message}`);
       return;
     }
 
@@ -160,7 +162,7 @@ export function ReactionPanel() {
       useReactionSchemeStore.getState().greenMetrics
     );
     downloadFile(json, `${scheme.title || 'scheme'}_export.json`, 'application/json');
-    setStatus('Exported as JSON');
+    setStatus(isJapanese ? 'JSONとして出力しました' : 'Exported as JSON');
   };
 
   const handleExportSVG = () => {
@@ -172,7 +174,7 @@ export function ReactionPanel() {
       useReactionSchemeStore.getState().greenMetrics
     );
     downloadFile(svg, `${scheme.title || 'scheme'}_diagram.svg`, 'image/svg+xml');
-    setStatus('Exported as SVG');
+    setStatus(isJapanese ? 'SVGとして出力しました' : 'Exported as SVG');
   };
 
   const handleExportCSV = () => {
@@ -182,7 +184,7 @@ export function ReactionPanel() {
       useReactionSchemeStore.getState().greenMetrics
     );
     downloadFile(csv, `${scheme.title || 'scheme'}_report.csv`, 'text/csv');
-    setStatus('Exported as CSV');
+    setStatus(isJapanese ? 'CSVとして出力しました' : 'Exported as CSV');
   };
 
   const handleExportRXN = () => {
@@ -207,12 +209,12 @@ export function ReactionPanel() {
     }
     const losses = [...reactants, ...products].flatMap((molecule) => exportLosses(molecule, 'rxn-v2000'));
     if (losses.length > 0 && !window.confirm(exportLossMessage(`${scheme.title || 'reaction'}_export.rxn`, losses))) {
-      setStatus('RXN export cancelled');
+      setStatus(isJapanese ? 'RXN出力をキャンセルしました' : 'RXN export cancelled');
       return;
     }
     const rxn = exportRxn({ reactants, products }, wasmBridge.toMolV2000);
     downloadFile(rxn, `${scheme.title || 'reaction'}_export.rxn`, 'chemical/x-mdl-rxn');
-    setStatus('Exported as RXN V2000');
+    setStatus(isJapanese ? 'RXN V2000として出力しました' : 'Exported as RXN V2000');
   };
 
   const handleImportJSON = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -238,12 +240,12 @@ export function ReactionPanel() {
         useReactionSchemeStore.getState().createScheme(importedScheme.title, importedScheme.description);
         const state = useReactionSchemeStore.getState();
         importedScheme.steps.forEach((step) => state.addStep(step));
-        setStatus(`Imported scheme: ${importedScheme.title}`);
+        setStatus(`${isJapanese ? 'スキームを読み込みました' : 'Imported scheme'}: ${importedScheme.title}`);
       } else {
-        setStatus('Failed to import JSON');
+        setStatus(isJapanese ? 'JSONの読み込みに失敗しました' : 'Failed to import JSON');
       }
     } catch {
-      setStatus('Error reading file');
+      setStatus(isJapanese ? 'ファイルの読み込み中にエラーが発生しました' : 'Error reading file');
     }
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -263,7 +265,7 @@ export function ReactionPanel() {
       {/* Title */}
       <input
         type="text"
-        placeholder="Reaction title..."
+        placeholder={isJapanese ? '反応タイトル…' : 'Reaction title...'}
         value={scheme.title || ''}
         onChange={(e) => updateSchemeInfo({ title: e.target.value })}
         style={{
@@ -279,7 +281,7 @@ export function ReactionPanel() {
 
       {/* Description */}
       <textarea
-        placeholder="Reaction description..."
+        placeholder={isJapanese ? '反応の説明…' : 'Reaction description...'}
         value={scheme.description || ''}
         onChange={(e) => updateSchemeInfo({ description: e.target.value })}
         style={{
@@ -304,7 +306,7 @@ export function ReactionPanel() {
           marginBottom: '12px',
         }}>
           <div style={{ fontSize: '11px', fontWeight: 'bold', color: textColor, marginBottom: '8px' }}>
-            Export & Import
+            {isJapanese ? 'エクスポートとインポート' : 'Export & Import'}
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -321,22 +323,22 @@ export function ReactionPanel() {
                 fontWeight: 'bold',
               }}
             >
-              ▼ Export Scheme
+              {isJapanese ? '▼ 反応スキームを出力' : '▼ Export Scheme'}
             </button>
 
             {showExportMenu && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                 <button onClick={handleExportJSON} style={{ padding: '4px 6px', fontSize: '9px', ...buttonStyle }}>
-                  JSON (full data)
+                  {isJapanese ? 'JSON（全データ）' : 'JSON (full data)'}
                 </button>
                 <button onClick={handleExportSVG} style={{ padding: '4px 6px', fontSize: '9px', ...buttonStyle }}>
-                  SVG Image
+                  {isJapanese ? 'SVG画像' : 'SVG Image'}
                 </button>
                 <button onClick={handleExportRXN} style={{ padding: '4px 6px', fontSize: '9px', ...buttonStyle }}>
-                  RXN V2000 (single step)
+                  {isJapanese ? 'RXN V2000（単一ステップ）' : 'RXN V2000 (single step)'}
                 </button>
                 <button onClick={handleExportCSV} style={{ padding: '4px 6px', fontSize: '9px', ...buttonStyle }}>
-                  CSV Report
+                  {isJapanese ? 'CSVレポート' : 'CSV Report'}
                 </button>
               </div>
             )}
@@ -361,7 +363,7 @@ export function ReactionPanel() {
                 fontWeight: 'bold',
               }}
             >
-              Import JSON or RXN
+              {isJapanese ? 'JSONまたはRXNを読み込む' : 'Import JSON or RXN'}
             </button>
           </div>
         </div>
@@ -499,7 +501,7 @@ export function ReactionPanel() {
           }}
         >
           <div style={{ fontSize: '12px', fontWeight: 'bold', color: textColor, marginBottom: '6px' }}>
-            Reaction Verification: {reactionDiagnostics.status === 'verified' ? 'VERIFIED' : 'NOT VERIFIED'}
+            {isJapanese ? '反応検証' : 'Reaction Verification'}: {reactionDiagnostics.status === 'verified' ? (isJapanese ? '検証済み' : 'VERIFIED') : (isJapanese ? '未検証' : 'NOT VERIFIED')}
           </div>
           {reactionDiagnostics.issues.map((issue, index) => (
             <div key={index} style={{ fontSize: '10px', color: reactionDiagnostics.status === 'verified' ? '#4caf50' : '#d88900', marginTop: '3px' }}>
@@ -508,14 +510,14 @@ export function ReactionPanel() {
           ))}
           {reactionDiagnostics.mapping.unmatchedMapNumbers.length > 0 && (
             <div style={{ fontSize: '10px', color: '#d88900', marginTop: '5px' }}>
-              Unmatched map numbers: {reactionDiagnostics.mapping.unmatchedMapNumbers.join(', ')}
+              {isJapanese ? '一致しないマップ番号' : 'Unmatched map numbers'}: {reactionDiagnostics.mapping.unmatchedMapNumbers.join(', ')}
             </div>
           )}
           {reactionDiagnostics.continuity.boundaries.length > 0 && (
             <div data-testid="reaction-integrity-continuity" style={{ marginTop: '6px', color: labelColor, fontSize: '10px' }}>
               {reactionDiagnostics.continuity.boundaries.map((boundary) => (
                 <div key={`${boundary.fromStep}-${boundary.toStep}`}>
-                  Step {boundary.fromStep} → {boundary.toStep}: {boundary.matchedMoleculeCount} authored intermediate{boundary.matchedMoleculeCount === 1 ? '' : 's'}
+                  {isJapanese ? 'ステップ' : 'Step'} {boundary.fromStep} → {boundary.toStep}: {boundary.matchedMoleculeCount} {isJapanese ? '件の中間体' : `authored intermediate${boundary.matchedMoleculeCount === 1 ? '' : 's'}`}
                 </div>
               ))}
             </div>
@@ -614,11 +616,11 @@ export function ReactionPanel() {
           marginBottom: '12px',
         }}>
           <div style={{ fontSize: '12px', fontWeight: 'bold', color: isDark ? '#81c784' : '#2e7d32', marginBottom: '8px' }}>
-            Green Chemistry Metrics
+            {isJapanese ? 'グリーンケミストリー指標' : 'Green Chemistry Metrics'}
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-around', fontSize: '11px' }}>
             <div>
-              <div style={{ fontWeight: 'bold', color: textColor }}>Atom Economy</div>
+              <div style={{ fontWeight: 'bold', color: textColor }}>{isJapanese ? '原子効率' : 'Atom Economy'}</div>
               <div style={{ fontSize: '13px', color: '#4caf50', fontWeight: 'bold' }}>{greenMetrics.atomEconomy}%</div>
             </div>
             <div>
@@ -633,7 +635,7 @@ export function ReactionPanel() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '400px', overflow: 'auto' }}>
         {scheme.steps.length === 0 ? (
           <div style={{ fontSize: '11px', color: labelColor, textAlign: 'center', padding: '16px' }}>
-            No steps. Add one to start.
+            {isJapanese ? 'ステップがありません。追加して始めてください。' : 'No steps. Add one to start.'}
           </div>
         ) : (
           scheme.steps.map((step, idx) => (
@@ -656,7 +658,7 @@ export function ReactionPanel() {
                   alignItems: 'center',
                 }}
               >
-                <span>Step {idx + 1}</span>
+                <span>{isJapanese ? 'ステップ' : 'Step'} {idx + 1}</span>
                 <span>{expandedStepId === step.id ? '▼' : '▶'}</span>
               </button>
 
@@ -666,7 +668,7 @@ export function ReactionPanel() {
                   {/* Arrow Type */}
                   <div style={{ marginBottom: '8px' }}>
                     <label style={{ fontSize: '10px', color: labelColor, display: 'block', marginBottom: '4px' }}>
-                      Arrow Type
+                      {isJapanese ? '矢印の種類' : 'Arrow Type'}
                     </label>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '4px' }}>
                       {(['single', 'double', 'equilibrium', 'retro'] as const).map((type) => (
@@ -683,7 +685,9 @@ export function ReactionPanel() {
                             fontSize: '9px',
                           }}
                         >
-                          {type}
+                          {isJapanese
+                            ? ({ single: '単結合', double: '二重結合', equilibrium: '平衡', retro: '逆反応' }[type])
+                            : type}
                         </button>
                       ))}
                     </div>
@@ -691,10 +695,10 @@ export function ReactionPanel() {
 
                   {/* Temperature */}
                   <div style={{ marginBottom: '8px' }}>
-                    <label style={{ fontSize: '10px', color: labelColor }}>Temperature</label>
+                    <label style={{ fontSize: '10px', color: labelColor }}>{isJapanese ? '温度' : 'Temperature'}</label>
                     <input
                       type="text"
-                      placeholder="e.g., RT, 100°C, reflux"
+                      placeholder={isJapanese ? '例：RT、100°C、還流' : 'e.g., RT, 100°C, reflux'}
                       value={step.conditions?.temperature || ''}
                       onChange={(e) => handleUpdateConditions(step.id, { temperature: e.target.value })}
                       style={{
@@ -713,10 +717,10 @@ export function ReactionPanel() {
 
                   {/* Solvent */}
                   <div style={{ marginBottom: '8px' }}>
-                    <label style={{ fontSize: '10px', color: labelColor }}>Solvent</label>
+                    <label style={{ fontSize: '10px', color: labelColor }}>{isJapanese ? '溶媒' : 'Solvent'}</label>
                     <input
                       type="text"
-                      placeholder="e.g., DMF, THF, H2O"
+                      placeholder={isJapanese ? '例：DMF、THF、H2O' : 'e.g., DMF, THF, H2O'}
                       value={step.conditions?.solvent || ''}
                       onChange={(e) => handleUpdateConditions(step.id, { solvent: e.target.value })}
                       style={{
@@ -735,10 +739,10 @@ export function ReactionPanel() {
 
                   {/* Catalyst */}
                   <div style={{ marginBottom: '8px' }}>
-                    <label style={{ fontSize: '10px', color: labelColor }}>Catalyst</label>
+                    <label style={{ fontSize: '10px', color: labelColor }}>{isJapanese ? '触媒' : 'Catalyst'}</label>
                     <input
                       type="text"
-                      placeholder="e.g., Pd/C, Et3N"
+                      placeholder={isJapanese ? '例：Pd/C、Et3N' : 'e.g., Pd/C, Et3N'}
                       value={step.conditions?.catalyst || ''}
                       onChange={(e) => handleUpdateConditions(step.id, { catalyst: e.target.value })}
                       style={{
@@ -757,10 +761,10 @@ export function ReactionPanel() {
 
                   {/* Time */}
                   <div style={{ marginBottom: '8px' }}>
-                    <label style={{ fontSize: '10px', color: labelColor }}>Time</label>
+                    <label style={{ fontSize: '10px', color: labelColor }}>{isJapanese ? '時間' : 'Time'}</label>
                     <input
                       type="text"
-                      placeholder="e.g., 2h, overnight"
+                      placeholder={isJapanese ? '例：2時間、一晩' : 'e.g., 2h, overnight'}
                       value={step.conditions?.time || ''}
                       onChange={(e) => handleUpdateConditions(step.id, { time: e.target.value })}
                       style={{
@@ -779,12 +783,12 @@ export function ReactionPanel() {
 
                   {/* Yield */}
                   <div style={{ marginBottom: '8px' }}>
-                    <label style={{ fontSize: '10px', color: labelColor }}>Yield (%)</label>
+                    <label style={{ fontSize: '10px', color: labelColor }}>{isJapanese ? '収率（%）' : 'Yield (%)'}</label>
                     <input
                       type="number"
                       min="0"
                       max="100"
-                      placeholder="0-100"
+                      placeholder={isJapanese ? '0〜100' : '0-100'}
                       value={step.conditions?.yield || ''}
                       onChange={(e) => handleUpdateConditions(step.id, { yield: e.target.value ? parseInt(e.target.value) : undefined })}
                       style={{
@@ -816,7 +820,7 @@ export function ReactionPanel() {
                       marginTop: '4px',
                     }}
                   >
-                    Remove Step
+                    {isJapanese ? 'ステップを削除' : 'Remove Step'}
                   </button>
                 </div>
               )}
@@ -828,14 +832,15 @@ export function ReactionPanel() {
       {/* Reaction Executor */}
       <div style={{ padding: '12px', backgroundColor: bgColor, borderRadius: '4px', border: `1px solid ${borderColor}`, marginBottom: '12px' }}>
         <div style={{ fontSize: '11px', fontWeight: 'bold', color: textColor, marginBottom: '8px' }}>
-          Execute Reaction
+          {isJapanese ? '反応を実行' : 'Execute Reaction'}
         </div>
 
         <div style={{ marginBottom: '8px' }}>
           <label style={{ fontSize: '10px', color: labelColor, display: 'block', marginBottom: '4px' }}>
-            Template
+            {isJapanese ? 'テンプレート' : 'Template'}
           </label>
           <select
+            aria-label={isJapanese ? '反応テンプレート' : 'Reaction template'}
             value={selectedTemplate}
             onChange={(e) => setSelectedTemplate(e.target.value)}
             style={{
@@ -849,23 +854,23 @@ export function ReactionPanel() {
               boxSizing: 'border-box',
             }}
           >
-            <option value="carboxylic_acid_to_amide">Carboxylic acid → Amide</option>
-            <option value="ester_to_acid">Ester → Acid</option>
-            <option value="ester_to_alcohol">Ester → Alcohol</option>
-            <option value="alcohol_to_aldehyde">Alcohol → Aldehyde</option>
-            <option value="aldehyde_to_carboxylic_acid">Aldehyde → Carboxylic acid</option>
-            <option value="ketone_to_alcohol">Ketone → Alcohol</option>
-            <option value="custom">Custom SMIRKS</option>
+            <option value="carboxylic_acid_to_amide">{isJapanese ? 'カルボン酸 → アミド' : 'Carboxylic acid → Amide'}</option>
+            <option value="ester_to_acid">{isJapanese ? 'エステル → 酸' : 'Ester → Acid'}</option>
+            <option value="ester_to_alcohol">{isJapanese ? 'エステル → アルコール' : 'Ester → Alcohol'}</option>
+            <option value="alcohol_to_aldehyde">{isJapanese ? 'アルコール → アルデヒド' : 'Alcohol → Aldehyde'}</option>
+            <option value="aldehyde_to_carboxylic_acid">{isJapanese ? 'アルデヒド → カルボン酸' : 'Aldehyde → Carboxylic acid'}</option>
+            <option value="ketone_to_alcohol">{isJapanese ? 'ケトン → アルコール' : 'Ketone → Alcohol'}</option>
+            <option value="custom">{isJapanese ? 'カスタムSMIRKS' : 'Custom SMIRKS'}</option>
           </select>
         </div>
 
         {selectedTemplate === 'custom' && (
           <div style={{ marginBottom: '8px' }}>
             <label style={{ fontSize: '10px', color: labelColor, display: 'block', marginBottom: '4px' }}>
-              SMIRKS Pattern
+              {isJapanese ? 'SMIRKSパターン' : 'SMIRKS Pattern'}
             </label>
             <textarea
-              placeholder="e.g., [C:1](=[O])[OH]>>[C:1](=[O])[NH2]"
+              placeholder={isJapanese ? '例：[C:1](=[O])[OH]>>[C:1](=[O])[NH2]' : 'e.g., [C:1](=[O])[OH]>>[C:1](=[O])[NH2]'}
               value={smirlksInput}
               onChange={(e) => setSmirlksInput(e.target.value)}
               style={{
@@ -899,7 +904,7 @@ export function ReactionPanel() {
             marginBottom: reactionError ? '6px' : '0',
           }}
         >
-          Execute Reaction
+          {isJapanese ? '反応を実行' : 'Execute Reaction'}
         </button>
 
         {reactionError && (
@@ -924,10 +929,10 @@ export function ReactionPanel() {
             fontWeight: 'bold',
           }}
         >
-          + Add Reaction Step
+          {isJapanese ? '+ 反応ステップを追加' : '+ Add Reaction Step'}
         </button>
         {status && (
-          <div role="status" aria-label="Reaction export status" style={{
+          <div role="status" aria-label={isJapanese ? '反応出力ステータス' : 'Reaction export status'} style={{
             fontSize: '10px',
             color: '#4caf50',
             padding: '4px',

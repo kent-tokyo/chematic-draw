@@ -226,7 +226,7 @@ Jobs run in parallel, reducing total pipeline time:
 
 ```bash
 # Update version in electron/package.json (the only package.json in the repo)
-cd electron && npm version patch  # or minor, major
+cd electron && npm version 0.9.1
 cd ..
 
 # Also update crates/chem-wasm/Cargo.toml's version to match — the build's
@@ -234,8 +234,8 @@ cd ..
 # git tag) disagree.
 
 # Commit and tag
-git commit -am "v0.2.1"
-git tag v0.2.1
+git commit -am "v0.9.1"
+git tag v0.9.1
 git push origin main --tags
 ```
 

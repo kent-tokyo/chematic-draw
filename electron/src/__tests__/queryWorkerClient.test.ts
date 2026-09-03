@@ -11,4 +11,18 @@ describe('query worker boundary', () => {
     await expect(promise).resolves.toEqual({ pattern: 'O', matches: [3] });
     expect(terminate).toHaveBeenCalled();
   });
+
+  it('times out and terminates when the worker does not respond', async () => {
+    jest.useFakeTimers();
+    const terminate = jest.fn();
+    const worker = { terminate, onmessage: null as ((event: MessageEvent) => void) | null, onerror: null as ((event: ErrorEvent) => void) | null, postMessage: jest.fn() };
+    (globalThis as unknown as { Worker: typeof Worker }).Worker = jest.fn(() => worker) as unknown as typeof Worker;
+
+    const promise = runQueryInWorker({ schema: 'chematic-draw/query-document', schema_version: 1, atoms: [], bonds: [] }, { atoms: [], bonds: [] });
+    jest.advanceTimersByTime(15_000);
+
+    await expect(promise).rejects.toThrow('Query worker timed out');
+    expect(terminate).toHaveBeenCalled();
+    jest.useRealTimers();
+  });
 });

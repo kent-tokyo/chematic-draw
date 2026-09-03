@@ -15,7 +15,7 @@ const failedResult: BatchResultSummary = {
   resultHash: 'fnv1a-32:deadbeef',
   errors: ['Item 1: invalid molecule'],
   timestamp: 1,
-  provenance: { engine: 'chematic 0.35.0' },
+  provenance: { engine: 'chematic 1.0.1' },
   items: [{ index: 0, status: 'failed', warnings: [], error: 'invalid molecule' }],
   retry: {
     task: { operation: 'standardize' },

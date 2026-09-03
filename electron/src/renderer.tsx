@@ -55,6 +55,7 @@ function App() {
   const theme = useUIStore((s) => s.theme);
   const setTheme = useUIStore((s) => s.setTheme);
   const language = useUIStore((s) => s.language);
+  const setLanguage = useUIStore((s) => s.setLanguage);
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
   const setSidebarOpen = useUIStore((s) => s.setSidebarOpen);
   const activeTool = useCanvasStore((s) => s.activeTool);
@@ -507,7 +508,7 @@ function App() {
       });
 
       const provenance = {
-        engine: 'chematic 0.35.0' as const,
+        engine: 'chematic 1.0.1' as const,
         inputFormat: config.inputFormat,
         outputFormat: config.outputFormat,
         filterOptions: config.operation === 'filter' ? {
@@ -561,7 +562,7 @@ function App() {
       setStatus(`Batch processing failed: ${(err as Error).message}`);
       console.error('Batch error:', err);
       addBatchResult(config.operation, 0, 1, 0, 'fnv1a-32:00000000', [(err as Error).message], {
-        engine: 'chematic 0.35.0',
+        engine: 'chematic 1.0.1',
         inputFormat: config.inputFormat,
         outputFormat: config.outputFormat,
       }, {
@@ -665,7 +666,7 @@ function App() {
       <div
         className="app-toolbar"
         role="toolbar"
-        aria-label="Drawing tools"
+        aria-label={language === 'ja' ? '描画ツール' : 'Drawing tools'}
         style={{
           display: 'flex',
           gap: '4px',
@@ -741,7 +742,9 @@ function App() {
 
         <button
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          aria-label={language === 'ja'
+            ? (theme === 'dark' ? 'ライトテーマに切り替える' : 'ダークテーマに切り替える')
+            : (theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme')}
           style={{
             padding: '6px 12px',
             backgroundColor: 'transparent',
@@ -751,30 +754,44 @@ function App() {
             cursor: 'pointer',
             fontSize: '16px',
           }}
-          title="Toggle theme"
+          title={language === 'ja' ? 'テーマを切り替える' : 'Toggle theme'}
         >
           {theme === 'dark' ? '☀️' : '🌙'}
         </button>
 
         <button
+          data-testid="language-toggle"
+          onClick={() => setLanguage(language === 'ja' ? 'en' : 'ja')}
+          aria-label={language === 'ja' ? '英語に切り替える' : '日本語に切り替える'}
+          title={language === 'ja' ? '英語に切り替える' : '日本語に切り替える'}
+          style={{ padding: '6px 8px', backgroundColor: 'transparent', color: 'inherit', border: '1px solid currentColor', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: '600' }}
+        >
+          {language === 'ja' ? 'EN' : '日本語'}
+        </button>
+
+        <button
           data-testid="shortcuts-help"
           onClick={() => showModal('shortcuts')}
-          aria-label="Show keyboard shortcuts"
-          title="Show keyboard shortcuts"
+          aria-label={language === 'ja' ? 'キーボードショートカットを表示' : 'Show keyboard shortcuts'}
+          title={language === 'ja' ? 'キーボードショートカットを表示' : 'Show keyboard shortcuts'}
           style={{ padding: '6px 10px', backgroundColor: 'transparent', color: 'inherit', border: '1px solid currentColor', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
         >
           ?
         </button>
 
-        <div data-testid="toolbar-summary" style={{ fontSize: '12px', opacity: 0.7, marginLeft: '12px', whiteSpace: 'nowrap' }}>
+        <div
+          data-testid="toolbar-summary"
+          aria-label={language === 'ja' ? '構造の概要' : 'Structure summary'}
+          style={{ fontSize: '12px', opacity: 0.7, marginLeft: '12px', whiteSpace: 'nowrap' }}
+        >
           {molecule.atoms.length}a • {molecule.bonds.length}b • {(zoom * 100).toFixed(0)}%
         </div>
 
         {wasmStatus === 'loading' && (
-          <span style={{ color: '#ff6b6b', marginLeft: '12px', fontSize: '12px' }}>⚠️ WASM Loading...</span>
+          <span role="status" style={{ color: '#ff6b6b', marginLeft: '12px', fontSize: '12px' }}>{language === 'ja' ? '⚠️ WASMを読み込み中…' : '⚠️ WASM Loading...'}</span>
         )}
         {wasmStatus === 'failed' && (
-          <span style={{ color: '#ff6b6b', marginLeft: '12px', fontSize: '12px' }}>✕ WASM failed to load</span>
+          <span role="alert" style={{ color: '#ff6b6b', marginLeft: '12px', fontSize: '12px' }}>{language === 'ja' ? '✕ WASMの読み込みに失敗しました' : '✕ WASM failed to load'}</span>
         )}
       </div>
 
@@ -791,6 +808,8 @@ function App() {
         {(wasmStatus === 'idle' || wasmStatus === 'loading') && (
           <div
             data-testid="wasm-loading"
+            role="status"
+            aria-live="polite"
             style={{
               flex: 1,
               display: 'flex',
@@ -800,12 +819,13 @@ function App() {
               opacity: 0.7,
             }}
           >
-            Loading chemistry engine…
+            {language === 'ja' ? '化学エンジンを読み込み中…' : 'Loading chemistry engine…'}
           </div>
         )}
         {wasmStatus === 'failed' && (
           <div
             data-testid="wasm-failed"
+            role="alert"
             style={{
               flex: 1,
               display: 'flex',
@@ -818,13 +838,15 @@ function App() {
             }}
           >
             <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#ff6b6b' }}>
-              Failed to load the chemistry engine
+              {language === 'ja' ? '化学エンジンの読み込みに失敗しました' : 'Failed to load the chemistry engine'}
             </div>
             <div style={{ fontSize: '12px', opacity: 0.8, maxWidth: '480px' }}>
               {wasmError ?? 'Unknown error.'}
             </div>
             <div style={{ fontSize: '11px', opacity: 0.6 }}>
-              Try restarting the app. If this keeps happening, please file an issue.
+              {language === 'ja'
+                ? 'アプリを再起動してください。解決しない場合はIssueを報告してください。'
+                : 'Try restarting the app. If this keeps happening, please file an issue.'}
             </div>
           </div>
         )}
@@ -833,6 +855,9 @@ function App() {
       {/* Status Bar */}
       <div
         className="app-status-bar"
+        role="group"
+        aria-label={language === 'ja' ? '描画ステータスとショートカット' : 'Drawing status and shortcuts'}
+        aria-live="polite"
         style={{
           height: '22px',
           padding: '4px 12px',

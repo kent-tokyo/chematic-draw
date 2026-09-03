@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
 import { ElementPicker } from '../inspector/ElementPicker';
@@ -6,6 +6,7 @@ import { AtomDto, BondDto } from '../../store/types';
 import * as wasmBridge from '../../wasm/wasmBridge';
 import { QueryDocument, queryDocumentFromMolecule, queryDocumentToMolecule, validateQueryDocument } from '../../lib/queryDocument';
 import { runQueryInWorker } from '../../lib/queryWorkerClient';
+import { moleculeStructureKey } from '../../lib/moleculeKey';
 
 // Hoisted out of InspectorPanel's render body: defining a component inline
 // in a render function gives it a new identity every render, so React
@@ -124,7 +125,7 @@ function SmartsSection({
       </div>
       <input
         type="text"
-        placeholder="e.g., [#6]1:[#6]:[#6]:[#6]:[#6]:[#6]:1"
+        placeholder={language === 'ja' ? '例：[#6]1:[#6]:[#6]:[#6]:[#6]:1' : 'e.g., [#6]1:[#6]:[#6]:[#6]:[#6]:[#6]:1'}
         value={smartsPattern}
         onChange={(e) => setSmartsPattern(e.target.value)}
         onKeyPress={(e) => e.key === 'Enter' && handleSmartsSearch()}
@@ -185,6 +186,9 @@ function QueryEditorSection({
 }) {
   const [draft, setDraft] = useState<QueryDocument>(() => queryDocumentFromMolecule(molecule));
   const [status, setStatus] = useState('');
+  const validationRunRef = useRef(0);
+  const validationControllerRef = useRef<AbortController | null>(null);
+  useEffect(() => () => validationControllerRef.current?.abort(), []);
   const updateDraft = (value: string) => {
     try {
       const parsed = JSON.parse(value) as QueryDocument;
@@ -196,14 +200,24 @@ function QueryEditorSection({
   };
   const json = JSON.stringify(draft, null, 2);
   const validate = () => {
+    const validationRun = ++validationRunRef.current;
+    validationControllerRef.current?.abort();
+    const validationController = new AbortController();
+    validationControllerRef.current = validationController;
     const errors = validateQueryDocument(draft);
     if (errors.length) setStatus(errors.map((error) => `${error.path}: ${error.message}`).join('; '));
     else if (draft.atoms.length === 0) setStatus(language === 'ja' ? '有効なクエリ; SMARTS: (空); 一致: 0' : 'Valid query; SMARTS: (empty); matches: 0');
     else {
       setStatus(language === 'ja' ? '有効なクエリ; WASMワーカーで確認中…' : 'Valid query; checking WASM worker…');
-      void runQueryInWorker(draft, molecule)
-        .then((result) => setStatus(language === 'ja' ? `有効なクエリ; SMARTS: ${result.pattern}; 一致: ${result.matches.length}` : `Valid query; SMARTS: ${result.pattern}; matches: ${result.matches.length}`))
-        .catch((error) => setStatus(error instanceof Error ? error.message : String(error)));
+      void runQueryInWorker(draft, molecule, validationController.signal)
+        .then((result) => {
+          if (validationRun !== validationRunRef.current) return;
+          setStatus(language === 'ja' ? `有効なクエリ; SMARTS: ${result.pattern}; 一致: ${result.matches.length}` : `Valid query; SMARTS: ${result.pattern}; matches: ${result.matches.length}`);
+        })
+        .catch((error) => {
+          if (validationRun !== validationRunRef.current) return;
+          setStatus(error instanceof Error ? error.message : String(error));
+        });
     }
   };
   const apply = () => {
@@ -263,7 +277,7 @@ export function InspectorPanel() {
   const pushUndo = useMoleculeStore((s) => s.pushUndo);
   const [smartsPattern, setSmartsPattern] = useState('');
   const [smartsMatches, setSmartsMatches] = useState<number[]>([]);
-  const moleculeKey = molecule.atoms.map((a) => `${a.element}:${a.charge ?? 0}:${a.isotope ?? ''}`).join(',') + '|' + molecule.bonds.map((b) => `${b.from}-${b.to}:${b.order}`).join(',');
+  const moleculeKey = moleculeStructureKey(molecule);
   const [validationState, setValidationState] = useState<{ sourceKey: string; errors: string[]; warnings: string[] }>({ sourceKey: '', errors: [], warnings: [] });
   const [functionalGroupState, setFunctionalGroupState] = useState<{ sourceKey: string; groups: string[] }>({ sourceKey: '', groups: [] });
   const visibleValidation = validationState.sourceKey === moleculeKey ? validationState : { sourceKey: moleculeKey, errors: [], warnings: [] };
@@ -399,7 +413,7 @@ export function InspectorPanel() {
             <input
               type="number"
               min="1"
-              placeholder="natural abundance"
+              placeholder={language === 'ja' ? '天然存在比' : 'natural abundance'}
               value={selectedAtom.isotope ?? ''}
               onChange={(e) =>
                 handleAtomUpdate('isotope', e.target.value ? parseInt(e.target.value, 10) : undefined)

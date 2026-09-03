@@ -66,6 +66,7 @@ const TEMPLATES = [
 
 export function TemplatesPanel() {
   const theme = useUIStore((s) => s.theme);
+  const language = useUIStore((s) => s.language);
   const setMolecule = useMoleculeStore((s) => s.setMolecule);
   const pushUndo = useMoleculeStore((s) => s.pushUndo);
   const setStatus = useUIStore((s) => s.setStatus);
@@ -103,7 +104,8 @@ export function TemplatesPanel() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
       <input
         type="text"
-        placeholder="Search templates..."
+        aria-label={language === 'ja' ? 'テンプレートを検索' : 'Search templates'}
+        placeholder={language === 'ja' ? 'テンプレートを検索…' : 'Search templates...'}
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
         style={{

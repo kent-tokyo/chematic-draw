@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useMoleculeStore } from '../store/moleculeStore';
 import { useMechanismStore } from '../store/mechanismStore';
 import { suggestArrowPairs } from '../lib/electronDetection';
@@ -11,8 +11,19 @@ export function useElectronSuggestions() {
   const mechanismArrows = useMechanismStore((s) => s.arrows);
   const setSuggestions = useMechanismStore((s) => s.setSuggestions);
 
-  // Debounce timer to avoid recalculating too frequently
+  // The expensive chemistry inference is molecule-dependent only. Keep its
+  // unfiltered result so arrow edits can update visibility without rerunning
+  // inference for an unchanged molecule.
+  const baseSuggestionsRef = useRef<ReturnType<typeof suggestArrowPairs>>([]);
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+
+  const filterExistingArrows = useCallback(
+    (suggestions: ReturnType<typeof suggestArrowPairs>, arrows: typeof mechanismArrows) =>
+      suggestions.filter((suggestion) => !arrows.some(
+        (arrow) => arrow.sourceAtomId === suggestion.sourceAtomId && arrow.sinkAtomId === suggestion.sinkAtomId
+      )),
+    []
+  );
 
   useEffect(() => {
     // Clear existing debounce timer
@@ -26,19 +37,11 @@ export function useElectronSuggestions() {
         // Generate suggestions
         const suggestions = suggestArrowPairs(molecule, 5);
 
-        // Filter out suggestions where arrows already exist
-        const filteredSuggestions = suggestions.filter((suggestion) => {
-          return !mechanismArrows.some(
-            (arrow) =>
-              arrow.sourceAtomId === suggestion.sourceAtomId &&
-              arrow.sinkAtomId === suggestion.sinkAtomId
-          );
-        });
-
-        // Update store with filtered suggestions
-        setSuggestions(filteredSuggestions);
+        baseSuggestionsRef.current = suggestions;
+        setSuggestions(filterExistingArrows(suggestions, useMechanismStore.getState().arrows));
       } catch (error) {
         console.error('Error generating electron suggestions:', error);
+        baseSuggestionsRef.current = [];
         setSuggestions([]);
       }
     }, 500);
@@ -49,5 +52,12 @@ export function useElectronSuggestions() {
         clearTimeout(debounceTimer.current);
       }
     };
-  }, [molecule, mechanismArrows, setSuggestions]);
+  }, [filterExistingArrows, molecule, setSuggestions]);
+
+  // Arrow changes only require a cheap visibility filter. This also restores
+  // suggestions when an existing arrow is removed, without paying for a new
+  // chemistry inference pass.
+  useEffect(() => {
+    setSuggestions(filterExistingArrows(baseSuggestionsRef.current, mechanismArrows));
+  }, [filterExistingArrows, mechanismArrows, setSuggestions]);
 }

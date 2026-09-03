@@ -8,6 +8,7 @@ interface BatchResultPanelProps {
 
 export function BatchResultPanel({ results, onRetry }: BatchResultPanelProps) {
   const theme = useUIStore((s) => s.theme);
+  const language = useUIStore((s) => s.language);
   const [selectedResult, setSelectedResult] = useState<BatchResultSummary | null>(null);
   const [itemFilter, setItemFilter] = useState<'all' | 'succeeded' | 'failed' | 'skipped' | 'cancelled'>('all');
   const [retrying, setRetrying] = useState(false);
@@ -18,11 +19,12 @@ export function BatchResultPanel({ results, onRetry }: BatchResultPanelProps) {
   const inputBg = theme === 'dark' ? '#1e2530' : '#ffffff';
   const successColor = '#4caf50';
   const errorColor = '#d94545';
+  const isJapanese = language === 'ja';
 
   if (results.length === 0) {
     return (
       <div style={{ padding: '16px', textAlign: 'center', color: labelColor, fontSize: '12px' }}>
-        No batch operations yet.
+        {isJapanese ? '一括処理はまだありません。' : 'No batch operations yet.'}
       </div>
     );
   }
@@ -35,12 +37,12 @@ export function BatchResultPanel({ results, onRetry }: BatchResultPanelProps) {
   return (
     <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
       {results.length > 1 && (
-        <div aria-label="Batch history" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <div style={{ fontSize: '10px', fontWeight: 'bold', color: textColor }}>Batch history</div>
+        <div aria-label={isJapanese ? '一括処理の履歴' : 'Batch history'} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div style={{ fontSize: '10px', fontWeight: 'bold', color: textColor }}>{isJapanese ? '一括処理の履歴' : 'Batch history'}</div>
           {results.map((result, index) => (
             <button
               key={`${result.timestamp}-${index}`}
-              aria-label={`Batch history item ${index + 1}: ${result.operation}`}
+              aria-label={isJapanese ? `一括処理履歴 ${index + 1}: ${result.operation}` : `Batch history item ${index + 1}: ${result.operation}`}
               onClick={() => setSelectedResult(result)}
               style={{
                 padding: '5px 7px',
@@ -53,28 +55,28 @@ export function BatchResultPanel({ results, onRetry }: BatchResultPanelProps) {
                 cursor: 'pointer',
               }}
             >
-              {index + 1}. {result.operation} — {result.processed} processed, {result.failed} failed
+              {index + 1}. {result.operation} — {result.processed} {isJapanese ? '件処理済み' : 'processed'}, {result.failed} {isJapanese ? '件失敗' : 'failed'}
             </button>
           ))}
         </div>
       )}
       <div style={{ fontSize: '12px', fontWeight: 'bold', color: textColor }}>
-        Last Operation: {latestResult.operation}
+        {isJapanese ? '直近の操作' : 'Last Operation'}: {latestResult.operation}
       </div>
-      <div aria-label="Batch result hash" style={{ fontSize: '9px', color: labelColor, wordBreak: 'break-all' }}>
-        Result hash: {latestResult.resultHash}
+      <div aria-label={isJapanese ? '一括処理結果ハッシュ' : 'Batch result hash'} style={{ fontSize: '9px', color: labelColor, wordBreak: 'break-all' }}>
+        {isJapanese ? '結果ハッシュ' : 'Result hash'}: {latestResult.resultHash}
       </div>
-      <div aria-label="Batch provenance" style={{ fontSize: '9px', color: labelColor }}>
-        Engine: {latestResult.provenance.engine}
-        {latestResult.provenance.inputFormat && `; Input: ${latestResult.provenance.inputFormat}`}
-        {latestResult.provenance.outputFormat && `; Output: ${latestResult.provenance.outputFormat}`}
+      <div aria-label={isJapanese ? '一括処理の出典情報' : 'Batch provenance'} style={{ fontSize: '9px', color: labelColor }}>
+        {isJapanese ? 'エンジン' : 'Engine'}: {latestResult.provenance.engine}
+        {latestResult.provenance.inputFormat && `; ${isJapanese ? '入力' : 'Input'}: ${latestResult.provenance.inputFormat}`}
+        {latestResult.provenance.outputFormat && `; ${isJapanese ? '出力' : 'Output'}: ${latestResult.provenance.outputFormat}`}
         {latestResult.provenance.filterOptions && `; MW: ${latestResult.provenance.filterOptions.minMW ?? '—'}–${latestResult.provenance.filterOptions.maxMW ?? '—'}; LogP: ${latestResult.provenance.filterOptions.minLogP ?? '—'}–${latestResult.provenance.filterOptions.maxLogP ?? '—'}`}
         {latestResult.provenance.smartsPattern && `; SMARTS: ${latestResult.provenance.smartsPattern}`}
       </div>
       {latestResult.failed > 0 && latestResult.retry && onRetry && (
         <button
           type="button"
-          aria-label="Retry failed batch items"
+          aria-label={isJapanese ? '失敗した一括処理項目を再試行' : 'Retry failed batch items'}
           disabled={retrying}
           aria-busy={retrying}
           onClick={async () => {
@@ -87,7 +89,7 @@ export function BatchResultPanel({ results, onRetry }: BatchResultPanelProps) {
           }}
           style={{ alignSelf: 'flex-start', padding: '6px 10px', border: `1px solid ${borderColor}`, borderRadius: '3px', backgroundColor: inputBg, color: textColor, cursor: retrying ? 'wait' : 'pointer', fontSize: '10px' }}
         >
-          {retrying ? 'Retrying...' : `Retry failed (${latestResult.failed})`}
+          {retrying ? (isJapanese ? '再試行中…' : 'Retrying...') : (isJapanese ? `失敗分を再試行（${latestResult.failed}件）` : `Retry failed (${latestResult.failed})`)}
         </button>
       )}
 
@@ -104,7 +106,7 @@ export function BatchResultPanel({ results, onRetry }: BatchResultPanelProps) {
           }}
         >
           <div style={{ fontWeight: 'bold' }}>{latestResult.processed}</div>
-          <div style={{ fontSize: '9px' }}>Processed</div>
+          <div style={{ fontSize: '9px' }}>{isJapanese ? '処理済み' : 'Processed'}</div>
         </div>
         <div
           style={{
@@ -117,7 +119,7 @@ export function BatchResultPanel({ results, onRetry }: BatchResultPanelProps) {
           }}
         >
           <div style={{ fontWeight: 'bold' }}>{latestResult.failed}</div>
-          <div style={{ fontSize: '9px' }}>Failed</div>
+          <div style={{ fontSize: '9px' }}>{isJapanese ? '失敗' : 'Failed'}</div>
         </div>
         <div
           style={{
@@ -130,7 +132,7 @@ export function BatchResultPanel({ results, onRetry }: BatchResultPanelProps) {
           }}
         >
           <div style={{ fontWeight: 'bold' }}>{latestResult.skipped}</div>
-          <div style={{ fontSize: '9px' }}>Skipped</div>
+          <div style={{ fontSize: '9px' }}>{isJapanese ? 'スキップ' : 'Skipped'}</div>
         </div>
       </div>
 
@@ -145,7 +147,7 @@ export function BatchResultPanel({ results, onRetry }: BatchResultPanelProps) {
           }}
         >
           <div style={{ fontSize: '10px', fontWeight: 'bold', color: errorColor, marginBottom: '4px' }}>
-            Errors:
+            {isJapanese ? 'エラー：' : 'Errors:'}
           </div>
           {latestResult.errors.slice(0, 3).map((err, idx) => (
             <div key={idx} style={{ fontSize: '9px', color: labelColor, marginBottom: '2px' }}>
@@ -154,7 +156,7 @@ export function BatchResultPanel({ results, onRetry }: BatchResultPanelProps) {
           ))}
           {latestResult.errors.length > 3 && (
             <div style={{ fontSize: '9px', color: labelColor, marginTop: '4px' }}>
-              +{latestResult.errors.length - 3} more errors
+              +{latestResult.errors.length - 3} {isJapanese ? '件のエラー' : 'more errors'}
             </div>
           )}
         </div>
@@ -163,7 +165,7 @@ export function BatchResultPanel({ results, onRetry }: BatchResultPanelProps) {
       {/* Per-item review */}
       {latestResult.items.length > 0 && (
         <div
-          aria-label="Batch item review"
+          aria-label={isJapanese ? '一括処理項目の確認' : 'Batch item review'}
           style={{
             padding: '8px',
             backgroundColor: theme === 'dark' ? '#252d38' : '#f5f7fa',
@@ -171,36 +173,36 @@ export function BatchResultPanel({ results, onRetry }: BatchResultPanelProps) {
           }}
         >
           <div style={{ fontSize: '10px', fontWeight: 'bold', color: textColor, marginBottom: '5px' }}>
-            <span>Item review{latestResult.cancelled ? ' (cancelled)' : ''}</span>
+            <span>{isJapanese ? '項目の確認' : 'Item review'}{latestResult.cancelled ? (isJapanese ? '（キャンセル済み）' : ' (cancelled)') : ''}</span>
             <select
-              aria-label="Batch item status filter"
+              aria-label={isJapanese ? '一括処理項目の状態フィルター' : 'Batch item status filter'}
               value={itemFilter}
               onChange={(event) => setItemFilter(event.target.value as typeof itemFilter)}
               style={{ marginLeft: '8px', fontSize: '9px', color: textColor, backgroundColor: inputBg, border: `1px solid ${borderColor}` }}
             >
-              <option value="all">All</option>
-              <option value="succeeded">Succeeded</option>
-              <option value="failed">Failed</option>
-              <option value="skipped">Skipped</option>
-              <option value="cancelled">Cancelled</option>
+              <option value="all">{isJapanese ? 'すべて' : 'All'}</option>
+              <option value="succeeded">{isJapanese ? '成功' : 'Succeeded'}</option>
+              <option value="failed">{isJapanese ? '失敗' : 'Failed'}</option>
+              <option value="skipped">{isJapanese ? 'スキップ' : 'Skipped'}</option>
+              <option value="cancelled">{isJapanese ? 'キャンセル' : 'Cancelled'}</option>
             </select>
           </div>
           {visibleItems.length === 0 && (
-            <div style={{ fontSize: '9px', color: labelColor }}>No items match this status.</div>
+            <div style={{ fontSize: '9px', color: labelColor }}>{isJapanese ? 'この状態に一致する項目はありません。' : 'No items match this status.'}</div>
           )}
           {visibleItems.map((item) => (
             <div key={item.index} style={{ fontSize: '9px', color: labelColor, marginBottom: '3px' }}>
-              Item {item.index + 1}: <strong>{item.status}</strong>
+              {isJapanese ? '項目' : 'Item'} {item.index + 1}: <strong>{item.status}</strong>
               {item.error ? ` — ${item.error}` : ''}
               {item.warnings.length > 0 ? ` — ${item.warnings.join('; ')}` : ''}
               {item.inputAtomCount !== undefined && item.inputBondCount !== undefined && item.outputAtomCount !== undefined && item.outputBondCount !== undefined && (
-                <div aria-label={`Batch structure comparison for item ${item.index + 1}`} style={{ marginLeft: '12px' }}>
-                  Structure: {item.inputAtomCount} atoms / {item.inputBondCount} bonds → {item.outputAtomCount} atoms / {item.outputBondCount} bonds
+                <div aria-label={isJapanese ? `項目${item.index + 1}の構造比較` : `Batch structure comparison for item ${item.index + 1}`} style={{ marginLeft: '12px' }}>
+                  {isJapanese ? '構造' : 'Structure'}: {item.inputAtomCount} {isJapanese ? '原子' : 'atoms'} / {item.inputBondCount} {isJapanese ? '結合' : 'bonds'} → {item.outputAtomCount} {isJapanese ? '原子' : 'atoms'} / {item.outputBondCount} {isJapanese ? '結合' : 'bonds'}
                 </div>
               )}
               {item.properties && (
-                <div aria-label={`Batch properties for item ${item.index + 1}`} style={{ marginLeft: '12px' }}>
-                  Formula: {item.properties.formula}; MW: {item.properties.molecular_weight.toFixed(2)};
+                <div aria-label={isJapanese ? `項目${item.index + 1}の物性` : `Batch properties for item ${item.index + 1}`} style={{ marginLeft: '12px' }}>
+                  {isJapanese ? '分子式' : 'Formula'}: {item.properties.formula}; MW: {item.properties.molecular_weight.toFixed(2)};
                   {' '}LogP: {item.properties.logp.toFixed(2)}; TPSA: {item.properties.tpsa.toFixed(2)}
                 </div>
               )}

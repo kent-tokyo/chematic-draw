@@ -23,6 +23,7 @@ export interface BatchConfig {
 
 export function BatchProcessDialog({ onProcess, onCancel }: BatchDialogProps) {
   const theme = useUIStore((s) => s.theme);
+  const language = useUIStore((s) => s.language);
   const [operation, setOperation] = useState<'convert' | 'standardize' | 'filter' | 'properties'>('standardize');
   const [config, setConfig] = useState<BatchConfig>({ operation: 'standardize' });
   const [progress, setProgress] = useState(0);
@@ -43,6 +44,7 @@ export function BatchProcessDialog({ onProcess, onCancel }: BatchDialogProps) {
   const textColor = theme === 'dark' ? '#d8deea' : '#1d2430';
   const labelColor = theme === 'dark' ? '#a0a8b8' : '#555555';
   const inputBg = theme === 'dark' ? '#1e2530' : '#f9f9f9';
+  const isJapanese = language === 'ja';
 
   const handleProcess = async () => {
     setProcessing(true);
@@ -100,12 +102,12 @@ export function BatchProcessDialog({ onProcess, onCancel }: BatchDialogProps) {
           boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
         }}
       >
-        <h2 id="batch-process-title" style={{ margin: '0 0 20px', color: textColor }}>Batch Process Molecules</h2>
+        <h2 id="batch-process-title" style={{ margin: '0 0 20px', color: textColor }}>{isJapanese ? '分子の一括処理' : 'Batch Process Molecules'}</h2>
 
         {/* Operation Selection */}
         <div style={{ marginBottom: '20px' }}>
           <label style={{ fontSize: '12px', color: labelColor, display: 'block', marginBottom: '8px' }}>
-            Operation
+            {isJapanese ? '操作' : 'Operation'}
           </label>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
             {(['standardize', 'convert', 'filter', 'properties'] as const).map((op) => (
@@ -127,7 +129,7 @@ export function BatchProcessDialog({ onProcess, onCancel }: BatchDialogProps) {
                   fontWeight: operation === op ? 'bold' : 'normal',
                 }}
               >
-                {op.charAt(0).toUpperCase() + op.slice(1)}
+                {isJapanese ? ({ standardize: '標準化', convert: '変換', filter: 'フィルター', properties: '物性' }[op]) : op.charAt(0).toUpperCase() + op.slice(1)}
               </button>
             ))}
           </div>
@@ -136,11 +138,11 @@ export function BatchProcessDialog({ onProcess, onCancel }: BatchDialogProps) {
         {/* Operation-specific options */}
         {operation === 'filter' && (
           <div style={{ marginBottom: '20px', padding: '12px', backgroundColor: inputBg, borderRadius: '4px' }}>
-            <label style={{ fontSize: '11px', color: labelColor }}>MW Range</label>
+            <label style={{ fontSize: '11px', color: labelColor }}>{isJapanese ? 'MW範囲' : 'MW Range'}</label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '8px' }}>
               <input
                 type="number"
-                placeholder="Min MW"
+                placeholder={isJapanese ? '最小MW' : 'Min MW'}
                 value={config.filterMinMW ?? ''}
                 onChange={(e) => setConfig({ ...config, filterMinMW: e.target.value ? parseFloat(e.target.value) : undefined })}
                 style={{
@@ -154,7 +156,7 @@ export function BatchProcessDialog({ onProcess, onCancel }: BatchDialogProps) {
               />
               <input
                 type="number"
-                placeholder="Max MW"
+                placeholder={isJapanese ? '最大MW' : 'Max MW'}
                 value={config.filterMaxMW ?? ''}
                 onChange={(e) => setConfig({ ...config, filterMaxMW: e.target.value ? parseFloat(e.target.value) : undefined })}
                 style={{
@@ -167,12 +169,12 @@ export function BatchProcessDialog({ onProcess, onCancel }: BatchDialogProps) {
                 }}
               />
             </div>
-            <label style={{ fontSize: '11px', color: labelColor, display: 'block', marginTop: '10px' }}>LogP Range</label>
+            <label style={{ fontSize: '11px', color: labelColor, display: 'block', marginTop: '10px' }}>{isJapanese ? 'LogP範囲' : 'LogP Range'}</label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '8px' }}>
               <input
                 type="number"
                 step="any"
-                placeholder="Min LogP"
+                placeholder={isJapanese ? '最小LogP' : 'Min LogP'}
                 value={config.filterMinLogP ?? ''}
                 onChange={(e) => setConfig({ ...config, filterMinLogP: e.target.value ? parseFloat(e.target.value) : undefined })}
                 style={{
@@ -183,7 +185,7 @@ export function BatchProcessDialog({ onProcess, onCancel }: BatchDialogProps) {
               <input
                 type="number"
                 step="any"
-                placeholder="Max LogP"
+                placeholder={isJapanese ? '最大LogP' : 'Max LogP'}
                 value={config.filterMaxLogP ?? ''}
                 onChange={(e) => setConfig({ ...config, filterMaxLogP: e.target.value ? parseFloat(e.target.value) : undefined })}
                 style={{
@@ -192,11 +194,11 @@ export function BatchProcessDialog({ onProcess, onCancel }: BatchDialogProps) {
                 }}
               />
             </div>
-            <label style={{ fontSize: '11px', color: labelColor, display: 'block', marginTop: '10px' }}>SMARTS pattern</label>
+            <label style={{ fontSize: '11px', color: labelColor, display: 'block', marginTop: '10px' }}>{isJapanese ? 'SMARTSパターン' : 'SMARTS pattern'}</label>
             <input
               type="text"
-              aria-label="SMARTS filter pattern"
-              placeholder="Optional SMARTS pattern"
+              aria-label={isJapanese ? 'SMARTSフィルターパターン' : 'SMARTS filter pattern'}
+              placeholder={isJapanese ? '任意のSMARTSパターン' : 'Optional SMARTS pattern'}
               value={config.filterSmarts ?? ''}
               onChange={(e) => setConfig({ ...config, filterSmarts: e.target.value || undefined })}
               style={{
@@ -212,7 +214,7 @@ export function BatchProcessDialog({ onProcess, onCancel }: BatchDialogProps) {
         {processing && (
           <div style={{ marginBottom: '20px' }}>
             <div style={{ fontSize: '11px', color: labelColor, marginBottom: '8px' }}>
-              Processing... {progress}%
+              {isJapanese ? '処理中…' : 'Processing...'} {progress}%
             </div>
             <div
               role="progressbar"
@@ -255,7 +257,7 @@ export function BatchProcessDialog({ onProcess, onCancel }: BatchDialogProps) {
               opacity: 1,
             }}
           >
-            Cancel
+            {isJapanese ? 'キャンセル' : 'Cancel'}
           </button>
           <button
             onClick={handleProcess}
@@ -271,7 +273,7 @@ export function BatchProcessDialog({ onProcess, onCancel }: BatchDialogProps) {
               opacity: processing ? 0.7 : 1,
             }}
           >
-            {processing ? 'Processing...' : 'Process'}
+            {processing ? (isJapanese ? '処理中…' : 'Processing...') : (isJapanese ? '処理を実行' : 'Process')}
           </button>
         </div>
       </div>

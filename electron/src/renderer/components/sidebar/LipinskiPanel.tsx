@@ -3,6 +3,7 @@ import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
 import { checkLipinski } from '../../lib/advancedFeatures';
 import * as wasmBridge from '../../wasm/wasmBridge';
+import { moleculeStructureKey } from '../../lib/moleculeKey';
 
 type LipinskiRule = { rule: string; value: number; limit: number; violated: boolean };
 type LipinskiState = { sourceKey: string } & (
@@ -16,7 +17,7 @@ export function LipinskiPanel() {
   const molecule = useMoleculeStore((s) => s.molecule);
 
   const [state, setState] = useState<LipinskiState>({ status: 'idle', sourceKey: '' });
-  const moleculeKey = molecule.atoms.map((a) => `${a.element}:${a.charge ?? 0}:${a.isotope ?? ''}`).join(',') + '|' + molecule.bonds.map((b) => `${b.from}-${b.to}:${b.order}`).join(',');
+  const moleculeKey = moleculeStructureKey(molecule);
   const visibleState: LipinskiState = state.sourceKey === moleculeKey ? state : { status: 'loading', sourceKey: moleculeKey };
 
   const borderColor = theme === 'dark' ? '#3a4a57' : '#e0e0e0';

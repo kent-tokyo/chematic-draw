@@ -3,6 +3,8 @@ import { useUIStore } from '../../store/uiStore';
 
 export function ChatPanel() {
   const theme = useUIStore((s) => s.theme);
+  const language = useUIStore((s) => s.language);
+  const isJapanese = language === 'ja';
   const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; text: string }>>([]);
   const [input, setInput] = useState('');
 
@@ -12,7 +14,7 @@ export function ChatPanel() {
     setInput('');
     // Placeholder response
     setTimeout(() => {
-      setMessages((prev) => [...prev, { role: 'assistant', text: 'AI Chat integration coming soon...' }]);
+      setMessages((prev) => [...prev, { role: 'assistant', text: isJapanese ? 'AIチャット連携は今後対応予定です…' : 'AI Chat integration coming soon...' }]);
     }, 300);
   };
 
@@ -26,11 +28,14 @@ export function ChatPanel() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '8px' }}>
       <div style={{ fontSize: '10px', color: labelColor }}>
-        AI-powered molecular analysis (future feature)
+        {isJapanese ? 'AI分子解析（今後対応予定）' : 'AI-powered molecular analysis (future feature)'}
       </div>
 
       {/* Message List */}
       <div
+        role="log"
+        aria-label={isJapanese ? '分子相談のメッセージ' : 'Molecule conversation messages'}
+        aria-live="polite"
         style={{
           flex: 1,
           overflow: 'auto',
@@ -44,7 +49,7 @@ export function ChatPanel() {
       >
         {messages.length === 0 ? (
           <div style={{ color: labelColor, fontSize: '11px', textAlign: 'center', padding: '20px 0' }}>
-            Start a conversation about the molecule
+            {isJapanese ? '分子について相談を始めましょう' : 'Start a conversation about the molecule'}
           </div>
         ) : (
           messages.map((msg, idx) => (
@@ -77,10 +82,11 @@ export function ChatPanel() {
       <div style={{ display: 'flex', gap: '6px' }}>
         <input
           type="text"
+          aria-label={isJapanese ? '分子について質問' : 'Ask about the molecule'}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-          placeholder="Ask about structure..."
+          placeholder={isJapanese ? '構造について質問…' : 'Ask about structure...'}
           style={{
             flex: 1,
             padding: '6px 8px',
@@ -93,6 +99,8 @@ export function ChatPanel() {
           }}
         />
         <button
+          type="button"
+          aria-label={isJapanese ? 'メッセージを送信' : 'Send message'}
           onClick={handleSendMessage}
           style={{
             padding: '6px 10px',
@@ -104,7 +112,7 @@ export function ChatPanel() {
             cursor: 'pointer',
           }}
         >
-          Send
+          {isJapanese ? '送信' : 'Send'}
         </button>
       </div>
     </div>

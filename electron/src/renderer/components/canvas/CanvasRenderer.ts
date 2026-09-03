@@ -125,6 +125,9 @@ export class CanvasRenderer {
     options: RenderOptions
   ) {
     const colors = COLORS[options.theme];
+    const atomById = new Map(molecule.atoms.map((atom) => [atom.id, atom]));
+    const selectedAtomIds = new Set(options.selectedAtomIds ?? []);
+    const selectedBondIds = new Set(options.selectedBondIds ?? []);
 
     // Draw bonds first (behind atoms)
     this.ctx.strokeStyle = colors.bond;
@@ -133,11 +136,11 @@ export class CanvasRenderer {
     this.ctx.lineJoin = 'round';
 
     for (const bond of molecule.bonds) {
-      const from = molecule.atoms.find((a) => a.id === bond.from);
-      const to = molecule.atoms.find((a) => a.id === bond.to);
+      const from = atomById.get(bond.from);
+      const to = atomById.get(bond.to);
       if (!from || !to) continue;
 
-      const isSelected = options.selectedBondIds?.includes(bond.id) ?? false;
+      const isSelected = selectedBondIds.has(bond.id);
       const isHover = bond.id === options.hoverBondId;
 
       if (isSelected) this.ctx.strokeStyle = colors.selected;
@@ -149,7 +152,7 @@ export class CanvasRenderer {
 
     // Draw ghost bond if dragging
     if (options.bondDragFrom !== null && options.bondDragPos) {
-      const from = molecule.atoms.find((a) => a.id === options.bondDragFrom);
+      const from = atomById.get(options.bondDragFrom);
       if (from) {
         this.ctx.strokeStyle = colors.accent;
         this.ctx.globalAlpha = 0.6;
@@ -163,7 +166,7 @@ export class CanvasRenderer {
 
     // Draw atoms
     for (const atom of molecule.atoms) {
-      const isSelected = options.selectedAtomIds?.includes(atom.id) ?? false;
+      const isSelected = selectedAtomIds.has(atom.id);
       const isHover = atom.id === options.hoverAtomId;
 
       this.drawAtom(atom, state, {

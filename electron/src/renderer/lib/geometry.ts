@@ -33,9 +33,10 @@ export function hitTestBond(
   screenY: number,
   state: Pick<CanvasState, 'offset' | 'zoom'>
 ): number | null {
+  const atomById = new Map(molecule.atoms.map((atom) => [atom.id, atom]));
   for (const bond of molecule.bonds) {
-    const from = molecule.atoms.find((a) => a.id === bond.from);
-    const to = molecule.atoms.find((a) => a.id === bond.to);
+    const from = atomById.get(bond.from);
+    const to = atomById.get(bond.to);
     if (!from || !to) continue;
 
     const x1 = from.x * state.zoom + state.offset.x;
@@ -93,10 +94,11 @@ export function getUnoccupiedDirection(
 
   // Find existing bond angles from this atom
   const bondAngles = new Set<number>();
+  const atomById = new Map(molecule.atoms.map((candidate) => [candidate.id, candidate]));
   for (const bond of molecule.bonds) {
     if (bond.from !== atomId && bond.to !== atomId) continue;
     const otherId = bond.from === atomId ? bond.to : bond.from;
-    const other = molecule.atoms.find((a) => a.id === otherId);
+    const other = atomById.get(otherId);
     if (!other) continue;
 
     const dx = other.x - atom.x;
@@ -143,9 +145,10 @@ export function calculateBondedAtomPosition(
 export function getConnectedComponent(molecule: MoleculeDto, atomId: number): Set<number> {
   const visited = new Set<number>();
   const queue = [atomId];
+  let queueIndex = 0;
 
-  while (queue.length > 0) {
-    const current = queue.shift()!;
+  while (queueIndex < queue.length) {
+    const current = queue[queueIndex++];
     if (visited.has(current)) continue;
     visited.add(current);
 

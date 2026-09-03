@@ -33,7 +33,7 @@ describe('versioned reaction document JSON', () => {
     expect(exported.provenance).toMatchObject({
       source_format: 'reaction-document-json',
       operation: 'export-reaction-document',
-      engine: 'chematic 0.35.0',
+      engine: 'chematic 1.0.1',
     });
     expect(exported.provenance.result_hash).toMatch(/^fnv1a-32:[0-9a-f]{8}$/);
     expect(exported.scheme).toEqual(scheme);

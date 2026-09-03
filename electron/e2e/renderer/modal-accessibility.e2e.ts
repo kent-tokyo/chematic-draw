@@ -42,6 +42,27 @@ test.describe('Modal accessibility', () => {
     await expect(dialog).not.toBeVisible();
   });
 
+  test('Shortcuts modal exposes category tabs and an associated tabpanel', async ({ page }) => {
+    await page.keyboard.press('F1');
+
+    const dialog = page.getByRole('dialog', { name: 'Keyboard Shortcuts' });
+    const tablist = dialog.getByRole('tablist', { name: 'Shortcut categories' });
+    const tabs = tablist.getByRole('tab');
+    await expect(tabs).not.toHaveCount(0);
+
+    const firstTab = tabs.first();
+    await expect(firstTab).toHaveAttribute('aria-selected', 'true');
+    await expect(firstTab).toHaveAttribute('aria-controls', 'shortcut-panel-0');
+    const panel = dialog.getByRole('tabpanel');
+    await expect(panel).toHaveAttribute('aria-labelledby', 'shortcut-tab-0');
+
+    if (await tabs.count() > 1) {
+      await tabs.nth(1).click();
+      await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true');
+      await expect(panel).toHaveAttribute('aria-labelledby', 'shortcut-tab-1');
+    }
+  });
+
   test('Undo Timeline modal has dialog semantics and closes on Escape (previously had no Escape handler at all)', async ({ page }) => {
     // renderer.tsx's shortcut checks navigator.platform to decide the
     // modifier combo (Cmd+Ctrl+Z on macOS, Ctrl+Alt+Z elsewhere) — mirror

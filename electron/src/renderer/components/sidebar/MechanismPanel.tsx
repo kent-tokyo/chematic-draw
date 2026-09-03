@@ -10,6 +10,7 @@ import { MechanismArrow } from '../../store/types';
 
 export function MechanismPanel() {
   const theme = useUIStore((s) => s.theme);
+  const language = useUIStore((s) => s.language);
   const setStatus = useUIStore((s) => s.setStatus);
   const molecule = useMoleculeStore((s) => s.molecule);
 
@@ -37,25 +38,26 @@ export function MechanismPanel() {
   const labelColor = isDark ? '#999' : '#666';
   const accentColor = '#4d8dff';
   const deleteColor = '#d94545';
+  const isJapanese = language === 'ja';
 
   const handleStartArrow = () => {
     if (arrowSelectionMode !== 'idle') {
       useMechanismStore.getState().cancelArrowSelection();
-      setStatus('Arrow selection cancelled');
+      setStatus(isJapanese ? '矢印の選択をキャンセルしました' : 'Arrow selection cancelled');
     } else {
       useMechanismStore.getState().startArrowSelection();
-      setStatus('Click source atom (electron source)');
+      setStatus(isJapanese ? '電子の出発点となる原子をクリックしてください' : 'Click source atom (electron source)');
     }
   };
 
   const handleRemoveArrow = (arrowId: string) => {
     useMechanismStore.getState().removeArrow(arrowId);
-    setStatus('Arrow removed');
+    setStatus(isJapanese ? '矢印を削除しました' : 'Arrow removed');
   };
 
   const handleChangeArrowType = (arrowId: string, type: 'forward' | 'retro' | 'resonance') => {
     useMechanismStore.getState().updateArrow(arrowId, { type });
-    setStatus(`Arrow type changed to ${type}`);
+    setStatus(isJapanese ? `矢印の種類を${type}に変更しました` : `Arrow type changed to ${type}`);
   };
 
   const handleLabelChange = (arrowId: string, newLabel: string) => {
@@ -101,7 +103,7 @@ export function MechanismPanel() {
         updateCurrentStepArrows([...currentArrows, newArrow]);
       }
 
-      setStatus(`Arrow added (${type})`);
+      setStatus(isJapanese ? `矢印を追加しました（${type}）` : `Arrow added (${type})`);
     }
   };
 
@@ -157,7 +159,7 @@ export function MechanismPanel() {
               }
             }}
           >
-            📋 Step-by-Step
+            {isJapanese ? '📋 ステップごと' : '📋 Step-by-Step'}
           </button>
           <button
             onClick={() => setViewMode('scheme')}
@@ -184,7 +186,7 @@ export function MechanismPanel() {
               }
             }}
           >
-            📊 Full Scheme
+            {isJapanese ? '📊 反応全体' : '📊 Full Scheme'}
           </button>
         </div>
       )}
@@ -192,11 +194,11 @@ export function MechanismPanel() {
       <div style={{ fontSize: '12px', color: labelColor }}>
         {scheme && scheme.steps.length > 0 ? (
           <div style={{ fontSize: '12px', color: labelColor, marginBottom: '8px' }}>
-            Drawing mechanism arrows for Step {scheme.currentStepIndex + 1} of {scheme.steps.length}
+            {isJapanese ? '機構矢印を描画中：' : 'Drawing mechanism arrows for Step '} {scheme.currentStepIndex + 1} {isJapanese ? ' / ' : ' of '} {scheme.steps.length}
           </div>
         ) : (
           <div style={{ fontSize: '12px', color: labelColor }}>
-            Draw electron flow arrows showing reaction mechanisms.
+          {isJapanese ? '反応機構を示す電子の流れの矢印を描画します。' : 'Draw electron flow arrows showing reaction mechanisms.'}
           </div>
         )}
       </div>
@@ -213,7 +215,7 @@ export function MechanismPanel() {
             borderLeft: `3px solid ${accentColor}`,
           }}
         >
-          📊 Viewing full reaction scheme. Click a step to edit details.
+          {isJapanese ? '📊 反応全体を表示中。編集するステップをクリックしてください。' : '📊 Viewing full reaction scheme. Click a step to edit details.'}
         </div>
       )}
 
@@ -232,11 +234,11 @@ export function MechanismPanel() {
             alignItems: 'center',
           }}
         >
-          <span>Waiting for sink atom...</span>
+          <span>{isJapanese ? '電子の到達先となる原子を待っています…' : 'Waiting for sink atom...'}</span>
           <button
             onClick={() => {
               useMechanismStore.getState().cancelArrowSelection();
-              setStatus('Arrow selection cancelled');
+              setStatus(isJapanese ? '矢印の選択をキャンセルしました' : 'Arrow selection cancelled');
             }}
             style={{
               padding: '2px 6px',
@@ -249,7 +251,7 @@ export function MechanismPanel() {
               fontWeight: 'bold',
             }}
           >
-            CANCEL
+            {isJapanese ? 'キャンセル' : 'CANCEL'}
           </button>
         </div>
       )}
@@ -311,7 +313,7 @@ export function MechanismPanel() {
                         marginTop: '2px',
                       }}
                     >
-                      Confidence: {confidencePercent}%
+                      {isJapanese ? '信頼度' : 'Confidence'}: {confidencePercent}%
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '4px' }}>
@@ -335,7 +337,7 @@ export function MechanismPanel() {
                         (e.target as HTMLButtonElement).style.backgroundColor = '#4CAF50';
                       }}
                     >
-                      Create
+                      {isJapanese ? '作成' : 'Create'}
                     </button>
                     <button
                       onClick={() => handleDismissSuggestion(index)}
@@ -361,7 +363,7 @@ export function MechanismPanel() {
 
       {/* Arrow List Header */}
       <div style={{ fontSize: '11px', fontWeight: 'bold', color: textColor, marginTop: '8px' }}>
-        Arrows ({mechanismArrows.length})
+        {isJapanese ? '矢印' : 'Arrows'} ({mechanismArrows.length})
       </div>
 
       {/* Arrow List */}
@@ -392,7 +394,7 @@ export function MechanismPanel() {
               border: `1px dashed ${borderColor}`,
             }}
           >
-            No arrows yet
+            {isJapanese ? '矢印はまだありません' : 'No arrows yet'}
           </div>
         ) : (
           mechanismArrows.map((arrow) => {
@@ -483,7 +485,7 @@ export function MechanismPanel() {
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div style={{ fontSize: '10px', color: labelColor, marginBottom: '6px', fontWeight: 'bold' }}>
-                      Label (optional):
+                      {isJapanese ? 'ラベル（任意）：' : 'Label (optional):'}
                     </div>
                     <input
                       type="text"
@@ -503,7 +505,7 @@ export function MechanismPanel() {
                       }}
                     />
                     <div style={{ fontSize: '9px', color: labelColor, fontStyle: 'italic' }}>
-                      Appears on arrow in diagram
+                      {isJapanese ? '図中の矢印に表示されます' : 'Appears on arrow in diagram'}
                     </div>
                   </div>
                 )}
@@ -538,7 +540,7 @@ export function MechanismPanel() {
           }
         }}
       >
-        {arrowSelectionMode === 'awaitingSink' ? '↓ AWAITING CLICK' : '+ Add Arrow'}
+        {arrowSelectionMode === 'awaitingSink' ? (isJapanese ? '↓ クリック待ち' : '↓ AWAITING CLICK') : (isJapanese ? '+ 矢印を追加' : '+ Add Arrow')}
       </button>
 
       {/* Info Section */}
@@ -551,11 +553,11 @@ export function MechanismPanel() {
           color: labelColor,
         }}
       >
-        <div style={{ marginBottom: '6px', fontWeight: 'bold' }}>Arrow types:</div>
+        <div style={{ marginBottom: '6px', fontWeight: 'bold' }}>{isJapanese ? '矢印の種類：' : 'Arrow types:'}</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <div>→ <strong>Forward:</strong> Standard electron flow</div>
-          <div>⇌ <strong>Retro:</strong> Reverse/equilibrium</div>
-          <div>↔ <strong>Resonance:</strong> Delocalization</div>
+          <div>→ <strong>{isJapanese ? '順方向：' : 'Forward:'}</strong> {isJapanese ? '標準的な電子の流れ' : 'Standard electron flow'}</div>
+          <div>⇌ <strong>{isJapanese ? '逆反応：' : 'Retro:'}</strong> {isJapanese ? '逆方向・平衡' : 'Reverse/equilibrium'}</div>
+          <div>↔ <strong>{isJapanese ? '共鳴：' : 'Resonance:'}</strong> {isJapanese ? '非局在化' : 'Delocalization'}</div>
         </div>
       </div>
 
@@ -566,7 +568,7 @@ export function MechanismPanel() {
           onCancel={() => {
             useMechanismStore.getState().setPendingSinkAtomId(null);
             useMechanismStore.getState().cancelArrowSelection();
-            setStatus('Arrow selection cancelled');
+            setStatus(isJapanese ? '矢印の選択をキャンセルしました' : 'Arrow selection cancelled');
           }}
         />
       )}

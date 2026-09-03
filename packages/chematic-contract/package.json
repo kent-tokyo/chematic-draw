@@ -1,6 +1,6 @@
 {
   "name": "@chematic/contract",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "private": true,
   "description": "Electron-free serializable molecule and query contracts",
   "type": "module",

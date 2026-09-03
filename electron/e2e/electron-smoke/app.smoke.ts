@@ -204,7 +204,7 @@ test.describe('Electron Smoke', () => {
     const legacyBundle = JSON.stringify({
       schema: 'chematic-draw/session-bundle',
       schema_version: 1,
-      app: { name: 'chematic-draw', engine: 'chematic 0.35.0' },
+      app: { name: 'chematic-draw', engine: 'chematic 1.0.1' },
       source: { file_path: null },
       molecule: { atoms: [{ id: 0, element: 'N', x: 0, y: 0, charge: 0, atom_map: 0 }], bonds: [] },
     });
@@ -349,7 +349,7 @@ test.describe('Electron Smoke', () => {
     await window.getByTestId('sidebar-tab-batch-results').click();
     await expect(window.getByText('Last Operation: properties')).toBeVisible();
     await expect(window.getByLabel('Batch result hash')).toContainText('fnv1a-32:');
-    await expect(window.getByLabel('Batch provenance')).toContainText('Engine: chematic 0.35.0');
+    await expect(window.getByLabel('Batch provenance')).toContainText('Engine: chematic 1.0.1');
     await expect(window.getByLabel('Batch properties for item 1')).toContainText('Formula: C6H6');
     await expect(window.getByLabel('Batch properties for item 1')).toContainText('MW: 78.11');
     await expect(window.getByLabel('Batch structure comparison for item 1')).toContainText('6 atoms / 6 bonds → 6 atoms / 6 bonds');

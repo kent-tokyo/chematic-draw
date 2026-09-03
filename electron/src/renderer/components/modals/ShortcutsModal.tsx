@@ -5,6 +5,7 @@ import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 export function ShortcutsModal() {
   const theme = useUIStore((s) => s.theme);
+  const language = useUIStore((s) => s.language);
   const showShortcutsModal = useUIStore((s) => s.showShortcutsModal);
   const hideModal = useUIStore((s) => s.hideModal);
   const shortcutBindings = useUIStore((s) => s.shortcutBindings);
@@ -88,10 +89,10 @@ export function ShortcutsModal() {
       >
         {/* Header */}
         <div style={{ padding: '16px', borderBottom: `1px solid ${borderColor}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 id="shortcuts-modal-title" style={{ margin: 0, color: textColor, fontSize: '18px' }}>Keyboard Shortcuts</h2>
+          <h2 id="shortcuts-modal-title" style={{ margin: 0, color: textColor, fontSize: '18px' }}>{language === 'ja' ? 'キーボードショートカット' : 'Keyboard Shortcuts'}</h2>
           <button
             onClick={() => hideModal('shortcuts')}
-            aria-label="Close"
+            aria-label={language === 'ja' ? '閉じる' : 'Close'}
             style={{
               background: 'none',
               border: 'none',
@@ -108,7 +109,7 @@ export function ShortcutsModal() {
         <div style={{ padding: '12px 16px', borderBottom: `1px solid ${borderColor}` }}>
           <input
             type="text"
-            placeholder="Search shortcuts..."
+            placeholder={language === 'ja' ? 'ショートカットを検索…' : 'Search shortcuts...'}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{
@@ -126,6 +127,8 @@ export function ShortcutsModal() {
 
         {/* Tab Bar */}
         <div
+          role="tablist"
+          aria-label={language === 'ja' ? 'ショートカットカテゴリ' : 'Shortcut categories'}
           style={{
             display: 'flex',
             borderBottom: `1px solid ${borderColor}`,
@@ -135,6 +138,10 @@ export function ShortcutsModal() {
           {SHORTCUTS.map((group, idx) => (
             <button
               key={idx}
+              id={`shortcut-tab-${idx}`}
+              role="tab"
+              aria-selected={activeTab === idx}
+              aria-controls={`shortcut-panel-${idx}`}
               onClick={() => setActiveTab(idx)}
               style={{
                 flex: 1,
@@ -154,10 +161,15 @@ export function ShortcutsModal() {
         </div>
 
         {/* Content */}
-        <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
+        <div
+          id={`shortcut-panel-${activeTab}`}
+          role="tabpanel"
+          aria-labelledby={`shortcut-tab-${activeTab}`}
+          style={{ flex: 1, overflow: 'auto', padding: '16px' }}
+        >
           {filtered.length === 0 ? (
             <div style={{ color: labelColor, fontSize: '12px', textAlign: 'center', padding: '40px 0' }}>
-              No shortcuts matching "{searchTerm}"
+              {language === 'ja' ? `「${searchTerm}」に一致するショートカットはありません` : `No shortcuts matching "${searchTerm}"`}
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -202,9 +214,9 @@ export function ShortcutsModal() {
           }}
         >
           <div style={{ minHeight: '16px', color: '#d9534f', marginBottom: '6px' }}>{error}</div>
-          <button onClick={() => { resetShortcutBindings(); setDraft({ ...DEFAULT_SHORTCUT_BINDINGS }); setError(null); }} style={{ marginRight: '8px', padding: '5px 10px' }}>Reset defaults</button>
-          <button onClick={() => { const validation = validateShortcutBindings(draft); if (validation) { setError(validation); return; } setShortcutBindings(draft); setError(null); }} style={{ padding: '5px 10px' }}>Save shortcuts</button>
-          <div style={{ marginTop: '8px' }}>Enter shortcuts as Ctrl+Shift+S (Cmd is used automatically on macOS).</div>
+        <button onClick={() => { resetShortcutBindings(); setDraft({ ...DEFAULT_SHORTCUT_BINDINGS }); setError(null); }} style={{ marginRight: '8px', padding: '5px 10px' }}>{language === 'ja' ? '初期設定に戻す' : 'Reset defaults'}</button>
+        <button onClick={() => { const validation = validateShortcutBindings(draft); if (validation) { setError(validation); return; } setShortcutBindings(draft); setError(null); }} style={{ padding: '5px 10px' }}>{language === 'ja' ? 'ショートカットを保存' : 'Save shortcuts'}</button>
+        <div style={{ marginTop: '8px' }}>{language === 'ja' ? 'Ctrl+Shift+S の形式で入力してください（macOSではCmdが自動的に使われます）。' : 'Enter shortcuts as Ctrl+Shift+S (Cmd is used automatically on macOS).'}</div>
         </div>
       </div>
     </div>

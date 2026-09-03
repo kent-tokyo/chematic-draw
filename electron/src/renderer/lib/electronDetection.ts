@@ -1,5 +1,12 @@
 import { MoleculeDto, AtomDto } from '../store/types';
 
+const MAX_VALENCE: Record<string, number> = {
+  H: 1, C: 4, N: 3, O: 2, S: 2, F: 1, Cl: 1, Br: 1, I: 1,
+  P: 3, B: 3, Si: 4, Se: 2,
+};
+const HETERO_LONE_PAIR_BONUS: Record<string, number> = { O: 0.4, N: 0.4, S: 0.3, P: 0.2 };
+const HALOGENS = new Set(['F', 'Cl', 'Br', 'I']);
+
 /**
  * Properties of an atom relevant to electron flow detection
  */
@@ -10,21 +17,48 @@ interface AtomProperties {
   hybridization: 'sp' | 'sp²' | 'sp³';
 }
 
+interface DetectionContext {
+  bondCounts: Map<number, number>;
+  hasDoubleBond: Set<number>;
+  hasHalogenNeighbor: Set<number>;
+  hasOxygenDoubleBond: Set<number>;
+}
+
+function buildDetectionContext(molecule: MoleculeDto): DetectionContext {
+  const atomById = new Map(molecule.atoms.map((atom) => [atom.id, atom]));
+  const bondCounts = new Map<number, number>();
+  const hasDoubleBond = new Set<number>();
+  const hasHalogenNeighbor = new Set<number>();
+  const hasOxygenDoubleBond = new Set<number>();
+
+  for (const bond of molecule.bonds) {
+    bondCounts.set(bond.from, (bondCounts.get(bond.from) ?? 0) + 1);
+    bondCounts.set(bond.to, (bondCounts.get(bond.to) ?? 0) + 1);
+    const from = atomById.get(bond.from);
+    const to = atomById.get(bond.to);
+    if (from && to) {
+      if (bond.order === 2) {
+        hasDoubleBond.add(from.id);
+        hasDoubleBond.add(to.id);
+        if (to.element === 'O') hasOxygenDoubleBond.add(from.id);
+        if (from.element === 'O') hasOxygenDoubleBond.add(to.id);
+      }
+      if (HALOGENS.has(from.element)) hasHalogenNeighbor.add(to.id);
+      if (HALOGENS.has(to.element)) hasHalogenNeighbor.add(from.id);
+    }
+  }
+
+  return { bondCounts, hasDoubleBond, hasHalogenNeighbor, hasOxygenDoubleBond };
+}
+
 /**
  * Analyze atom properties for electron flow detection
  */
-function getAtomProperties(atom: AtomDto, molecule: MoleculeDto): AtomProperties {
-  // Count bonds connected to this atom
-  const bondCount = molecule.bonds.filter(
-    (b) => b.from === atom.id || b.to === atom.id
-  ).length;
+function getAtomProperties(atom: AtomDto, context: DetectionContext): AtomProperties {
+  const bondCount = context.bondCounts.get(atom.id) ?? 0;
 
   // Get max valence for element
-  const valenceMap: Record<string, number> = {
-    H: 1, C: 4, N: 3, O: 2, S: 2, F: 1, Cl: 1, Br: 1, I: 1,
-    P: 3, B: 3, Si: 4, Se: 2,
-  };
-  const maxValence = valenceMap[atom.element] || 4;
+  const maxValence = MAX_VALENCE[atom.element] || 4;
 
   // Estimate lone pairs: (maxValence - bondCount) / 2
   // This is simplified; real calculation depends on formal charge
@@ -47,7 +81,7 @@ function getAtomProperties(atom: AtomDto, molecule: MoleculeDto): AtomProperties
  * Score atom as electron source (0.0-1.0)
  * Sources: nucleophiles, anions, atoms with lone pairs
  */
-function scoreAsSource(atom: AtomDto, molecule: MoleculeDto): number {
+function scoreAsSource(atom: AtomDto, context: DetectionContext): number {
   let score = 0;
 
   // Negative formal charge is strong source indicator
@@ -56,22 +90,16 @@ function scoreAsSource(atom: AtomDto, molecule: MoleculeDto): number {
   }
 
   // Heteroatoms with lone pairs
-  const heteroLonePairBonus: Record<string, number> = {
-    O: 0.4, N: 0.4, S: 0.3, P: 0.2,
-  };
-  const bonus = heteroLonePairBonus[atom.element] || 0;
+  const bonus = HETERO_LONE_PAIR_BONUS[atom.element] || 0;
   if (bonus > 0) {
-    const props = getAtomProperties(atom, molecule);
+    const props = getAtomProperties(atom, context);
     if (props.estimatedLonePairs > 0) {
       score += bonus;
     }
   }
 
   // Aromatic/π-rich atoms (simplified: bonded to C=C or C≡C)
-  const hasDoubleBond = molecule.bonds.some(
-    (b) => (b.from === atom.id || b.to === atom.id) && b.order === 2
-  );
-  if (hasDoubleBond) {
+  if (context.hasDoubleBond.has(atom.id)) {
     score += 0.2;
   }
 
@@ -82,7 +110,7 @@ function scoreAsSource(atom: AtomDto, molecule: MoleculeDto): number {
  * Score atom as electron sink (0.0-1.0)
  * Sinks: electrophiles, cations, electron-withdrawing atoms
  */
-function scoreAsSink(atom: AtomDto, molecule: MoleculeDto): number {
+function scoreAsSink(atom: AtomDto, context: DetectionContext): number {
   let score = 0;
 
   // Positive formal charge is strong sink indicator
@@ -92,7 +120,7 @@ function scoreAsSink(atom: AtomDto, molecule: MoleculeDto): number {
 
   // Electrophilic carbon (esp. with leaving group)
   if (atom.element === 'C') {
-    const props = getAtomProperties(atom, molecule);
+    const props = getAtomProperties(atom, context);
 
     // sp² carbon (trigonal, electrophilic)
     if (props.hybridization === 'sp²') {
@@ -100,23 +128,12 @@ function scoreAsSink(atom: AtomDto, molecule: MoleculeDto): number {
     }
 
     // Carbon bonded to halogen (good leaving group)
-    const hasHalogenNeighbor = molecule.bonds.some((b) => {
-      const otherId = b.from === atom.id ? b.to : b.from;
-      const otherAtom = molecule.atoms.find((a) => a.id === otherId);
-      return otherAtom && ['F', 'Cl', 'Br', 'I'].includes(otherAtom.element);
-    });
-    if (hasHalogenNeighbor) {
+    if (context.hasHalogenNeighbor.has(atom.id)) {
       score += 0.5;
     }
 
     // Carbon in carbonyl (C=O is electrophilic)
-    const hasOxygenDouble = molecule.bonds.some((b) => {
-      if (b.order !== 2) return false;
-      const otherId = b.from === atom.id ? b.to : b.from;
-      const otherAtom = molecule.atoms.find((a) => a.id === otherId);
-      return otherAtom && otherAtom.element === 'O';
-    });
-    if (hasOxygenDouble) {
+    if (context.hasOxygenDoubleBond.has(atom.id)) {
       score += 0.3;
     }
   }
@@ -128,12 +145,13 @@ function scoreAsSink(atom: AtomDto, molecule: MoleculeDto): number {
  * Detect electron source candidates
  */
 export function detectElectronSources(molecule: MoleculeDto) {
+  const context = buildDetectionContext(molecule);
   return molecule.atoms
     .map((atom) => ({
       atomId: atom.id,
       element: atom.element,
       type: 'source' as const,
-      confidence: scoreAsSource(atom, molecule),
+      confidence: scoreAsSource(atom, context),
       reason: atom.charge && atom.charge < 0
         ? `${atom.element}⁻ (formal charge: ${atom.charge})`
         : `${atom.element} (lone pair potential)`,
@@ -146,12 +164,13 @@ export function detectElectronSources(molecule: MoleculeDto) {
  * Detect electron sink candidates
  */
 export function detectElectronSinks(molecule: MoleculeDto) {
+  const context = buildDetectionContext(molecule);
   return molecule.atoms
     .map((atom) => ({
       atomId: atom.id,
       element: atom.element,
       type: 'sink' as const,
-      confidence: scoreAsSink(atom, molecule),
+      confidence: scoreAsSink(atom, context),
       reason: atom.charge && atom.charge > 0
         ? `${atom.element}⁺ (formal charge: +${atom.charge})`
         : `${atom.element} (electrophilic)`,

@@ -4,6 +4,7 @@ import { useMoleculeStore } from '../../store/moleculeStore';
 import { PropertiesDto } from '../../store/types';
 import { predictProperties, PropertyPrediction } from '../../lib/advancedFeatures';
 import * as wasmBridge from '../../wasm/wasmBridge';
+import { moleculeStructureKey } from '../../lib/moleculeKey';
 
 type PredictionState = { sourceKey: string } & (
   | { status: 'idle' | 'loading' }
@@ -13,10 +14,11 @@ type PredictionState = { sourceKey: string } & (
 
 export function PropertyPredictionPanel() {
   const theme = useUIStore((s) => s.theme);
+  const language = useUIStore((s) => s.language);
   const molecule = useMoleculeStore((s) => s.molecule);
 
   const [state, setState] = useState<PredictionState>({ status: 'idle', sourceKey: '' });
-  const moleculeKey = molecule.atoms.map((a) => `${a.element}:${a.charge ?? 0}:${a.isotope ?? ''}`).join(',') + '|' + molecule.bonds.map((b) => `${b.from}-${b.to}:${b.order}`).join(',');
+  const moleculeKey = moleculeStructureKey(molecule);
   const visibleState: PredictionState = state.sourceKey === moleculeKey ? state : { status: 'loading', sourceKey: moleculeKey };
 
   const bgColor = theme === 'dark' ? '#2f3a47' : '#ffffff';
@@ -26,6 +28,7 @@ export function PropertyPredictionPanel() {
   const inputBg = theme === 'dark' ? '#1e2530' : '#f9f9f9';
   const accentColor = '#4d8dff';
   const errorColor = '#d94545';
+  const isJapanese = language === 'ja';
 
   useEffect(() => {
     const currentMolecule = useMoleculeStore.getState().molecule;
@@ -64,7 +67,7 @@ export function PropertyPredictionPanel() {
       {molecularProps && (
         <div style={{ border: `1px solid ${borderColor}`, borderRadius: '4px', overflow: 'hidden' }}>
           <div style={{ padding: '8px', backgroundColor: inputBg, borderBottom: `1px solid ${borderColor}` }}>
-            <div style={{ fontSize: '11px', fontWeight: 'bold', color: textColor }}>Molecular Properties</div>
+            <div style={{ fontSize: '11px', fontWeight: 'bold', color: textColor }}>{isJapanese ? '分子物性' : 'Molecular Properties'}</div>
           </div>
 
           <div style={{ padding: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
@@ -73,10 +76,10 @@ export function PropertyPredictionPanel() {
               { label: 'LogP', value: molecularProps.logp?.toFixed(2) },
               { label: 'HBA', value: molecularProps.hba },
               { label: 'HBD', value: molecularProps.hbd },
-              { label: 'RotBonds', value: molecularProps.rotatable_bonds },
-              { label: 'Atoms', value: molecule.atoms.length },
-              { label: 'Bonds', value: molecule.bonds.length },
-              { label: 'Rings', value: molecularProps.ring_count },
+              { label: isJapanese ? '回転可能結合' : 'RotBonds', value: molecularProps.rotatable_bonds },
+              { label: isJapanese ? '原子' : 'Atoms', value: molecule.atoms.length },
+              { label: isJapanese ? '結合' : 'Bonds', value: molecule.bonds.length },
+              { label: isJapanese ? '環' : 'Rings', value: molecularProps.ring_count },
             ].map((prop, idx) => (
               <div
                 key={idx}
@@ -89,7 +92,7 @@ export function PropertyPredictionPanel() {
               >
                 <div style={{ fontSize: '9px', color: labelColor }}>{prop.label}</div>
                 <div style={{ fontSize: '11px', fontWeight: 'bold', color: textColor, marginTop: '2px' }}>
-                  {prop.value ?? 'N/A'}
+                  {prop.value ?? (isJapanese ? '該当なし' : 'N/A')}
                 </div>
               </div>
             ))}
@@ -102,7 +105,7 @@ export function PropertyPredictionPanel() {
         <div style={{ border: `1px solid ${borderColor}`, borderRadius: '4px', overflow: 'hidden' }}>
           <div style={{ padding: '8px', backgroundColor: inputBg, borderBottom: `1px solid ${borderColor}` }}>
             <div style={{ fontSize: '11px', fontWeight: 'bold', color: textColor }}>
-              Calculated Properties
+              {isJapanese ? '計算された物性' : 'Calculated Properties'}
             </div>
           </div>
 
@@ -124,7 +127,9 @@ export function PropertyPredictionPanel() {
 
       {/* Info */}
       <div style={{ fontSize: '9px', color: labelColor, lineHeight: '1.4' }}>
-        Calculated directly from molecular structure using the chematic engine (deterministic descriptors, not statistical predictions).
+        {isJapanese
+          ? 'chematicエンジンが分子構造から直接計算した値です（統計的予測ではなく決定論的な記述子）。'
+          : 'Calculated directly from molecular structure using the chematic engine (deterministic descriptors, not statistical predictions).'}
       </div>
     </div>
   );

@@ -35,7 +35,7 @@ test.describe('Global keyboard shortcuts (useKeyboard)', () => {
   test('shortcut editor saves a custom binding and rejects conflicts', async ({ page }) => {
     await page.keyboard.press('F1');
     const dialog = page.getByRole('dialog', { name: 'Keyboard Shortcuts' });
-    await dialog.getByRole('button', { name: 'Editing', exact: true }).click();
+    await dialog.getByRole('tab', { name: 'Editing', exact: true }).click();
     const undoInput = dialog.getByRole('textbox', { name: 'Undo shortcut' });
     const redoInput = dialog.getByRole('textbox', { name: 'Redo shortcut' });
     await undoInput.fill('Ctrl+U');

@@ -102,8 +102,13 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
         }}
       >
         {tabGroups.map((group) => (
-          <div key={group.label} style={{ minWidth: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'stretch' }}>
-            <span style={{ width: '100%', padding: '3px 4px 1px', color: textColor, opacity: 0.55, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{group.label}</span>
+          <div
+            key={group.label}
+            role="group"
+            aria-label={group.label}
+            style={{ minWidth: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'stretch' }}
+          >
+            <span aria-hidden="true" style={{ width: '100%', padding: '3px 4px 1px', color: textColor, opacity: 0.55, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{group.label}</span>
             {group.ids.map((id) => {
               const tab = tabs.find((candidate) => candidate.id === id)!;
               return (
@@ -140,7 +145,7 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
                     <Icon name={tab.icon} size={20} color={textColor} />
                     <span aria-hidden="true">{tab.shortLabel}</span>
                   </div>
-                  {tab.badge && <span style={{ position: 'absolute', top: 2, right: 2, backgroundColor: '#4d8dff', color: 'white', fontSize: '9px', borderRadius: '50%', minWidth: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{tab.badge}</span>}
+                  {tab.badge && <span aria-label={language === 'ja' ? `${tab.badge}件の結果` : `${tab.badge} results`} style={{ position: 'absolute', top: 2, right: 2, backgroundColor: '#4d8dff', color: 'white', fontSize: '9px', borderRadius: '50%', minWidth: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{tab.badge}</span>}
                 </button>
               );
             })}
@@ -148,7 +153,7 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
         ))}
         <button
           onClick={() => setSidebarOpen(false)}
-          aria-label="Close sidebar"
+          aria-label={language === 'ja' ? 'サイドバーを閉じる' : 'Close sidebar'}
           style={{
             padding: '4px 6px',
             border: 'none',
@@ -160,7 +165,7 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
             alignItems: 'center',
             justifyContent: 'center',
           }}
-          title="Close sidebar"
+          title={language === 'ja' ? 'サイドバーを閉じる' : 'Close sidebar'}
         >
           <Icon name="close" size={20} color={textColor} />
         </button>

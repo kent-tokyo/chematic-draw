@@ -5,6 +5,7 @@ import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 export function UndoTimelineModal() {
   const theme = useUIStore((s) => s.theme);
+  const language = useUIStore((s) => s.language);
   const showUndoModal = useUIStore((s) => s.showUndoModal);
   const hideModal = useUIStore((s) => s.hideModal);
   const undoStack = useMoleculeStore((s) => s.undoStack);
@@ -30,18 +31,20 @@ export function UndoTimelineModal() {
 
   if (!showUndoModal) return null;
 
+  const isJapanese = language === 'ja';
+
   const currentIdx = undoStack.length;
   // undoStack/redoStack only ever store raw MoleculeDto snapshots (see
   // moleculeStore.ts's pushUndo) — there's no real per-edit description or
   // timestamp to show, so label by position instead of fabricating one.
   const allStates: Array<{ description: string; timestamp: number | null }> = [
     ...undoStack.map((_, i) => ({
-      description: `Undo step ${undoStack.length - i}`,
+      description: isJapanese ? `元に戻す操作 ${undoStack.length - i}` : `Undo step ${undoStack.length - i}`,
       timestamp: null,
     })),
-    { description: 'Current', timestamp: openedAt },
+    { description: isJapanese ? '現在' : 'Current', timestamp: openedAt },
     ...[...redoStack].reverse().map((_, i) => ({
-      description: `Redo step ${i + 1}`,
+      description: isJapanese ? `やり直す操作 ${i + 1}` : `Redo step ${i + 1}`,
       timestamp: null,
     })),
   ];
@@ -85,10 +88,10 @@ export function UndoTimelineModal() {
       >
         {/* Header */}
         <div style={{ padding: '16px', borderBottom: `1px solid ${borderColor}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 id="undo-timeline-title" style={{ margin: 0, color: textColor, fontSize: '18px' }}>Undo/Redo Timeline</h2>
+          <h2 id="undo-timeline-title" style={{ margin: 0, color: textColor, fontSize: '18px' }}>{isJapanese ? '元に戻す／やり直す履歴' : 'Undo/Redo Timeline'}</h2>
           <button
             onClick={() => hideModal('undo')}
-            aria-label="Close"
+            aria-label={isJapanese ? '閉じる' : 'Close'}
             style={{
               background: 'none',
               border: 'none',
@@ -137,7 +140,7 @@ export function UndoTimelineModal() {
         <div style={{ padding: '16px', borderTop: `1px solid ${borderColor}` }}>
           <input
             type="range"
-            aria-label="Timeline position"
+            aria-label={isJapanese ? '履歴上の位置' : 'Timeline position'}
             min={0}
             max={allStates.length - 1}
             value={currentIdx}

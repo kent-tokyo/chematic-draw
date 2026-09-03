@@ -101,7 +101,7 @@ export function createMechanismStep(id: string): MechanismStep {
 }
 
 // Phase 10: Database Search
-export async function searchDatabase(mol: MoleculeDto, source: 'pubchem' | 'chemspider'): Promise<DatabaseResult[]> {
+export async function searchDatabase(mol: MoleculeDto, source: 'pubchem' | 'chemspider', signal?: AbortSignal): Promise<DatabaseResult[]> {
   try {
     // Get InChIKey from the molecule. Note: chematic-inchi's InChI is a pure-Rust
     // approximation, not bit-exact with the real IUPAC reference implementation
@@ -119,7 +119,7 @@ export async function searchDatabase(mol: MoleculeDto, source: 'pubchem' | 'chem
     }
 
     if (source === 'pubchem') {
-      return await searchPubChem(inchiKey);
+      return await searchPubChem(inchiKey, signal);
     } else if (source === 'chemspider') {
       throw new Error('ChemSpider search not yet implemented');
     }
@@ -131,12 +131,12 @@ export async function searchDatabase(mol: MoleculeDto, source: 'pubchem' | 'chem
   }
 }
 
-async function searchPubChem(inchiKey: string): Promise<DatabaseResult[]> {
+async function searchPubChem(inchiKey: string, signal?: AbortSignal): Promise<DatabaseResult[]> {
   const baseUrl = 'https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/inchikey';
   const url = `${baseUrl}/${inchiKey}/JSON`;
 
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, { signal });
     if (!response.ok) {
       throw new Error(`PubChem API error: ${response.statusText}`);
     }
@@ -156,7 +156,7 @@ async function searchPubChem(inchiKey: string): Promise<DatabaseResult[]> {
 
     // Fetch compound details for name and properties
     const detailUrl = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/JSON`;
-    const detailResponse = await fetch(detailUrl);
+    const detailResponse = await fetch(detailUrl, { signal });
 
     if (!detailResponse.ok) {
       return [{

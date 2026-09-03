@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
 import { searchDatabase, DatabaseResult } from '../../lib/advancedFeatures';
@@ -16,6 +16,15 @@ export function DatabaseSearchPanel() {
   const [comparisonSmiles, setComparisonSmiles] = useState('');
   const [mcsResult, setMcsResult] = useState<wasmBridge.McsResultDto | null>(null);
   const [mcsError, setMcsError] = useState('');
+  const searchRunRef = useRef(0);
+  const searchControllerRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => () => {
+    mountedRef.current = false;
+    searchRunRef.current += 1;
+    searchControllerRef.current?.abort();
+  }, []);
 
   const borderColor = theme === 'dark' ? '#3a4a57' : '#e0e0e0';
   const textColor = theme === 'dark' ? '#d8deea' : '#1d2430';
@@ -24,19 +33,30 @@ export function DatabaseSearchPanel() {
   const accentColor = '#4d8dff';
 
   const handleSearch = async () => {
+    const searchRun = ++searchRunRef.current;
+    const moleculeAtStart = molecule;
+    searchControllerRef.current?.abort();
+    const controller = new AbortController();
+    searchControllerRef.current = controller;
     try {
       setLoading(true);
       setStatus(language === 'ja' ? `${source}で類似構造を検索中…` : `Searching ${source} for similar structures...`);
 
-      const searchResults = await searchDatabase(molecule, source);
+      const searchResults = await searchDatabase(molecule, source, controller.signal);
+      if (!mountedRef.current || searchRun !== searchRunRef.current) return;
+      // A search result is only valid for the molecule and source that
+      // produced it. Discard late responses after either changes.
+      if (moleculeAtStart !== useMoleculeStore.getState().molecule) return;
       setResults(searchResults);
 
       setStatus(language === 'ja' ? `類似化合物が${searchResults.length}件見つかりました` : `Found ${searchResults.length} similar compound(s)`);
     } catch (err) {
+      if (!mountedRef.current || searchRun !== searchRunRef.current) return;
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       setStatus(language === 'ja' ? `データベース検索に失敗しました: ${(err as Error).message}` : `Database search failed: ${(err as Error).message}`);
       console.error('Search error:', err);
     } finally {
-      setLoading(false);
+      if (mountedRef.current && searchRun === searchRunRef.current) setLoading(false);
     }
   };
 
@@ -70,7 +90,12 @@ export function DatabaseSearchPanel() {
           {(['pubchem', 'chemspider'] as const).map((src) => (
             <button
               key={src}
-              onClick={() => setSource(src)}
+              onClick={() => {
+                searchRunRef.current += 1;
+                searchControllerRef.current?.abort();
+                setLoading(false);
+                setSource(src);
+              }}
               style={{
                 padding: '6px',
                 backgroundColor: source === src ? accentColor : inputBg,

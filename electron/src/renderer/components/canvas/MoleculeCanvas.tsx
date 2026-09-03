@@ -45,13 +45,18 @@ export function MoleculeCanvas() {
 
   // Get state directly to avoid selector infinite loops
   const molecule = useMoleculeStore((s) => s.molecule);
-  const hoverAtomId = useCanvasStore.getState().hoverAtomId;
-  const hoverBondId = useCanvasStore.getState().hoverBondId;
+  // These are render inputs, so subscribe to them rather than reading a
+  // one-off snapshot. Without a selector subscription, hit-test updates
+  // changed the store but never re-painted the hover affordance.
+  const hoverAtomId = useCanvasStore((s) => s.hoverAtomId);
+  const hoverBondId = useCanvasStore((s) => s.hoverBondId);
+  const offset = useCanvasStore((s) => s.offset);
+  const zoom = useCanvasStore((s) => s.zoom);
   const activeTool = useCanvasStore((s) => s.activeTool);
   const theme = useUIStore((s) => s.theme);
   const language = useUIStore((s) => s.language);
-  const bondDragPos = useCanvasStore.getState().bondDragPos;
-  const bondDragFrom = useCanvasStore.getState().bondDragFrom;
+  const bondDragPos = useCanvasStore((s) => s.bondDragPos);
+  const bondDragFrom = useCanvasStore((s) => s.bondDragFrom);
   const activeSidebarPanel = useUIStore((s) => s.activeSidebarPanel);
   const mechanismArrows = useMechanismStore((s) => s.arrows);
   const selectedArrowId = useMechanismStore((s) => s.selectedArrowId);
@@ -169,7 +174,6 @@ export function MoleculeCanvas() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const { offset, zoom } = useCanvasStore.getState();
     const renderer = new CanvasRenderer(ctx, canvas.width, canvas.height);
     const canvasState = { offset, zoom };
 
@@ -217,7 +221,7 @@ export function MoleculeCanvas() {
         hoverArrowId,
       });
     }
-  }, [displayMolecule, molecule, theme, hoverAtomId, hoverBondId, selectedAtomIds, selectedBondIds, bondDragPos, bondDragFrom, activeSidebarPanel, mechanismArrows, selectedArrowId, hoverArrowId, scheme, schemeLayout, selectedStepIndex, hoveredStepIndex, canvasSize]);
+  }, [displayMolecule, molecule, theme, offset, zoom, hoverAtomId, hoverBondId, selectedAtomIds, selectedBondIds, bondDragPos, bondDragFrom, activeSidebarPanel, mechanismArrows, selectedArrowId, hoverArrowId, scheme, schemeLayout, selectedStepIndex, hoveredStepIndex, canvasSize]);
 
   // Handle zoom
   const handleWheel = (e: React.WheelEvent) => {

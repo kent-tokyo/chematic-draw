@@ -3,6 +3,7 @@ import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
 import * as wasmBridge from '../../wasm/wasmBridge';
 import { Coords3dDto } from '../../wasm/wasmBridge';
+import { moleculeStructureKey } from '../../lib/moleculeKey';
 
 interface Viewer3dState {
   angleX: number;
@@ -12,6 +13,7 @@ interface Viewer3dState {
 
 export function Viewer3DPanel() {
   const theme = useUIStore((s) => s.theme);
+  const language = useUIStore((s) => s.language);
   const molecule = useMoleculeStore((s) => s.molecule);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -24,10 +26,14 @@ export function Viewer3DPanel() {
   const [coords3dMoleculeKey, setCoords3dMoleculeKey] = useState<string | null>(null);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [lastMouse, setLastMouse] = useState({ x: 0, y: 0 });
+  // Pointer coordinates are event bookkeeping, not rendered state. Keeping
+  // them in a ref avoids an extra React render for every mousemove; the
+  // rotation state below remains the only render-driving update.
+  const lastMouseRef = useRef({ x: 0, y: 0 });
   const [isGenerating, setIsGenerating] = useState(false);
+  const generationRunRef = useRef(0);
 
-  const moleculeKey = molecule.atoms.map((a) => `${a.element}:${a.charge ?? 0}:${a.isotope ?? ''}`).join(',') + '|' + molecule.bonds.map((b) => `${b.from}-${b.to}:${b.order}`).join(',');
+  const moleculeKey = moleculeStructureKey(molecule);
   // Keep generated coordinates tied to the molecule that produced them. This
   // derives the visible result during render instead of clearing state from
   // an effect after a molecule edit, avoiding a one-render stale 3D preview.
@@ -36,39 +42,43 @@ export function Viewer3DPanel() {
   const bgColor = theme === 'dark' ? '#1a1f2a' : '#ffffff';
   const labelColor = theme === 'dark' ? '#a0a8b8' : '#555555';
   const accentColor = '#4d8dff';
+  const isJapanese = language === 'ja';
 
   // Generate 3D coordinates
   const handleGenerate3d = async () => {
     if (molecule.atoms.length === 0) return;
+    const generationRun = ++generationRunRef.current;
     try {
       setIsGenerating(true);
       setGenerationError(null);
       const raw3d = wasmBridge.generate3dCoords(molecule);
       const optimized = wasmBridge.minimize3d(molecule, raw3d);
+      if (generationRun !== generationRunRef.current) return;
       setCoords3d(optimized);
       setCoords3dMoleculeKey(moleculeKey);
     } catch (err) {
+      if (generationRun !== generationRunRef.current) return;
       // Clear any stale result rather than leaving a previous (possibly
       // different molecule's) 3D structure displayed as if it were current.
       setCoords3d(null);
       setCoords3dMoleculeKey(null);
       setGenerationError(err instanceof Error ? err.message : String(err));
     } finally {
-      setIsGenerating(false);
+      if (generationRun === generationRunRef.current) setIsGenerating(false);
     }
   };
 
   // Mouse interaction
   const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     setIsDragging(true);
-    setLastMouse({ x: e.clientX, y: e.clientY });
+    lastMouseRef.current = { x: e.clientX, y: e.clientY };
   };
 
   const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDragging) return;
-    const deltaX = e.clientX - lastMouse.x;
-    const deltaY = e.clientY - lastMouse.y;
-    setLastMouse({ x: e.clientX, y: e.clientY });
+    const deltaX = e.clientX - lastMouseRef.current.x;
+    const deltaY = e.clientY - lastMouseRef.current.y;
+    lastMouseRef.current = { x: e.clientX, y: e.clientY };
 
     setViewerState((prev) => ({
       ...prev,
@@ -187,8 +197,8 @@ export function Viewer3DPanel() {
     ctx.font = '11px sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillText('Drag to rotate  |  Scroll to zoom', 8, 8);
-  }, [displayCoords3d, viewerState, bgColor, labelColor]);
+    ctx.fillText(isJapanese ? 'ドラッグで回転｜スクロールでズーム' : 'Drag to rotate  |  Scroll to zoom', 8, 8);
+  }, [displayCoords3d, viewerState, bgColor, labelColor, isJapanese]);
 
   // Download XYZ
   const handleExportXyz = () => {
@@ -221,6 +231,8 @@ export function Viewer3DPanel() {
         <canvas
           ref={canvasRef}
           data-testid="viewer-3d-canvas"
+          role="img"
+          aria-label={isJapanese ? '3D分子ビューア。ドラッグで回転、スクロールでズーム' : '3D molecule viewer. Drag to rotate, scroll to zoom'}
           width={400}
           height={300}
           onMouseDown={handleCanvasMouseDown}
@@ -250,7 +262,7 @@ export function Viewer3DPanel() {
             opacity: isGenerating || molecule.atoms.length === 0 ? 0.5 : 1,
           }}
         >
-          {isGenerating ? 'Generating...' : '3D 生成'}
+          {isGenerating ? (isJapanese ? '生成中…' : 'Generating...') : '3D 生成'}
         </button>
         <button
           onClick={handleExportXyz}
@@ -268,7 +280,7 @@ export function Viewer3DPanel() {
             opacity: !displayCoords3d ? 0.5 : 1,
           }}
         >
-          XYZ エクスポート
+          {isJapanese ? 'XYZを出力' : 'XYZ エクスポート'}
         </button>
       </div>
 
@@ -280,7 +292,7 @@ export function Viewer3DPanel() {
 
       {/* Info */}
       <div style={{ fontSize: '9px', color: labelColor, lineHeight: '1.4' }}>
-        分子から 3D 座標を生成し、UFF 力場で最適化します。
+        {isJapanese ? '分子から3D座標を生成し、UFF力場で最適化します。' : 'Generate 3D coordinates from the molecule and optimize them with the UFF force field.'}
       </div>
     </div>
   );
