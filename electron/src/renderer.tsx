@@ -614,6 +614,7 @@ function App() {
     { tool: Tool.Bond_Aromatic, label: '◯', key: '4', ariaLabel: 'Aromatic bond' },
     { tool: Tool.Eraser, label: '✕', key: 'DEL', ariaLabel: 'Eraser' },
   ];
+  const primaryModifier = typeof navigator !== 'undefined' && navigator.platform.toUpperCase().includes('MAC') ? 'Cmd' : 'Ctrl';
 
   return (
     <div
@@ -670,7 +671,31 @@ function App() {
           flexWrap: 'wrap',
         }}
       >
-        {toolButtons.map((btn) => (
+        <span style={{ fontSize: '10px', opacity: 0.6, marginRight: '2px' }}>Atoms</span>
+        {toolButtons.slice(0, 6).map((btn) => (
+          <button
+            key={btn.tool}
+            onClick={() => setTool(btn.tool)}
+            title={`${btn.label} [${btn.key}]`}
+            aria-label={btn.ariaLabel}
+            aria-pressed={activeTool === btn.tool}
+            style={{
+              padding: '6px 10px',
+              fontSize: '12px',
+              backgroundColor: activeTool === btn.tool ? '#4d8dff' : 'transparent',
+              color: 'inherit',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              minWidth: '32px',
+            }}
+          >
+            {btn.label}
+          </button>
+        ))}
+        <span aria-hidden="true" style={{ width: '1px', height: '22px', backgroundColor: theme === 'dark' ? '#555' : '#ccc', margin: '0 4px' }} />
+        <span style={{ fontSize: '10px', opacity: 0.6, marginRight: '2px' }}>Bonds</span>
+        {toolButtons.slice(6).map((btn) => (
           <button
             key={btn.tool}
             onClick={() => setTool(btn.tool)}
@@ -709,6 +734,16 @@ function App() {
           title="Toggle theme"
         >
           {theme === 'dark' ? '☀️' : '🌙'}
+        </button>
+
+        <button
+          data-testid="shortcuts-help"
+          onClick={() => showModal('shortcuts')}
+          aria-label="Show keyboard shortcuts"
+          title="Show keyboard shortcuts"
+          style={{ padding: '6px 10px', backgroundColor: 'transparent', color: 'inherit', border: '1px solid currentColor', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
+        >
+          ?
         </button>
 
         <div data-testid="toolbar-summary" style={{ fontSize: '12px', opacity: 0.7, marginLeft: '12px', whiteSpace: 'nowrap' }}>
@@ -792,7 +827,7 @@ function App() {
         <span>Tool: {activeTool.replace('_', ' ')}</span>
         <span>Zoom: {(zoom * 100).toFixed(0)}%</span>
         <span style={{ marginLeft: 'auto' }}>
-          Ctrl+Z: Undo • Ctrl+Shift+Z: Redo • +/−: Zoom • Del: Delete
+          {primaryModifier}+Z: Undo • {primaryModifier}+Shift+Z: Redo • +/−: Zoom • Del: Delete
         </span>
       </div>
     </div>
