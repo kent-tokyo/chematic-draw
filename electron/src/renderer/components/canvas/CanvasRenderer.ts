@@ -1,11 +1,10 @@
 import { MoleculeDto, AtomDto, BondDto } from '../../store/types';
 import { CanvasState } from '../../store/types';
-import { calculateArrowPath, getArrowHeadPoints, distanceToCurve, CanvasState as ArrowCanvasState } from '../../lib/arrowGeometry';
-import { getLabelPosition, getLabelDimensions } from '../../lib/arrowGeometry';
+import { calculateArrowPath, getArrowHeadPoints, CanvasState as ArrowCanvasState } from '../../lib/arrowGeometry';
+import { getLabelPosition } from '../../lib/arrowGeometry';
 import { MechanismArrow } from '../../store/types';
 import { SchemeLayout, StepBox, StepArrow } from '../../lib/schemeLayout';
 import { ReactionSchemeContext, MechanismStep } from '../../store/types';
-import { getExternalReagents } from '../../lib/reactionSchemeUtils';
 
 export interface RenderOptions {
   theme: 'dark' | 'light';
@@ -229,9 +228,6 @@ export class CanvasRenderer {
     const dx = x2 - x1;
     const dy = y2 - y1;
     const len = Math.sqrt(dx * dx + dy * dy);
-    const px = (dy / len) * 4;
-    const py = -(dx / len) * 4;
-
     this.ctx.setLineDash([4, 4]);
     this.ctx.beginPath();
     this.ctx.moveTo(x1, y1);
@@ -545,8 +541,6 @@ export class CanvasRenderer {
     // Draw content with padding
     let yPos = box.y + STEP_BOX_PADDING;
     const xStart = box.x + STEP_BOX_PADDING;
-    const contentWidth = box.width - 2 * STEP_BOX_PADDING;
-
     this.ctx.fillStyle = textColor;
     this.ctx.font = 'bold 12px sans-serif';
     this.ctx.fillText(`Step ${box.stepIndex + 1}`, xStart, yPos);

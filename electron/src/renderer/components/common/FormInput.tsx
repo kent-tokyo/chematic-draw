@@ -86,10 +86,9 @@ export interface FormButtonProps {
   isDark: boolean;
   variant?: 'primary' | 'secondary' | 'danger';
   disabled?: boolean;
-  icon?: string;
 }
 
-export function FormButton({ label, onClick, isDark, variant = 'secondary', disabled, icon }: FormButtonProps) {
+export function FormButton({ label, onClick, isDark, variant = 'secondary', disabled }: FormButtonProps) {
   const theme = getTheme(isDark);
   const bgColor = variant === 'primary' ? theme.bgActive : variant === 'danger' ? '#ef4444' : theme.bgHover;
   const textColor = variant === 'primary' || variant === 'danger' ? 'white' : theme.text;

@@ -1,4 +1,6 @@
-export type ShortcutAction = 'copy' | 'paste' | 'cleanLayout' | 'export' | 'undo' | 'redo' | 'zoomIn' | 'zoomOut' | 'zoomReset' | 'focusMode' | 'showShortcuts' | 'selectAll' | 'delete';
+import type { UIAction } from '../../../../packages/chematic-contract/src/index';
+
+export type ShortcutAction = UIAction;
 export type ShortcutBindings = Record<ShortcutAction, string>;
 
 export const DEFAULT_SHORTCUT_BINDINGS: ShortcutBindings = {

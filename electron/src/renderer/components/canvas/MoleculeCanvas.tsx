@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { useMoleculeStore } from '../../store/moleculeStore';
 import { useCanvasStore } from '../../store/canvasStore';
 import { useUIStore } from '../../store/uiStore';
@@ -24,7 +24,6 @@ documentCommandHost.register(
     },
   }]
 );
-import { calculateArrowPath, distanceToCurve } from '../../lib/arrowGeometry';
 import { useReactionSchemeStore } from '../../store/reactionSchemeStore';
 import * as wasmBridge from '../../wasm/wasmBridge';
 

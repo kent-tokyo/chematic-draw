@@ -217,7 +217,7 @@ export function Icon({ name, size = 24, color = 'currentColor', className }: Ico
   if (!IconComponent) return null;
 
   return (
-    <div style={{ display: 'inline-flex', width: size, height: size }}>
+    <div className={className} style={{ display: 'inline-flex', width: size, height: size }}>
       <IconComponent color={color} />
     </div>
   );

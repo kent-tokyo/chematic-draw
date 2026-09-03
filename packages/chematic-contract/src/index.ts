@@ -5,6 +5,7 @@ export interface Molecule { atoms: MoleculeAtom[]; bonds: MoleculeBond[]; }
 export type ToolName = 'select' | 'atom_c' | 'atom_n' | 'atom_o' | 'atom_s' | 'atom_p' | 'bond_single' | 'bond_double' | 'bond_triple' | 'bond_aromatic' | 'eraser';
 export interface CanvasState { offset: { x: number; y: number }; zoom: number; activeTool: ToolName; hoverAtomId: number | null; hoverBondId: number | null; selectedAtomIds: Set<number>; selectedBondIds: Set<number>; }
 export interface UIState { theme: 'dark' | 'light'; language: 'en' | 'ja'; sidebarOpen: boolean; sidebarWidth: number; focusMode: boolean; }
+export type UIAction = 'copy' | 'paste' | 'cleanLayout' | 'export' | 'undo' | 'redo' | 'zoomIn' | 'zoomOut' | 'zoomReset' | 'focusMode' | 'showShortcuts' | 'selectAll' | 'delete';
 export type SidebarPanel = 'inspector' | 'templates' | 'chat' | 'research' | 'reactions' | 'batch-results' | 'stereoisomers' | 'lipinski' | 'properties' | 'mechanism' | 'database' | '3d';
 export interface ContextMenuState { visible: boolean; x: number; y: number; atomId?: number; bondId?: number; }
 export type ModalType = 'shortcuts' | 'export' | 'undo' | 'batch';
