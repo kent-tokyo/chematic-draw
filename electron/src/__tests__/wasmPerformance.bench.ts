@@ -107,7 +107,6 @@ function measure<T>(
     maxMs: Number(Math.max(...samples).toFixed(4)),
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   return result!;
 }
 

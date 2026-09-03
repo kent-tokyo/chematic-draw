@@ -100,7 +100,7 @@ describe('JS overhead smoke checks (not a chemistry benchmark)', () => {
       const start = performance.now();
 
       // Mock similarity calculation
-      const similarity = 0.95;
+      const similarity = fp1.length === fp2.length ? 0.95 : 0;
 
       const elapsed = performance.now() - start;
 
@@ -119,6 +119,7 @@ describe('JS overhead smoke checks (not a chemistry benchmark)', () => {
         const coords = {
           atoms: mol.atoms.map((a) => ({ ...a, z: Math.random() })),
         };
+        expect(coords.atoms).toHaveLength(mol.atoms.length);
         // Memory should be released after each iteration
       }
 
@@ -142,6 +143,7 @@ describe('JS overhead smoke checks (not a chemistry benchmark)', () => {
         const angle = (i * 2 * Math.PI) / frameCount;
         const x = Math.cos(angle) * 100;
         const y = Math.sin(angle) * 100;
+        expect(Number.isFinite(x + y)).toBe(true);
 
         const frameElapsed = performance.now() - frameStart;
         frameTimes.push(frameElapsed);
@@ -159,6 +161,7 @@ describe('JS overhead smoke checks (not a chemistry benchmark)', () => {
       // Simulate drag processing
       const angle = Math.random() * 0.1;
       const zoom = 1.0 + Math.random() * 0.1;
+      expect(Number.isFinite(angle + zoom)).toBe(true);
 
       const dragElapsed = performance.now() - dragStart;
 
@@ -208,7 +211,6 @@ describe('JS overhead smoke checks (not a chemistry benchmark)', () => {
       // to actually distinguish it from noise.
       const sizes = [500, 2000, 8000];
       const times = sizes.map(measure);
-      // eslint-disable-next-line no-console
       console.log('Scaling Analysis (median of 7, ms):', sizes.map((s, i) => `${s} atoms: ${times[i].toFixed(3)}`).join(', '));
 
       // Generous upper bound: true O(n) would put the 8000-atom run at ~16x
@@ -229,6 +231,7 @@ describe('JS overhead smoke checks (not a chemistry benchmark)', () => {
         const coords = {
           atoms: mol.atoms.map((a) => ({ ...a, z: Math.random() })),
         };
+        expect(coords.atoms).toHaveLength(mol.atoms.length);
       });
 
       const batchElapsed = performance.now() - batchStart;
