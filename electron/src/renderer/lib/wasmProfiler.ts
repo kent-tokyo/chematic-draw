@@ -192,7 +192,6 @@ export class WasmProfiler {
     const measurements = sizes.map((size) => {
       const metric = this.measureOperation(`Molecule(${size} atoms)`, () => fn(size), size);
       const timePerAtom = metric.duration / size;
-      const memPerAtom = metric.memoryDelta / size / 1024;
 
       console.log(
         `${size.toString().padEnd(10)} | ${metric.duration.toFixed(2).padEnd(13)} | ${(
