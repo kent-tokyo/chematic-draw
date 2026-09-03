@@ -67,6 +67,11 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
     setActiveSidebarPanel(nextId as Parameters<typeof setActiveSidebarPanel>[0]);
     document.getElementById(`sidebar-tab-${nextId}`)?.focus();
   };
+  const focusTabAt = (index: number) => {
+    const nextId = tabIds[Math.max(0, Math.min(index, tabIds.length - 1))];
+    setActiveSidebarPanel(nextId as Parameters<typeof setActiveSidebarPanel>[0]);
+    document.getElementById(`sidebar-tab-${nextId}`)?.focus();
+  };
 
   return (
     <div
@@ -116,6 +121,12 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
                     } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
                       event.preventDefault();
                       moveTab(tab.id, -1);
+                    } else if (event.key === 'Home') {
+                      event.preventDefault();
+                      focusTabAt(0);
+                    } else if (event.key === 'End') {
+                      event.preventDefault();
+                      focusTabAt(tabIds.length - 1);
                     }
                   }}
                   style={{ flex: '1 1 0', minWidth: '72px', padding: '7px 4px', fontSize: '11px', border: 'none', backgroundColor: activeSidebarPanel === tab.id ? tabActiveBg : 'transparent', color: textColor, cursor: 'pointer', borderRadius: '3px', transition: 'background-color 0.2s', position: 'relative' }}

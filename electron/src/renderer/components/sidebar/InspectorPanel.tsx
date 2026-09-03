@@ -17,20 +17,22 @@ function FunctionalGroupsSection({
   bgColor,
   labelColor,
   textColor,
+  language,
   functionalGroups,
 }: {
   bgColor: string;
   labelColor: string;
   textColor: string;
+  language: 'en' | 'ja';
   functionalGroups: string[];
 }) {
   return (
     <div style={{ padding: '12px', backgroundColor: bgColor, borderRadius: '4px', border: `1px solid ${labelColor}` }}>
       <div style={{ fontSize: '11px', fontWeight: 'bold', color: textColor, marginBottom: '8px' }}>
-        Functional Groups
+        {language === 'ja' ? '官能基' : 'Functional groups'}
       </div>
       {functionalGroups.length === 0 ? (
-        <div style={{ fontSize: '10px', color: labelColor }}>None detected</div>
+        <div style={{ fontSize: '10px', color: labelColor }}>{language === 'ja' ? '検出なし' : 'None detected'}</div>
       ) : (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
           {functionalGroups.map((group, i) => (
@@ -58,22 +60,24 @@ function ValidationSection({
   bgColor,
   labelColor,
   textColor,
+  language,
   validationErrors,
   validationWarnings,
 }: {
   bgColor: string;
   labelColor: string;
   textColor: string;
+  language: 'en' | 'ja';
   validationErrors: string[];
   validationWarnings: string[];
 }) {
   return (
     <div style={{ padding: '12px', backgroundColor: bgColor, borderRadius: '4px', border: `1px solid ${labelColor}` }}>
       <div style={{ fontSize: '11px', fontWeight: 'bold', color: textColor, marginBottom: '8px' }}>
-        Validation
+        {language === 'ja' ? '検証' : 'Validation'}
       </div>
       {validationErrors.length === 0 ? (
-        <div style={{ fontSize: '10px', color: '#58c97a' }}>✓ No errors</div>
+        <div style={{ fontSize: '10px', color: '#58c97a' }}>✓ {language === 'ja' ? 'エラーなし' : 'No errors'}</div>
       ) : (
         <div style={{ fontSize: '10px', color: '#f26d6d' }}>
           {validationErrors.map((err, i) => (
@@ -149,11 +153,11 @@ function SmartsSection({
           cursor: 'pointer',
         }}
       >
-        Search
+        {language === 'ja' ? '検索' : 'Search'}
       </button>
       {smartsMatches.length > 0 && (
         <div style={{ marginTop: '6px', fontSize: '10px', color: textColor }}>
-          Found {smartsMatches.length} atoms matching
+          {language === 'ja' ? `${smartsMatches.length}個の原子が一致` : `Found ${smartsMatches.length} atoms matching`}
         </div>
       )}
     </div>
@@ -187,18 +191,18 @@ function QueryEditorSection({
       setDraft(parsed);
       setStatus('');
     } catch {
-      setStatus('Invalid JSON');
+      setStatus(language === 'ja' ? 'JSONが不正です' : 'Invalid JSON');
     }
   };
   const json = JSON.stringify(draft, null, 2);
   const validate = () => {
     const errors = validateQueryDocument(draft);
     if (errors.length) setStatus(errors.map((error) => `${error.path}: ${error.message}`).join('; '));
-    else if (draft.atoms.length === 0) setStatus('Valid query; SMARTS: (empty); matches: 0');
+    else if (draft.atoms.length === 0) setStatus(language === 'ja' ? '有効なクエリ; SMARTS: (空); 一致: 0' : 'Valid query; SMARTS: (empty); matches: 0');
     else {
-      setStatus('Valid query; checking WASM worker…');
+      setStatus(language === 'ja' ? '有効なクエリ; WASMワーカーで確認中…' : 'Valid query; checking WASM worker…');
       void runQueryInWorker(draft, molecule)
-        .then((result) => setStatus(`Valid query; SMARTS: ${result.pattern}; matches: ${result.matches.length}`))
+        .then((result) => setStatus(language === 'ja' ? `有効なクエリ; SMARTS: ${result.pattern}; 一致: ${result.matches.length}` : `Valid query; SMARTS: ${result.pattern}; matches: ${result.matches.length}`))
         .catch((error) => setStatus(error instanceof Error ? error.message : String(error)));
     }
   };
@@ -207,14 +211,14 @@ function QueryEditorSection({
       const next = queryDocumentToMolecule(draft);
       pushUndo();
       setMolecule(next);
-      setStatus('Applied without query loss');
+      setStatus(language === 'ja' ? 'クエリを損なわずに適用しました' : 'Applied without query loss');
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
     }
   };
   return <div style={{ padding: '12px', backgroundColor: bgColor, borderRadius: '4px', border: `1px solid ${labelColor}` }}>
     <div style={{ fontSize: '11px', fontWeight: 'bold', color: textColor, marginBottom: '8px' }}>{language === 'ja' ? 'クエリエディタ' : 'Query editor'}</div>
-    <textarea aria-label="Query document editor" value={json} onChange={(event) => updateDraft(event.target.value)} rows={8} style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'monospace', fontSize: '9px', backgroundColor: theme === 'dark' ? '#1e2530' : '#fff', color: textColor, border: `1px solid ${labelColor}` }} />
+    <textarea aria-label={language === 'ja' ? 'クエリドキュメントエディタ' : 'Query document editor'} value={json} onChange={(event) => updateDraft(event.target.value)} rows={8} style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'monospace', fontSize: '9px', backgroundColor: theme === 'dark' ? '#1e2530' : '#fff', color: textColor, border: `1px solid ${labelColor}` }} />
     <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
       <button onClick={validate} style={{ flex: 1 }}>{language === 'ja' ? '検証 / SMARTS' : 'Validate / SMARTS'}</button>
       <button onClick={apply} style={{ flex: 1 }} title={language === 'ja' ? 'クエリを通常の分子構造として適用します' : 'Apply the query as a concrete molecule'}>{language === 'ja' ? '分子として適用' : 'Apply as molecule'}</button>
@@ -340,10 +344,10 @@ export function InspectorPanel() {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         <div style={{ color: labelColor, fontSize: '12px', textAlign: 'center', padding: '20px 0' }}>
-          Select an atom or bond to inspect
+          {language === 'ja' ? '原子または結合を選択して検査' : 'Select an atom or bond to inspect'}
         </div>
-        <FunctionalGroupsSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} functionalGroups={visibleFunctionalGroups} />
-        <ValidationSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} validationErrors={visibleValidation.errors} validationWarnings={visibleValidation.warnings} />
+        <FunctionalGroupsSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} language={language} functionalGroups={visibleFunctionalGroups} />
+        <ValidationSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} language={language} validationErrors={visibleValidation.errors} validationWarnings={visibleValidation.warnings} />
         <AdvancedQuerySection key={JSON.stringify(molecule)} molecule={molecule} theme={theme} language={language} textColor={textColor} bgColor={bgColor} labelColor={labelColor} pushUndo={pushUndo} setMolecule={setMolecule} smarts={<SmartsSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} theme={theme} language={language} smartsPattern={smartsPattern} setSmartsPattern={setSmartsPattern} smartsMatches={smartsMatches} handleSmartsSearch={handleSmartsSearch} />} />
       </div>
     );
@@ -354,7 +358,7 @@ export function InspectorPanel() {
       {selectedAtom && (
         <>
           <div>
-            <label style={{ fontSize: '11px', color: labelColor }}>Element</label>
+            <label style={{ fontSize: '11px', color: labelColor }}>{language === 'ja' ? '元素' : 'Element'}</label>
             <ElementPicker
               currentElement={selectedAtom.element}
               onSelect={(el) => handleAtomUpdate('element', el)}
@@ -364,7 +368,7 @@ export function InspectorPanel() {
 
           <div>
             <label style={{ fontSize: '11px', color: labelColor, display: 'block', marginBottom: '6px' }}>
-              Charge
+              {language === 'ja' ? '電荷' : 'Charge'}
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '4px' }}>
               {[-2, -1, 0, 1, 2].map((ch) => (
@@ -390,7 +394,7 @@ export function InspectorPanel() {
 
           <div>
             <label style={{ fontSize: '11px', color: labelColor, display: 'block', marginBottom: '6px' }}>
-              Isotope (mass number)
+              {language === 'ja' ? '同位体（質量数）' : 'Isotope (mass number)'}
             </label>
             <input
               type="number"
@@ -414,9 +418,9 @@ export function InspectorPanel() {
           </div>
 
           <div style={{ fontSize: '10px', color: labelColor, padding: '8px', backgroundColor: theme === 'dark' ? '#2f3a47' : '#f3f5f8', borderRadius: '3px' }}>
-            <strong>Atom ID:</strong> {selectedAtom.id}
+            <strong>{language === 'ja' ? '原子ID:' : 'Atom ID:'}</strong> {selectedAtom.id}
             <br />
-            <strong>Position:</strong> ({selectedAtom.x.toFixed(1)}, {selectedAtom.y.toFixed(1)})
+            <strong>{language === 'ja' ? '位置:' : 'Position:'}</strong> ({selectedAtom.x.toFixed(1)}, {selectedAtom.y.toFixed(1)})
           </div>
         </>
       )}
@@ -424,7 +428,7 @@ export function InspectorPanel() {
       {selectedBond && (
         <>
           <div>
-            <label style={{ fontSize: '11px', color: labelColor }}>Bond Order</label>
+            <label style={{ fontSize: '11px', color: labelColor }}>{language === 'ja' ? '結合次数' : 'Bond order'}</label>
             <select
               value={selectedBond.order}
               onChange={(e) => handleBondUpdate('order', parseInt(e.target.value))}
@@ -439,22 +443,22 @@ export function InspectorPanel() {
                 boxSizing: 'border-box',
               }}
             >
-              <option value={1}>Single</option>
-              <option value={2}>Double</option>
-              <option value={3}>Triple</option>
-              <option value={4}>Aromatic</option>
+              <option value={1}>{language === 'ja' ? '単結合' : 'Single'}</option>
+              <option value={2}>{language === 'ja' ? '二重結合' : 'Double'}</option>
+              <option value={3}>{language === 'ja' ? '三重結合' : 'Triple'}</option>
+              <option value={4}>{language === 'ja' ? '芳香族' : 'Aromatic'}</option>
             </select>
           </div>
 
           <div>
             <label style={{ fontSize: '11px', color: labelColor, display: 'block', marginBottom: '6px' }}>
-              Stereo
+              {language === 'ja' ? '立体化学' : 'Stereo'}
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
               {[
-                { label: 'None', value: 0 },
-                { label: '⌟ Wedge', value: 1 },
-                { label: '⌞ Dash', value: 6 },
+                { label: language === 'ja' ? 'なし' : 'None', value: 0 },
+                { label: language === 'ja' ? '⌟ 太線くさび' : '⌟ Wedge', value: 1 },
+                { label: language === 'ja' ? '⌞ 破線くさび' : '⌞ Dash', value: 6 },
               ].map((opt) => (
                 <button
                   key={opt.value}
@@ -477,9 +481,9 @@ export function InspectorPanel() {
           </div>
 
           <div style={{ fontSize: '10px', color: labelColor, padding: '8px', backgroundColor: theme === 'dark' ? '#2f3a47' : '#f3f5f8', borderRadius: '3px' }}>
-            <strong>Bond ID:</strong> {selectedBond.id}
+            <strong>{language === 'ja' ? '結合ID:' : 'Bond ID:'}</strong> {selectedBond.id}
             <br />
-            <strong>From:</strong> {selectedBond.from} <strong>To:</strong> {selectedBond.to}
+            <strong>{language === 'ja' ? '始点:' : 'From:'}</strong> {selectedBond.from} <strong>{language === 'ja' ? '終点:' : 'To:'}</strong> {selectedBond.to}
           </div>
         </>
       )}
