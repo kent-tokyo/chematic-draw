@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import { MoleculeCanvas } from './renderer/components/canvas/MoleculeCanvas';
@@ -70,6 +70,9 @@ function App() {
   const pushUndo = useMoleculeStore((s) => s.pushUndo);
   const statusMessage = useUIStore((s) => s.statusMessage);
   const setStatus = useUIStore((s) => s.setStatus);
+  const announce = useCallback((english: string, japanese: string) => {
+    setStatus(language === 'ja' ? japanese : english);
+  }, [language, setStatus]);
   const showModal = useUIStore((s) => s.showModal);
   const hideModal = useUIStore((s) => s.hideModal);
   const showBatchDialog = useUIStore((s) => s.showBatchDialog);
@@ -140,7 +143,7 @@ function App() {
           if (snapshot) {
             setMolecule(snapshot.molecule);
             setFilePath(snapshot.filePath ?? null);
-            setStatus('Restored last session');
+            announce('Restored last session', '前回のセッションを復元しました');
             useCanvasStore.getState().requestCenterOnLoad();
             return;
           }
@@ -157,7 +160,7 @@ function App() {
         console.error('Failed to load sample:', err);
       }
     })();
-  }, [wasmLoaded, setMolecule, setStatus]);
+  }, [wasmLoaded, setMolecule, setStatus, announce]);
 
   // Autosave: debounced crash-recovery snapshot, written to a file main.js
   // clears on every clean quit. Its mere presence at next launch is what
@@ -210,7 +213,7 @@ function App() {
       api.onMenuNew(() => {
         clear();
         setFilePath(null);
-        setStatus('New molecule');
+        announce('New molecule', '新しい分子');
       });
 
       api.onMenuOpenFile((data: { path: string; content: string }) => {
@@ -230,13 +233,13 @@ function App() {
         if (filePath) {
           const format = formatForFilePath(filePath);
           if (!confirmLossAwareExport(molecule, filePath)) {
-            if (exportLosses(molecule, format).length > 0) setStatus('Save cancelled');
+            if (exportLosses(molecule, format).length > 0) announce('Save cancelled', '保存をキャンセルしました');
             return;
           }
           const content = serializeMoleculeForPath(molecule, filePath);
           const result = await api.fileWrite(filePath, content);
           if (result.success) {
-            setStatus('Saved');
+            announce('Saved', '保存しました');
           } else {
             setStatus(`Save failed: ${result.error}`);
           }
@@ -249,7 +252,7 @@ function App() {
         const result = await api.fileSaveDialog('untitled.mol');
         if (!result.canceled && result.filePath) {
           if (!confirmLossAwareExport(molecule, result.filePath)) {
-            setStatus('Save cancelled');
+            announce('Save cancelled', '保存をキャンセルしました');
             return;
           }
           const content = serializeMoleculeForPath(molecule, result.filePath);
@@ -316,7 +319,7 @@ function App() {
         const result = await api.fileSaveDialog('untitled.mol');
         if (!result.canceled && result.filePath) {
           if (!confirmLossAwareExport(molecule, result.filePath)) {
-            setStatus('Export cancelled');
+            announce('Export cancelled', '書き出しをキャンセルしました');
             return;
           }
           const content = wasmBridge.toMolV2000(molecule);
@@ -333,7 +336,7 @@ function App() {
         const result = await api.fileSaveDialog('untitled.smi');
         if (!result.canceled && result.filePath) {
           if (!confirmLossAwareExport(molecule, result.filePath)) {
-            setStatus('Export cancelled');
+            announce('Export cancelled', '書き出しをキャンセルしました');
             return;
           }
           const content = wasmBridge.toCanonicalSmiles(molecule);
@@ -416,8 +419,8 @@ function App() {
       api.onMenuCopy?.(() => {
         if ((document.activeElement as HTMLElement | null)?.tagName !== 'INPUT') {
           clipboard.copyMoleculeSmiles(molecule)
-            .then(() => setStatus('Copied SMILES'))
-            .catch(() => setStatus('Copy failed'));
+            .then(() => announce('Copied SMILES', 'SMILESをコピーしました'))
+            .catch(() => announce('Copy failed', 'コピーに失敗しました'));
         }
       });
       api.onMenuPaste?.(() => {
@@ -427,9 +430,9 @@ function App() {
               const mol = wasmBridge.parseMolecule(content);
               pushUndo();
               setMolecule(mol);
-              setStatus('Pasted structure');
+              announce('Pasted structure', '構造を貼り付けました');
             })
-            .catch(() => setStatus('Paste failed: invalid format'));
+            .catch(() => announce('Paste failed: invalid format', '貼り付けに失敗しました：形式が不正です'));
         }
       });
 
@@ -459,7 +462,7 @@ function App() {
         // Cleanup: no need to unsubscribe from ipcRenderer in this version
       };
     }
-  }, [molecule, filePath, theme, zoom, sidebarOpen, selectAll, undo, redo, pushUndo, clear, setMolecule, setSidebarOpen, setStatus, setTheme, setZoom, showModal]);
+  }, [molecule, filePath, theme, zoom, sidebarOpen, selectAll, undo, redo, pushUndo, clear, setMolecule, setSidebarOpen, setStatus, setTheme, setZoom, showModal, announce]);
 
   // Keyboard shortcuts for Phase 3-5
   useEffect(() => {
