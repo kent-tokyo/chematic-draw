@@ -13,3 +13,12 @@ test('shared contract surface executes across UI consumers at runtime', () => {
   expect(contractSurfaceFixture.session.schema_version).toBe(2);
   expect(contractSurfaceFixture.batch.items).toEqual([]);
 });
+
+test('HTML and Worker consumers reject malformed molecule boundaries', () => {
+  const malformed = { atoms: [{ id: 1, element: 'C', x: Number.NaN, y: 0 }], bonds: [] } as never;
+  const danglingBond = { atoms: [{ id: 1, element: 'C', x: 0, y: 0 }], bonds: [{ id: 2, from: 1, to: 9, order: 1, stereo: 0 }] } as never;
+  expect(htmlConsumer(malformed)).toEqual(['Invalid atom: 1']);
+  expect(workerConsumer(malformed)).toEqual({ ok: false, errors: ['Invalid atom: 1'] });
+  expect(htmlConsumer(danglingBond)).toEqual(['Invalid bond: 2']);
+  expect(workerConsumer(danglingBond)).toEqual({ ok: false, errors: ['Invalid bond: 2'] });
+});

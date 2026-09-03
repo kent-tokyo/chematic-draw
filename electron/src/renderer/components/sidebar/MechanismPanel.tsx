@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
 import { useMechanismStore } from '../../store/mechanismStore';
@@ -27,15 +27,8 @@ export function MechanismPanel() {
 
   useElectronSuggestions();
 
-  const [showArrowTypeDialog, setShowArrowTypeDialog] = useState(false);
   const [selectedArrowId, setSelectedArrowIdLocal] = useState<string | null>(null);
-
-  // Watch for sink atom selection and show dialog
-  useEffect(() => {
-    if (arrowSelectionMode === 'awaitingSink' && pendingSinkAtomId !== null) {
-      setShowArrowTypeDialog(true);
-    }
-  }, [pendingSinkAtomId, arrowSelectionMode]);
+  const showArrowTypeDialog = pendingSourceAtomId !== null && pendingSinkAtomId !== null;
 
   const isDark = theme === 'dark';
   const bgColor = isDark ? '#1e1e1e' : '#ffffff';
@@ -73,8 +66,6 @@ export function MechanismPanel() {
     // Set both source and sink atoms directly
     useMechanismStore.getState().setPendingSourceAtomId(suggestion.sourceAtomId);
     useMechanismStore.getState().setPendingSinkAtomId(suggestion.sinkAtomId);
-    // Show arrow type dialog
-    setShowArrowTypeDialog(true);
   };
 
   const handleDismissSuggestion = (index: number) => {
@@ -110,7 +101,6 @@ export function MechanismPanel() {
         updateCurrentStepArrows([...currentArrows, newArrow]);
       }
 
-      setShowArrowTypeDialog(false);
       setStatus(`Arrow added (${type})`);
     }
   };
@@ -574,7 +564,6 @@ export function MechanismPanel() {
         <ArrowTypeDialog
           onSelect={handleArrowTypeSelected}
           onCancel={() => {
-            setShowArrowTypeDialog(false);
             useMechanismStore.getState().setPendingSinkAtomId(null);
             useMechanismStore.getState().cancelArrowSelection();
             setStatus('Arrow selection cancelled');

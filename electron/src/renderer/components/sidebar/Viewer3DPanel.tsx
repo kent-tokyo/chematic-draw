@@ -21,19 +21,17 @@ export function Viewer3DPanel() {
     zoom: 1.0,
   });
   const [coords3d, setCoords3d] = useState<Coords3dDto | null>(null);
+  const [coords3dMoleculeKey, setCoords3dMoleculeKey] = useState<string | null>(null);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [lastMouse, setLastMouse] = useState({ x: 0, y: 0 });
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Clear any previously-generated 3D structure when the molecule changes —
-  // otherwise switching molecules (without re-clicking "3D 生成") keeps
-  // showing the PREVIOUS molecule's 3D structure indefinitely, and a
-  // generation failure on the new molecule could look like it succeeded.
-  useEffect(() => {
-    setCoords3d(null);
-    setGenerationError(null);
-  }, [molecule]);
+  const moleculeKey = molecule.atoms.map((a) => `${a.element}:${a.charge ?? 0}:${a.isotope ?? ''}`).join(',') + '|' + molecule.bonds.map((b) => `${b.from}-${b.to}:${b.order}`).join(',');
+  // Keep generated coordinates tied to the molecule that produced them. This
+  // derives the visible result during render instead of clearing state from
+  // an effect after a molecule edit, avoiding a one-render stale 3D preview.
+  const displayCoords3d = coords3dMoleculeKey === moleculeKey ? coords3d : null;
 
   const bgColor = theme === 'dark' ? '#1a1f2a' : '#ffffff';
   const labelColor = theme === 'dark' ? '#a0a8b8' : '#555555';
@@ -48,10 +46,12 @@ export function Viewer3DPanel() {
       const raw3d = wasmBridge.generate3dCoords(molecule);
       const optimized = wasmBridge.minimize3d(molecule, raw3d);
       setCoords3d(optimized);
+      setCoords3dMoleculeKey(moleculeKey);
     } catch (err) {
       // Clear any stale result rather than leaving a previous (possibly
       // different molecule's) 3D structure displayed as if it were current.
       setCoords3d(null);
+      setCoords3dMoleculeKey(null);
       setGenerationError(err instanceof Error ? err.message : String(err));
     } finally {
       setIsGenerating(false);
@@ -92,7 +92,7 @@ export function Viewer3DPanel() {
 
   // Render 3D scene using Canvas 2D API
   useEffect(() => {
-    if (!canvasRef.current || !coords3d) return;
+    if (!canvasRef.current || !displayCoords3d) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
@@ -121,7 +121,7 @@ export function Viewer3DPanel() {
       radius: number;
     }
 
-    const projs: Proj[] = coords3d.atoms.map((atom) => {
+    const projs: Proj[] = displayCoords3d.atoms.map((atom) => {
       const [x, y, z] = rotate(atom.x, atom.y, atom.z, sinX, cosX, sinY, cosY);
       const radius = vdwRadius(atom.element) * zoom * 16;
       return {
@@ -188,13 +188,13 @@ export function Viewer3DPanel() {
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     ctx.fillText('Drag to rotate  |  Scroll to zoom', 8, 8);
-  }, [coords3d, viewerState, bgColor, labelColor]);
+  }, [displayCoords3d, viewerState, bgColor, labelColor]);
 
   // Download XYZ
   const handleExportXyz = () => {
-    if (!coords3d) return;
-    let xyz = `${coords3d.atoms.length}\n\n`;
-    for (const atom of coords3d.atoms) {
+    if (!displayCoords3d) return;
+    let xyz = `${displayCoords3d.atoms.length}\n\n`;
+    for (const atom of displayCoords3d.atoms) {
       xyz += `${atom.element} ${atom.x.toFixed(6)} ${atom.y.toFixed(6)} ${atom.z.toFixed(6)}\n`;
     }
     const blob = new Blob([xyz], { type: 'text/plain' });
@@ -254,7 +254,7 @@ export function Viewer3DPanel() {
         </button>
         <button
           onClick={handleExportXyz}
-          disabled={!coords3d}
+          disabled={!displayCoords3d}
           style={{
             flex: 1,
             padding: '8px',
@@ -265,7 +265,7 @@ export function Viewer3DPanel() {
             cursor: 'pointer',
             fontSize: '11px',
             fontWeight: 'bold',
-            opacity: !coords3d ? 0.5 : 1,
+            opacity: !displayCoords3d ? 0.5 : 1,
           }}
         >
           XYZ エクスポート
