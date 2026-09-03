@@ -5,16 +5,19 @@ import { PropertiesDto } from '../../store/types';
 import { predictProperties, PropertyPrediction } from '../../lib/advancedFeatures';
 import * as wasmBridge from '../../wasm/wasmBridge';
 
-type PredictionState =
+type PredictionState = { sourceKey: string } & (
   | { status: 'idle' | 'loading' }
   | { status: 'success'; molecularProps: PropertiesDto; predictions: PropertyPrediction[] }
-  | { status: 'error'; message: string };
+  | { status: 'error'; message: string }
+);
 
 export function PropertyPredictionPanel() {
   const theme = useUIStore((s) => s.theme);
   const molecule = useMoleculeStore((s) => s.molecule);
 
-  const [state, setState] = useState<PredictionState>({ status: 'idle' });
+  const [state, setState] = useState<PredictionState>({ status: 'idle', sourceKey: '' });
+  const moleculeKey = molecule.atoms.map((a) => `${a.element}:${a.charge ?? 0}:${a.isotope ?? ''}`).join(',') + '|' + molecule.bonds.map((b) => `${b.from}-${b.to}:${b.order}`).join(',');
+  const visibleState: PredictionState = state.sourceKey === moleculeKey ? state : { status: 'loading', sourceKey: moleculeKey };
 
   const bgColor = theme === 'dark' ? '#2f3a47' : '#ffffff';
   const borderColor = theme === 'dark' ? '#3a4a57' : '#e0e0e0';
@@ -24,26 +27,25 @@ export function PropertyPredictionPanel() {
   const accentColor = '#4d8dff';
   const errorColor = '#d94545';
 
-  // Switch to 'loading' (clearing any prior success/error) before
-  // computing, so switching from a working molecule to a failing one can't
-  // leave the previous molecule's numbers rendered as if they were current.
   useEffect(() => {
-    setState({ status: 'loading' });
+    const currentMolecule = useMoleculeStore.getState().molecule;
     try {
-      const molecularProps = wasmBridge.getProperties(molecule);
-      const predictions = predictProperties(molecule);
-      setState({ status: 'success', molecularProps, predictions });
+      const molecularProps = wasmBridge.getProperties(currentMolecule);
+      const predictions = predictProperties(currentMolecule);
+      // This is the asynchronous boundary where the keyed WASM result enters React state.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setState({ status: 'success', molecularProps, predictions, sourceKey: moleculeKey });
     } catch (err) {
-      setState({ status: 'error', message: err instanceof Error ? err.message : String(err) });
+      setState({ status: 'error', message: err instanceof Error ? err.message : String(err), sourceKey: moleculeKey });
     }
-  }, [molecule]);
+  }, [moleculeKey]);
 
-  const molecularProps = state.status === 'success' ? state.molecularProps : null;
-  const predictions = state.status === 'success' ? state.predictions : [];
+  const molecularProps = visibleState.status === 'success' ? visibleState.molecularProps : null;
+  const predictions = visibleState.status === 'success' ? visibleState.predictions : [];
 
   return (
     <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      {state.status === 'error' && (
+      {visibleState.status === 'error' && (
         <div
           style={{
             padding: '12px',
@@ -54,7 +56,7 @@ export function PropertyPredictionPanel() {
           }}
         >
           プロパティを計算できませんでした
-          <div style={{ fontSize: '9px', marginTop: '4px', opacity: 0.85 }}>{state.message}</div>
+          <div style={{ fontSize: '9px', marginTop: '4px', opacity: 0.85 }}>{visibleState.message}</div>
         </div>
       )}
 

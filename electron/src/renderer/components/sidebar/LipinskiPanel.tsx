@@ -5,16 +5,19 @@ import { checkLipinski } from '../../lib/advancedFeatures';
 import * as wasmBridge from '../../wasm/wasmBridge';
 
 type LipinskiRule = { rule: string; value: number; limit: number; violated: boolean };
-type LipinskiState =
+type LipinskiState = { sourceKey: string } & (
   | { status: 'idle' | 'loading' }
   | { status: 'success'; violations: LipinskiRule[] }
-  | { status: 'error'; message: string };
+  | { status: 'error'; message: string }
+);
 
 export function LipinskiPanel() {
   const theme = useUIStore((s) => s.theme);
   const molecule = useMoleculeStore((s) => s.molecule);
 
-  const [state, setState] = useState<LipinskiState>({ status: 'idle' });
+  const [state, setState] = useState<LipinskiState>({ status: 'idle', sourceKey: '' });
+  const moleculeKey = molecule.atoms.map((a) => `${a.element}:${a.charge ?? 0}:${a.isotope ?? ''}`).join(',') + '|' + molecule.bonds.map((b) => `${b.from}-${b.to}:${b.order}`).join(',');
+  const visibleState: LipinskiState = state.sourceKey === moleculeKey ? state : { status: 'loading', sourceKey: moleculeKey };
 
   const borderColor = theme === 'dark' ? '#3a4a57' : '#e0e0e0';
   const textColor = theme === 'dark' ? '#d8deea' : '#1d2430';
@@ -23,29 +26,28 @@ export function LipinskiPanel() {
   const violationColor = '#d94545';
   const passColor = '#4caf50';
 
-  // Never carry the previous molecule's result into the next molecule's
-  // render: switch to 'loading' (clearing any prior success/error) before
-  // computing, so a failure on the new molecule can't be mistaken for the
-  // old one's result still being current.
+  // The visible state is derived as loading until this keyed result arrives.
   useEffect(() => {
-    setState({ status: 'loading' });
+    const currentMolecule = useMoleculeStore.getState().molecule;
     try {
-      const props = wasmBridge.getProperties(molecule);
+      const props = wasmBridge.getProperties(currentMolecule);
       const results = checkLipinski(props);
-      setState({ status: 'success', violations: results });
+      // This is the asynchronous boundary where the keyed WASM result enters React state.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setState({ status: 'success', violations: results, sourceKey: moleculeKey });
     } catch (err) {
-      setState({ status: 'error', message: err instanceof Error ? err.message : String(err) });
+      setState({ status: 'error', message: err instanceof Error ? err.message : String(err), sourceKey: moleculeKey });
     }
-  }, [molecule]);
+  }, [moleculeKey]);
 
-  const violations = state.status === 'success' ? state.violations : null;
+  const violations = visibleState.status === 'success' ? visibleState.violations : null;
   const violationCount = violations?.filter((v) => v.violated).length ?? 0;
-  const isPassed = state.status === 'success' && violationCount === 0;
+  const isPassed = visibleState.status === 'success' && violationCount === 0;
 
   return (
     <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
       {/* Lipinski Status */}
-      {state.status === 'error' ? (
+      {visibleState.status === 'error' ? (
         <div
           style={{
             padding: '12px',
@@ -58,9 +60,9 @@ export function LipinskiPanel() {
           }}
         >
           Lipinski判定を実行できませんでした
-          <div style={{ fontSize: '9px', fontWeight: 'normal', marginTop: '4px', opacity: 0.85 }}>{state.message}</div>
+          <div style={{ fontSize: '9px', fontWeight: 'normal', marginTop: '4px', opacity: 0.85 }}>{visibleState.message}</div>
         </div>
-      ) : state.status === 'loading' || state.status === 'idle' ? (
+      ) : visibleState.status === 'loading' || visibleState.status === 'idle' ? (
         <div
           style={{
             padding: '12px',

@@ -5,10 +5,11 @@ import { PropertiesDto } from '../../store/types';
 import { copyText } from '../../lib/clipboard';
 import * as wasmBridge from '../../wasm/wasmBridge';
 
-type ResearchState =
+type ResearchState = { sourceKey: string } & (
   | { status: 'idle' | 'loading' }
   | { status: 'success'; properties: PropertiesDto; iupacName: string; inchi: string; inchikey: string; identifierError?: string }
-  | { status: 'error'; message: string };
+  | { status: 'error'; message: string }
+);
 
 export function ResearchPanel() {
   const theme = useUIStore((s) => s.theme);
@@ -30,14 +31,14 @@ export function ResearchPanel() {
     molecule.atoms.map((a) => `${a.element}${a.charge ?? 0}${a.isotope ?? ''}`).join(',') +
     '|' +
     molecule.bonds.map((b) => `${b.from}-${b.to}:${b.order}`).join(',');
-  const [state, setState] = useState<ResearchState>({ status: 'idle' });
+  const [state, setState] = useState<ResearchState>({ status: 'idle', sourceKey: '' });
+  const visibleState: ResearchState = state.sourceKey === molKey ? state : { status: 'loading', sourceKey: molKey };
 
   // Switch to 'loading' before computing so a failure on a newly-selected
   // molecule can never be mistaken for "no molecule loaded" (its own
   // distinct, correct message) or for the previous molecule's result.
   useEffect(() => {
     if (activeSidebarPanel !== 'research') return;
-    setState({ status: 'loading' });
     try {
       const properties = wasmBridge.getProperties(molecule);
       let iupacName: string;
@@ -55,19 +56,21 @@ export function ResearchPanel() {
       } catch (err) {
         identifierError = err instanceof Error ? err.message : String(err);
       }
-      setState({ status: 'success', properties, iupacName, inchi, inchikey, identifierError });
+      // This is the asynchronous boundary where the keyed WASM result enters React state.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setState({ status: 'success', properties, iupacName, inchi, inchikey, identifierError, sourceKey: molKey });
     } catch (err) {
-      setState({ status: 'error', message: err instanceof Error ? err.message : String(err) });
+      setState({ status: 'error', message: err instanceof Error ? err.message : String(err), sourceKey: molKey });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [molKey, activeSidebarPanel]);
 
-  const loading = state.status === 'loading' || state.status === 'idle';
-  const properties = state.status === 'success' ? state.properties : null;
-  const iupacName = state.status === 'success' ? state.iupacName : '';
-  const inchi = state.status === 'success' ? state.inchi : '';
-  const inchikey = state.status === 'success' ? state.inchikey : '';
-  const identifierError = state.status === 'success' ? state.identifierError : undefined;
+  const loading = visibleState.status === 'loading' || visibleState.status === 'idle';
+  const properties = visibleState.status === 'success' ? visibleState.properties : null;
+  const iupacName = visibleState.status === 'success' ? visibleState.iupacName : '';
+  const inchi = visibleState.status === 'success' ? visibleState.inchi : '';
+  const inchikey = visibleState.status === 'success' ? visibleState.inchikey : '';
+  const identifierError = visibleState.status === 'success' ? visibleState.identifierError : undefined;
 
   const textColor = theme === 'dark' ? '#d8deea' : '#1d2430';
   const labelColor = theme === 'dark' ? '#a0a8b8' : '#555555';
@@ -188,14 +191,14 @@ export function ResearchPanel() {
         </>
       )}
 
-      {state.status === 'error' && (
+      {visibleState.status === 'error' && (
         <div style={{ color: '#f26d6d', fontSize: '12px', textAlign: 'center', padding: '20px 0' }}>
           プロパティを計算できませんでした
-          <div style={{ fontSize: '10px', marginTop: '4px', opacity: 0.85 }}>{state.message}</div>
+          <div style={{ fontSize: '10px', marginTop: '4px', opacity: 0.85 }}>{visibleState.message}</div>
         </div>
       )}
 
-      {!loading && state.status !== 'error' && !properties && (
+      {!loading && visibleState.status !== 'error' && !properties && (
         <div style={{ color: labelColor, fontSize: '12px', textAlign: 'center', padding: '20px 0' }}>
           No molecule loaded
         </div>
