@@ -18,6 +18,7 @@ test.describe('Inspector SMARTS search input', () => {
   });
 
   test('typing a multi-character pattern does not lose focus mid-keystroke', async ({ page }) => {
+    await page.getByText('Advanced query tools', { exact: true }).click();
     const smartsInput = page.getByPlaceholder('e.g., [#6]1:[#6]:[#6]:[#6]:[#6]:[#6]:1');
     await expect(smartsInput).toBeVisible();
 
