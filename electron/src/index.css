@@ -25,6 +25,14 @@ button {
   font-family: inherit;
 }
 
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+  outline: 2px solid #4d8dff;
+  outline-offset: 2px;
+}
+
 input {
   font-family: inherit;
 }

@@ -326,7 +326,7 @@ export function MoleculeCanvas() {
         onDragOver={handleDragOver}
         onDrop={handleDrop}
       />
-      {showQuickStart && (
+      {showQuickStart && atomCount > 0 && (
         <div
           data-testid="quick-start-guide"
           role="note"

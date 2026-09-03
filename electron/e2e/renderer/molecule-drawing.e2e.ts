@@ -17,6 +17,16 @@ test.describe('Molecule Drawing', () => {
     await expect(sidebar).toBeVisible();
   });
 
+  test('can reopen the sidebar from the toolbar after closing it', async ({ page }) => {
+    await page.getByRole('button', { name: 'Close sidebar' }).click();
+    await expect(page.getByTestId('sidebar')).toHaveCount(0);
+
+    const showSidebar = page.getByTestId('show-sidebar');
+    await expect(showSidebar).toBeVisible();
+    await showSidebar.click();
+    await expect(page.getByTestId('sidebar')).toBeVisible();
+  });
+
   test('toolbar summary shows zoom as a real percentage', async ({ page }) => {
     // Regression test: this badge computed `zoom.toFixed(0)` directly —
     // `zoom` is a 0.2-10 multiplier (1 = 100%), not already a percentage —
@@ -34,6 +44,7 @@ test.describe('Molecule Drawing', () => {
 
     const guide = page.getByTestId('empty-canvas-guide');
     await expect(guide).toBeVisible();
+    await expect(page.getByTestId('quick-start-guide')).toHaveCount(0);
     await expect(guide).toContainText('press C, N, O, S, or P');
     await expect(canvas).toHaveAttribute('aria-label', 'Molecular structure canvas, empty');
 

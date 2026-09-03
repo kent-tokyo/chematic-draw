@@ -54,6 +54,7 @@ function App() {
   const [filePath, setFilePath] = useState<string | null>(null);
   const theme = useUIStore((s) => s.theme);
   const setTheme = useUIStore((s) => s.setTheme);
+  const language = useUIStore((s) => s.language);
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
   const setSidebarOpen = useUIStore((s) => s.setSidebarOpen);
   const activeTool = useCanvasStore((s) => s.activeTool);
@@ -670,6 +671,17 @@ function App() {
           flexWrap: 'wrap',
         }}
       >
+        {!sidebarOpen && (
+          <button
+            data-testid="show-sidebar"
+            onClick={() => setSidebarOpen(true)}
+            aria-label={language === 'ja' ? 'サイドバーを表示' : 'Show sidebar'}
+            title={language === 'ja' ? 'サイドバーを表示' : 'Show sidebar'}
+            style={{ padding: '6px 10px', backgroundColor: 'transparent', color: 'inherit', border: '1px solid currentColor', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
+          >
+            {language === 'ja' ? 'パネル' : 'Panel'}
+          </button>
+        )}
         <span style={{ fontSize: '10px', opacity: 0.6, marginRight: '2px' }}>Atoms</span>
         {toolButtons.slice(0, 6).map((btn) => (
           <button

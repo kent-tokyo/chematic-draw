@@ -97,6 +97,7 @@ function SmartsSection({
   labelColor,
   textColor,
   theme,
+  language,
   smartsPattern,
   setSmartsPattern,
   smartsMatches,
@@ -106,6 +107,7 @@ function SmartsSection({
   labelColor: string;
   textColor: string;
   theme: string;
+  language: 'en' | 'ja';
   smartsPattern: string;
   setSmartsPattern: (value: string) => void;
   smartsMatches: number[];
@@ -114,7 +116,7 @@ function SmartsSection({
   return (
     <div style={{ padding: '12px', backgroundColor: bgColor, borderRadius: '4px', border: `1px solid ${labelColor}` }}>
       <div style={{ fontSize: '11px', fontWeight: 'bold', color: textColor, marginBottom: '8px' }}>
-        SMARTS Search
+        {language === 'ja' ? 'SMARTS検索' : 'SMARTS search'}
       </div>
       <input
         type="text"
@@ -161,6 +163,7 @@ function SmartsSection({
 function QueryEditorSection({
   molecule,
   theme,
+  language,
   textColor,
   bgColor,
   labelColor,
@@ -169,6 +172,7 @@ function QueryEditorSection({
 }: {
   molecule: import('../../store/types').MoleculeDto;
   theme: string;
+  language: 'en' | 'ja';
   textColor: string;
   bgColor: string;
   labelColor: string;
@@ -209,11 +213,11 @@ function QueryEditorSection({
     }
   };
   return <div style={{ padding: '12px', backgroundColor: bgColor, borderRadius: '4px', border: `1px solid ${labelColor}` }}>
-    <div style={{ fontSize: '11px', fontWeight: 'bold', color: textColor, marginBottom: '8px' }}>Query editor</div>
+    <div style={{ fontSize: '11px', fontWeight: 'bold', color: textColor, marginBottom: '8px' }}>{language === 'ja' ? 'クエリエディタ' : 'Query editor'}</div>
     <textarea aria-label="Query document editor" value={json} onChange={(event) => updateDraft(event.target.value)} rows={8} style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'monospace', fontSize: '9px', backgroundColor: theme === 'dark' ? '#1e2530' : '#fff', color: textColor, border: `1px solid ${labelColor}` }} />
     <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
-      <button onClick={validate} style={{ flex: 1 }}>Validate / SMARTS</button>
-      <button onClick={apply} style={{ flex: 1 }}>Apply concrete</button>
+      <button onClick={validate} style={{ flex: 1 }}>{language === 'ja' ? '検証 / SMARTS' : 'Validate / SMARTS'}</button>
+      <button onClick={apply} style={{ flex: 1 }} title={language === 'ja' ? 'クエリを通常の分子構造として適用します' : 'Apply the query as a concrete molecule'}>{language === 'ja' ? '分子として適用' : 'Apply as molecule'}</button>
     </div>
     {status && <div role="status" style={{ marginTop: '6px', color: textColor, fontSize: '10px', overflowWrap: 'anywhere' }}>{status}</div>}
   </div>;
@@ -223,7 +227,7 @@ function AdvancedQuerySection(props: React.ComponentProps<typeof QueryEditorSect
   return (
     <details style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
       <summary style={{ cursor: 'pointer', color: props.textColor, fontSize: '12px', fontWeight: 600, padding: '4px 0' }}>
-        Advanced query tools
+        {props.language === 'ja' ? '高度なクエリ機能' : 'Advanced query tools'}
       </summary>
       {props.smarts}
       <QueryEditorSection {...props} />
@@ -233,6 +237,7 @@ function AdvancedQuerySection(props: React.ComponentProps<typeof QueryEditorSect
 
 export function InspectorPanel() {
   const theme = useUIStore((s) => s.theme);
+  const language = useUIStore((s) => s.language);
   const selectedAtomIdForInspector = useUIStore((s) => s.selectedAtomIdForInspector);
   const selectedBondIdForInspector = useUIStore((s) => s.selectedBondIdForInspector);
   const molecule = useMoleculeStore((s) => s.molecule);
@@ -339,7 +344,7 @@ export function InspectorPanel() {
         </div>
         <FunctionalGroupsSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} functionalGroups={visibleFunctionalGroups} />
         <ValidationSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} validationErrors={visibleValidation.errors} validationWarnings={visibleValidation.warnings} />
-        <AdvancedQuerySection key={JSON.stringify(molecule)} molecule={molecule} theme={theme} textColor={textColor} bgColor={bgColor} labelColor={labelColor} pushUndo={pushUndo} setMolecule={setMolecule} smarts={<SmartsSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} theme={theme} smartsPattern={smartsPattern} setSmartsPattern={setSmartsPattern} smartsMatches={smartsMatches} handleSmartsSearch={handleSmartsSearch} />} />
+        <AdvancedQuerySection key={JSON.stringify(molecule)} molecule={molecule} theme={theme} language={language} textColor={textColor} bgColor={bgColor} labelColor={labelColor} pushUndo={pushUndo} setMolecule={setMolecule} smarts={<SmartsSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} theme={theme} language={language} smartsPattern={smartsPattern} setSmartsPattern={setSmartsPattern} smartsMatches={smartsMatches} handleSmartsSearch={handleSmartsSearch} />} />
       </div>
     );
   }
@@ -479,7 +484,7 @@ export function InspectorPanel() {
         </>
       )}
 
-      <AdvancedQuerySection key={JSON.stringify(molecule)} molecule={molecule} theme={theme} textColor={textColor} bgColor={bgColor} labelColor={labelColor} pushUndo={pushUndo} setMolecule={setMolecule} />
+      <AdvancedQuerySection key={JSON.stringify(molecule)} molecule={molecule} theme={theme} language={language} textColor={textColor} bgColor={bgColor} labelColor={labelColor} pushUndo={pushUndo} setMolecule={setMolecule} />
 
     </div>
   );
