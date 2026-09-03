@@ -225,8 +225,6 @@ export class CanvasRenderer {
   }
 
   private drawWedgeDown(x1: number, y1: number, x2: number, y2: number) {
-    const dx = x2 - x1;
-    const dy = y2 - y1;
     this.ctx.setLineDash([4, 4]);
     this.ctx.beginPath();
     this.ctx.moveTo(x1, y1);

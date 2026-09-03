@@ -125,7 +125,7 @@ function App() {
       }
     };
     init();
-  }, []);
+  }, [setTheme]);
 
   // Load sample molecule on mount — unless main.js is holding a crash-
   // recovery snapshot the user just confirmed restoring, in which case that
@@ -157,7 +157,7 @@ function App() {
         console.error('Failed to load sample:', err);
       }
     })();
-  }, [wasmLoaded]);
+  }, [wasmLoaded, setMolecule, setStatus]);
 
   // Autosave: debounced crash-recovery snapshot, written to a file main.js
   // clears on every clean quit. Its mere presence at next launch is what
@@ -459,7 +459,7 @@ function App() {
         // Cleanup: no need to unsubscribe from ipcRenderer in this version
       };
     }
-  }, [molecule, filePath, theme, zoom, sidebarOpen, selectAll, undo, redo, pushUndo]);
+  }, [molecule, filePath, theme, zoom, sidebarOpen, selectAll, undo, redo, pushUndo, clear, setMolecule, setSidebarOpen, setStatus, setTheme, setZoom, showModal]);
 
   // Keyboard shortcuts for Phase 3-5
   useEffect(() => {
