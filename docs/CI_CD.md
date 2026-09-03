@@ -129,14 +129,15 @@ build job includes a "Check version consistency" step comparing
 5. Generate SHA-256 checksums
 6. Upload artifacts
 
-**Code signing / notarization: not implemented.** No `APPLE_*`/`CSC_*`
-secrets or signing steps exist in `build.yml` today — macOS/Windows
-artifacts ship unsigned. The environment-variable list and signing
-troubleshooting sections below describe what *would* be needed to add
-signing, not current behavior.
+**Code signing / notarization is optional.** Release builds sign macOS and
+Windows artifacts when the corresponding GitHub secrets are configured. Until
+Apple secrets are available, the tagged release workflow explicitly publishes
+an unsigned macOS `.zip`; the warning is emitted by
+`scripts/verify-signing-env.sh`. Checksums provide integrity evidence only,
+not publisher authenticity.
 
 ```yaml
-# Not yet wired into any workflow — listed here as what signing would need:
+# Optional GitHub Actions secrets for signed releases:
 APPLE_ID: Apple Developer account email
 APPLE_APP_SPECIFIC_PASSWORD: Generated in Apple ID settings
 APPLE_TEAM_ID: Developer team ID
@@ -418,10 +419,9 @@ strategy:
 
 ### macOS Codesigning / Windows Signing
 
-**Not applicable today** — `build.yml` has no signing step and no
-`CSC_*`/`APPLE_*`/`WIN_CSC_*` secrets configured; macOS/Windows artifacts
-ship unsigned. The steps below are what adding signing would require, not a
-fix for an existing failure.
+Signing is optional. If Apple secrets are absent, the release workflow emits
+an explicit unsigned macOS `.zip` and continues. Windows signing remains
+enabled whenever its certificate secrets are present.
 
 ```bash
 # Export certificate as base64

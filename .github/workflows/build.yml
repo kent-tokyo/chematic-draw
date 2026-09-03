@@ -96,6 +96,9 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          # Until Apple credentials are configured, publish the macOS zip as
+          # explicitly unsigned. Credentials still take precedence when set.
+          ALLOW_UNSIGNED_MACOS: 'true'
         run: ./scripts/verify-signing-env.sh
 
       - name: Prepare macOS signing certificate

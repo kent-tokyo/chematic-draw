@@ -12,6 +12,16 @@ fi
 case "${RUNNER_OS:-}" in
   macOS)
     required=(APPLE_CERTIFICATE_BASE64 APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID)
+    if [[ "${ALLOW_UNSIGNED_MACOS:-false}" == "true" ]]; then
+      missing=()
+      for name in "${required[@]}"; do
+        [[ -n "${!name:-}" ]] || missing+=("$name")
+      done
+      if (( ${#missing[@]} > 0 )); then
+        echo "warning: publishing unsigned macOS artifact; missing: ${missing[*]}" >&2
+        exit 0
+      fi
+    fi
     ;;
   Windows)
     required=(WINDOWS_CERTIFICATE_BASE64 WINDOWS_CERTIFICATE_PASSWORD)

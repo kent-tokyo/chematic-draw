@@ -37,9 +37,9 @@ otherwise.
 build/release pipeline in `.github/workflows/`.
 
 **Out of scope / already known:**
-- Released binaries are **unsigned** — no code signing or notarization is
-  configured (see [`docs/CI_CD.md`](./docs/CI_CD.md)). This is a known
-  limitation, not something to report.
+- A macOS binary may be **unsigned** when Apple signing secrets are not
+  configured; this is an explicit release-mode fallback (see
+  [`docs/CI_CD.md`](./docs/CI_CD.md)), not a claim of authenticity.
 - The `SHA256SUMS-<OS>.txt` files published with each release ([Quick
   Start](./docs/QUICK_START.md#installation)) let you confirm a download
   wasn't corrupted or altered in transit. They are **not** a substitute for
