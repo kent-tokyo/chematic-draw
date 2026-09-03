@@ -48,6 +48,15 @@ test.describe('Molecule Drawing', () => {
     await expect(inspectorTab).toBeFocused();
   });
 
+  test('exposes a single roving-focus tab in the sidebar tablist', async ({ page }) => {
+    const tablist = page.getByRole('tablist', { name: 'Sidebar panels' });
+    await expect(tablist).toHaveAttribute('aria-orientation', 'horizontal');
+    const tabs = page.getByRole('tab');
+    await expect(tabs).toHaveCount(12);
+    expect(await tabs.evaluateAll((elements) => elements.filter((element) => element.getAttribute('tabindex') === '0').length)).toBe(1);
+    await expect(page.getByTestId('sidebar-tab-inspector')).toHaveAttribute('tabindex', '0');
+  });
+
   test('keeps the sidebar usable at a narrow desktop width', async ({ page }) => {
     await page.setViewportSize({ width: 640, height: 720 });
     const sidebar = page.getByTestId('sidebar');

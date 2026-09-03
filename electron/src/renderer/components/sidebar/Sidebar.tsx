@@ -92,6 +92,7 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
         className="sidebar-tablist"
         role="tablist"
         aria-label={language === 'ja' ? 'サイドバーパネル' : 'Sidebar panels'}
+        aria-orientation="horizontal"
         style={{
           display: 'flex',
           flexDirection: 'column',
