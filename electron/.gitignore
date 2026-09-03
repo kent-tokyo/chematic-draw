@@ -87,6 +87,8 @@ typings/
 
 # Vite
 .vite/
+/dist/
+/site/
 
 # Electron-Forge
 out/

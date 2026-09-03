@@ -1,11 +1,25 @@
 import { defineConfig } from 'vite';
 import wasm from 'vite-plugin-wasm';
 import topLevelAwait from 'vite-plugin-top-level-await';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const rootDir = fileURLToPath(new URL('.', import.meta.url));
 
 // https://vitejs.dev/config
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const isPlayground = mode === 'playground';
+  return {
+  root: isPlayground ? resolve(rootDir, '..') : rootDir,
   plugins: [topLevelAwait(), wasm()],
+  base: isPlayground ? './' : '/',
   build: {
+    outDir: isPlayground ? resolve(rootDir, 'site') : resolve(rootDir, 'dist'),
+    rollupOptions: {
+      input: isPlayground
+        ? resolve(rootDir, '../playground/index.html')
+        : { main: resolve(rootDir, 'index.html'), playground: resolve(rootDir, 'playground.html') },
+    },
     // vite-plugin-top-level-await's esbuild transform falls back to a stale
     // default target (chrome87/edge88/es2020/firefox78/safari14) when
     // build.target isn't set explicitly, rather than Vite 7's own newer
@@ -45,4 +59,5 @@ export default defineConfig({
       allow: ['../..'],
     },
   },
+  };
 });

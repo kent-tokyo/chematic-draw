@@ -1,0 +1,62 @@
+name: Playground Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'playground/**'
+      - 'electron/src/playground.tsx'
+      - 'electron/src/index.css'
+      - 'electron/src/renderer/wasm/**'
+      - 'crates/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'electron/package.json'
+      - 'electron/package-lock.json'
+      - 'electron/vite.renderer.config.mjs'
+      - '.github/workflows/playground-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: electron/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - run: cargo install wasm-pack --locked
+      - run: npm ci
+        working-directory: electron
+      - run: npm run build:wasm:release
+        working-directory: electron
+      - run: npx vite build --config vite.renderer.config.mjs --mode playground
+        working-directory: electron
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: electron/site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
