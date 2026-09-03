@@ -682,7 +682,7 @@ function App() {
             {language === 'ja' ? 'パネル' : 'Panel'}
           </button>
         )}
-        <span style={{ fontSize: '10px', opacity: 0.6, marginRight: '2px' }}>Atoms</span>
+        <span style={{ fontSize: '10px', opacity: 0.6, marginRight: '2px' }}>{language === 'ja' ? '原子' : 'Atoms'}</span>
         {toolButtons.slice(0, 6).map((btn) => (
           <button
             key={btn.tool}
@@ -705,7 +705,7 @@ function App() {
           </button>
         ))}
         <span aria-hidden="true" style={{ width: '1px', height: '22px', backgroundColor: theme === 'dark' ? '#555' : '#ccc', margin: '0 4px' }} />
-        <span style={{ fontSize: '10px', opacity: 0.6, marginRight: '2px' }}>Bonds</span>
+        <span style={{ fontSize: '10px', opacity: 0.6, marginRight: '2px' }}>{language === 'ja' ? '結合' : 'Bonds'}</span>
         {toolButtons.slice(6).map((btn) => (
           <button
             key={btn.tool}
@@ -835,10 +835,10 @@ function App() {
           gap: '16px',
         }}
       >
-        <span>Tool: {activeTool.replace('_', ' ')}</span>
-        <span>Zoom: {(zoom * 100).toFixed(0)}%</span>
+        <span>{language === 'ja' ? 'ツール' : 'Tool'}: {activeTool.replace('_', ' ')}</span>
+        <span>{language === 'ja' ? 'ズーム' : 'Zoom'}: {(zoom * 100).toFixed(0)}%</span>
         <span style={{ marginLeft: 'auto' }}>
-          {primaryModifier}+Z: Undo • {primaryModifier}+Shift+Z: Redo • +/−: Zoom • Del: Delete
+          {primaryModifier}+Z: {language === 'ja' ? '元に戻す' : 'Undo'} • {primaryModifier}+Shift+Z: {language === 'ja' ? 'やり直す' : 'Redo'} • +/−: {language === 'ja' ? 'ズーム' : 'Zoom'} • Del: {language === 'ja' ? '削除' : 'Delete'}
         </span>
       </div>
     </div>

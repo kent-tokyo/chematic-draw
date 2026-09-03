@@ -27,6 +27,15 @@ test.describe('Molecule Drawing', () => {
     await expect(page.getByTestId('sidebar')).toBeVisible();
   });
 
+  test('supports arrow-key navigation across sidebar tabs', async ({ page }) => {
+    const inspectorTab = page.getByTestId('sidebar-tab-inspector');
+    await inspectorTab.focus();
+    await inspectorTab.press('ArrowRight');
+
+    await expect(page.getByTestId('sidebar-tab-templates')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByTestId('sidebar-tab-templates')).toBeFocused();
+  });
+
   test('toolbar summary shows zoom as a real percentage', async ({ page }) => {
     // Regression test: this badge computed `zoom.toFixed(0)` directly —
     // `zoom` is a 0.2-10 multiplier (1 = 100%), not already a percentage —

@@ -36,18 +36,18 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
   }
 
   const tabs: SidebarTab[] = [
-    { id: 'inspector', shortLabel: 'Inspector', accessibleLabel: 'Inspector', icon: 'search' },
-    { id: 'templates', shortLabel: 'Templates', accessibleLabel: 'Templates', icon: 'templates' },
-    { id: 'reactions', shortLabel: 'Reactions', accessibleLabel: 'Reactions', icon: 'reactions' },
-    { id: 'batch-results', shortLabel: 'Batch', accessibleLabel: 'Batch results', icon: 'batch', badge: batchResults.length > 0 ? batchResults.length : undefined },
-    { id: 'stereoisomers', shortLabel: 'Stereo', accessibleLabel: 'Stereochemistry', icon: 'stereoisomers' },
-    { id: 'lipinski', shortLabel: 'Lipinski', accessibleLabel: 'Lipinski rules', icon: 'lipinski' },
-    { id: 'properties', shortLabel: 'Props', accessibleLabel: 'Property prediction', icon: 'properties' },
-    { id: 'mechanism', shortLabel: 'Mech', accessibleLabel: 'Reaction mechanism', icon: 'mechanism' },
-    { id: '3d', shortLabel: '3D', accessibleLabel: '3D viewer', icon: 'database' },
-    { id: 'database', shortLabel: 'DB', accessibleLabel: 'Database search', icon: 'database' },
-    { id: 'research', shortLabel: 'Research', accessibleLabel: 'Research identifiers', icon: 'research' },
-    { id: 'chat', shortLabel: 'Chat', accessibleLabel: 'Assistant chat', icon: 'chat' },
+    { id: 'inspector', shortLabel: language === 'ja' ? '検査' : 'Inspector', accessibleLabel: language === 'ja' ? 'インスペクター' : 'Inspector', icon: 'search' },
+    { id: 'templates', shortLabel: language === 'ja' ? 'テンプレート' : 'Templates', accessibleLabel: language === 'ja' ? 'テンプレート' : 'Templates', icon: 'templates' },
+    { id: 'reactions', shortLabel: language === 'ja' ? '反応' : 'Reactions', accessibleLabel: language === 'ja' ? '反応' : 'Reactions', icon: 'reactions' },
+    { id: 'batch-results', shortLabel: language === 'ja' ? '一括' : 'Batch', accessibleLabel: language === 'ja' ? '一括処理結果' : 'Batch results', icon: 'batch', badge: batchResults.length > 0 ? batchResults.length : undefined },
+    { id: 'stereoisomers', shortLabel: language === 'ja' ? '立体' : 'Stereo', accessibleLabel: language === 'ja' ? '立体化学' : 'Stereochemistry', icon: 'stereoisomers' },
+    { id: 'lipinski', shortLabel: 'Lipinski', accessibleLabel: language === 'ja' ? 'Lipinskiルール' : 'Lipinski rules', icon: 'lipinski' },
+    { id: 'properties', shortLabel: language === 'ja' ? '物性' : 'Props', accessibleLabel: language === 'ja' ? '物性予測' : 'Property prediction', icon: 'properties' },
+    { id: 'mechanism', shortLabel: language === 'ja' ? '機構' : 'Mech', accessibleLabel: language === 'ja' ? '反応機構' : 'Reaction mechanism', icon: 'mechanism' },
+    { id: '3d', shortLabel: '3D', accessibleLabel: language === 'ja' ? '3Dビューア' : '3D viewer', icon: 'database' },
+    { id: 'database', shortLabel: language === 'ja' ? 'DB検索' : 'DB', accessibleLabel: language === 'ja' ? 'データベース検索' : 'Database search', icon: 'database' },
+    { id: 'research', shortLabel: language === 'ja' ? '識別子' : 'Research', accessibleLabel: language === 'ja' ? '研究用識別子' : 'Research identifiers', icon: 'research' },
+    { id: 'chat', shortLabel: language === 'ja' ? '相談' : 'Chat', accessibleLabel: language === 'ja' ? 'アシスタントチャット' : 'Assistant chat', icon: 'chat' },
   ];
   const tabGroups = [
     { label: language === 'ja' ? '編集' : 'Edit', ids: ['inspector', 'templates', 'reactions'] },
@@ -59,6 +59,14 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
   const borderColor = theme === 'dark' ? '#3a3a3a' : '#e0e0e0';
   const tabActiveBg = theme === 'dark' ? '#2f3a47' : '#e4e9f1';
   const textColor = theme === 'dark' ? '#d8deea' : '#1d2430';
+  const tabIds = tabs.map((tab) => tab.id);
+  const moveTab = (currentId: string, offset: number) => {
+    const currentIndex = tabIds.indexOf(currentId);
+    const nextIndex = (currentIndex + offset + tabIds.length) % tabIds.length;
+    const nextId = tabIds[nextIndex];
+    setActiveSidebarPanel(nextId as Parameters<typeof setActiveSidebarPanel>[0]);
+    document.getElementById(`sidebar-tab-${nextId}`)?.focus();
+  };
 
   return (
     <div
@@ -75,6 +83,8 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
     >
       {/* Tab Bar */}
       <div
+        role="tablist"
+        aria-label={language === 'ja' ? 'サイドバーパネル' : 'Sidebar panels'}
         style={{
           display: 'flex',
           flexDirection: 'column',
@@ -97,7 +107,17 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
                   aria-selected={activeSidebarPanel === tab.id}
                   aria-controls={`sidebar-panel-${tab.id}`}
                   aria-label={tab.accessibleLabel}
-                  onClick={() => setActiveSidebarPanel(tab.id as any)}
+                  tabIndex={activeSidebarPanel === tab.id ? 0 : -1}
+                  onClick={() => setActiveSidebarPanel(tab.id as Parameters<typeof setActiveSidebarPanel>[0])}
+                  onKeyDown={(event) => {
+                    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+                      event.preventDefault();
+                      moveTab(tab.id, 1);
+                    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+                      event.preventDefault();
+                      moveTab(tab.id, -1);
+                    }
+                  }}
                   style={{ flex: '1 1 0', minWidth: '72px', padding: '7px 4px', fontSize: '11px', border: 'none', backgroundColor: activeSidebarPanel === tab.id ? tabActiveBg : 'transparent', color: textColor, cursor: 'pointer', borderRadius: '3px', transition: 'background-color 0.2s', position: 'relative' }}
                   title={tab.accessibleLabel}
                 >

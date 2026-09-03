@@ -49,6 +49,7 @@ export function MoleculeCanvas() {
   const hoverBondId = useCanvasStore.getState().hoverBondId;
   const activeTool = useCanvasStore.getState().activeTool;
   const theme = useUIStore.getState().theme;
+  const language = useUIStore((s) => s.language);
   const bondDragPos = useCanvasStore.getState().bondDragPos;
   const bondDragFrom = useCanvasStore.getState().bondDragFrom;
   const activeSidebarPanel = useUIStore((s) => s.activeSidebarPanel);
@@ -336,8 +337,8 @@ export function MoleculeCanvas() {
             <strong>Start here</strong>
             <button onClick={() => setShowQuickStart(false)} aria-label="Dismiss quick start guide" title="Dismiss" style={{ border: 'none', background: 'transparent', color: 'inherit', cursor: 'pointer', fontSize: '16px', lineHeight: 1 }}>×</button>
           </div>
-          <div>Choose an atom tool, then click the canvas to draw.</div>
-          <div style={{ marginTop: '4px', opacity: 0.8 }}>Use Templates for ready-made structures, or press <strong>?</strong> for shortcuts.</div>
+          <div>{language === 'ja' ? '原子ツールを選び、キャンバスをクリックして描画します。' : 'Choose an atom tool, then click the canvas to draw.'}</div>
+          <div style={{ marginTop: '4px', opacity: 0.8 }}>{language === 'ja' ? <>テンプレートから構造を選ぶか、<strong>?</strong>でショートカットを確認できます。</> : <>Use Templates for ready-made structures, or press <strong>?</strong> for shortcuts.</>}</div>
         </div>
       )}
       {atomCount === 0 && (
@@ -359,9 +360,9 @@ export function MoleculeCanvas() {
             padding: '24px',
           }}
         >
-          <strong>Start a molecule</strong>
-          <span>Choose an atom tool, or press C, N, O, S, or P.</span>
-          <span>Choose Select to move atoms and use 1–4 to draw bonds.</span>
+          <strong>{language === 'ja' ? '分子を作成' : 'Start a molecule'}</strong>
+          <span>{language === 'ja' ? '原子ツールを選ぶか、C・N・O・S・Pキーを押します。' : 'Choose an atom tool, or press C, N, O, S, or P.'}</span>
+          <span>{language === 'ja' ? 'Selectで原子を移動し、1〜4で結合を描画します。' : 'Choose Select to move atoms and use 1–4 to draw bonds.'}</span>
         </div>
       )}
     </div>
