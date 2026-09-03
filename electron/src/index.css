@@ -11,6 +11,10 @@ body {
 }
 
 body {
+  --ui-accent: #4d8dff;
+  --ui-accent-soft: rgba(77, 141, 255, 0.14);
+  --ui-radius: 6px;
+  --ui-control-height: 32px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -23,7 +27,11 @@ body {
 
 button {
   font-family: inherit;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, filter 120ms ease;
 }
+
+button:hover:not(:disabled) { filter: brightness(1.08); }
+button:disabled { cursor: not-allowed; opacity: 0.55; }
 
 button:focus-visible,
 input:focus-visible,
@@ -35,4 +43,29 @@ summary:focus-visible {
 
 input {
   font-family: inherit;
+}
+
+select, input, textarea { accent-color: var(--ui-accent); }
+
+.app-toolbar { min-height: 54px; gap: 6px !important; }
+.app-brand { display: inline-flex; align-items: center; gap: 6px; margin-right: 6px; color: inherit; font-size: 13px; font-weight: 750; letter-spacing: -0.01em; white-space: nowrap; }
+.app-brand-mark { display: inline-grid; place-items: center; width: 22px; height: 22px; border: 1px solid var(--ui-accent); border-radius: 7px; color: var(--ui-accent); font-size: 16px; }
+.toolbar-section-label { font-weight: 700; letter-spacing: 0.04em; }
+.app-status-bar { min-height: 30px; line-height: 1.3; }
+.sidebar-tablist { background: linear-gradient(180deg, rgba(127, 150, 184, 0.08), transparent); }
+.sidebar-tab { min-height: var(--ui-control-height); }
+.sidebar-tab[aria-selected='true'] { box-shadow: inset 3px 0 0 var(--ui-accent); font-weight: 700; }
+.sidebar-panel { scrollbar-color: rgba(127, 150, 184, 0.55) transparent; }
+
+@media (max-width: 900px) {
+  .app-toolbar { padding: 8px !important; }
+  .app-brand { margin-right: 2px; }
+  .app-status-bar > span:last-child { display: none; }
+}
+
+@media (max-width: 680px) {
+  .app-brand > span:last-child { display: none; }
+  .sidebar-root { width: min(320px, 86vw) !important; min-width: 240px; }
+  .sidebar-tab { min-width: 64px !important; padding-inline: 2px !important; }
+  .app-status-bar { gap: 8px !important; padding-inline: 8px !important; }
 }

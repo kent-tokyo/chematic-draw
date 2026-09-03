@@ -75,6 +75,7 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
 
   return (
     <div
+      className="sidebar-root"
       data-testid="sidebar"
       style={{
         width: `${sidebarWidth}px`,
@@ -88,6 +89,7 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
     >
       {/* Tab Bar */}
       <div
+        className="sidebar-tablist"
         role="tablist"
         aria-label={language === 'ja' ? 'サイドバーパネル' : 'Sidebar panels'}
         style={{
@@ -106,6 +108,7 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
               return (
                 <button
                   key={tab.id}
+                  className="sidebar-tab"
                   data-testid={`sidebar-tab-${tab.id}`}
                   id={`sidebar-tab-${tab.id}`}
                   role="tab"
@@ -164,6 +167,7 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
 
       {/* Content Panel */}
       <div
+        className="sidebar-panel"
         data-testid={`sidebar-panel-${activeSidebarPanel}`}
         id={`sidebar-panel-${activeSidebarPanel}`}
         role="tabpanel"

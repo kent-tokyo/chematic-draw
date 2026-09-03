@@ -621,6 +621,7 @@ function App() {
       data-testid="app-root"
       data-ready={wasmLoaded}
       data-wasm-status={wasmStatus}
+      className="app-root"
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -659,6 +660,7 @@ function App() {
       {showBatchDialog && <BatchProcessDialog onProcess={handleBatchProcess} onCancel={() => hideModal('batch')} />}
       {/* Top Bar */}
       <div
+        className="app-toolbar"
         role="toolbar"
         aria-label="Drawing tools"
         style={{
@@ -671,6 +673,10 @@ function App() {
           flexWrap: 'wrap',
         }}
       >
+        <div className="app-brand" aria-label="Chematic Draw">
+          <span className="app-brand-mark" aria-hidden="true">⌬</span>
+          <span>Chematic Draw</span>
+        </div>
         {!sidebarOpen && (
           <button
             data-testid="show-sidebar"
@@ -682,7 +688,7 @@ function App() {
             {language === 'ja' ? 'パネル' : 'Panel'}
           </button>
         )}
-        <span style={{ fontSize: '10px', opacity: 0.6, marginRight: '2px' }}>{language === 'ja' ? '原子' : 'Atoms'}</span>
+        <span className="toolbar-section-label" style={{ fontSize: '10px', opacity: 0.6, marginRight: '2px' }}>{language === 'ja' ? '原子' : 'Atoms'}</span>
         {toolButtons.slice(0, 6).map((btn) => (
           <button
             key={btn.tool}
@@ -705,7 +711,7 @@ function App() {
           </button>
         ))}
         <span aria-hidden="true" style={{ width: '1px', height: '22px', backgroundColor: theme === 'dark' ? '#555' : '#ccc', margin: '0 4px' }} />
-        <span style={{ fontSize: '10px', opacity: 0.6, marginRight: '2px' }}>{language === 'ja' ? '結合' : 'Bonds'}</span>
+        <span className="toolbar-section-label" style={{ fontSize: '10px', opacity: 0.6, marginRight: '2px' }}>{language === 'ja' ? '結合' : 'Bonds'}</span>
         {toolButtons.slice(6).map((btn) => (
           <button
             key={btn.tool}
@@ -823,6 +829,7 @@ function App() {
 
       {/* Status Bar */}
       <div
+        className="app-status-bar"
         style={{
           height: '22px',
           padding: '4px 12px',

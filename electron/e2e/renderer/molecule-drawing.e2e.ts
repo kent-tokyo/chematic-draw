@@ -48,6 +48,15 @@ test.describe('Molecule Drawing', () => {
     await expect(inspectorTab).toBeFocused();
   });
 
+  test('keeps the sidebar usable at a narrow desktop width', async ({ page }) => {
+    await page.setViewportSize({ width: 640, height: 720 });
+    const sidebar = page.getByTestId('sidebar');
+    const box = await sidebar.boundingBox();
+    if (!box) throw new Error('sidebar not visible');
+    expect(box.width).toBeLessThanOrEqual(320);
+    await expect(page.getByTestId('sidebar-tab-inspector')).toBeVisible();
+  });
+
   test('toolbar summary shows zoom as a real percentage', async ({ page }) => {
     // Regression test: this badge computed `zoom.toFixed(0)` directly —
     // `zoom` is a 0.2-10 multiplier (1 = 100%), not already a percentage —
