@@ -258,9 +258,11 @@ export function InspectorPanel() {
   const pushUndo = useMoleculeStore((s) => s.pushUndo);
   const [smartsPattern, setSmartsPattern] = useState('');
   const [smartsMatches, setSmartsMatches] = useState<number[]>([]);
-  const [validationErrors, setValidationErrors] = useState<string[]>([]);
-  const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
-  const [functionalGroups, setFunctionalGroups] = useState<string[]>([]);
+  const moleculeKey = molecule.atoms.map((a) => `${a.element}:${a.charge ?? 0}:${a.isotope ?? ''}`).join(',') + '|' + molecule.bonds.map((b) => `${b.from}-${b.to}:${b.order}`).join(',');
+  const [validationState, setValidationState] = useState<{ sourceKey: string; errors: string[]; warnings: string[] }>({ sourceKey: '', errors: [], warnings: [] });
+  const [functionalGroupState, setFunctionalGroupState] = useState<{ sourceKey: string; groups: string[] }>({ sourceKey: '', groups: [] });
+  const visibleValidation = validationState.sourceKey === moleculeKey ? validationState : { sourceKey: moleculeKey, errors: [], warnings: [] };
+  const visibleFunctionalGroups = functionalGroupState.sourceKey === moleculeKey ? functionalGroupState.groups : [];
 
   // Validate molecule. `result?.errors ?? []` used to silently mask a real
   // bug: validate_molecule returned a serde_json::json!() Value, which
@@ -271,15 +273,16 @@ export function InspectorPanel() {
   // as a plain object). The `?? []`/try-catch stays as a defensive guard,
   // not a workaround for anything currently broken.
   useEffect(() => {
+    const currentMolecule = useMoleculeStore.getState().molecule;
     try {
-      const result = wasmBridge.validateMolecule(molecule);
-      setValidationErrors(result?.errors ?? []);
-      setValidationWarnings(result?.warnings ?? []);
+      const result = wasmBridge.validateMolecule(currentMolecule);
+      // WASM analysis is the effect boundary; the source key prevents stale publication.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setValidationState({ sourceKey: moleculeKey, errors: result?.errors ?? [], warnings: result?.warnings ?? [] });
     } catch {
-      setValidationErrors(['Validation error']);
-      setValidationWarnings([]);
+      setValidationState({ sourceKey: moleculeKey, errors: ['Validation error'], warnings: [] });
     }
-  }, [molecule]);
+  }, [moleculeKey]);
 
   // SMARTS search
   const handleSmartsSearch = () => {
@@ -297,17 +300,20 @@ export function InspectorPanel() {
 
   // Identify functional groups
   useEffect(() => {
-    if (molecule && molecule.atoms.length > 0) {
+    const currentMolecule = useMoleculeStore.getState().molecule;
+    if (currentMolecule.atoms.length > 0) {
       try {
-        const groups = wasmBridge.identifyFunctionalGroups(molecule);
-        setFunctionalGroups(groups);
+        const groups = wasmBridge.identifyFunctionalGroups(currentMolecule);
+        // WASM analysis is the effect boundary; the source key prevents stale publication.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setFunctionalGroupState({ sourceKey: moleculeKey, groups });
       } catch {
-        setFunctionalGroups([]);
+        setFunctionalGroupState({ sourceKey: moleculeKey, groups: [] });
       }
     } else {
-      setFunctionalGroups([]);
+      setFunctionalGroupState({ sourceKey: moleculeKey, groups: [] });
     }
-  }, [molecule]);
+  }, [moleculeKey]);
 
   const bgColor = theme === 'dark' ? '#1e2530' : '#f9f9f9';
   const textColor = theme === 'dark' ? '#d8deea' : '#1d2430';
@@ -335,8 +341,8 @@ export function InspectorPanel() {
         <div style={{ color: labelColor, fontSize: '12px', textAlign: 'center', padding: '20px 0' }}>
           Select an atom or bond to inspect
         </div>
-        <FunctionalGroupsSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} functionalGroups={functionalGroups} />
-        <ValidationSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} validationErrors={validationErrors} validationWarnings={validationWarnings} />
+        <FunctionalGroupsSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} functionalGroups={visibleFunctionalGroups} />
+        <ValidationSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} validationErrors={visibleValidation.errors} validationWarnings={visibleValidation.warnings} />
         <AdvancedQuerySection molecule={molecule} theme={theme} textColor={textColor} bgColor={bgColor} labelColor={labelColor} pushUndo={pushUndo} setMolecule={setMolecule} smarts={<SmartsSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} theme={theme} smartsPattern={smartsPattern} setSmartsPattern={setSmartsPattern} smartsMatches={smartsMatches} handleSmartsSearch={handleSmartsSearch} />} />
       </div>
     );

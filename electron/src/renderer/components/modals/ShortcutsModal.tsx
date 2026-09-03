@@ -18,10 +18,14 @@ export function ShortcutsModal() {
 
   useEffect(() => {
     if (showShortcutsModal) {
-      setDraft(shortcutBindings);
+      const currentBindings = useUIStore.getState().shortcutBindings;
+      // Opening the modal is the synchronization boundary; edits are not
+      // overwritten by unrelated binding updates while it remains open.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDraft(currentBindings);
       setError(null);
     }
-  }, [showShortcutsModal, shortcutBindings]);
+  }, [showShortcutsModal]);
 
   // Close on Escape
   useEffect(() => {
