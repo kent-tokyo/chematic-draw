@@ -5,6 +5,7 @@ import { assignCipDescriptors, enumerateStereoisomers, StereoisomerResult, Stere
 
 export function StereoisomerPanel() {
   const theme = useUIStore((s) => s.theme);
+  const language = useUIStore((s) => s.language);
   const molecule = useMoleculeStore((s) => s.molecule);
   const setMolecule = useMoleculeStore((s) => s.setMolecule);
   const pushUndo = useMoleculeStore((s) => s.pushUndo);
@@ -25,9 +26,9 @@ export function StereoisomerPanel() {
       setLoading(true);
       const result = enumerateStereoisomers(molecule);
       setResults(result);
-      setStatus(`Found ${result.count} stereoisomer(s)`);
+      setStatus(language === 'ja' ? `立体異性体が${result.count}件見つかりました` : `Found ${result.count} stereoisomer(s)`);
     } catch (err) {
-      setStatus(`Enumeration failed: ${(err as Error).message}`);
+      setStatus(language === 'ja' ? `列挙に失敗しました: ${(err as Error).message}` : `Enumeration failed: ${(err as Error).message}`);
     } finally {
       setLoading(false);
     }
@@ -36,9 +37,9 @@ export function StereoisomerPanel() {
   const handleAssignCip = () => {
     try {
       setAssignments(assignCipDescriptors(molecule));
-      setStatus('CIP assignment complete; ambiguous centers are omitted');
+      setStatus(language === 'ja' ? 'CIP割り当てが完了しました。不確定な中心は除外されています' : 'CIP assignment complete; ambiguous centers are omitted');
     } catch (err) {
-      setStatus(`CIP assignment failed: ${(err as Error).message}`);
+      setStatus(language === 'ja' ? `CIP割り当てに失敗しました: ${(err as Error).message}` : `CIP assignment failed: ${(err as Error).message}`);
     }
   };
 
@@ -76,8 +77,8 @@ export function StereoisomerPanel() {
 
       {assignments && (
         <div aria-live="polite" style={{ border: `1px solid ${borderColor}`, borderRadius: '4px', padding: '8px', color: textColor, fontSize: '10px' }}>
-          <strong>Verified descriptors</strong>
-          {assignments.length === 0 ? <div style={{ color: labelColor, marginTop: '6px' }}>No unambiguous R/S/E/Z assignments.</div> : (
+          <strong>{language === 'ja' ? '検証済み記述子' : 'Verified descriptors'}</strong>
+          {assignments.length === 0 ? <div style={{ color: labelColor, marginTop: '6px' }}>{language === 'ja' ? '明確なR/S/E/Z割り当てはありません。' : 'No unambiguous R/S/E/Z assignments.'}</div> : (
             <ul style={{ margin: '6px 0 0', paddingLeft: '18px' }}>
               {assignments.map((assignment) => <li key={`${assignment.atom_id}-${assignment.code}`}>Atom {assignment.atom_id}: {assignment.code}</li>)}
             </ul>

@@ -6,6 +6,7 @@ import * as wasmBridge from '../../wasm/wasmBridge';
 
 export function DatabaseSearchPanel() {
   const theme = useUIStore((s) => s.theme);
+  const language = useUIStore((s) => s.language);
   const molecule = useMoleculeStore((s) => s.molecule);
   const setStatus = useUIStore((s) => s.setStatus);
 
@@ -25,14 +26,14 @@ export function DatabaseSearchPanel() {
   const handleSearch = async () => {
     try {
       setLoading(true);
-      setStatus(`Searching ${source} for similar structures...`);
+      setStatus(language === 'ja' ? `${source}で類似構造を検索中…` : `Searching ${source} for similar structures...`);
 
       const searchResults = await searchDatabase(molecule, source);
       setResults(searchResults);
 
-      setStatus(`Found ${searchResults.length} similar compound(s)`);
+      setStatus(language === 'ja' ? `類似化合物が${searchResults.length}件見つかりました` : `Found ${searchResults.length} similar compound(s)`);
     } catch (err) {
-      setStatus(`Database search failed: ${(err as Error).message}`);
+      setStatus(language === 'ja' ? `データベース検索に失敗しました: ${(err as Error).message}` : `Database search failed: ${(err as Error).message}`);
       console.error('Search error:', err);
     } finally {
       setLoading(false);
@@ -64,7 +65,7 @@ export function DatabaseSearchPanel() {
     <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
       {/* Search Controls */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <label style={{ fontSize: '10px', color: labelColor }}>Database Source</label>
+        <label style={{ fontSize: '10px', color: labelColor }}>{language === 'ja' ? 'データベース' : 'Database source'}</label>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
           {(['pubchem', 'chemspider'] as const).map((src) => (
             <button
@@ -200,7 +201,7 @@ export function DatabaseSearchPanel() {
         data-testid="mcs-search"
         style={{ borderTop: `1px solid ${borderColor}`, paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}
       >
-        <div style={{ fontSize: '11px', fontWeight: 'bold', color: textColor }}>Maximum Common Substructure</div>
+        <div style={{ fontSize: '11px', fontWeight: 'bold', color: textColor }}>{language === 'ja' ? '最大共通部分構造' : 'Maximum common substructure'}</div>
         <div style={{ fontSize: '9px', color: labelColor, lineHeight: '1.4' }}>
           Compare the current molecule with another SMILES locally. No network request is made.
         </div>
@@ -250,7 +251,7 @@ export function DatabaseSearchPanel() {
             data-testid="mcs-result"
             style={{ padding: '8px', backgroundColor: inputBg, border: `1px solid ${borderColor}`, borderRadius: '4px', color: textColor, fontSize: '10px', lineHeight: '1.6' }}
           >
-            <div style={{ fontWeight: 'bold', marginBottom: '3px' }}>MCS result</div>
+            <div style={{ fontWeight: 'bold', marginBottom: '3px' }}>{language === 'ja' ? 'MCS結果' : 'MCS result'}</div>
             <div>Similarity: {(mcsResult.similarity * 100).toFixed(1)}%</div>
             <div>Common atoms: {mcsResult.common_atoms.length}</div>
             <div>Common bonds: {mcsResult.common_bonds.length}</div>
