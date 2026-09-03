@@ -177,10 +177,6 @@ function QueryEditorSection({
 }) {
   const [draft, setDraft] = useState<QueryDocument>(() => queryDocumentFromMolecule(molecule));
   const [status, setStatus] = useState('');
-  useEffect(() => {
-    setDraft(queryDocumentFromMolecule(molecule));
-    setStatus('');
-  }, [molecule]);
   const updateDraft = (value: string) => {
     try {
       const parsed = JSON.parse(value) as QueryDocument;
@@ -343,7 +339,7 @@ export function InspectorPanel() {
         </div>
         <FunctionalGroupsSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} functionalGroups={visibleFunctionalGroups} />
         <ValidationSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} validationErrors={visibleValidation.errors} validationWarnings={visibleValidation.warnings} />
-        <AdvancedQuerySection molecule={molecule} theme={theme} textColor={textColor} bgColor={bgColor} labelColor={labelColor} pushUndo={pushUndo} setMolecule={setMolecule} smarts={<SmartsSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} theme={theme} smartsPattern={smartsPattern} setSmartsPattern={setSmartsPattern} smartsMatches={smartsMatches} handleSmartsSearch={handleSmartsSearch} />} />
+        <AdvancedQuerySection key={JSON.stringify(molecule)} molecule={molecule} theme={theme} textColor={textColor} bgColor={bgColor} labelColor={labelColor} pushUndo={pushUndo} setMolecule={setMolecule} smarts={<SmartsSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} theme={theme} smartsPattern={smartsPattern} setSmartsPattern={setSmartsPattern} smartsMatches={smartsMatches} handleSmartsSearch={handleSmartsSearch} />} />
       </div>
     );
   }
@@ -483,7 +479,7 @@ export function InspectorPanel() {
         </>
       )}
 
-      <AdvancedQuerySection molecule={molecule} theme={theme} textColor={textColor} bgColor={bgColor} labelColor={labelColor} pushUndo={pushUndo} setMolecule={setMolecule} />
+      <AdvancedQuerySection key={JSON.stringify(molecule)} molecule={molecule} theme={theme} textColor={textColor} bgColor={bgColor} labelColor={labelColor} pushUndo={pushUndo} setMolecule={setMolecule} />
 
     </div>
   );
