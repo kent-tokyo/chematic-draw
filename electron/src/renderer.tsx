@@ -48,7 +48,7 @@ function confirmLossAwareExport(molecule: MoleculeDto, filePath: string): boolea
 }
 
 function App() {
-  const [wasmStatus, setWasmStatus] = useState<wasmBridge.WasmStatus>('idle');
+  const [wasmStatus, setWasmStatus] = useState<wasmBridge.WasmStatus>('loading');
   const [wasmError, setWasmError] = useState<string | null>(null);
   const wasmLoaded = wasmStatus === 'ready';
   const [filePath, setFilePath] = useState<string | null>(null);
@@ -81,7 +81,6 @@ function App() {
   // to guard its own WASM calls against "not loaded yet" — this replaces
   // per-panel try/catch guessing with one real precondition.
   useEffect(() => {
-    setWasmStatus('loading');
     const init = async () => {
       try {
         await wasmBridge.initWasm();

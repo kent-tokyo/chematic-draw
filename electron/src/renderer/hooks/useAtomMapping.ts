@@ -12,7 +12,7 @@ export function useAtomMapping() {
     if (scheme && scheme.steps.length > 0) {
       calculateAtomMappings();
     }
-  }, [scheme?.id, scheme?.steps.length, calculateAtomMappings]);
+  }, [scheme, calculateAtomMappings]);
 
   // Return selectors for convenient access
   return {

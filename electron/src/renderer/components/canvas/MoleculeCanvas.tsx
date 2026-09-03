@@ -92,9 +92,9 @@ export function MoleculeCanvas() {
   const atomCount = displayMolecule.atoms.length;
   const bondCount = displayMolecule.bonds.length;
   const [formulaSummary, setFormulaSummary] = useState('');
+  const visibleFormulaSummary = atomCount === 0 ? '' : formulaSummary;
   useEffect(() => {
     if (atomCount === 0) {
-      setFormulaSummary('');
       return;
     }
     const timeout = setTimeout(() => {
@@ -113,7 +113,7 @@ export function MoleculeCanvas() {
   const canvasLabel =
     atomCount === 0
       ? 'Molecular structure canvas, empty'
-      : `Molecular structure: ${formulaSummary}${atomCount} atom${atomCount === 1 ? '' : 's'}, ${bondCount} bond${bondCount === 1 ? '' : 's'}`;
+      : `Molecular structure: ${visibleFormulaSummary}${atomCount} atom${atomCount === 1 ? '' : 's'}, ${bondCount} bond${bondCount === 1 ? '' : 's'}`;
 
   // Handle canvas resize. A ResizeObserver on the canvas's own parent (not
   // window's 'resize' event) catches every layout-driven size change, not
