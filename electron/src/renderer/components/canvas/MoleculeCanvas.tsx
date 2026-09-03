@@ -29,6 +29,7 @@ import * as wasmBridge from '../../wasm/wasmBridge';
 
 export function MoleculeCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [showQuickStart, setShowQuickStart] = useState(true);
   // Lives in canvasStore, not local state — centerViewOnLoad (triggered
   // from renderer.tsx's fresh-document load sites) needs to read it
   // regardless of which component last measured the canvas.
@@ -325,6 +326,20 @@ export function MoleculeCanvas() {
         onDragOver={handleDragOver}
         onDrop={handleDrop}
       />
+      {showQuickStart && (
+        <div
+          data-testid="quick-start-guide"
+          role="note"
+          style={{ position: 'absolute', top: '16px', left: '16px', maxWidth: '260px', padding: '12px 14px', backgroundColor: theme === 'dark' ? '#2f3a47' : '#ffffff', color: theme === 'dark' ? '#d8deea' : '#1d2430', border: `1px solid ${theme === 'dark' ? '#52657a' : '#c9d3e0'}`, borderRadius: '6px', boxShadow: '0 4px 16px rgba(0,0,0,0.2)', fontSize: '11px' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '6px' }}>
+            <strong>Start here</strong>
+            <button onClick={() => setShowQuickStart(false)} aria-label="Dismiss quick start guide" title="Dismiss" style={{ border: 'none', background: 'transparent', color: 'inherit', cursor: 'pointer', fontSize: '16px', lineHeight: 1 }}>×</button>
+          </div>
+          <div>Choose an atom tool, then click the canvas to draw.</div>
+          <div style={{ marginTop: '4px', opacity: 0.8 }}>Use Templates for ready-made structures, or press <strong>?</strong> for shortcuts.</div>
+        </div>
+      )}
       {atomCount === 0 && (
         <div
           data-testid="empty-canvas-guide"

@@ -22,6 +22,7 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
   const setActiveSidebarPanel = useUIStore((s) => s.setActiveSidebarPanel);
   const setSidebarOpen = useUIStore((s) => s.setSidebarOpen);
   const theme = useUIStore((s) => s.theme);
+  const language = useUIStore((s) => s.language);
   const batchResults = useUIStore((s) => s.batchResults);
 
   if (!sidebarOpen) return null;
@@ -49,9 +50,9 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
     { id: 'chat', shortLabel: 'Chat', accessibleLabel: 'Assistant chat', icon: 'chat' },
   ];
   const tabGroups = [
-    { label: 'Edit', ids: ['inspector', 'templates', 'reactions'] },
-    { label: 'Analyze', ids: ['batch-results', 'stereoisomers', 'lipinski', 'properties', 'mechanism', '3d'] },
-    { label: 'Connect', ids: ['database', 'research', 'chat'] },
+    { label: language === 'ja' ? '編集' : 'Edit', ids: ['inspector', 'templates', 'reactions'] },
+    { label: language === 'ja' ? '解析' : 'Analyze', ids: ['batch-results', 'stereoisomers', 'lipinski', 'properties', 'mechanism', '3d'] },
+    { label: language === 'ja' ? '連携' : 'Connect', ids: ['database', 'research', 'chat'] },
   ];
 
   const bgColor = theme === 'dark' ? '#21252c' : '#f3f5f8';
@@ -76,13 +77,14 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
       <div
         style={{
           display: 'flex',
+          flexDirection: 'column',
           borderBottom: `1px solid ${borderColor}`,
-          padding: '0 4px',
-          gap: '4px',
+          padding: '4px',
+          gap: '2px',
         }}
       >
         {tabGroups.map((group) => (
-          <div key={group.label} style={{ flex: 1, minWidth: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'stretch' }}>
+          <div key={group.label} style={{ minWidth: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'stretch' }}>
             <span style={{ width: '100%', padding: '3px 4px 1px', color: textColor, opacity: 0.55, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{group.label}</span>
             {group.ids.map((id) => {
               const tab = tabs.find((candidate) => candidate.id === id)!;
@@ -96,7 +98,7 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
                   aria-controls={`sidebar-panel-${tab.id}`}
                   aria-label={tab.accessibleLabel}
                   onClick={() => setActiveSidebarPanel(tab.id as any)}
-                  style={{ flex: 1, minWidth: '48px', padding: '7px 4px', fontSize: '11px', border: 'none', backgroundColor: activeSidebarPanel === tab.id ? tabActiveBg : 'transparent', color: textColor, cursor: 'pointer', borderRadius: '3px', transition: 'background-color 0.2s', position: 'relative' }}
+                  style={{ flex: '1 1 0', minWidth: '72px', padding: '7px 4px', fontSize: '11px', border: 'none', backgroundColor: activeSidebarPanel === tab.id ? tabActiveBg : 'transparent', color: textColor, cursor: 'pointer', borderRadius: '3px', transition: 'background-color 0.2s', position: 'relative' }}
                   title={tab.accessibleLabel}
                 >
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>

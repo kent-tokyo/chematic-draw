@@ -225,7 +225,7 @@ function QueryEditorSection({
 
 function AdvancedQuerySection(props: React.ComponentProps<typeof QueryEditorSection> & { smarts?: React.ReactNode }) {
   return (
-    <details open style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+    <details style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
       <summary style={{ cursor: 'pointer', color: props.textColor, fontSize: '12px', fontWeight: 600, padding: '4px 0' }}>
         Advanced query tools
       </summary>
