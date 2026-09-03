@@ -48,6 +48,11 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
     { id: 'research', shortLabel: 'Research', accessibleLabel: 'Research identifiers', icon: 'research' },
     { id: 'chat', shortLabel: 'Chat', accessibleLabel: 'Assistant chat', icon: 'chat' },
   ];
+  const tabGroups = [
+    { label: 'Edit', ids: ['inspector', 'templates', 'reactions'] },
+    { label: 'Analyze', ids: ['batch-results', 'stereoisomers', 'lipinski', 'properties', 'mechanism', '3d'] },
+    { label: 'Connect', ids: ['database', 'research', 'chat'] },
+  ];
 
   const bgColor = theme === 'dark' ? '#21252c' : '#f3f5f8';
   const borderColor = theme === 'dark' ? '#3a3a3a' : '#e0e0e0';
@@ -76,55 +81,33 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
           gap: '4px',
         }}
       >
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            data-testid={`sidebar-tab-${tab.id}`}
-            id={`sidebar-tab-${tab.id}`}
-            role="tab"
-            aria-selected={activeSidebarPanel === tab.id}
-            aria-controls={`sidebar-panel-${tab.id}`}
-            aria-label={tab.accessibleLabel}
-            onClick={() => setActiveSidebarPanel(tab.id as any)}
-            style={{
-              flex: 1,
-              padding: '8px 6px',
-              fontSize: '11px',
-              border: 'none',
-              backgroundColor: activeSidebarPanel === tab.id ? tabActiveBg : 'transparent',
-              color: textColor,
-              cursor: 'pointer',
-              borderRadius: '3px',
-              transition: 'background-color 0.2s',
-              position: 'relative',
-            }}
-            title={tab.accessibleLabel}
-          >
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-              <Icon name={tab.icon} size={20} color={textColor} />
-              <span aria-hidden="true">{tab.shortLabel}</span>
-            </div>
-            {tab.badge && (
-              <span
-                style={{
-                  position: 'absolute',
-                  top: 2,
-                  right: 2,
-                  backgroundColor: '#4d8dff',
-                  color: 'white',
-                  fontSize: '9px',
-                  borderRadius: '50%',
-                  minWidth: '16px',
-                  height: '16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {tab.badge}
-              </span>
-            )}
-          </button>
+        {tabGroups.map((group) => (
+          <div key={group.label} style={{ flex: 1, minWidth: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'stretch' }}>
+            <span style={{ width: '100%', padding: '3px 4px 1px', color: textColor, opacity: 0.55, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{group.label}</span>
+            {group.ids.map((id) => {
+              const tab = tabs.find((candidate) => candidate.id === id)!;
+              return (
+                <button
+                  key={tab.id}
+                  data-testid={`sidebar-tab-${tab.id}`}
+                  id={`sidebar-tab-${tab.id}`}
+                  role="tab"
+                  aria-selected={activeSidebarPanel === tab.id}
+                  aria-controls={`sidebar-panel-${tab.id}`}
+                  aria-label={tab.accessibleLabel}
+                  onClick={() => setActiveSidebarPanel(tab.id as any)}
+                  style={{ flex: 1, minWidth: '48px', padding: '7px 4px', fontSize: '11px', border: 'none', backgroundColor: activeSidebarPanel === tab.id ? tabActiveBg : 'transparent', color: textColor, cursor: 'pointer', borderRadius: '3px', transition: 'background-color 0.2s', position: 'relative' }}
+                  title={tab.accessibleLabel}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
+                    <Icon name={tab.icon} size={20} color={textColor} />
+                    <span aria-hidden="true">{tab.shortLabel}</span>
+                  </div>
+                  {tab.badge && <span style={{ position: 'absolute', top: 2, right: 2, backgroundColor: '#4d8dff', color: 'white', fontSize: '9px', borderRadius: '50%', minWidth: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{tab.badge}</span>}
+                </button>
+              );
+            })}
+          </div>
         ))}
         <button
           onClick={() => setSidebarOpen(false)}

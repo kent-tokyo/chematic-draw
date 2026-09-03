@@ -223,6 +223,18 @@ function QueryEditorSection({
   </div>;
 }
 
+function AdvancedQuerySection(props: React.ComponentProps<typeof QueryEditorSection> & { smarts?: React.ReactNode }) {
+  return (
+    <details open style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <summary style={{ cursor: 'pointer', color: props.textColor, fontSize: '12px', fontWeight: 600, padding: '4px 0' }}>
+        Advanced query tools
+      </summary>
+      {props.smarts}
+      <QueryEditorSection {...props} />
+    </details>
+  );
+}
+
 export function InspectorPanel() {
   const theme = useUIStore((s) => s.theme);
   const selectedAtomIdForInspector = useUIStore((s) => s.selectedAtomIdForInspector);
@@ -325,8 +337,7 @@ export function InspectorPanel() {
         </div>
         <FunctionalGroupsSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} functionalGroups={functionalGroups} />
         <ValidationSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} validationErrors={validationErrors} validationWarnings={validationWarnings} />
-        <SmartsSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} theme={theme} smartsPattern={smartsPattern} setSmartsPattern={setSmartsPattern} smartsMatches={smartsMatches} handleSmartsSearch={handleSmartsSearch} />
-        <QueryEditorSection molecule={molecule} theme={theme} textColor={textColor} bgColor={bgColor} labelColor={labelColor} pushUndo={pushUndo} setMolecule={setMolecule} />
+        <AdvancedQuerySection molecule={molecule} theme={theme} textColor={textColor} bgColor={bgColor} labelColor={labelColor} pushUndo={pushUndo} setMolecule={setMolecule} smarts={<SmartsSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} theme={theme} smartsPattern={smartsPattern} setSmartsPattern={setSmartsPattern} smartsMatches={smartsMatches} handleSmartsSearch={handleSmartsSearch} />} />
       </div>
     );
   }
@@ -466,7 +477,7 @@ export function InspectorPanel() {
         </>
       )}
 
-      <QueryEditorSection molecule={molecule} theme={theme} textColor={textColor} bgColor={bgColor} labelColor={labelColor} pushUndo={pushUndo} setMolecule={setMolecule} />
+      <AdvancedQuerySection molecule={molecule} theme={theme} textColor={textColor} bgColor={bgColor} labelColor={labelColor} pushUndo={pushUndo} setMolecule={setMolecule} />
 
     </div>
   );
