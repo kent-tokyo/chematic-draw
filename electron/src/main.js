@@ -26,7 +26,7 @@ const ALLOWED_EXTERNAL_HOSTS = new Set([
   'pubchem.ncbi.nlm.nih.gov',
   'www.chemspider.com',
 ]);
-const ALLOWED_SETTINGS_KEYS = new Set(['theme', 'sidebarWidth', 'shortcutBindings']);
+const ALLOWED_SETTINGS_KEYS = new Set(['theme', 'language', 'sidebarWidth', 'shortcutBindings']);
 const SHORTCUT_SETTING_KEYS = new Set([
   'copy', 'paste', 'cleanLayout', 'export', 'undo', 'redo', 'zoomIn', 'zoomOut',
   'zoomReset', 'focusMode', 'showShortcuts', 'selectAll', 'delete',
@@ -82,6 +82,7 @@ const isSafeSvgForPdf = (svgText) => /^\s*(?:<\?xml\b[^>]*>\s*)?<svg\b/i.test(sv
 const isSafeSettingsKey = (key) => typeof key === 'string' && ALLOWED_SETTINGS_KEYS.has(key);
 const isSafeSettingsValue = (key, value) => {
   if (key === 'theme') return value === 'dark' || value === 'light';
+  if (key === 'language') return value === 'en' || value === 'ja' || value === 'zh';
   if (key === 'sidebarWidth') return typeof value === 'number' && Number.isFinite(value)
     && (value === 0 || (value >= 180 && value <= 480));
   if (key !== 'shortcutBindings' || !value || typeof value !== 'object' || Array.isArray(value)) return false;

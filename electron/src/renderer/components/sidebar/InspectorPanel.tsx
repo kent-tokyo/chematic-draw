@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useUIStore } from '../../store/uiStore';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useUIStore, AppLanguage } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
 import { ElementPicker } from '../inspector/ElementPicker';
 import { AtomDto, BondDto } from '../../store/types';
@@ -7,6 +7,7 @@ import * as wasmBridge from '../../wasm/wasmBridge';
 import { QueryDocument, queryDocumentFromMolecule, queryDocumentToMolecule, validateQueryDocument } from '../../lib/queryDocument';
 import { runQueryInWorker } from '../../lib/queryWorkerClient';
 import { moleculeStructureKey } from '../../lib/moleculeKey';
+import { BOND_STEREO } from '../../../../../packages/chematic-contract/src/index';
 
 // Hoisted out of InspectorPanel's render body: defining a component inline
 // in a render function gives it a new identity every render, so React
@@ -24,7 +25,7 @@ function FunctionalGroupsSection({
   bgColor: string;
   labelColor: string;
   textColor: string;
-  language: 'en' | 'ja';
+  language: AppLanguage;
   functionalGroups: string[];
 }) {
   return (
@@ -68,7 +69,7 @@ function ValidationSection({
   bgColor: string;
   labelColor: string;
   textColor: string;
-  language: 'en' | 'ja';
+  language: AppLanguage;
   validationErrors: string[];
   validationWarnings: string[];
 }) {
@@ -112,7 +113,7 @@ function SmartsSection({
   labelColor: string;
   textColor: string;
   theme: string;
-  language: 'en' | 'ja';
+  language: AppLanguage;
   smartsPattern: string;
   setSmartsPattern: (value: string) => void;
   smartsMatches: number[];
@@ -177,7 +178,7 @@ function QueryEditorSection({
 }: {
   molecule: import('../../store/types').MoleculeDto;
   theme: string;
-  language: 'en' | 'ja';
+  language: AppLanguage;
   textColor: string;
   bgColor: string;
   labelColor: string;
@@ -277,7 +278,7 @@ export function InspectorPanel() {
   const pushUndo = useMoleculeStore((s) => s.pushUndo);
   const [smartsPattern, setSmartsPattern] = useState('');
   const [smartsMatches, setSmartsMatches] = useState<number[]>([]);
-  const moleculeKey = moleculeStructureKey(molecule);
+  const moleculeKey = useMemo(() => moleculeStructureKey(molecule), [molecule]);
   const [validationState, setValidationState] = useState<{ sourceKey: string; errors: string[]; warnings: string[] }>({ sourceKey: '', errors: [], warnings: [] });
   const [functionalGroupState, setFunctionalGroupState] = useState<{ sourceKey: string; groups: string[] }>({ sourceKey: '', groups: [] });
   const visibleValidation = validationState.sourceKey === moleculeKey ? validationState : { sourceKey: moleculeKey, errors: [], warnings: [] };
@@ -362,7 +363,7 @@ export function InspectorPanel() {
         </div>
         <FunctionalGroupsSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} language={language} functionalGroups={visibleFunctionalGroups} />
         <ValidationSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} language={language} validationErrors={visibleValidation.errors} validationWarnings={visibleValidation.warnings} />
-        <AdvancedQuerySection key={JSON.stringify(molecule)} molecule={molecule} theme={theme} language={language} textColor={textColor} bgColor={bgColor} labelColor={labelColor} pushUndo={pushUndo} setMolecule={setMolecule} smarts={<SmartsSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} theme={theme} language={language} smartsPattern={smartsPattern} setSmartsPattern={setSmartsPattern} smartsMatches={smartsMatches} handleSmartsSearch={handleSmartsSearch} />} />
+        <AdvancedQuerySection key={moleculeKey} molecule={molecule} theme={theme} language={language} textColor={textColor} bgColor={bgColor} labelColor={labelColor} pushUndo={pushUndo} setMolecule={setMolecule} smarts={<SmartsSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} theme={theme} language={language} smartsPattern={smartsPattern} setSmartsPattern={setSmartsPattern} smartsMatches={smartsMatches} handleSmartsSearch={handleSmartsSearch} />} />
       </div>
     );
   }
@@ -470,9 +471,9 @@ export function InspectorPanel() {
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
               {[
-                { label: language === 'ja' ? 'なし' : 'None', value: 0 },
-                { label: language === 'ja' ? '⌟ 太線くさび' : '⌟ Wedge', value: 1 },
-                { label: language === 'ja' ? '⌞ 破線くさび' : '⌞ Dash', value: 6 },
+                { label: language === 'ja' ? 'なし' : 'None', value: BOND_STEREO.None },
+                { label: language === 'ja' ? '⌟ 太線くさび' : '⌟ Wedge', value: BOND_STEREO.WedgeUp },
+                { label: language === 'ja' ? '⌞ 破線くさび' : '⌞ Dash', value: BOND_STEREO.WedgeDown },
               ].map((opt) => (
                 <button
                   key={opt.value}
@@ -502,7 +503,7 @@ export function InspectorPanel() {
         </>
       )}
 
-      <AdvancedQuerySection key={JSON.stringify(molecule)} molecule={molecule} theme={theme} language={language} textColor={textColor} bgColor={bgColor} labelColor={labelColor} pushUndo={pushUndo} setMolecule={setMolecule} />
+      <AdvancedQuerySection key={moleculeKey} molecule={molecule} theme={theme} language={language} textColor={textColor} bgColor={bgColor} labelColor={labelColor} pushUndo={pushUndo} setMolecule={setMolecule} />
 
     </div>
   );

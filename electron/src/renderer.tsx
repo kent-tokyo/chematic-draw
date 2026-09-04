@@ -5,6 +5,7 @@ import { MoleculeCanvas } from './renderer/components/canvas/MoleculeCanvas';
 import { Sidebar } from './renderer/components/sidebar/Sidebar';
 import { ContextMenu } from './renderer/components/menu/ContextMenu';
 import { ShortcutsModal } from './renderer/components/modals/ShortcutsModal';
+import { SettingsModal } from './renderer/components/modals/SettingsModal';
 import { UndoTimelineModal } from './renderer/components/modals/UndoTimeline';
 import { BatchProcessDialog, BatchConfig } from './renderer/components/modals/BatchProcessDialog';
 import { BatchResultSummary, useUIStore } from './renderer/store/uiStore';
@@ -52,6 +53,7 @@ function App() {
   const [wasmError, setWasmError] = useState<string | null>(null);
   const wasmLoaded = wasmStatus === 'ready';
   const [filePath, setFilePath] = useState<string | null>(null);
+  const [settingsHydrated, setSettingsHydrated] = useState(false);
   const theme = useUIStore((s) => s.theme);
   const setTheme = useUIStore((s) => s.setTheme);
   const language = useUIStore((s) => s.language);
@@ -79,6 +81,7 @@ function App() {
   const showBatchDialog = useUIStore((s) => s.showBatchDialog);
   const addBatchResult = useUIStore((s) => s.addBatchResult);
   const shortcutBindings = useUIStore((s) => s.shortcutBindings);
+  const tr = (english: string, japanese: string, chinese: string) => language === 'ja' ? japanese : language === 'zh' ? chinese : english;
 
   // Initialize WASM and hydrate settings. This is the app's startup
   // boundary: WASM-dependent UI (MoleculeCanvas/Sidebar, below) isn't
@@ -104,6 +107,10 @@ function App() {
           if (savedTheme.success && savedTheme.value) {
             setTheme(savedTheme.value);
           }
+          const savedLanguage = await api.loadSettings('language');
+          if (savedLanguage.success && ['en', 'ja', 'zh'].includes(savedLanguage.value)) {
+            setLanguage(savedLanguage.value);
+          }
           // sidebarOpen is persisted encoded into this same key (0 = closed,
           // see the sidebarOpen save effect below) rather than as its own
           // setting, so a saved 0 must restore the closed state — a truthy
@@ -125,11 +132,15 @@ function App() {
           }
         } catch (err) {
           console.error('Failed to hydrate settings:', err);
+        } finally {
+          setSettingsHydrated(true);
         }
+      } else {
+        setSettingsHydrated(true);
       }
     };
     init();
-  }, [setTheme]);
+  }, [setTheme, setLanguage]);
 
   // Load sample molecule on mount — unless main.js is holding a crash-
   // recovery snapshot the user just confirmed restoring, in which case that
@@ -178,17 +189,26 @@ function App() {
 
   // Auto-save settings
   useEffect(() => {
-    if (typeof window !== 'undefined' && (window as any).electronAPI) {
+    if (settingsHydrated && typeof window !== 'undefined' && (window as any).electronAPI) {
       const api = (window as any).electronAPI;
       const timeout = setTimeout(() => {
         api.saveSettings('theme', theme);
       }, 500);
       return () => clearTimeout(timeout);
     }
-  }, [theme]);
+  }, [settingsHydrated, theme]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && (window as any).electronAPI) {
+    if (settingsHydrated && typeof window !== 'undefined' && (window as any).electronAPI) {
+      const timeout = setTimeout(() => {
+        (window as any).electronAPI.saveSettings('language', language);
+      }, 500);
+      return () => clearTimeout(timeout);
+    }
+  }, [language, settingsHydrated]);
+
+  useEffect(() => {
+    if (settingsHydrated && typeof window !== 'undefined' && (window as any).electronAPI) {
       const api = (window as any).electronAPI;
       const timeout = setTimeout(() => {
         const sidebarState = useUIStore.getState();
@@ -196,14 +216,14 @@ function App() {
       }, 500);
       return () => clearTimeout(timeout);
     }
-  }, [sidebarOpen]);
+  }, [settingsHydrated, sidebarOpen]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && (window as any).electronAPI) {
+    if (settingsHydrated && typeof window !== 'undefined' && (window as any).electronAPI) {
       const timeout = setTimeout(() => (window as any).electronAPI.saveSettings('shortcutBindings', shortcutBindings), 500);
       return () => clearTimeout(timeout);
     }
-  }, [shortcutBindings]);
+  }, [settingsHydrated, shortcutBindings]);
 
   // Menu event handlers
   useEffect(() => {
@@ -508,7 +528,7 @@ function App() {
       });
 
       const provenance = {
-        engine: 'chematic 1.0.1' as const,
+        engine: 'chematic 1.0.3' as const,
         inputFormat: config.inputFormat,
         outputFormat: config.outputFormat,
         filterOptions: config.operation === 'filter' ? {
@@ -562,7 +582,7 @@ function App() {
       setStatus(`Batch processing failed: ${(err as Error).message}`);
       console.error('Batch error:', err);
       addBatchResult(config.operation, 0, 1, 0, 'fnv1a-32:00000000', [(err as Error).message], {
-        engine: 'chematic 1.0.1',
+        engine: 'chematic 1.0.3',
         inputFormat: config.inputFormat,
         outputFormat: config.outputFormat,
       }, {
@@ -661,12 +681,13 @@ function App() {
       <ContextMenu />
       <ShortcutsModal />
       <UndoTimelineModal />
+      <SettingsModal />
       {showBatchDialog && <BatchProcessDialog onProcess={handleBatchProcess} onCancel={() => hideModal('batch')} />}
       {/* Top Bar */}
       <div
         className="app-toolbar"
         role="toolbar"
-        aria-label={language === 'ja' ? '描画ツール' : 'Drawing tools'}
+        aria-label={tr('Drawing tools', '描画ツール', '绘图工具')}
         style={{
           display: 'flex',
           gap: '4px',
@@ -685,14 +706,14 @@ function App() {
           <button
             data-testid="show-sidebar"
             onClick={() => setSidebarOpen(true)}
-            aria-label={language === 'ja' ? 'サイドバーを表示' : 'Show sidebar'}
-            title={language === 'ja' ? 'サイドバーを表示' : 'Show sidebar'}
+            aria-label={tr('Show sidebar', 'サイドバーを表示', '显示侧栏')}
+            title={tr('Show sidebar', 'サイドバーを表示', '显示侧栏')}
             style={{ padding: '6px 10px', backgroundColor: 'transparent', color: 'inherit', border: '1px solid currentColor', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
           >
-            {language === 'ja' ? 'パネル' : 'Panel'}
+            {tr('Panel', 'パネル', '面板')}
           </button>
         )}
-        <span className="toolbar-section-label" style={{ fontSize: '10px', opacity: 0.6, marginRight: '2px' }}>{language === 'ja' ? '原子' : 'Atoms'}</span>
+        <span className="toolbar-section-label" style={{ fontSize: '10px', opacity: 0.6, marginRight: '2px' }}>{tr('Atoms', '原子', '原子')}</span>
         {toolButtons.slice(0, 6).map((btn) => (
           <button
             key={btn.tool}
@@ -715,7 +736,7 @@ function App() {
           </button>
         ))}
         <span aria-hidden="true" style={{ width: '1px', height: '22px', backgroundColor: theme === 'dark' ? '#555' : '#ccc', margin: '0 4px' }} />
-        <span className="toolbar-section-label" style={{ fontSize: '10px', opacity: 0.6, marginRight: '2px' }}>{language === 'ja' ? '結合' : 'Bonds'}</span>
+        <span className="toolbar-section-label" style={{ fontSize: '10px', opacity: 0.6, marginRight: '2px' }}>{tr('Bonds', '結合', '键')}</span>
         {toolButtons.slice(6).map((btn) => (
           <button
             key={btn.tool}
@@ -754,26 +775,36 @@ function App() {
             cursor: 'pointer',
             fontSize: '16px',
           }}
-          title={language === 'ja' ? 'テーマを切り替える' : 'Toggle theme'}
+          title={tr('Toggle theme', 'テーマを切り替える', '切换主题')}
         >
           {theme === 'dark' ? '☀️' : '🌙'}
         </button>
 
         <button
+          data-testid="settings-button"
+          onClick={() => showModal('settings')}
+          aria-label={language === 'ja' ? '環境設定を開く' : language === 'zh' ? '打开设置' : 'Open settings'}
+          title={language === 'ja' ? '環境設定' : language === 'zh' ? '设置' : 'Settings'}
+          style={{ padding: '6px 10px', backgroundColor: 'transparent', color: 'inherit', border: '1px solid currentColor', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
+        >
+          ⚙
+        </button>
+
+        <button
           data-testid="language-toggle"
           onClick={() => setLanguage(language === 'ja' ? 'en' : 'ja')}
-          aria-label={language === 'ja' ? '英語に切り替える' : '日本語に切り替える'}
-          title={language === 'ja' ? '英語に切り替える' : '日本語に切り替える'}
+          aria-label={language === 'ja' ? '英語に切り替える' : language === 'zh' ? '切换到英语' : '日本語に切り替える'}
+          title={language === 'ja' ? '英語に切り替える' : language === 'zh' ? '切换到英语' : '日本語に切り替える'}
           style={{ padding: '6px 8px', backgroundColor: 'transparent', color: 'inherit', border: '1px solid currentColor', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: '600' }}
         >
-          {language === 'ja' ? 'EN' : '日本語'}
+          {language === 'ja' || language === 'zh' ? 'EN' : '日本語'}
         </button>
 
         <button
           data-testid="shortcuts-help"
           onClick={() => showModal('shortcuts')}
-          aria-label={language === 'ja' ? 'キーボードショートカットを表示' : 'Show keyboard shortcuts'}
-          title={language === 'ja' ? 'キーボードショートカットを表示' : 'Show keyboard shortcuts'}
+          aria-label={tr('Show keyboard shortcuts', 'キーボードショートカットを表示', '显示键盘快捷键')}
+          title={tr('Show keyboard shortcuts', 'キーボードショートカットを表示', '显示键盘快捷键')}
           style={{ padding: '6px 10px', backgroundColor: 'transparent', color: 'inherit', border: '1px solid currentColor', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
         >
           ?
@@ -781,7 +812,7 @@ function App() {
 
         <div
           data-testid="toolbar-summary"
-          aria-label={language === 'ja' ? '構造の概要' : 'Structure summary'}
+          aria-label={tr('Structure summary', '構造の概要', '结构摘要')}
           style={{ fontSize: '12px', opacity: 0.7, marginLeft: '12px', whiteSpace: 'nowrap' }}
         >
           {molecule.atoms.length}a • {molecule.bonds.length}b • {(zoom * 100).toFixed(0)}%

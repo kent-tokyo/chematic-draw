@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { UIState } from './types';
 import { DEFAULT_SHORTCUT_BINDINGS, ShortcutBindings } from '../lib/shortcuts';
-export type { ContextMenuState, ModalType, SidebarPanel } from '../../../../packages/chematic-contract/src/index';
-import type { ContextMenuState, ModalType, SidebarPanel } from '../../../../packages/chematic-contract/src/index';
+export type { AppLanguage, ContextMenuState, ModalType, SidebarPanel } from '../../../../packages/chematic-contract/src/index';
+import type { AppLanguage, ContextMenuState, ModalType, SidebarPanel } from '../../../../packages/chematic-contract/src/index';
 export type { BatchItemSummary, BatchProvenance, BatchResultSummary } from '../../../../packages/chematic-contract/src/index';
 import type { BatchItemSummary, BatchProvenance, BatchResultSummary } from '../../../../packages/chematic-contract/src/index';
 
@@ -28,6 +28,7 @@ interface UIStoreState extends UIState {
   showShortcutsModal: boolean;
   showUndoModal: boolean;
   showBatchDialog: boolean;
+  showSettingsModal: boolean;
 
   // Batch results history
   batchResults: BatchResultSummary[];
@@ -35,7 +36,7 @@ interface UIStoreState extends UIState {
 
   // Actions
   setTheme: (theme: 'dark' | 'light') => void;
-  setLanguage: (lang: 'en' | 'ja') => void;
+  setLanguage: (lang: AppLanguage) => void;
   setSidebarOpen: (open: boolean) => void;
   setSidebarWidth: (width: number) => void;
   setActiveSidebarPanel: (panel: 'inspector' | 'templates' | 'chat' | 'research' | 'reactions' | 'batch-results' | 'stereoisomers' | 'lipinski' | 'properties' | 'mechanism' | 'database' | '3d') => void;
@@ -78,6 +79,7 @@ export const useUIStore = create<UIStoreState>((set) => ({
   showShortcutsModal: false,
   showUndoModal: false,
   showBatchDialog: false,
+  showSettingsModal: false,
   batchResults: [],
   shortcutBindings: { ...DEFAULT_SHORTCUT_BINDINGS },
 
@@ -127,12 +129,14 @@ export const useUIStore = create<UIStoreState>((set) => ({
     if (type === 'shortcuts') set({ showShortcutsModal: true });
     if (type === 'undo') set({ showUndoModal: true });
     if (type === 'batch') set({ showBatchDialog: true });
+    if (type === 'settings') set({ showSettingsModal: true });
   },
 
   hideModal: (type) => {
     if (type === 'shortcuts') set({ showShortcutsModal: false });
     if (type === 'undo') set({ showUndoModal: false });
     if (type === 'batch') set({ showBatchDialog: false });
+    if (type === 'settings') set({ showSettingsModal: false });
   },
 
   addBatchResult: (operation, processed, failed, skipped, resultHash, errors, provenance, details = { cancelled: false, items: [] }) => {

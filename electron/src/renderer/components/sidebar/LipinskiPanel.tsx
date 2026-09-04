@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
 import { checkLipinski } from '../../lib/advancedFeatures';
-import * as wasmBridge from '../../wasm/wasmBridge';
+import { getPropertiesCached } from '../../lib/analysisCache';
 import { moleculeStructureKey } from '../../lib/moleculeKey';
 
 type LipinskiRule = { rule: string; value: number; limit: number; violated: boolean };
@@ -17,7 +17,7 @@ export function LipinskiPanel() {
   const molecule = useMoleculeStore((s) => s.molecule);
 
   const [state, setState] = useState<LipinskiState>({ status: 'idle', sourceKey: '' });
-  const moleculeKey = moleculeStructureKey(molecule);
+  const moleculeKey = useMemo(() => moleculeStructureKey(molecule), [molecule]);
   const visibleState: LipinskiState = state.sourceKey === moleculeKey ? state : { status: 'loading', sourceKey: moleculeKey };
 
   const borderColor = theme === 'dark' ? '#3a4a57' : '#e0e0e0';
@@ -31,7 +31,7 @@ export function LipinskiPanel() {
   useEffect(() => {
     const currentMolecule = useMoleculeStore.getState().molecule;
     try {
-      const props = wasmBridge.getProperties(currentMolecule);
+      const props = getPropertiesCached(currentMolecule);
       const results = checkLipinski(props);
       // This is the asynchronous boundary where the keyed WASM result enters React state.
       // eslint-disable-next-line react-hooks/set-state-in-effect

@@ -10,6 +10,7 @@ import { CanvasRenderer } from './CanvasRenderer';
 import { MoleculeDto, Tool } from '../../store/types';
 import { mergeTemplateIntoMolecule } from '../../lib/templateMerge';
 import { createExtensionHost } from '../../lib/documentCommands';
+import * as wasmBridge from '../../wasm/wasmBridge';
 
 const documentCommandHost = createExtensionHost();
 documentCommandHost.register(
@@ -25,7 +26,7 @@ documentCommandHost.register(
   }]
 );
 import { useReactionSchemeStore } from '../../store/reactionSchemeStore';
-import * as wasmBridge from '../../wasm/wasmBridge';
+import { getPropertiesCached } from '../../lib/analysisCache';
 
 export function MoleculeCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -105,7 +106,7 @@ export function MoleculeCanvas() {
     }
     const timeout = setTimeout(() => {
       try {
-        const props = wasmBridge.getProperties(displayMolecule);
+        const props = getPropertiesCached(displayMolecule);
         setFormulaSummary(`${props.formula}, molecular weight ${props.molecular_weight.toFixed(2)}, `);
       } catch {
         // Mid-edit states (e.g. a dangling bond being drawn) aren't always
@@ -132,9 +133,22 @@ export function MoleculeCanvas() {
       if (canvasRef.current) {
         const rect = canvasRef.current.parentElement?.getBoundingClientRect();
         if (rect) {
-          setCanvasSize({ width: rect.width, height: rect.height });
-          canvasRef.current.width = rect.width;
-          canvasRef.current.height = rect.height;
+          // Width/height assignment clears the bitmap even when the value is
+          // effectively unchanged. ResizeObserver may report the same
+          // fractional layout repeatedly, so normalize to canvas pixels and
+          // skip no-op notifications to avoid needless store updates and
+          // blank/repaint cycles.
+          const width = Math.max(1, Math.round(rect.width));
+          const height = Math.max(1, Math.round(rect.height));
+          const storedSize = useCanvasStore.getState().canvasSize;
+          const bitmapMatches = canvasRef.current.width === width && canvasRef.current.height === height;
+          const storeMatches = storedSize.width === width && storedSize.height === height;
+          if (bitmapMatches && storeMatches) return;
+          if (!bitmapMatches) {
+            canvasRef.current.width = width;
+            canvasRef.current.height = height;
+          }
+          if (!storeMatches) setCanvasSize({ width, height });
         }
       }
     };

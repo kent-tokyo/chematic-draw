@@ -3,6 +3,7 @@ import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
 import { ElementPicker } from '../inspector/ElementPicker';
 import * as wasmBridge from '../../wasm/wasmBridge';
+import { BOND_STEREO } from '../../../../../packages/chematic-contract/src/index';
 
 export function ContextMenu() {
   const theme = useUIStore((s) => s.theme);
@@ -101,8 +102,8 @@ export function ContextMenu() {
       { label: 'Triple Bond', action: () => { pushUndo(); updateBond(selectedBond.id, { order: 3 }); } },
       { label: 'Aromatic Bond', action: () => { pushUndo(); updateBond(selectedBond.id, { order: 4 }); } },
       { label: '', action: () => {} }, // separator
-      { label: 'Wedge Up', action: () => { pushUndo(); updateBond(selectedBond.id, { stereo: 1 }); } },
-      { label: 'Dash Down', action: () => { pushUndo(); updateBond(selectedBond.id, { stereo: 6 }); } },
+      { label: 'Wedge Up', action: () => { pushUndo(); updateBond(selectedBond.id, { stereo: BOND_STEREO.WedgeUp }); } },
+      { label: 'Dash Down', action: () => { pushUndo(); updateBond(selectedBond.id, { stereo: BOND_STEREO.WedgeDown }); } },
       { label: '', action: () => {} }, // separator
       {
         label: 'Delete Bond',

@@ -36,9 +36,9 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
   }
 
   const tabs: SidebarTab[] = [
-    { id: 'inspector', shortLabel: language === 'ja' ? '検査' : 'Inspector', accessibleLabel: language === 'ja' ? 'インスペクター' : 'Inspector', icon: 'search' },
-    { id: 'templates', shortLabel: language === 'ja' ? 'テンプレート' : 'Templates', accessibleLabel: language === 'ja' ? 'テンプレート' : 'Templates', icon: 'templates' },
-    { id: 'reactions', shortLabel: language === 'ja' ? '反応' : 'Reactions', accessibleLabel: language === 'ja' ? '反応' : 'Reactions', icon: 'reactions' },
+    { id: 'inspector', shortLabel: language === 'ja' ? '検査' : language === 'zh' ? '检查' : 'Inspector', accessibleLabel: language === 'ja' ? 'インスペクター' : language === 'zh' ? '检查器' : 'Inspector', icon: 'search' },
+    { id: 'templates', shortLabel: language === 'ja' ? 'テンプレート' : language === 'zh' ? '模板' : 'Templates', accessibleLabel: language === 'ja' ? 'テンプレート' : language === 'zh' ? '模板' : 'Templates', icon: 'templates' },
+    { id: 'reactions', shortLabel: language === 'ja' ? '反応' : language === 'zh' ? '反应' : 'Reactions', accessibleLabel: language === 'ja' ? '反応' : language === 'zh' ? '反应' : 'Reactions', icon: 'reactions' },
     { id: 'batch-results', shortLabel: language === 'ja' ? '一括' : 'Batch', accessibleLabel: language === 'ja' ? '一括処理結果' : 'Batch results', icon: 'batch', badge: batchResults.length > 0 ? batchResults.length : undefined },
     { id: 'stereoisomers', shortLabel: language === 'ja' ? '立体' : 'Stereo', accessibleLabel: language === 'ja' ? '立体化学' : 'Stereochemistry', icon: 'stereoisomers' },
     { id: 'lipinski', shortLabel: 'Lipinski', accessibleLabel: language === 'ja' ? 'Lipinskiルール' : 'Lipinski rules', icon: 'lipinski' },
@@ -50,9 +50,9 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
     { id: 'chat', shortLabel: language === 'ja' ? '相談' : 'Chat', accessibleLabel: language === 'ja' ? 'アシスタントチャット' : 'Assistant chat', icon: 'chat' },
   ];
   const tabGroups = [
-    { label: language === 'ja' ? '編集' : 'Edit', ids: ['inspector', 'templates', 'reactions'] },
-    { label: language === 'ja' ? '解析' : 'Analyze', ids: ['batch-results', 'stereoisomers', 'lipinski', 'properties', 'mechanism', '3d'] },
-    { label: language === 'ja' ? '連携' : 'Connect', ids: ['database', 'research', 'chat'] },
+    { label: language === 'ja' ? '編集' : language === 'zh' ? '编辑' : 'Edit', ids: ['inspector', 'templates', 'reactions'] },
+    { label: language === 'ja' ? '解析' : language === 'zh' ? '分析' : 'Analyze', ids: ['batch-results', 'stereoisomers', 'lipinski', 'properties', 'mechanism', '3d'] },
+    { label: language === 'ja' ? '連携' : language === 'zh' ? '连接' : 'Connect', ids: ['database', 'research', 'chat'] },
   ];
 
   const bgColor = theme === 'dark' ? '#21252c' : '#f3f5f8';
@@ -91,7 +91,7 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
       <div
         className="sidebar-tablist"
         role="tablist"
-        aria-label={language === 'ja' ? 'サイドバーパネル' : 'Sidebar panels'}
+        aria-label={language === 'ja' ? 'サイドバーパネル' : language === 'zh' ? '侧栏面板' : 'Sidebar panels'}
         aria-orientation="horizontal"
         style={{
           display: 'flex',

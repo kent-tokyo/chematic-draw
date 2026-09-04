@@ -2,6 +2,23 @@ import { test, expect } from '@playwright/test';
 import { waitForAppReady } from './helpers';
 
 test.describe('Japanese UI accessibility contracts', () => {
+  test('settings modal switches and exposes the three supported languages', async ({ page }) => {
+    await page.goto('/');
+    await waitForAppReady(page);
+
+    await page.getByTestId('settings-button').click();
+    const dialog = page.getByRole('dialog', { name: 'Settings' });
+    await expect(dialog).toBeVisible();
+    const languageSelect = dialog.getByTestId('language-select');
+    await expect(languageSelect.locator('option')).toHaveText(['English', '日本語', '简体中文']);
+
+    await languageSelect.selectOption('zh');
+    await expect(page.getByTestId('language-select')).toHaveValue('zh');
+    await expect(page.getByRole('toolbar', { name: '绘图工具' })).toBeVisible();
+    await expect(page.getByTestId('sidebar-tab-inspector')).toHaveAccessibleName('检查器');
+    await expect(page.getByRole('dialog', { name: '设置' })).toContainText('界面语言');
+  });
+
   test('language toggle updates accessible panel groups and modal controls', async ({ page }) => {
     await page.goto('/');
     await waitForAppReady(page);

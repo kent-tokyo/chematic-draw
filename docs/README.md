@@ -5,6 +5,10 @@ the two manifests remain authoritative when a version or capability changes.
 
 ## Guides
 
+- [Chinese README](../README_zh.md) — 简体中文项目介绍和快速开始
+- [Migration Guide](MIGRATION.md) — move workflows from other structure editors
+- [Comparison](COMPARISON.md) — workflow-based chemical editor comparison
+- [Search and Discoverability](DISCOVERABILITY.md) — canonical content and metadata plan
 - [Quick Start](QUICK_START.md) — install a release or start from source
 - [Build Guide](BUILD.md) — toolchain, WASM build, tests, and packaging
 - [User Tutorial](TUTORIAL.md) — common editor workflows
@@ -18,7 +22,7 @@ the two manifests remain authoritative when a version or capability changes.
 
 ## Current release
 
-The current tagged release is `v0.9.1` (2026-09-03). The application version
+The current tagged release is `v0.9.2` (2026-09-04). The application version
 is defined in `electron/package.json` and `crates/chem-wasm/Cargo.toml`; CI
 checks that they stay in sync.
 

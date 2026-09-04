@@ -175,5 +175,9 @@ test.describe('Atom context menu', () => {
     // The context-menu mutation updates molecule state. Inspector must derive
     // the selected bond from that state instead of retaining the old object.
     await expect(page.locator('select')).toHaveValue('2');
+
+    await canvas.click({ position: bondMid, button: 'right' });
+    await page.getByRole('button', { name: 'Dash Down', exact: true }).click();
+    await expect(page.getByRole('button', { name: '⌞ Dash', exact: true })).toHaveCSS('background-color', 'rgb(77, 141, 255)');
   });
 });

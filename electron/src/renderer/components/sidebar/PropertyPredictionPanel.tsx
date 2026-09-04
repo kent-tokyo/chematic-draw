@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
 import { PropertiesDto } from '../../store/types';
 import { predictProperties, PropertyPrediction } from '../../lib/advancedFeatures';
-import * as wasmBridge from '../../wasm/wasmBridge';
+import { getPropertiesCached } from '../../lib/analysisCache';
 import { moleculeStructureKey } from '../../lib/moleculeKey';
 
 type PredictionState = { sourceKey: string } & (
@@ -18,7 +18,7 @@ export function PropertyPredictionPanel() {
   const molecule = useMoleculeStore((s) => s.molecule);
 
   const [state, setState] = useState<PredictionState>({ status: 'idle', sourceKey: '' });
-  const moleculeKey = moleculeStructureKey(molecule);
+  const moleculeKey = useMemo(() => moleculeStructureKey(molecule), [molecule]);
   const visibleState: PredictionState = state.sourceKey === moleculeKey ? state : { status: 'loading', sourceKey: moleculeKey };
 
   const bgColor = theme === 'dark' ? '#2f3a47' : '#ffffff';
@@ -33,7 +33,7 @@ export function PropertyPredictionPanel() {
   useEffect(() => {
     const currentMolecule = useMoleculeStore.getState().molecule;
     try {
-      const molecularProps = wasmBridge.getProperties(currentMolecule);
+      const molecularProps = getPropertiesCached(currentMolecule);
       const predictions = predictProperties(currentMolecule);
       // This is the asynchronous boundary where the keyed WASM result enters React state.
       // eslint-disable-next-line react-hooks/set-state-in-effect

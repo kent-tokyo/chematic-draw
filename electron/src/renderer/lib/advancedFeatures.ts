@@ -1,5 +1,6 @@
 import { MechanismStep, MoleculeDto, PropertiesDto } from '../store/types';
 import * as wasmBridge from '../wasm/wasmBridge';
+import { getExtendedPropertiesCached, getIdentifiersCached } from './analysisCache';
 export type { StereoAssignmentDto } from '../wasm/wasmBridge';
 export type { DatabaseResult, LipinskiViolation, PropertyPrediction, StereoisomerResult } from '../../../../packages/chematic-contract/src/index';
 import type { DatabaseResult, LipinskiViolation, PropertyPrediction, StereoisomerResult } from '../../../../packages/chematic-contract/src/index';
@@ -50,7 +51,7 @@ export function checkLipinski(props: PropertiesDto): LipinskiViolation[] {
 export function predictProperties(mol: MoleculeDto): PropertyPrediction[] {
   // Use the pinned chematic API: get extended properties
   try {
-    const props = wasmBridge.getExtendedProperties(mol);
+    const props = getExtendedPropertiesCached(mol);
     const predictions: PropertyPrediction[] = [
       {
         property: 'Synthetic Accessibility Score',
@@ -108,12 +109,11 @@ export async function searchDatabase(mol: MoleculeDto, source: 'pubchem' | 'chem
     // (see wasmBridge.molToInchi), so the InChIKey computed here will often not
     // match PubChem's own InChIKey for the same molecule — this lookup can
     // legitimately return no results for a molecule that IS in PubChem.
-    const inchi = wasmBridge.molToInchi(mol);
+    const { inchi, inchikey: inchiKey } = getIdentifiersCached(mol);
     if (!inchi || inchi.startsWith('InChI_placeholder')) {
       throw new Error('Failed to generate InChI for molecule');
     }
 
-    const inchiKey = wasmBridge.inchiToInchikey(inchi);
     if (!inchiKey || inchiKey.startsWith('ERROR-')) {
       throw new Error('Failed to generate InChIKey');
     }

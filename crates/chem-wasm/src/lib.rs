@@ -1055,7 +1055,7 @@ pub fn identify_functional_groups_wasm(mol_json: &JsValue) -> Result<JsValue, Js
 ///   `run_reactants` with exactly one reactant molecule today, so a
 ///   multi-reactant template is a real, honestly-distinguishable "not
 ///   supported by this call site" case, not a parse failure.
-/// - `UnsupportedChemistry`: v1.0.1's match-enumeration resource limit is
+/// - `UnsupportedChemistry`: v1.0.3's match-enumeration resource limit is
 ///   also surfaced as unsupported here; the UI has no safe partial-product
 ///   representation for a bounded-out transformation.
 #[derive(Debug, Clone)]

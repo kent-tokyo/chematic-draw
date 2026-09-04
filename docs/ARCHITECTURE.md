@@ -85,7 +85,7 @@ call run synchronously on the main (renderer) thread, called directly from
 | **Styling** | Inline styles | No CSS/Tailwind framework | — |
 | **State** | Zustand | Lightweight store | 5.0.15 |
 | **Canvas** | Canvas 2D API | 2D drawing, 3D projection | Native |
-| **Chemistry Engine** | chematic (Rust) | Molecule operations | 1.0.1 (`v1.0.1`) |
+| **Chemistry Engine** | chematic (Rust) | Molecule operations | 1.0.3 (`v1.0.3`) |
 | **WASM** | wasm-bindgen | Rust → JavaScript bridge | via wasm-pack |
 | **Build** | Vite | Bundler and dev server | 7.3.6 (pinned exact — see Round 1 CI notes) |
 | **WASM Build** | wasm-pack | Rust → WASM compilation | 0.13.x |
@@ -519,7 +519,7 @@ WebWorker anywhere in this codebase; see System Overview above.)
 
 ### Validated local extensions
 
-`renderer/lib/documentCommands.ts` is the v0.9.1 integration boundary. Local
+`renderer/lib/documentCommands.ts` is the v0.9.2 integration boundary. Local
 extensions register a manifest, validated document commands, or read-only
 analysis providers. Commands require `document:write` and their output is
 checked before application; providers require `analysis:read` and cannot

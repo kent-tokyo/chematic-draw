@@ -1,6 +1,6 @@
 # Release readiness
 
-This is the evidence matrix for the `0.9.1` release line. A checked
+This is the evidence matrix for the `0.9.2` release line. A checked
 item means the repository contains an automated or reproducible local gate; it
 does not mean a GitHub release or registry publication has happened.
 

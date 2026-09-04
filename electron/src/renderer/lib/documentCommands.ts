@@ -1,6 +1,7 @@
 import { MoleculeDto } from '../store/types';
 import {
   EXTENSION_API_VERSION,
+  BOND_STEREO,
   MAX_DISPLAY_LABEL_LENGTH,
   MAX_ELEMENT_TEXT_LENGTH,
   MAX_MOLECULE_ATOMS,
@@ -23,6 +24,8 @@ import type {
 
 /** The deliberately small permission vocabulary for local extensions. */
 export { EXTENSION_API_VERSION, MAX_DISPLAY_LABEL_LENGTH, MAX_ELEMENT_TEXT_LENGTH, MAX_MOLECULE_ATOMS, MAX_MOLECULE_BONDS } from '../../../../packages/chematic-contract/src/index';
+
+const VALID_BOND_STEREO = new Set<number>(Object.values(BOND_STEREO));
 
 export function validateMoleculeDocument(molecule: MoleculeDto): string[] {
   const errors: string[] = [];
@@ -59,7 +62,7 @@ export function validateMoleculeDocument(molecule: MoleculeDto): string[] {
       if (bondEndpoints.has(endpoints)) errors.push(`Bond ${bond.id} duplicates an existing atom pair`);
       bondEndpoints.add(endpoints);
     }
-    if (![1, 2, 3, 4].includes(bond.order) || ![0, 1, 2].includes(bond.stereo)) errors.push(`Bond ${bond.id} has unsupported order or stereo`);
+    if (![1, 2, 3, 4].includes(bond.order) || !VALID_BOND_STEREO.has(bond.stereo)) errors.push(`Bond ${bond.id} has unsupported order or stereo`);
   }
   return errors;
 }

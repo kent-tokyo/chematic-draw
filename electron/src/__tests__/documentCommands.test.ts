@@ -1,5 +1,6 @@
 import { createExtensionHost, EXTENSION_API_VERSION, MAX_DISPLAY_LABEL_LENGTH, MAX_MOLECULE_ATOMS, MAX_MOLECULE_BONDS, validateMoleculeDocument } from '../renderer/lib/documentCommands';
 import { MoleculeDto } from '../renderer/store/types';
+import { BOND_STEREO } from '../../../packages/chematic-contract/src/index';
 
 const molecule: MoleculeDto = {
   atoms: [{ id: 1, element: 'C', x: 0, y: 0, charge: 0, atom_map: 0 }],
@@ -36,6 +37,14 @@ describe('local extension document API', () => {
     ]);
     expect(validateMoleculeDocument({ ...molecule, atoms: Array.from({ length: MAX_MOLECULE_ATOMS + 1 }, (_, id) => ({ ...molecule.atoms[0], id })) })).toEqual(expect.arrayContaining([expect.stringMatching(/atom limit/i)]));
     expect(validateMoleculeDocument({ ...molecule, bonds: Array.from({ length: MAX_MOLECULE_BONDS + 1 }, (_, id) => ({ id, from: 1, to: 1, order: 1, stereo: 0 })) })).toEqual(expect.arrayContaining([expect.stringMatching(/bond limit/i)]));
+  });
+
+  test('accepts the canonical dashed-wedge value and rejects the legacy value 6', () => {
+    const atoms = [molecule.atoms[0], { ...molecule.atoms[0], id: 2, x: 1 }];
+    expect(validateMoleculeDocument({ atoms, bonds: [{ id: 1, from: 1, to: 2, order: 1, stereo: BOND_STEREO.WedgeDown }] })).toEqual([]);
+    expect(validateMoleculeDocument({ atoms, bonds: [{ id: 1, from: 1, to: 2, order: 1, stereo: 6 }] })).toContain(
+      'Bond 1 has unsupported order or stereo'
+    );
   });
 
   test('rejects non-object atom and bond entries without throwing', () => {

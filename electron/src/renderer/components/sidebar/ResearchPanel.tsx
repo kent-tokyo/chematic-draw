@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
 import { PropertiesDto } from '../../store/types';
 import { copyText } from '../../lib/clipboard';
-import * as wasmBridge from '../../wasm/wasmBridge';
+import { getIdentifiersCached, getIupacNameCached, getPropertiesCached } from '../../lib/analysisCache';
 import { moleculeStructureKey } from '../../lib/moleculeKey';
 
 type ResearchState = { sourceKey: string } & (
@@ -29,7 +29,7 @@ export function ResearchPanel() {
   // x/y position so dragging an atom (position-only, most frequent
   // molecule mutation while this tab could be open) doesn't re-trigger
   // the WASM property/IUPAC-name calls on every drag frame.
-  const molKey = moleculeStructureKey(molecule);
+  const molKey = useMemo(() => moleculeStructureKey(molecule), [molecule]);
   const [state, setState] = useState<ResearchState>({ status: 'idle', sourceKey: '' });
   const visibleState: ResearchState = state.sourceKey === molKey ? state : { status: 'loading', sourceKey: molKey };
 
@@ -39,10 +39,10 @@ export function ResearchPanel() {
   useEffect(() => {
     if (activeSidebarPanel !== 'research') return;
     try {
-      const properties = wasmBridge.getProperties(molecule);
+      const properties = getPropertiesCached(molecule);
       let iupacName: string;
       try {
-        iupacName = wasmBridge.getIupacName(molecule);
+        iupacName = getIupacNameCached(molecule);
       } catch {
         iupacName = '(unavailable)';
       }
@@ -50,8 +50,7 @@ export function ResearchPanel() {
       let inchikey = '';
       let identifierError: string | undefined;
       try {
-        inchi = wasmBridge.molToInchi(molecule);
-        inchikey = wasmBridge.inchiToInchikey(inchi);
+        ({ inchi, inchikey } = getIdentifiersCached(molecule));
       } catch (err) {
         identifierError = err instanceof Error ? err.message : String(err);
       }

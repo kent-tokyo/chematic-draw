@@ -32,6 +32,9 @@ export function Modal({ isOpen, title, onClose, children, isDark, width = 600, h
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
         style={{
           backgroundColor: theme.bgPanel,
           borderRadius: '8px',
@@ -54,9 +57,10 @@ export function Modal({ isOpen, title, onClose, children, isDark, width = 600, h
             borderBottom: `1px solid ${theme.border}`,
           }}
         >
-          <h2 style={{ margin: 0, color: theme.text, fontSize: '14px', fontWeight: 600 }}>{title}</h2>
+          <h2 id="modal-title" style={{ margin: 0, color: theme.text, fontSize: '14px', fontWeight: 600 }}>{title}</h2>
           <button
             onClick={onClose}
+            aria-label="Close"
             style={{
               background: 'none',
               border: 'none',

@@ -3,6 +3,18 @@
 Notable changes to chematic-draw. Dates use ISO 8601 format. See the git log
 for the full development history.
 
+## [0.9.2] - 2026-09-04
+
+### Changed
+
+- Updated the Rust/WASM chemistry engine from schematic 1.0.1 to 1.0.3.
+- Regenerated the browser-targeted WASM bundle from the pinned upstream commit.
+- Shared structure-keyed WASM analysis results across renderer panels.
+
+### Validation
+
+- `cargo check`, typecheck, lint, 32 unit-test suites, and 71 renderer E2E tests pass locally.
+
 ## [0.9.1] - 2026-09-03
 
 ### Added

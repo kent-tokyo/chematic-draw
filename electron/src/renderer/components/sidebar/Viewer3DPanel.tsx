@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useMemo, useState } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
 import * as wasmBridge from '../../wasm/wasmBridge';
@@ -33,7 +33,7 @@ export function Viewer3DPanel() {
   const [isGenerating, setIsGenerating] = useState(false);
   const generationRunRef = useRef(0);
 
-  const moleculeKey = moleculeStructureKey(molecule);
+  const moleculeKey = useMemo(() => moleculeStructureKey(molecule), [molecule]);
   // Keep generated coordinates tied to the molecule that produced them. This
   // derives the visible result during render instead of clearing state from
   // an effect after a molecule edit, avoiding a one-render stale 3D preview.
