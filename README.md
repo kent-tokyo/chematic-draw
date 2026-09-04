@@ -18,7 +18,7 @@ ChemDoodle, Ketcher, or ChemSketch.
 - Authored reaction schemes and mechanism arrows with verification diagnostics
 - Batch processing with per-item results, filtering, progress, cancellation,
   and failed-item retry
-- SMILES, MOL V2000/V3000, SDF, and CML import/export; CDXML import only
+- SMILES, MOL V2000/V3000, SDF, and CML import/export; supported-subset CDXML import/export
 - SVG, PNG, and PDF drawing export
 - PubChem lookup by generated InChIKey (network access is required)
 - English, Japanese, and Simplified Chinese UI, with dark mode
@@ -30,6 +30,10 @@ installing the desktop app.
 Known limitations and the maintained documentation index are in
 [`docs/README.md`](docs/README.md). Chemistry format details are in
 [`docs/INTEROP.md`](docs/INTEROP.md).
+
+The Electron-free public data contract lives in
+[`packages/chematic-contract`](packages/chematic-contract/README.md); it is a
+contract boundary, not yet a published standalone editor library.
 
 If you are moving from another structure editor, see the
 [`migration guide`](docs/MIGRATION.md) and the workflow-based

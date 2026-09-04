@@ -15,10 +15,10 @@ Windows・macOS・Linuxで動作する、オープンソースのオフライン
 - 回転・ズーム・XYZ出力に対応した3Dビューア
 - 反応スキームと反応機構矢印、反応検証診断
 - アイテム別結果・フィルター・進捗・キャンセルに対応したバッチ処理
-- SMILES、MOL V2000/V3000、SDF、CMLの読み書き、CDXMLの読み込み
+- SMILES、MOL V2000/V3000、SDF、CMLの読み書き、対応サブセットのCDXML読み書き
 - SVG、PNG、PDFへの描画出力
 - 生成したInChIKeyによるPubChem検索（ネットワーク接続が必要）
-- 日英UI、ダークモード
+- 日英中UI、ダークモード
 
 既知の制限と文書一覧は [`docs/README.md`](docs/README.md)、形式の詳細は
 [`docs/INTEROP.md`](docs/INTEROP.md) を参照してください。

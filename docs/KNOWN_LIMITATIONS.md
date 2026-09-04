@@ -1,10 +1,10 @@
-# Known Limitations — v0.9.2
+# Known Limitations — v0.9.3
 
 This matrix records the boundaries users should consider before relying on a
 release. A limitation is explicit here rather than silently approximated by
 the editor.
 
-| Area | v0.9.2 behavior | Risk / workaround |
+| Area | v0.9.3 behavior | Risk / workaround |
 |---|---|---|
 | CDXML | Document parser/writer round-trips the supported multi-page subset: page IDs/dimensions, titles, text, arrows, fragment IDs, labels, charge/isotope, coordinates, and stereo hints | Advanced upstream presentation attributes remain outside the lossless subset |
 | Query / SMARTS | Versioned query model, immutable Markush/polymer editing, allowed-substituent selection, deterministic two-attachment polymer expansion, linear SMARTS writer, and WASM worker matching | Arbitrary upstream QueryMolecule semantics remain outside the contract |

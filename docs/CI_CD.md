@@ -83,8 +83,8 @@ on:
 
 Note: "Lint & Type Check" runs both `npm run lint` (ESLint —
 typescript-eslint + react-hooks recommended configs) and `npm run
-typecheck` (real `tsc --noEmit`). Lint currently has 0 errors and ~71
-pre-existing `no-unused-vars` warnings (non-blocking) — see `docs/BUILD.md`.
+typecheck` (real `tsc --noEmit`). In the v0.9.3 checkout, lint completes with
+zero errors and no warnings; rerun it after dependency or source changes.
 
 **Coverage:**
 - Coverage report uploaded to [Codecov](https://codecov.io)
@@ -226,8 +226,10 @@ Jobs run in parallel, reducing total pipeline time:
 #### Step 1: Update Version
 
 ```bash
-# Update version in electron/package.json (the only package.json in the repo)
-cd electron && npm version 0.9.2
+# Update the application version in electron/package.json. Keep
+# crates/chem-wasm/Cargo.toml and packages/chematic-contract/package.json in
+# sync when the public contract changes.
+cd electron && npm version 0.9.3
 cd ..
 
 # Also update crates/chem-wasm/Cargo.toml's version to match — the build's
@@ -235,8 +237,8 @@ cd ..
 # git tag) disagree.
 
 # Commit and tag
-git commit -am "release: v0.9.2"
-git tag v0.9.2
+git commit -am "release: v0.9.3"
+git tag v0.9.3
 git push origin main --tags
 ```
 

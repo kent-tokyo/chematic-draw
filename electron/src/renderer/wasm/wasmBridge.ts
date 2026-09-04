@@ -80,6 +80,31 @@ export function parseMolecule(text: string): MoleculeDto {
   return result as MoleculeDto;
 }
 
+export interface SemanticValidationResult {
+  valid: boolean;
+  schema: 'chematic.semantic.v1';
+  r_group_count: number;
+  polymer_unit_count: number;
+}
+
+export interface ExpandedSemanticResult {
+  schema: 'chematic.semantic-expanded.v1';
+  smiles: string;
+  source_to_expanded: Record<string, number[]>;
+}
+
+export function validateSemanticModel(model: unknown): SemanticValidationResult {
+  return wasmModule.validate_semantic_model(model) as SemanticValidationResult;
+}
+
+export function applySemanticCommand(model: unknown, command: unknown): unknown {
+  return wasmModule.apply_semantic_command(model, command);
+}
+
+export function expandSemanticModel(model: unknown, molecule: MoleculeDto): ExpandedSemanticResult {
+  return wasmModule.expand_semantic_model(model, molecule) as ExpandedSemanticResult;
+}
+
 export function toSmiles(mol: MoleculeDto): string {
   return wasmModule.to_smiles(mol);
 }

@@ -24,7 +24,7 @@ interface ReactionDocumentExport {
   provenance: {
     source_format: 'reaction-document-json';
     operation: 'export-reaction-document';
-    engine: 'chematic 1.0.3';
+    engine: 'chematic 1.0.4';
     result_hash: string;
   };
 }
@@ -72,7 +72,7 @@ export function exportSchemeAsJSON(
     provenance: {
       source_format: 'reaction-document-json',
       operation: 'export-reaction-document',
-      engine: 'chematic 1.0.3',
+      engine: 'chematic 1.0.4',
       result_hash: documentHash(hashPayload),
     },
   };
@@ -99,7 +99,7 @@ export function importSchemeFromJSON(jsonString: string): ReactionSchemeContext 
       if (
         data.provenance.source_format !== 'reaction-document-json' ||
         data.provenance.operation !== 'export-reaction-document' ||
-        data.provenance.engine !== 'chematic 1.0.3' ||
+        data.provenance.engine !== 'chematic 1.0.4' ||
         typeof data.provenance.result_hash !== 'string'
       ) return null;
       const hashPayload = {

@@ -3,11 +3,30 @@
 Notable changes to chematic-draw. Dates use ISO 8601 format. See the git log
 for the full development history.
 
+## [Unreleased]
+
+No changes yet.
+
+## [0.9.3] - 2026-09-05
+
+### Changed
+
+- Updated the Rust/WASM chemistry engine from chematic 1.0.3 to 1.0.4 and
+  regenerated the browser-targeted WASM bundle.
+- Exposed chematic 1.0.4's typed semantic-model validation, R-group selection,
+  and bounded expansion through the WASM bridge with a real Node-WASM contract
+  test.
+
+### Validation
+
+- `cargo check`, WASM build, typecheck, lint, 32 Jest suites (245 passed, 6
+  skipped), real Node-WASM contract tests, and `git diff --check` pass.
+
 ## [0.9.2] - 2026-09-04
 
 ### Changed
 
-- Updated the Rust/WASM chemistry engine from schematic 1.0.1 to 1.0.3.
+- Updated the Rust/WASM chemistry engine from chematic 1.0.1 to 1.0.3.
 - Regenerated the browser-targeted WASM bundle from the pinned upstream commit.
 - Shared structure-keyed WASM analysis results across renderer panels.
 
@@ -310,6 +329,7 @@ for the full development history.
 - Initial Electron application release.
 
 [0.8.0]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.8.0
+[0.9.3]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.9.3
 [0.9.1]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.9.1
 [0.9.0]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.9.0
 [0.7.0]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.7.0

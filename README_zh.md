@@ -15,10 +15,10 @@ Electron 和 React 构建，化学操作由 [`crates/chem-wasm`](crates/chem-was
 - 支持旋转、缩放和 XYZ 导出的三维查看器
 - 反应方案、反应机理箭头和反应验证诊断
 - 支持逐项结果、筛选、进度、取消和失败重试的批处理
-- 支持 SMILES、MOL V2000/V3000、SDF 和 CML 导入导出；仅支持 CDXML 导入
+- 支持 SMILES、MOL V2000/V3000、SDF 和 CML 导入导出；支持 CDXML 子集导入导出
 - 支持 SVG、PNG 和 PDF 图形导出
 - 通过生成的 InChIKey 查询 PubChem（需要网络连接）
-- 英文和日文界面、深色模式
+- 英文、日文和简体中文界面、深色模式
 
 ## 截图
 

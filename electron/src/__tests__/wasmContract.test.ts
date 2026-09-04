@@ -256,6 +256,33 @@ describe('WASM contract (real binary, not mocked)', () => {
     expect(wasm.assign_cip(wasm.parse_any('CCO'))).toEqual([]);
   });
 
+  it('exposes chematic v1.0.4 semantic validation, selection, and expansion', () => {
+    const model = {
+      schema: 'chematic.semantic.v1',
+      atom_ids: ['a', 'b'],
+      bond_ids: ['ab'],
+      r_groups: [{
+        id: 'R1',
+        attachment_atoms: ['a'],
+        alternatives: ['[*]O'],
+        selected_alternative: null,
+      }],
+      polymer_units: [],
+      extensions: {},
+    };
+    expect(wasm.validate_semantic_model(model)).toMatchObject({
+      valid: true,
+      r_group_count: 1,
+      polymer_unit_count: 0,
+    });
+    const selected = wasm.apply_semantic_command(model, { group_id: 'R1', alternative: 0 });
+    expect(selected.r_groups[0].selected_alternative).toBe(0);
+    const expanded = wasm.expand_semantic_model(selected, wasm.parse_any('CC'));
+    expect(expanded.schema).toBe('chematic.semantic-expanded.v1');
+    expect(expanded.source_to_expanded.R1.length).toBeGreaterThan(0);
+    expect(expanded.smiles).toContain('O');
+  });
+
   // v0.3 reliability round: validate_molecule extended from JSON-shape-only
   // checks to real chemistry (chematic-core's validate_valence,
   // Molecule::is_connected/fragments, chematic-perception's

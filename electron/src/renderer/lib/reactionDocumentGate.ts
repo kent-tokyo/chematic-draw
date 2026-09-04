@@ -23,6 +23,19 @@ export function validateReactionDocument(scheme: ReactionSchemeContext): Reactio
         localIds.add(id);
       }
     }
+    for (const [name, coefficients, expectedLength] of [
+      ['reactantCoefficients', step.reactantCoefficients, step.reactants.length],
+      ['productCoefficients', step.productCoefficients, step.products.length],
+    ] as const) {
+      if (coefficients === undefined) continue;
+      if (coefficients.length !== expectedLength) {
+        issues.push({ code: 'coefficient', path: `steps.${index}.${name}`, message: 'Stoichiometric coefficients must align with molecule arrays' });
+        continue;
+      }
+      if (coefficients.some((coefficient) => !Number.isFinite(coefficient) || coefficient <= 0)) {
+        issues.push({ code: 'coefficient', path: `steps.${index}.${name}`, message: 'Stoichiometric coefficients must be finite positive numbers' });
+      }
+    }
     if (step.authored === false && !step.derivedFrom) issues.push({ code: 'provenance', path: `steps.${index}`, message: 'A derived step must identify its source with derivedFrom' });
     if (step.authored === true && step.derivedFrom) issues.push({ code: 'provenance', path: `steps.${index}`, message: 'An authored step cannot also be marked derived' });
     // The same map is expected once on the reactant side and once on the

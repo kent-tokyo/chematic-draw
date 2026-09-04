@@ -283,10 +283,8 @@ pass to eliminate it is a separate, larger decision) and downgrades
 `react-hooks/set-state-in-effect` to a warning (several panels correctly
 call `setState({status:'loading'})` synchronously at the top of an effect
 before an async WASM call, on purpose — see `ResearchPanel.tsx`/
-`Viewer3DPanel.tsx`). `npm run lint` currently reports ~71 pre-existing
-`no-unused-vars` warnings across the codebase (0 errors) — a known,
-tracked baseline (`internal_docs/ROADMAP.md`), not something new code
-needs to fix incidentally.
+`Viewer3DPanel.tsx`). In the v0.9.3 checkout, `npm run lint` completes with
+zero errors and no warnings.
 
 ---
 
@@ -483,111 +481,13 @@ import * as wasmModule from './pkg';
 
 ---
 
-## Continuous Integration
+## Related guides
 
-### GitHub Actions
+- [CI/CD and release artifacts](./CI_CD.md) — workflows, tags, checksums, and signing
+- [Troubleshooting](./TROUBLESHOOTING.md) — setup and runtime failures
+- [API Reference](./API.md) — WASM bridge and contract surface
+- [Architecture](./ARCHITECTURE.md) — application layers and data flow
 
-Real workflow files, not illustrative examples:
-- `.github/workflows/test.yml` — typecheck, unit tests + coverage gate, E2E, Electron smoke, performance benchmarks
-- `.github/workflows/build.yml` — per-OS package builds, checksums, release publishing
-- `.github/workflows/nightly.yml` — dependency/license audit, SBOM
-
-All jobs `cd electron` before running `npm` commands, mirroring this guide.
-
-### Local CI Simulation
-
-```bash
-cd electron
-npm install
-npm run build:wasm:test
-npm run typecheck
-npm test
-npm run test:e2e
-npm run test:perf
-```
-
----
-
-## Distribution
-
-### Building Release Packages
-
-```bash
-cd electron
-
-# Build WASM (release)
-npm run build:wasm:release
-
-# Build Electron packages for all platforms
-npm run make
-
-# Output in: out/make/
-```
-
-### Code Signing (macOS)
-
-For production macOS builds with notarization:
-
-```bash
-# Set signing certificate
-export APPLE_ID=your-email@example.com
-export APPLE_APP_SPECIFIC_PASSWORD=xxxx-xxxx-xxxx-xxxx
-
-npm run make
-```
-
-See [Electron docs](https://www.electronjs.org/docs/tutorial/code-signing) for details.
-
-The Forge configuration enables signing/notarization only when the release
-workflow provides the secret-backed `APPLE_CERTIFICATE_BASE64`,
-`APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`,
-`APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID` values. Windows signing is
-enabled by `WINDOWS_CERTIFICATE_BASE64` and `WINDOWS_CERTIFICATE_PASSWORD`.
-Without these secrets builds are intentionally unsigned; checksum files do not
-replace code signing. Run `scripts/verify-clean-env.sh` for a clean local
-installation and test pass.
-
----
-
-## Performance Optimization
-
-### Profile WASM
-
-```bash
-cd electron
-
-# Build with debug info (not --release)
-npm run build:wasm
-
-# Run benchmarks
-npm run test:perf
-
-# Review output for bottlenecks
-```
-
-### Profile Rendering
-
-```bash
-# In DevTools:
-1. Open Performance tab
-2. Record while interacting with 3D viewer
-3. Identify slow frames (>16.67ms for 60 FPS)
-4. Use Flamegraph to find bottlenecks
-```
-
----
-
-## Next Steps
-
-- 📖 See [API Reference](./API.md) for WASM functions
-- 🏗️ See [Architecture](./ARCHITECTURE.md) for system design
-- 🔧 See [Troubleshooting](./TROUBLESHOOTING.md) for common issues
-
----
-
-## Support
-
-- **Build issues?** Check troubleshooting section above
-- **WASM errors?** Review [WASM guide](https://rustwasm.org/)
-- **Electron problems?** See [Electron docs](https://www.electronjs.org/docs)
-- **Report bugs:** GitHub Issues
+For a clean local reproduction, run `scripts/verify-clean-env.sh` from the
+repository root. Performance profiling belongs in `npm run test:perf` and the
+browser DevTools; the CI/CD guide is the source of truth for hosted execution.

@@ -136,6 +136,68 @@ pub fn parse_any(text: &str) -> Result<JsValue, JsValue> {
     })
 }
 
+fn semantic_model_from_js(value: &JsValue) -> Result<chematic::mol::SemanticModel, JsValue> {
+    let json: serde_json::Value = serde_wasm_bindgen::from_value(value.clone())
+        .map_err(|e| JsValue::from_str(&format!("Semantic JSON decode failed: {e}")))?;
+    chematic::mol::SemanticModel::from_json(&json)
+        .map_err(|e| JsValue::from_str(&format!("Semantic model validation failed: {e}")))
+}
+
+fn semantic_to_js<T: Serialize>(value: &T, label: &str) -> Result<JsValue, JsValue> {
+    value
+        .serialize(&serde_wasm_bindgen::Serializer::json_compatible())
+        .map_err(|e| JsValue::from_str(&format!("{label}: {e}")))
+}
+
+/// Validate the upstream-backed typed Markush/polymer semantic model.
+///
+/// The model remains separate from `MoleculeDto`; no semantic construct is
+/// flattened into an ordinary molecule by this function.
+#[wasm_bindgen]
+pub fn validate_semantic_model(model_json: &JsValue) -> Result<JsValue, JsValue> {
+    let model = semantic_model_from_js(model_json)?;
+    semantic_to_js(&serde_json::json!({
+        "valid": true,
+        "schema": "chematic.semantic.v1",
+        "r_group_count": model.r_groups.len(),
+        "polymer_unit_count": model.polymer_units.len(),
+    }), "Semantic result serialization failed")
+}
+
+/// Apply an upstream semantic editing command while preserving stable IDs.
+#[wasm_bindgen]
+pub fn apply_semantic_command(
+    model_json: &JsValue,
+    command_json: &JsValue,
+) -> Result<JsValue, JsValue> {
+    let model = semantic_model_from_js(model_json)?;
+    let command: serde_json::Value = serde_wasm_bindgen::from_value(command_json.clone())
+        .map_err(|e| JsValue::from_str(&format!("Semantic command decode failed: {e}")))?;
+    let next = model
+        .apply_json_command(&command)
+        .map_err(|e| JsValue::from_str(&format!("Semantic command failed: {e}")))?;
+    semantic_to_js(&next.to_json(), "Semantic model serialization failed")
+}
+
+/// Expand explicitly selected upstream Markush/polymer semantics.
+///
+/// Expansion returns the upstream mapping envelope instead of guessing a
+/// renderer-only representation, so callers can build an undoable edit from
+/// the source-to-expanded identity map.
+#[wasm_bindgen]
+pub fn expand_semantic_model(
+    model_json: &JsValue,
+    molecule_json: &JsValue,
+) -> Result<JsValue, JsValue> {
+    let model = semantic_model_from_js(model_json)?;
+    let molecule: MoleculeDto = serde_wasm_bindgen::from_value(molecule_json.clone())
+        .map_err(|e| JsValue::from_str(&format!("Molecule JSON decode failed: {e}")))?;
+    let expanded = model
+        .expand(&dto_to_chem(&molecule)?)
+        .map_err(|e| JsValue::from_str(&format!("Semantic expansion failed: {e}")))?;
+    semantic_to_js(&expanded.to_json(), "Expanded semantic serialization failed")
+}
+
 fn parse_any_impl(text: &str) -> Result<MoleculeDto, JsValue> {
     use chematic::mol;
     use chematic::smiles;
@@ -1055,7 +1117,7 @@ pub fn identify_functional_groups_wasm(mol_json: &JsValue) -> Result<JsValue, Js
 ///   `run_reactants` with exactly one reactant molecule today, so a
 ///   multi-reactant template is a real, honestly-distinguishable "not
 ///   supported by this call site" case, not a parse failure.
-/// - `UnsupportedChemistry`: v1.0.3's match-enumeration resource limit is
+/// - `UnsupportedChemistry`: v1.0.4's match-enumeration resource limit is
 ///   also surfaced as unsupported here; the UI has no safe partial-product
 ///   representation for a bounded-out transformation.
 #[derive(Debug, Clone)]

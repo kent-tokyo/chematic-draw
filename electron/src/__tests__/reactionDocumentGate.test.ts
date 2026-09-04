@@ -25,4 +25,14 @@ describe('multi-step reaction document gate', () => {
     invalid.steps[1].authored = false;
     expect(validateReactionDocument(invalid).map((issue) => issue.code)).toEqual(['provenance', 'continuity']);
   });
+
+  it('rejects coefficient arrays that cannot preserve reaction meaning', () => {
+    const invalid = corpus(1);
+    invalid.steps[0].reactantCoefficients = [0];
+    invalid.steps[0].productCoefficients = [Number.NaN, 1];
+    expect(validateReactionDocument(invalid)).toEqual([
+      { code: 'coefficient', path: 'steps.0.reactantCoefficients', message: 'Stoichiometric coefficients must be finite positive numbers' },
+      { code: 'coefficient', path: 'steps.0.productCoefficients', message: 'Stoichiometric coefficients must align with molecule arrays' },
+    ]);
+  });
 });

@@ -176,7 +176,7 @@ npm install
 2. **Check Cargo.toml versions:**
    ```toml
    [dependencies]
-   chematic = { git = "https://github.com/kent-tokyo/chematic.git", tag = "v1.0.3", features = ["full"] }
+   chematic = { git = "https://github.com/kent-tokyo/chematic.git", tag = "v1.0.4", features = ["full"] }
    ```
 
 3. **Clean build:**
@@ -599,7 +599,7 @@ When reporting a bug, include:
 
 ```markdown
 **OS:** macOS 13.5
-**Version:** chematic-draw 0.9.2
+**Version:** chematic-draw 0.9.3
 **Runtime:** Electron (pinned version in `electron/package.json`)
 
 **Steps to Reproduce:**

@@ -47,7 +47,7 @@ export function createSessionBundle(molecule: MoleculeDto, filePath: string | nu
   return {
     schema: SESSION_BUNDLE_SCHEMA,
     schema_version: SESSION_BUNDLE_VERSION,
-    app: { name: 'chematic-draw', engine: 'chematic 1.0.3' },
+    app: { name: 'chematic-draw', engine: 'chematic 1.0.4' },
     source: { file_path: filePath },
     document: { schema_version: DOCUMENT_SCHEMA_VERSION, molecule },
     provenance: { operation: 'export-session-bundle', structure_hash: structureHash(molecule) },
@@ -101,7 +101,7 @@ function migrateV1Bundle(bundle: VersionedInputBundle): SessionBundle | null {
   return {
     schema: SESSION_BUNDLE_SCHEMA,
     schema_version: SESSION_BUNDLE_VERSION,
-    app: bundle.app ?? { name: 'chematic-draw', engine: 'chematic 1.0.3' },
+    app: bundle.app ?? { name: 'chematic-draw', engine: 'chematic 1.0.4' },
     source: bundle.source ?? { file_path: null },
     document: { schema_version: DOCUMENT_SCHEMA_VERSION, molecule },
     provenance: bundle.provenance ?? { operation: 'export-session-bundle', structure_hash: structureHash(molecule) },
