@@ -36,7 +36,7 @@ export const contractSurfaceFixture: {
   ui: { theme: 'dark', language: 'en', sidebarOpen: true, sidebarWidth: 260, focusMode: false },
   geometry: { offset: { x: 0, y: 0 }, zoom: 1 },
   query: { schema: 'chematic-draw/query-document', schema_version: 1, atoms: [], bonds: [] },
-  session: { schema: 'chematic-draw/session-bundle', schema_version: 2, app: { name: 'chematic-draw', engine: 'chematic 1.0.4' }, source: { file_path: null }, document: { schema_version: 1, molecule }, provenance: { operation: 'export-session-bundle', structure_hash: 'fnv1a-32:00000000' } },
-  batch: { operation: 'validate', processed: 0, failed: 0, skipped: 0, resultHash: 'fnv1a-32:00000000', errors: [], timestamp: 0, provenance: { engine: 'chematic 1.0.4' }, items: [] },
+  session: { schema: 'chematic-draw/session-bundle', schema_version: 2, app: { name: 'chematic-draw', engine: 'chematic 1.0.6' }, source: { file_path: null }, document: { schema_version: 1, molecule }, provenance: { operation: 'export-session-bundle', structure_hash: 'fnv1a-32:00000000' } },
+  batch: { operation: 'validate', processed: 0, failed: 0, skipped: 0, resultHash: 'fnv1a-32:00000000', errors: [], timestamp: 0, provenance: { engine: 'chematic 1.0.6' }, items: [] },
   action: 'showShortcuts',
 };

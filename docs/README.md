@@ -15,6 +15,7 @@ authoritative when a version or capability changes.
 - [Build Guide](BUILD.md) — toolchain, WASM build, tests, and packaging
 - [User Tutorial](TUTORIAL.md) — common editor workflows
 - [API Reference](API.md) — the Rust/WASM bridge contract
+- [Web Component](../packages/chematic-web/README.md) — Electron-free HTML embedding boundary
 - [Known Limitations](KNOWN_LIMITATIONS.md) — release-scoped support and risk matrix
 - [Format Interoperability](INTEROP.md) — supported formats and known loss
 - [Release Readiness](RELEASE_READINESS.md) — evidence matrix for release gates
@@ -24,7 +25,7 @@ authoritative when a version or capability changes.
 
 ## Current release
 
-The current tagged release is `v0.9.3` (2026-09-05). The application version
+The current tagged release is `v0.9.4` (2026-09-05). The application version
 is defined in `electron/package.json` and `crates/chem-wasm/Cargo.toml`; CI
 checks that they stay in sync.
 

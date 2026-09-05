@@ -1,11 +1,11 @@
 {
-  "name": "@chematic/contract",
+  "name": "@chematic/web",
   "version": "0.9.4",
   "private": true,
-  "description": "Electron-free serializable molecule and query contracts",
+  "description": "Dependency-free Web Component boundary for chematic molecule data",
   "type": "module",
   "sideEffects": false,
-  "files": ["src", "conformance", "README.md"],
+  "files": ["src", "README.md"],
   "types": "./src/index.ts",
   "exports": { ".": { "types": "./src/index.ts", "default": "./src/index.ts" } }
 }

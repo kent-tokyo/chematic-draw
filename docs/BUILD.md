@@ -283,7 +283,7 @@ pass to eliminate it is a separate, larger decision) and downgrades
 `react-hooks/set-state-in-effect` to a warning (several panels correctly
 call `setState({status:'loading'})` synchronously at the top of an effect
 before an async WASM call, on purpose — see `ResearchPanel.tsx`/
-`Viewer3DPanel.tsx`). In the v0.9.3 checkout, `npm run lint` completes with
+`Viewer3DPanel.tsx`). In the v0.9.4 checkout, `npm run lint` completes with
 zero errors and no warnings.
 
 ---

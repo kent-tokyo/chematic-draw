@@ -83,7 +83,7 @@ on:
 
 Note: "Lint & Type Check" runs both `npm run lint` (ESLint —
 typescript-eslint + react-hooks recommended configs) and `npm run
-typecheck` (real `tsc --noEmit`). In the v0.9.3 checkout, lint completes with
+typecheck` (real `tsc --noEmit`). In the v0.9.4 checkout, lint completes with
 zero errors and no warnings; rerun it after dependency or source changes.
 
 **Coverage:**
@@ -229,7 +229,7 @@ Jobs run in parallel, reducing total pipeline time:
 # Update the application version in electron/package.json. Keep
 # crates/chem-wasm/Cargo.toml and packages/chematic-contract/package.json in
 # sync when the public contract changes.
-cd electron && npm version 0.9.3
+cd electron && npm version 0.9.4
 cd ..
 
 # Also update crates/chem-wasm/Cargo.toml's version to match — the build's
@@ -237,8 +237,8 @@ cd ..
 # git tag) disagree.
 
 # Commit and tag
-git commit -am "release: v0.9.3"
-git tag v0.9.3
+git commit -am "release: v0.9.4"
+git tag v0.9.4
 git push origin main --tags
 ```
 

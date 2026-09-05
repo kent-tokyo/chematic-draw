@@ -149,7 +149,7 @@ fn semantic_to_js<T: Serialize>(value: &T, label: &str) -> Result<JsValue, JsVal
         .map_err(|e| JsValue::from_str(&format!("{label}: {e}")))
 }
 
-/// Validate the upstream-backed typed Markush/polymer semantic model.
+/// Validate the upstream-backed typed Markush/polymer semantic model from chematic v1.0.6.
 ///
 /// The model remains separate from `MoleculeDto`; no semantic construct is
 /// flattened into an ordinary molecule by this function.
@@ -1117,7 +1117,7 @@ pub fn identify_functional_groups_wasm(mol_json: &JsValue) -> Result<JsValue, Js
 ///   `run_reactants` with exactly one reactant molecule today, so a
 ///   multi-reactant template is a real, honestly-distinguishable "not
 ///   supported by this call site" case, not a parse failure.
-/// - `UnsupportedChemistry`: v1.0.4's match-enumeration resource limit is
+/// - `UnsupportedChemistry`: v1.0.6's match-enumeration resource limit is
 ///   also surfaced as unsupported here; the UI has no safe partial-product
 ///   representation for a bounded-out transformation.
 #[derive(Debug, Clone)]

@@ -7,6 +7,23 @@ for the full development history.
 
 No changes yet.
 
+## [0.9.4] - 2026-09-05
+
+### Added
+
+- Added the dependency-free Electron-free `<chematic-molecule>` Web Component
+  for validated read-only SVG embedding, including invalid-input error events.
+
+### Changed
+
+- Updated the Rust/WASM chemistry engine from chematic 1.0.4 to 1.0.6.
+- Updated renderer and contract provenance to chematic 1.0.6.
+
+### Validation
+
+- `cargo check`, browser WASM build, TypeScript typecheck, lint, full Jest (33
+  suites, 247 passed, 6 skipped), and `git diff --check` pass.
+
 ## [0.9.3] - 2026-09-05
 
 ### Changed
@@ -329,6 +346,7 @@ No changes yet.
 - Initial Electron application release.
 
 [0.8.0]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.8.0
+[0.9.4]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.9.4
 [0.9.3]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.9.3
 [0.9.1]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.9.1
 [0.9.0]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.9.0

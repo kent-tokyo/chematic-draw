@@ -79,7 +79,17 @@ const benzene: MoleculeDto = {
 
 ## Molecule Operations
 
-### Local Extension API (v0.9.3)
+### Electron-free Web Component
+
+`packages/chematic-web` exposes the dependency-free `<chematic-molecule>`
+custom element. It accepts a validated contract `Molecule` through its
+`molecule` property or JSON `value` attribute and renders a read-only SVG.
+Invalid attribute data emits `schematic-error` and does not replace the last
+valid molecule. Parsing, editing, WASM analysis, and network access remain
+host responsibilities; this boundary is intentionally not a claim of a full
+browser editor.
+
+### Local Extension API (v0.9.4)
 
 Local extensions use the renderer's validated command boundary. A command must
 declare `document:write`; its returned molecule is checked for unique IDs,
@@ -216,7 +226,7 @@ const smiles = wasmBridge.toCanonicalSmiles(mol);
 
 Per ROADMAP v0.2.1's scientific capability audit: every calculated property
 below lists the real algorithm and its source, sourced by reading
-chematic 1.0.4's own doc comments and implementation, not assumed from
+chematic 1.0.6's own doc comments and implementation, not assumed from
 the property name. "Domain" notes when a property is unreliable or undefined
 outside typical drug-like organic molecules.
 
@@ -606,7 +616,7 @@ try {
 
 ## Version Support
 
-- **chematic**: 1.0.4 (workspace Git tag `v1.0.4` in `Cargo.toml`)
+- **chematic**: 1.0.6 (workspace Git tag `v1.0.6` in `Cargo.toml`)
 - **wasm-bindgen**: 0.2.x
 - **Node.js**: 24+ (`electron/package.json`'s `engines.node`; matches CI)
 - **Browsers**: whatever Chromium ships in the pinned Electron version (see `electron/package.json`'s `electron` devDependency) — this app runs inside Electron, not an arbitrary browser
