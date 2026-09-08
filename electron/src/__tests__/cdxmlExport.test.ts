@@ -1,5 +1,5 @@
 /** @jest-environment node */
-import { exportCdxml, exportCdxmlDocument } from '../renderer/lib/cdxmlExport';
+import { cdxmlDocumentLosses, exportCdxml, exportCdxmlDocument } from '../renderer/lib/cdxmlExport';
 import type { MoleculeDto } from '../renderer/store/types';
 
 const molecule: MoleculeDto = {
@@ -53,5 +53,13 @@ describe('CDXML writer', () => {
   it('rejects elements outside the supported CDXML mapping', () => {
     expect(() => exportCdxml({ ...molecule, atoms: [{ ...molecule.atoms[0], element: 'Xx' }] }))
       .toThrow('CDXML does not support element: Xx');
+  });
+
+  it('reports the supported-subset loss matrix before export', () => {
+    const losses = cdxmlDocumentLosses({ pages: [{ id: 'p1', width: -1, molecule: {
+      atoms: [{ ...molecule.atoms[0], wildcard: true }, { ...molecule.atoms[1], element: 'Xx' }],
+      bonds: [{ ...molecule.bonds[0], order: 9 }],
+    } }] });
+    expect(losses.map((loss) => loss.code)).toEqual(['invalid-page', 'wildcard-atom', 'unsupported-element', 'unsupported-bond']);
   });
 });

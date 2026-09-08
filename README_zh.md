@@ -13,6 +13,7 @@ Electron 和 React 构建，化学操作由 [`crates/chem-wasm`](crates/chem-was
 - 分子模板、Inspector、撤销/重做、自动保存和崩溃恢复
 - 分子属性、Lipinski 检查、立体异构体枚举和 SMARTS 搜索
 - 支持旋转、缩放和 XYZ 导出的三维查看器
+- 支持验证实验峰数据的、明确损失边界的 NMR 光谱面板
 - 反应方案、反应机理箭头和反应验证诊断
 - 支持逐项结果、筛选、进度、取消和失败重试的批处理
 - 支持 SMILES、MOL V2000/V3000、SDF 和 CML 导入导出；支持 CDXML 子集导入导出

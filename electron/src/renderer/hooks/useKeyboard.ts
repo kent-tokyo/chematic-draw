@@ -2,9 +2,10 @@ import { useEffect } from 'react';
 import { useCanvasStore } from '../store/canvasStore';
 import { useMoleculeStore } from '../store/moleculeStore';
 import { useUIStore } from '../store/uiStore';
-import { Tool } from '../store/types';
+import { MoleculeDto, Tool } from '../store/types';
 import * as clipboard from '../lib/clipboard';
 import * as wasmBridge from '../wasm/wasmBridge';
+import { runAnalysisInWorker } from '../lib/analysisWorkerClient';
 import { isEditableTarget, matchesShortcut } from '../lib/shortcuts';
 
 export function useKeyboard() {
@@ -50,8 +51,8 @@ export function useKeyboard() {
         if (!isInput) {
           e.preventDefault();
           clipboard.pasteFromClipboard()
-            .then((content) => {
-              const mol = wasmBridge.parseMolecule(content);
+            .then((content) => runAnalysisInWorker('parse', undefined, undefined, undefined, content) as Promise<MoleculeDto>)
+            .then((mol) => {
               pushUndo();
               setMolecule(mol);
               setStatus('Pasted structure');

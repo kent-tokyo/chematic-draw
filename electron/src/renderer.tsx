@@ -20,6 +20,7 @@ import { exportLossMessage, exportLosses, formatForFilePath, MoleculeExportForma
 import { parseSessionBundle, serializeSessionBundle } from './renderer/lib/sessionBundle';
 import { DEFAULT_SHORTCUT_BINDINGS, validateShortcutBindings, ShortcutBindings } from './renderer/lib/shortcuts';
 import { exportCdxml } from './renderer/lib/cdxmlExport';
+import { canPreserveCdxml, captureRichCdxmlSession, RichCdxmlSession, serializeCdxmlForPath } from './renderer/lib/cdxmlWorkflow';
 
 function parseMoleculeDocument(content: string, filePath: string): MoleculeDto {
   if (filePath.toLowerCase().endsWith('.json')) return parseSessionBundle(content).document.molecule;
@@ -53,6 +54,7 @@ function App() {
   const [wasmError, setWasmError] = useState<string | null>(null);
   const wasmLoaded = wasmStatus === 'ready';
   const [filePath, setFilePath] = useState<string | null>(null);
+  const [richCdxmlSession, setRichCdxmlSession] = useState<RichCdxmlSession | null>(null);
   const [settingsHydrated, setSettingsHydrated] = useState(false);
   const theme = useUIStore((s) => s.theme);
   const setTheme = useUIStore((s) => s.setTheme);
@@ -234,14 +236,20 @@ function App() {
       api.onMenuNew(() => {
         clear();
         setFilePath(null);
+        setRichCdxmlSession(null);
         announce('New molecule', '新しい分子');
       });
 
       api.onMenuOpenFile((data: { path: string; content: string }) => {
         try {
+          const isCdxml = data.path.toLowerCase().endsWith('.cdxml');
+          if (isCdxml) wasmBridge.cdxmlDocumentJson(data.content);
           const mol = parseMoleculeDocument(data.content, data.path);
           setMolecule(mol);
           setFilePath(data.path);
+          setRichCdxmlSession(isCdxml
+            ? captureRichCdxmlSession(data.content, data.path, mol)
+            : null);
           setStatus(`Opened: ${data.path}`);
           api.recordRecentFile(data.path);
           useCanvasStore.getState().requestCenterOnLoad();
@@ -253,14 +261,18 @@ function App() {
       api.onMenuSave(async () => {
         if (filePath) {
           const format = formatForFilePath(filePath);
-          if (!confirmLossAwareExport(molecule, filePath)) {
+          const preserveRichCdxml = canPreserveCdxml(molecule, filePath, richCdxmlSession);
+          if (!preserveRichCdxml && !confirmLossAwareExport(molecule, filePath)) {
             if (exportLosses(molecule, format).length > 0) announce('Save cancelled', '保存をキャンセルしました');
             return;
           }
-          const content = serializeMoleculeForPath(molecule, filePath);
+          const content = format === 'cdxml'
+            ? serializeCdxmlForPath(molecule, filePath, richCdxmlSession)
+            : serializeMoleculeForPath(molecule, filePath);
           const result = await api.fileWrite(filePath, content);
           if (result.success) {
             announce('Saved', '保存しました');
+            if (format === 'cdxml') setRichCdxmlSession(captureRichCdxmlSession(content, filePath, molecule));
           } else {
             setStatus(`Save failed: ${result.error}`);
           }
@@ -272,14 +284,22 @@ function App() {
       api.onMenuSaveAs(async () => {
         const result = await api.fileSaveDialog('untitled.mol');
         if (!result.canceled && result.filePath) {
-          if (!confirmLossAwareExport(molecule, result.filePath)) {
+          const preserveRichCdxml = canPreserveCdxml(molecule, result.filePath, richCdxmlSession);
+          if (!preserveRichCdxml && !confirmLossAwareExport(molecule, result.filePath)) {
             announce('Save cancelled', '保存をキャンセルしました');
             return;
           }
-          const content = serializeMoleculeForPath(molecule, result.filePath);
+          const content = formatForFilePath(result.filePath) === 'cdxml'
+            ? serializeCdxmlForPath(molecule, result.filePath, richCdxmlSession)
+            : serializeMoleculeForPath(molecule, result.filePath);
           const writeResult = await api.fileWrite(result.filePath, content);
           if (writeResult.success) {
             setFilePath(result.filePath);
+            if (formatForFilePath(result.filePath) === 'cdxml') {
+              setRichCdxmlSession(captureRichCdxmlSession(content, result.filePath, molecule));
+            } else {
+              setRichCdxmlSession(null);
+            }
             setStatus(`Saved: ${result.filePath}`);
             api.recordRecentFile(result.filePath);
           } else {
@@ -483,7 +503,7 @@ function App() {
         // Cleanup: no need to unsubscribe from ipcRenderer in this version
       };
     }
-  }, [molecule, filePath, theme, zoom, sidebarOpen, selectAll, undo, redo, pushUndo, clear, setMolecule, setSidebarOpen, setStatus, setTheme, setZoom, showModal, announce]);
+  }, [molecule, filePath, richCdxmlSession, theme, zoom, sidebarOpen, selectAll, undo, redo, pushUndo, clear, setMolecule, setSidebarOpen, setStatus, setTheme, setZoom, showModal, announce]);
 
   // Keyboard shortcuts for Phase 3-5
   useEffect(() => {
@@ -528,7 +548,7 @@ function App() {
       });
 
       const provenance = {
-        engine: 'chematic 1.0.6' as const,
+        engine: 'chematic 1.0.9' as const,
         inputFormat: config.inputFormat,
         outputFormat: config.outputFormat,
         filterOptions: config.operation === 'filter' ? {
@@ -582,7 +602,7 @@ function App() {
       setStatus(`Batch processing failed: ${(err as Error).message}`);
       console.error('Batch error:', err);
       addBatchResult(config.operation, 0, 1, 0, 'fnv1a-32:00000000', [(err as Error).message], {
-        engine: 'chematic 1.0.6',
+        engine: 'chematic 1.0.9',
         inputFormat: config.inputFormat,
         outputFormat: config.outputFormat,
       }, {

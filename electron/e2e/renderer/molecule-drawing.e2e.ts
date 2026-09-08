@@ -52,7 +52,7 @@ test.describe('Molecule Drawing', () => {
     const tablist = page.getByRole('tablist', { name: 'Sidebar panels' });
     await expect(tablist).toHaveAttribute('aria-orientation', 'horizontal');
     const tabs = page.getByRole('tab');
-    await expect(tabs).toHaveCount(12);
+    await expect(tabs).toHaveCount(13);
     expect(await tabs.evaluateAll((elements) => elements.filter((element) => element.getAttribute('tabindex') === '0').length)).toBe(1);
     await expect(page.getByTestId('sidebar-tab-inspector')).toHaveAttribute('tabindex', '0');
   });

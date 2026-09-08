@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
-import * as wasmBridge from '../../wasm/wasmBridge';
+import { runAnalysisInWorker } from '../../lib/analysisWorkerClient';
+import type { MoleculeDto } from '../../store/types';
 
 const TEMPLATES = [
   // Aromatic rings
@@ -72,9 +73,9 @@ export function TemplatesPanel() {
   const setStatus = useUIStore((s) => s.setStatus);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const handleInsertTemplate = (smiles: string, name: string) => {
+  const handleInsertTemplate = async (smiles: string, name: string) => {
     try {
-      const mol = wasmBridge.parseMolecule(smiles);
+      const mol = await runAnalysisInWorker('parse', undefined, undefined, undefined, smiles) as MoleculeDto;
       pushUndo();
       setMolecule(mol);
       setStatus(`Inserted ${name}`);

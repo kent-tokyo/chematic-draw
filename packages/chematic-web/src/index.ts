@@ -1,4 +1,4 @@
-import type { Molecule, MoleculeAtom, MoleculeBond } from '../../chematic-contract/src/index';
+import type { Molecule, MoleculeAtom, MoleculeBond } from '@chematic/contract';
 
 const ELEMENT_COLORS: Record<string, string> = { C: '#e5e7eb', N: '#60a5fa', O: '#f87171', S: '#facc15', P: '#fb923c' };
 
@@ -23,9 +23,12 @@ function finiteMolecule(value: unknown): Molecule {
   }
   for (const bond of molecule.bonds) {
     if (!Number.isInteger(bond.id) || !Number.isInteger(bond.from) || !Number.isInteger(bond.to) || !Number.isFinite(bond.order)) throw new TypeError(`Invalid bond: ${bond?.id ?? 'unknown'}`);
+    if (!molecule.atoms.some((atom) => atom.id === bond.from) || !molecule.atoms.some((atom) => atom.id === bond.to) || bond.from === bond.to) throw new TypeError(`Invalid bond endpoints: ${bond.id}`);
   }
   return cloneMolecule(molecule);
 }
+
+export function serializeMolecule(molecule: Molecule): string { return JSON.stringify(finiteMolecule(molecule)); }
 
 function bounds(molecule: Molecule): { minX: number; minY: number; width: number; height: number } {
   const atoms = molecule.atoms;
@@ -35,8 +38,26 @@ function bounds(molecule: Molecule): { minX: number; minY: number; width: number
   return { minX: minX - 32, minY: minY - 32, width: Math.max(64, maxX - minX + 64), height: Math.max(64, maxY - minY + 64) };
 }
 
+export function renderMoleculeSvg(molecule: Molecule): string {
+  const current = finiteMolecule(molecule);
+  const box = bounds(current);
+  const atoms = new Map(current.atoms.map((atom) => [atom.id, atom]));
+  const bondSvg = current.bonds.map((bond) => {
+    const from = atoms.get(bond.from)!, to = atoms.get(bond.to)!;
+    const width = Math.max(1.5, Math.min(4, bond.order));
+    return `<line x1="${from.x}" y1="${from.y}" x2="${to.x}" y2="${to.y}" stroke="currentColor" stroke-width="${width}" stroke-linecap="round" />`;
+  }).join('');
+  const atomSvg = current.atoms.map((atom: MoleculeAtom) => {
+    const label = atom.display_label ?? (atom.element === 'C' ? '' : atom.element);
+    return `<g data-atom-id="${atom.id}"><circle cx="${atom.x}" cy="${atom.y}" r="10" fill="${ELEMENT_COLORS[atom.element] ?? '#d1d5db'}" stroke="#111827" stroke-width="1" /><text x="${atom.x}" y="${atom.y + 4}" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#111827">${escapeXml(label)}</text></g>`;
+  }).join('');
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${box.minX} ${box.minY} ${box.width} ${box.height}" width="${box.width}" height="${box.height}" focusable="false" aria-hidden="true"><g>${bondSvg}${atomSvg}</g></svg>`;
+}
+
+const HTMLElementBase: typeof HTMLElement = typeof HTMLElement === 'undefined' ? class {} as typeof HTMLElement : HTMLElement;
+
 /** A dependency-free, read-only molecule surface for HTML embeds. */
-export class SchematicMoleculeElement extends HTMLElement {
+export class SchematicMoleculeElement extends HTMLElementBase {
   static observedAttributes = ['value', 'readonly'];
   private current: Molecule = { atoms: [], bonds: [] };
 
@@ -61,19 +82,7 @@ export class SchematicMoleculeElement extends HTMLElement {
   }
 
   private render(): void {
-    const box = bounds(this.current);
-    const atoms = new Map(this.current.atoms.map((atom) => [atom.id, atom]));
-    const bondSvg = this.current.bonds.map((bond) => {
-      const from = atoms.get(bond.from), to = atoms.get(bond.to);
-      if (!from || !to) return '';
-      const width = Math.max(1.5, Math.min(4, bond.order));
-      return `<line x1="${from.x}" y1="${from.y}" x2="${to.x}" y2="${to.y}" stroke="currentColor" stroke-width="${width}" stroke-linecap="round" />`;
-    }).join('');
-    const atomSvg = this.current.atoms.map((atom: MoleculeAtom) => {
-      const label = atom.display_label ?? (atom.element === 'C' ? '' : atom.element);
-      return `<g data-atom-id="${atom.id}"><circle cx="${atom.x}" cy="${atom.y}" r="10" fill="${ELEMENT_COLORS[atom.element] ?? '#d1d5db'}" stroke="#111827" stroke-width="1" /><text x="${atom.x}" y="${atom.y + 4}" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#111827">${escapeXml(label)}</text></g>`;
-    }).join('');
-    this.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${box.minX} ${box.minY} ${box.width} ${box.height}" width="${box.width}" height="${box.height}" focusable="false" aria-hidden="true"><g>${bondSvg}${atomSvg}</g></svg>`;
+    this.innerHTML = renderMoleculeSvg(this.current);
   }
 }
 

@@ -68,6 +68,46 @@ describe('WASM contract (real binary, not mocked)', () => {
     expect(wasm.to_canonical_smiles(benzene)).toBe('c1ccccc1');
   });
 
+  it('round-trips the upstream loss-aware RXN document contract', () => {
+    const document = {
+      id: 'rxn-contract',
+      steps: [{
+        id: 'step-1',
+        components: [
+          { id: 'reactant-1', role: 'reactant', smiles: 'CC', coefficient: 1, origin: 'authored' },
+          { id: 'product-1', role: 'product', smiles: 'CC', coefficient: 1, origin: 'authored' },
+        ],
+        conditions: [],
+        provenance: [],
+        origin: 'authored',
+      }],
+      provenance: [],
+    };
+    const rxn = wasm.rxn_document_to_rxn(JSON.stringify(document));
+    const decoded = JSON.parse(wasm.rxn_document_from_rxn(rxn));
+    expect(decoded.steps[0].components.map(({ role, smiles }: { role: string; smiles: string }) => ({ role, smiles }))).toEqual([
+      { role: 'reactant', smiles: 'CC' },
+      { role: 'product', smiles: 'CC' },
+    ]);
+    expect(() => wasm.rxn_document_to_rxn(JSON.stringify({
+      ...document,
+      steps: [{ ...document.steps[0], conditions: [{ key: 'temperature', value: '25 C' }] }],
+    }))).toThrow();
+  });
+
+  it('preserves CDXML page objects through the upstream document adapter', () => {
+    const input = '<CDXML>\n<page id="p1">\n<arrow id="a1" Custom="keep"/>\n</page>\n<page id="p2">\n<text id="t1"/>\n</page>\n</CDXML>';
+    const summary = JSON.parse(wasm.cdxml_document_json(input));
+    expect(summary.schema).toBe('chematic.cdxml-document.v1');
+    expect(summary.pages).toHaveLength(2);
+    expect(summary.pages[1].id).toBe('p2');
+    const edited = wasm.edit_cdxml_document_json(input, JSON.stringify({
+      kind: 'set_page_attribute', page_id: 'p2', key: 'title', value: 'Page 2',
+    }));
+    expect(edited).toMatch(/title="Page 2"/);
+    expect(edited).toMatch(/Custom="keep"/);
+  });
+
   it('fingerprint similarity is 1.0 for a molecule compared with itself, through the real boundary', () => {
     const fp = wasm.get_fingerprint(benzene);
     expect(fp).toHaveLength(512);
@@ -256,7 +296,7 @@ describe('WASM contract (real binary, not mocked)', () => {
     expect(wasm.assign_cip(wasm.parse_any('CCO'))).toEqual([]);
   });
 
-  it('exposes chematic v1.0.6 semantic validation, selection, and expansion', () => {
+  it('exposes chematic v1.0.9 semantic validation, selection, and expansion', () => {
     const model = {
       schema: 'chematic.semantic.v1',
       atom_ids: ['a', 'b'],

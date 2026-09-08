@@ -1,11 +1,19 @@
 {
   "name": "@chematic/web",
-  "version": "0.9.4",
+  "version": "1.0.7",
   "private": true,
-  "description": "Dependency-free Web Component boundary for chematic molecule data",
+  "description": "Electron-free Web Component boundary for chematic molecule data",
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": ["./src/index.ts"],
   "files": ["src", "README.md"],
   "types": "./src/index.ts",
-  "exports": { ".": { "types": "./src/index.ts", "default": "./src/index.ts" } }
+  "dependencies": { "@chematic/contract": "1.0.7" },
+  "exports": {
+    ".": { "types": "./src/index.ts", "default": "./src/index.ts" },
+    "./worker": { "types": "./src/worker.ts", "default": "./src/worker.ts" },
+    "./worker-entry": { "types": "./src/worker-entry.ts", "default": "./src/worker-entry.ts" },
+    "./worker-client": { "types": "./src/workerClient.ts", "default": "./src/workerClient.ts" },
+    "./react": { "types": "./src/react.ts", "default": "./src/react.ts" },
+    "./editor": { "types": "./src/editor.ts", "default": "./src/editor.ts" }
+  }
 }

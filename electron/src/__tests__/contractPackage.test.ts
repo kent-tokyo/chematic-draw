@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { CAPABILITY_MANIFEST } from '../../../packages/chematic-contract/src/index';
+import { CAPABILITY_FIXTURE_MANIFEST, CAPABILITY_MANIFEST } from '../../../packages/chematic-contract/src/index';
 
 describe('Electron-free contract package', () => {
   it('contains no Electron, Zustand, filesystem, or app-private imports', () => {
@@ -21,12 +21,24 @@ describe('Electron-free contract package', () => {
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids).toEqual(expect.arrayContaining([
       'markush', 'polymer', 'nucleic-acid', 'rich-rxn', 'cdxml-presentation',
-      'publication-layout', 'embedding', 'chemspider',
+      'publication-layout', 'embedding', 'chemspider', 'nmr', '3d',
     ]));
     expect(CAPABILITY_MANIFEST.find((capability) => capability.id === 'chemspider')).toMatchObject({
       support: 'external',
       dependency: 'chemspider-api',
     });
     expect(CAPABILITY_MANIFEST.filter((capability) => capability.dependency === 'local').length).toBeGreaterThan(0);
+  });
+
+  it('maps every capability to an explicit preserve, warn, or reject fixture gate', () => {
+    const capabilities = new Set(CAPABILITY_MANIFEST.map((capability) => capability.id));
+    const fixtures = CAPABILITY_FIXTURE_MANIFEST.map((fixture) => fixture.capability);
+    expect(new Set(fixtures).size).toBe(fixtures.length);
+    expect(fixtures).toHaveLength(capabilities.size);
+    expect(fixtures.every((capability) => capabilities.has(capability))).toBe(true);
+    expect(CAPABILITY_FIXTURE_MANIFEST).toEqual(expect.arrayContaining([
+      { capability: 'nmr', fixture: 'nmr-1h-spectrum-panel', gate: 'preserve' },
+      { capability: '3d', fixture: '3d-export-snapshot', gate: 'preserve' },
+    ]));
   });
 });

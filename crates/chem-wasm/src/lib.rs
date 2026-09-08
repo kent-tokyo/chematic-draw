@@ -149,7 +149,7 @@ fn semantic_to_js<T: Serialize>(value: &T, label: &str) -> Result<JsValue, JsVal
         .map_err(|e| JsValue::from_str(&format!("{label}: {e}")))
 }
 
-/// Validate the upstream-backed typed Markush/polymer semantic model from chematic v1.0.6.
+/// Validate the upstream-backed typed Markush/polymer semantic model from chematic v1.0.9.
 ///
 /// The model remains separate from `MoleculeDto`; no semantic construct is
 /// flattened into an ordinary molecule by this function.
@@ -196,6 +196,77 @@ pub fn expand_semantic_model(
         .expand(&dto_to_chem(&molecule)?)
         .map_err(|e| JsValue::from_str(&format!("Semantic expansion failed: {e}")))?;
     semantic_to_js(&expanded.to_json(), "Expanded semantic serialization failed")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Loss-preserving document adapters (chematic v1.0.9)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const DOCUMENT_MAX_INPUT_BYTES: usize = 64 * 1024 * 1024;
+const DOCUMENT_MAX_JSON_BYTES: usize = 64 * 1024 * 1024;
+
+fn check_document_size(label: &str, bytes: usize, limit: usize) -> Result<(), JsValue> {
+    if bytes > limit {
+        return Err(JsValue::from_str(&format!(
+            "{label} exceeds maximum size ({bytes} > {limit} bytes)"
+        )));
+    }
+    Ok(())
+}
+
+/// Parse an RXN V2000 file into schematic's loss-aware ReactionDocument JSON.
+#[wasm_bindgen]
+pub fn rxn_document_from_rxn(text: &str) -> Result<String, JsValue> {
+    check_document_size("RXN input", text.len(), DOCUMENT_MAX_INPUT_BYTES)?;
+    let document = chematic::mol::parse_rxn_document(text)
+        .map_err(|error| JsValue::from_str(&error.to_string()))?;
+    serde_json::to_string(&document)
+        .map_err(|error| JsValue::from_str(&format!("RXN document serialization failed: {error}")))
+}
+
+/// Write a loss-aware ReactionDocument JSON value as RXN V2000.
+#[wasm_bindgen]
+pub fn rxn_document_to_rxn(document_json: &str) -> Result<String, JsValue> {
+    check_document_size("RXN document JSON", document_json.len(), DOCUMENT_MAX_JSON_BYTES)?;
+    let document: chematic::rxn::ReactionDocument = serde_json::from_str(document_json)
+        .map_err(|error| JsValue::from_str(&format!("invalid reaction document JSON: {error}")))?;
+    chematic::mol::write_rxn_document(&document)
+        .map_err(|error| JsValue::from_str(&error.to_string()))
+}
+
+/// Parse CDXML while retaining document/page/presentation objects as JSON.
+#[wasm_bindgen]
+pub fn cdxml_document_json(cdxml: &str) -> Result<String, JsValue> {
+    check_document_size("CDXML input", cdxml.len(), DOCUMENT_MAX_INPUT_BYTES)?;
+    let document = chematic::mol::CdxmlDocument::parse_with_limits(
+        cdxml,
+        &chematic::mol::CdxmlParseLimits {
+            max_input_bytes: DOCUMENT_MAX_INPUT_BYTES,
+            ..Default::default()
+        },
+    )
+    .map_err(|error| JsValue::from_str(&error.to_string()))?;
+    serde_json::to_string(&document.to_json())
+        .map_err(|error| JsValue::from_str(&format!("CDXML document serialization failed: {error}")))
+}
+
+/// Apply a bounded, loss-preserving CDXML document edit and return its XML.
+#[wasm_bindgen]
+pub fn edit_cdxml_document_json(cdxml: &str, edit_json: &str) -> Result<String, JsValue> {
+    check_document_size("CDXML input", cdxml.len(), DOCUMENT_MAX_INPUT_BYTES)?;
+    check_document_size("CDXML edit JSON", edit_json.len(), DOCUMENT_MAX_JSON_BYTES)?;
+    let document = chematic::mol::CdxmlDocument::parse_with_limits(
+        cdxml,
+        &chematic::mol::CdxmlParseLimits {
+            max_input_bytes: DOCUMENT_MAX_INPUT_BYTES,
+            ..Default::default()
+        },
+    )
+    .map_err(|error| JsValue::from_str(&error.to_string()))?;
+    document
+        .apply_json_edit(edit_json)
+        .map(|edited| edited.write())
+        .map_err(|error| JsValue::from_str(&error.to_string()))
 }
 
 fn parse_any_impl(text: &str) -> Result<MoleculeDto, JsValue> {
@@ -1117,7 +1188,7 @@ pub fn identify_functional_groups_wasm(mol_json: &JsValue) -> Result<JsValue, Js
 ///   `run_reactants` with exactly one reactant molecule today, so a
 ///   multi-reactant template is a real, honestly-distinguishable "not
 ///   supported by this call site" case, not a parse failure.
-/// - `UnsupportedChemistry`: v1.0.6's match-enumeration resource limit is
+/// - `UnsupportedChemistry`: v1.0.9's match-enumeration resource limit is
 ///   also surfaced as unsupported here; the UI has no safe partial-product
 ///   representation for a bounded-out transformation.
 #[derive(Debug, Clone)]

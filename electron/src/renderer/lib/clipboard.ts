@@ -1,5 +1,6 @@
 import * as wasmBridge from '../wasm/wasmBridge';
 import { MoleculeDto } from '../store/types';
+import { runAnalysisInWorker } from './analysisWorkerClient';
 
 export async function copyText(text: string): Promise<void> {
   if (typeof window !== 'undefined' && (window as any).electronAPI) {
@@ -35,9 +36,9 @@ export async function pasteFromClipboard(): Promise<string> {
   throw new Error('Clipboard API not available');
 }
 
-export function parsePastedContent(text: string): MoleculeDto {
+export async function parsePastedContent(text: string): Promise<MoleculeDto> {
   try {
-    return wasmBridge.parseMolecule(text);
+    return await runAnalysisInWorker('parse', undefined, undefined, undefined, text) as MoleculeDto;
   } catch (err) {
     throw new Error(`Invalid chemical format: ${(err as Error).message}`);
   }

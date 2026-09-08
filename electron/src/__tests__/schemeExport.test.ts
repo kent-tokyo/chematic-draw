@@ -33,7 +33,7 @@ describe('versioned reaction document JSON', () => {
     expect(exported.provenance).toMatchObject({
       source_format: 'reaction-document-json',
       operation: 'export-reaction-document',
-      engine: 'chematic 1.0.6',
+      engine: 'chematic 1.0.9',
     });
     expect(exported.provenance.result_hash).toMatch(/^fnv1a-32:[0-9a-f]{8}$/);
     expect(exported.scheme).toEqual(scheme);
@@ -66,6 +66,36 @@ describe('versioned reaction document JSON', () => {
     const exported = JSON.parse(exportSchemeAsJSON(v2Scheme, null, null, null));
     expect(exported.schema_version).toBe(2);
     expect(importSchemeFromJSON(JSON.stringify(exported))).toEqual(v2Scheme);
+  });
+
+  it('round-trips fractional coefficients and agent-only steps', () => {
+    const agentOnlyScheme: ReactionSchemeContext = {
+      ...scheme,
+      steps: [{
+        ...scheme.steps[0],
+        reactants: [],
+        products: [],
+        agents: [molecule('N')],
+        reactantComponentIds: [],
+        productComponentIds: [],
+        agentComponentIds: ['catalyst'],
+        reactantCoefficients: [],
+        productCoefficients: [],
+      }, {
+        ...scheme.steps[0],
+        id: 'step-2',
+        reactants: [molecule('C')],
+        products: [molecule('O')],
+        reactantComponentIds: ['reactant-2'],
+        productComponentIds: ['product-2'],
+        agents: [],
+        agentComponentIds: [],
+        reactantCoefficients: [0.5],
+        productCoefficients: [1.25],
+      }],
+    };
+    const exported = JSON.parse(exportSchemeAsJSON(agentOnlyScheme, null, null, null));
+    expect(importSchemeFromJSON(JSON.stringify(exported))).toEqual(agentOnlyScheme);
   });
 
   it('rejects v2 coefficient arrays that do not align with molecule arrays', () => {

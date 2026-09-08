@@ -5,7 +5,7 @@ import { executeReaction, SMIRKS_TEMPLATES } from '../../lib/reactions';
 import { useReactionSchemeStore } from '../../store/reactionSchemeStore';
 import { MechanismStep, ReactionCondition } from '../../store/types';
 import { exportSchemeAsJSON, importSchemeFromJSON, exportSchemeAsSVG, exportSchemeAsCSV } from '../../lib/schemeExport';
-import { exportRxn, importRxn, rxnSchemeV2000Losses, rxnV2000Losses } from '../../lib/rxnExport';
+import { exportRxnViaDocumentAdapter, importRxnViaDocumentAdapter, rxnSchemeV2000Losses, rxnV2000Losses } from '../../lib/rxnExport';
 import * as wasmBridge from '../../wasm/wasmBridge';
 import { exportLossMessage, exportLosses } from '../../lib/exportLoss';
 
@@ -212,7 +212,7 @@ export function ReactionPanel() {
       setStatus(isJapanese ? 'RXN出力をキャンセルしました' : 'RXN export cancelled');
       return;
     }
-    const rxn = exportRxn({ reactants, products }, wasmBridge.toMolV2000);
+    const rxn = exportRxnViaDocumentAdapter({ reactants, products }, wasmBridge.toSmiles, wasmBridge.rxnDocumentToRxn);
     downloadFile(rxn, `${scheme.title || 'reaction'}_export.rxn`, 'chemical/x-mdl-rxn');
     setStatus(isJapanese ? 'RXN V2000として出力しました' : 'Exported as RXN V2000');
   };
@@ -225,7 +225,7 @@ export function ReactionPanel() {
       const text = await file.text();
       const importedScheme = file.name.toLowerCase().endsWith('.rxn')
         ? (() => {
-          const rxn = importRxn(text, wasmBridge.parseMolecule);
+          const rxn = importRxnViaDocumentAdapter(text, wasmBridge.rxnDocumentFromRxn, wasmBridge.parseMolecule);
           return {
             id: `scheme-${Date.now()}`,
             title: file.name.replace(/\.rxn$/i, ''),

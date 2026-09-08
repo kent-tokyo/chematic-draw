@@ -42,9 +42,10 @@ chematic-draw is a **desktop chemistry application** built with Electron, React,
         └──────────────────┘
 ```
 
-There is no WebWorker layer — 3D coordinate generation and every other WASM
-call run synchronously on the main (renderer) thread, called directly from
-`wasmBridge.ts`. (Verified: zero `new Worker(...)` calls anywhere in
+Analysis operations can run through an explicit Web Worker boundary, while
+3D coordinate generation remains synchronous on the renderer thread. The
+worker entrypoint uses a dedicated WASM binary and has bounded lifecycle
+cleanup; it does not change the 3D path.
 `electron/src/renderer`.)
 
 ### Key Layers
@@ -85,7 +86,7 @@ call run synchronously on the main (renderer) thread, called directly from
 | **Styling** | Inline styles | No CSS/Tailwind framework | — |
 | **State** | Zustand | Lightweight store | 5.0.15 |
 | **Canvas** | Canvas 2D API | 2D drawing, 3D projection | Native |
-| **Chemistry Engine** | chematic (Rust) | Molecule operations | 1.0.6 (`v1.0.6`) |
+| **Chemistry Engine** | chematic (Rust) | Molecule operations | 1.0.9 (`v1.0.9`) |
 | **WASM** | wasm-bindgen | Rust → JavaScript bridge | via wasm-pack |
 | **Build** | Vite | Bundler and dev server | 7.3.6 (pinned exact — see Round 1 CI notes) |
 | **WASM Build** | wasm-pack | Rust → WASM compilation | 0.13.x |
@@ -127,6 +128,7 @@ App (renderer.tsx)
 │   ├── PropertyPredictionPanel — molecular descriptors
 │   ├── MechanismPanel — manual electron-pushing-arrow drawing
 │   ├── Viewer3DPanel — 3D molecular structure
+│   ├── NmrSpectrumPanel — validated experimental spectrum plot
 │   ├── DatabaseSearchPanel — PubChem/ChemSpider search
 │   ├── ResearchPanel — (present in the real tab list; doc's old
 │   │   component tree omitted this one entirely)
@@ -139,8 +141,8 @@ App (renderer.tsx)
 ```
 
 Sidebar tabs, in the real order (`Sidebar.tsx`): Inspector, Templates,
-Reactions, Batch, Stereo, Lipinski, Props, Mech, 3D, DB, Research, Chat (12
-tabs, not the ~10 the old tree implied).
+Reactions, Batch, Stereo, Lipinski, Props, Mech, 3D, NMR, DB, Research, Chat
+(13 tabs).
 
 ### Component Responsibilities
 
@@ -150,6 +152,7 @@ tabs, not the ~10 the old tree implied).
 | **Sidebar** | Panel container | uiStore |
 | **InspectorPanel** | Atom/bond details | uiStore (`selectedAtomIdForInspector`/`selectedBondIdForInspector`) + moleculeStore for live document data and mutations |
 | **Viewer3DPanel** | 3D visualization | Local component state + WASM |
+| **NmrSpectrumPanel** | Loss-aware experimental spectrum visualization | Local component state + contract validation |
 | **ReactionPanel** | Reaction step builder | reactionSchemeStore (single source of truth — see State Management) |
 | **MechanismPanel** | Electron-pushing arrows | mechanismStore (+ mirrors into reactionSchemeStore when a scheme exists) |
 | **ContextMenu** | Right-click menu | uiStore |
@@ -519,7 +522,7 @@ WebWorker anywhere in this codebase; see System Overview above.)
 
 ### Validated local extensions
 
-`renderer/lib/documentCommands.ts` is the v0.9.4 integration boundary. Local
+`renderer/lib/documentCommands.ts` is the v1.0.7 integration boundary. Local
 extensions register a manifest, validated document commands, or read-only
 analysis providers. Commands require `document:write` and their output is
 checked before application; providers require `analysis:read` and cannot

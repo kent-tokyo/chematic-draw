@@ -4,6 +4,7 @@ import { useMoleculeStore } from '../../store/moleculeStore';
 import * as wasmBridge from '../../wasm/wasmBridge';
 import { Coords3dDto } from '../../wasm/wasmBridge';
 import { moleculeStructureKey } from '../../lib/moleculeKey';
+import { formatCoordsAsXyz } from '../../lib/xyzExport';
 
 interface Viewer3dState {
   angleX: number;
@@ -203,10 +204,7 @@ export function Viewer3DPanel() {
   // Download XYZ
   const handleExportXyz = () => {
     if (!displayCoords3d) return;
-    let xyz = `${displayCoords3d.atoms.length}\n\n`;
-    for (const atom of displayCoords3d.atoms) {
-      xyz += `${atom.element} ${atom.x.toFixed(6)} ${atom.y.toFixed(6)} ${atom.z.toFixed(6)}\n`;
-    }
+    const xyz = formatCoordsAsXyz(displayCoords3d);
     const blob = new Blob([xyz], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

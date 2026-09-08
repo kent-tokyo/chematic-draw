@@ -3,9 +3,24 @@
 Notable changes to chematic-draw. Dates use ISO 8601 format. See the git log
 for the full development history.
 
-## [Unreleased]
+## [1.0.7] - 2026-09-08
 
-No changes yet.
+### Added
+
+- Added loss-aware RXN document import/export through chematic v1.0.9.
+- Added rich CDXML source preservation for unchanged chemistry and coordinates.
+- Added the NMR contract/panel, deterministic 3D XYZ export, and an
+  Electron-free Web Worker analysis boundary.
+
+### Changed
+
+- Updated the Rust/WASM chemistry engine dependency to chematic v1.0.9.
+- Moved template-drop and pasted-content parsing through the analysis Worker.
+
+### Validation
+
+- TypeScript typecheck, ESLint, Jest (38 suites, 294 passed, 6 skipped),
+  Renderer E2E (73 passed), and `git diff --check` pass locally.
 
 ## [0.9.4] - 2026-09-05
 
@@ -16,13 +31,13 @@ No changes yet.
 
 ### Changed
 
-- Updated the Rust/WASM chemistry engine from chematic 1.0.4 to 1.0.6.
-- Updated renderer and contract provenance to chematic 1.0.6.
+- Updated the Rust/WASM chemistry engine dependency to chematic 1.0.7.
+- Updated renderer and contract provenance to chematic 1.0.7.
 
 ### Validation
 
-- `cargo check`, browser WASM build, TypeScript typecheck, lint, full Jest (33
-  suites, 247 passed, 6 skipped), and `git diff --check` pass.
+- `cargo check`, browser WASM build, TypeScript typecheck, lint, full Jest (34
+  suites, 270 passed, 6 skipped), and `git diff --check` pass.
 
 ## [0.9.3] - 2026-09-05
 
@@ -347,6 +362,7 @@ No changes yet.
 
 [0.8.0]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.8.0
 [0.9.4]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.9.4
+[1.0.7]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v1.0.7
 [0.9.3]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.9.3
 [0.9.1]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.9.1
 [0.9.0]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.9.0

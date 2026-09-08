@@ -1,4 +1,4 @@
-import { editMarkush, editPolymer, expandPolymer, selectMarkushSubstituent } from '../renderer/lib/specialChemistry';
+import { editMarkush, editNucleicAcid, editPolymer, expandPolymer, selectMarkushSubstituent } from '../renderer/lib/specialChemistry';
 import { QueryDocument } from '../renderer/lib/queryDocument';
 
 const document: QueryDocument = {
@@ -10,6 +10,7 @@ const document: QueryDocument = {
   bonds: [{ id: 1, from: 1, to: 2, constraint: { order: 'single' } }],
   markush: [{ id: 'r1', label: 'R', attachmentAtomIds: [1], allowedSubstituentSmarts: ['Cl', 'Br'] }],
   polymers: [{ id: 'p1', repeatUnitAtomIds: [1, 2], linkageBondIds: [1], attachmentAtomIds: [1, 2] }],
+  nucleicAcids: [{ id: 'na1', residueIds: ['rA'], backboneBondIds: [1], residues: [{ id: 'rA', base: 'A', sugar: 'deoxyribose', atomIds: [1], phosphateAttached: true }] }],
 };
 
 test('edits and selects Markush definitions without lossy concrete conversion', () => {
@@ -26,4 +27,10 @@ test('edits polymer metadata and expands repeat units deterministically', () => 
   expect(expanded.bonds).toHaveLength(5);
   expect(expanded.atoms.map((atom) => atom.id)).toEqual([1, 2, 3, 4, 5, 6]);
   expect(expanded.bonds.slice(-2).map((bond) => [bond.from, bond.to])).toEqual([[2, 3], [4, 5]]);
+});
+
+test('edits nucleic-acid residue metadata without inferring chemistry', () => {
+  const edited = editNucleicAcid(document, 'na1', { annotations: { strand: 'sense' } });
+  expect(edited.nucleicAcids?.[0].annotations).toEqual({ strand: 'sense' });
+  expect(edited.atoms).toEqual(document.atoms);
 });

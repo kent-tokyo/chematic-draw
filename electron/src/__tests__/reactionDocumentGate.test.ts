@@ -35,4 +35,31 @@ describe('multi-step reaction document gate', () => {
       { code: 'coefficient', path: 'steps.0.productCoefficients', message: 'Stoichiometric coefficients must align with molecule arrays' },
     ]);
   });
+
+  it('preserves a rich 20-step corpus with agents, fractions, repeated components, and map changes', () => {
+    const source = corpus(20);
+    source.steps.forEach((step, index) => {
+      step.reactantCoefficients = [index % 3 === 0 ? 0.5 : 1];
+      step.productCoefficients = [index % 4 === 0 ? 1.25 : 1];
+      step.reactants[0].atoms[0].atom_map = index + 1;
+      step.products[0].atoms[0].atom_map = index + 2;
+      if (index === 7) {
+        step.reactants = [];
+        step.products = [];
+        step.agents = [{ atoms: [{ id: 701, element: 'N', x: 0, y: 0, charge: 0, atom_map: 0 }], bonds: [] }];
+        step.reactantComponentIds = [];
+        step.productComponentIds = [];
+        step.agentComponentIds = ['reusable-catalyst'];
+        step.reactantCoefficients = [];
+        step.productCoefficients = [];
+      }
+    });
+    expect(validateReactionDocument(source)).toEqual([]);
+    const restored = importSchemeFromJSON(exportSchemeAsJSON(source, null, null, null));
+    expect(restored).toEqual(source);
+    expect(restored?.steps).toHaveLength(20);
+    expect(rxnSchemeV2000Losses(restored?.steps.length ?? 0)).toEqual([
+      { code: 'multi-step', message: expect.stringContaining('step boundaries') },
+    ]);
+  });
 });

@@ -24,7 +24,7 @@ interface ReactionDocumentExport {
   provenance: {
     source_format: 'reaction-document-json';
     operation: 'export-reaction-document';
-    engine: 'chematic 1.0.6';
+    engine: 'chematic 1.0.9';
     result_hash: string;
   };
 }
@@ -72,7 +72,7 @@ export function exportSchemeAsJSON(
     provenance: {
       source_format: 'reaction-document-json',
       operation: 'export-reaction-document',
-      engine: 'chematic 1.0.6',
+      engine: 'chematic 1.0.9',
       result_hash: documentHash(hashPayload),
     },
   };
@@ -99,7 +99,7 @@ export function importSchemeFromJSON(jsonString: string): ReactionSchemeContext 
       if (
         data.provenance.source_format !== 'reaction-document-json' ||
         data.provenance.operation !== 'export-reaction-document' ||
-        data.provenance.engine !== 'chematic 1.0.6' ||
+        data.provenance.engine !== 'chematic 1.0.9' ||
         typeof data.provenance.result_hash !== 'string'
       ) return null;
       const hashPayload = {
@@ -128,7 +128,9 @@ export function importSchemeFromJSON(jsonString: string): ReactionSchemeContext 
       const molecules = [...step.reactants, ...step.products, ...(step.agents ?? [])];
       if (molecules.some((molecule) => validateMoleculeDocument(molecule).length > 0)) return true;
       for (const [coefficients, expectedLength] of [[step.reactantCoefficients, step.reactants.length], [step.productCoefficients, step.products.length]] as const) {
-        if (coefficients !== undefined && (coefficients.length !== expectedLength || coefficients.some((coefficient) => !Number.isInteger(coefficient) || coefficient < 1 || coefficient > 1_000_000))) return true;
+        // Fractions are valid stoichiometric coefficients in the v2 document;
+        // RXN V2000 remains loss-aware and will refuse to preserve them.
+        if (coefficients !== undefined && (coefficients.length !== expectedLength || coefficients.some((coefficient) => !Number.isFinite(coefficient) || coefficient <= 0 || coefficient > 1_000_000))) return true;
       }
       for (const [ids, expectedLength] of [[step.reactantComponentIds, step.reactants.length], [step.productComponentIds, step.products.length], [step.agentComponentIds, (step.agents ?? []).length]] as const) {
         if (ids !== undefined && (ids.length !== expectedLength || new Set(ids).size !== ids.length || ids.some((id) => typeof id !== 'string' || id.length === 0 || id.length > 256))) return true;
@@ -269,7 +271,7 @@ export function exportSchemeAsSVG(
 
   <!-- Footer -->
   <text x="20" y="${height - 10}" class="legend-label" style="font-size: 9px;">
-    Exported: ${new Date().toLocaleDateString()} | chematic-draw
+    chematic-draw | deterministic SVG export
   </text>
 </svg>`;
 

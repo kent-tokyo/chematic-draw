@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
+import type { MoleculeDto } from '../../store/types';
 import { searchDatabase, DatabaseResult } from '../../lib/advancedFeatures';
 import * as wasmBridge from '../../wasm/wasmBridge';
+import { runAnalysisInWorker } from '../../lib/analysisWorkerClient';
 
 export function DatabaseSearchPanel() {
   const theme = useUIStore((s) => s.theme);
@@ -18,12 +20,14 @@ export function DatabaseSearchPanel() {
   const [mcsError, setMcsError] = useState('');
   const searchRunRef = useRef(0);
   const searchControllerRef = useRef<AbortController | null>(null);
+  const mcsControllerRef = useRef<AbortController | null>(null);
   const mountedRef = useRef(true);
 
   useEffect(() => () => {
     mountedRef.current = false;
     searchRunRef.current += 1;
     searchControllerRef.current?.abort();
+    mcsControllerRef.current?.abort();
   }, []);
 
   const borderColor = theme === 'dark' ? '#3a4a57' : '#e0e0e0';
@@ -67,16 +71,20 @@ export function DatabaseSearchPanel() {
     return '#f44336';
   };
 
-  const handleMcsSearch = () => {
+  const handleMcsSearch = async () => {
+    const controller = new AbortController();
+    mcsControllerRef.current?.abort();
+    mcsControllerRef.current = controller;
     setMcsResult(null);
     setMcsError('');
     if (!comparisonSmiles.trim()) return;
 
     try {
-      const comparisonMolecule = wasmBridge.parseMolecule(comparisonSmiles.trim());
-      const result = wasmBridge.findMcs(molecule, comparisonMolecule);
-      setMcsResult(result);
+      const comparisonMolecule = await runAnalysisInWorker('parse', undefined, controller.signal, undefined, comparisonSmiles.trim()) as MoleculeDto;
+      const result = await runAnalysisInWorker('mcs', molecule, controller.signal, comparisonMolecule) as wasmBridge.McsResultDto;
+      if (!controller.signal.aborted && molecule === useMoleculeStore.getState().molecule) setMcsResult(result);
     } catch (err) {
+      if (controller.signal.aborted) return;
       setMcsError(err instanceof Error ? err.message : String(err));
     }
   };

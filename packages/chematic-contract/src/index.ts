@@ -8,7 +8,7 @@ export interface CanvasState { offset: { x: number; y: number }; zoom: number; a
 export type AppLanguage = 'en' | 'ja' | 'zh';
 export interface UIState { theme: 'dark' | 'light'; language: AppLanguage; sidebarOpen: boolean; sidebarWidth: number; focusMode: boolean; }
 export type UIAction = 'copy' | 'paste' | 'cleanLayout' | 'export' | 'undo' | 'redo' | 'zoomIn' | 'zoomOut' | 'zoomReset' | 'focusMode' | 'showShortcuts' | 'selectAll' | 'delete';
-export type SidebarPanel = 'inspector' | 'templates' | 'chat' | 'research' | 'reactions' | 'batch-results' | 'stereoisomers' | 'lipinski' | 'properties' | 'mechanism' | 'database' | '3d';
+export type SidebarPanel = 'inspector' | 'templates' | 'chat' | 'research' | 'reactions' | 'batch-results' | 'stereoisomers' | 'lipinski' | 'properties' | 'mechanism' | 'database' | '3d' | 'nmr';
 export interface ContextMenuState { visible: boolean; x: number; y: number; atomId?: number; bondId?: number; }
 export type ModalType = 'shortcuts' | 'export' | 'undo' | 'batch' | 'settings';
 export interface MechanismState { arrows: MechanismArrow[]; selectedArrowId: string | null; arrowSelectionMode: 'idle' | 'awaitingSink'; pendingSourceAtomId: number | null; pendingSinkAtomId: number | null; hoverArrowId: string | null; }
@@ -53,7 +53,7 @@ export const MAX_ELEMENT_TEXT_LENGTH = 16;
 export const MAX_DISPLAY_LABEL_LENGTH = 256;
 export type CapabilitySupport = 'supported' | 'partial' | 'unsupported' | 'external';
 export interface CapabilityDescriptor {
-  id: 'markush' | 'polymer' | 'nucleic-acid' | 'rich-rxn' | 'cdxml-presentation' | 'publication-layout' | 'embedding' | 'chemspider';
+  id: 'markush' | 'polymer' | 'nucleic-acid' | 'rich-rxn' | 'cdxml-presentation' | 'publication-layout' | 'embedding' | 'chemspider' | 'nmr' | '3d';
   support: CapabilitySupport;
   summary: string;
   dependency: 'local' | 'chematic' | 'chemspider-api';
@@ -68,6 +68,22 @@ export const CAPABILITY_MANIFEST: readonly CapabilityDescriptor[] = [
   { id: 'publication-layout', support: 'partial', summary: 'Deterministic metrics and export gates; human visual gate remains', dependency: 'local' },
   { id: 'embedding', support: 'partial', summary: 'Electron-free contract package, consumer fixtures, and read-only Web Component surface', dependency: 'local' },
   { id: 'chemspider', support: 'external', summary: 'Provider boundary reserved; authenticated API integration unavailable', dependency: 'chemspider-api' },
+  { id: 'nmr', support: 'partial', summary: 'Loss-aware experimental 1D spectrum contract; assignment and prediction remain external', dependency: 'local' },
+  { id: '3d', support: 'partial', summary: 'Deterministic coordinate generation and XYZ export snapshot boundary', dependency: 'local' },
+] as const;
+export interface CapabilityFixtureDescriptor { capability: CapabilityDescriptor['id']; fixture: string; gate: 'preserve' | 'warn' | 'reject'; }
+/** Executable fixture names shared by local conformance and release review. */
+export const CAPABILITY_FIXTURE_MANIFEST: readonly CapabilityFixtureDescriptor[] = [
+  { capability: 'markush', fixture: 'query-nested-attachments', gate: 'preserve' },
+  { capability: 'polymer', fixture: 'polymer-two-attachment-expansion', gate: 'preserve' },
+  { capability: 'nucleic-acid', fixture: 'nucleic-acid-typed-boundary', gate: 'warn' },
+  { capability: 'rich-rxn', fixture: 'rxn-multi-step-agents-coefficients', gate: 'preserve' },
+  { capability: 'cdxml-presentation', fixture: 'cdxml-multi-page-loss-matrix', gate: 'warn' },
+  { capability: 'publication-layout', fixture: 'svg-pdf-layout-metrics', gate: 'preserve' },
+  { capability: 'embedding', fixture: 'html-react-worker-contract', gate: 'preserve' },
+  { capability: 'chemspider', fixture: 'network-disabled-provider', gate: 'reject' },
+  { capability: 'nmr', fixture: 'nmr-1h-spectrum-panel', gate: 'preserve' },
+  { capability: '3d', fixture: '3d-export-snapshot', gate: 'preserve' },
 ] as const;
 export interface ExtensionManifest { id: string; version: string; api_version?: number; permissions: ExtensionPermission[]; }
 export interface DocumentCommandContext { molecule: Molecule; payload?: unknown; }
@@ -95,13 +111,13 @@ export interface BatchProcessResult {
   errors: string[]; items: BatchItemResult[]; cancelled: boolean;
 }
 export interface BatchItemSummary { index: number; status: Exclude<BatchItemStatus, 'pending' | 'running'>; warnings: string[]; error?: string; inputAtomCount?: number; inputBondCount?: number; outputAtomCount?: number; outputBondCount?: number; properties?: Pick<Properties, 'formula' | 'molecular_weight' | 'logp' | 'tpsa'>; }
-export interface BatchProvenance { engine: 'chematic 1.0.6'; inputFormat?: string; outputFormat?: string; filterOptions?: BatchTask['filterOptions']; smartsPattern?: string; }
+export interface BatchProvenance { engine: 'chematic 1.0.9'; inputFormat?: string; outputFormat?: string; filterOptions?: BatchTask['filterOptions']; smartsPattern?: string; }
 export interface BatchResultSummary { operation: string; processed: number; failed: number; skipped: number; resultHash: string; errors: string[]; timestamp: number; provenance: BatchProvenance; cancelled?: boolean; items: BatchItemSummary[]; retry?: { task: BatchTask; molecules: Molecule[] }; }
 export interface StereoisomerResult { stereoisomers: Molecule[]; count: number; description: string; }
 export interface LipinskiViolation { rule: string; value: number; limit: number; violated: boolean; }
 export interface PropertyPrediction { property: string; predictedValue: number | string; source: string; }
 export interface DatabaseResult { molId: string; name: string; source: 'pubchem' | 'chemspider' | 'zinc'; similarity: number; properties: Record<string, string | number>; }
-export interface SessionBundle { schema: 'chematic-draw/session-bundle'; schema_version: 2; app: { name: 'chematic-draw'; engine: 'chematic 1.0.6' }; source: { file_path: string | null }; document: { schema_version: 1; molecule: Molecule }; provenance: { operation: 'export-session-bundle'; structure_hash: string }; }
+export interface SessionBundle { schema: 'chematic-draw/session-bundle'; schema_version: 2; app: { name: 'chematic-draw'; engine: 'chematic 1.0.9' }; source: { file_path: string | null }; document: { schema_version: 1; molecule: Molecule }; provenance: { operation: 'export-session-bundle'; structure_hash: string }; }
 export type ReactionDocumentIssueCode = 'duplicate-step-id' | 'component-id' | 'coefficient' | 'continuity' | 'map-scope' | 'provenance';
 export interface ReactionDocumentIssue { code: ReactionDocumentIssueCode; path: string; message: string; }
 export interface RxnDocument { reactants: Molecule[]; products: Molecule[]; agents?: Molecule[]; reactantCoefficients?: number[]; productCoefficients?: number[]; }
@@ -111,10 +127,13 @@ export interface CdxmlText { id: string; x: number; y: number; value: string; }
 export interface CdxmlArrow { id: string; x1: number; y1: number; x2: number; y2: number; label?: string; }
 export interface CdxmlPage { id: string; molecule: Molecule; title?: string; width?: number; height?: number; text?: CdxmlText[]; arrows?: CdxmlArrow[]; attributes?: Record<string, string>; }
 export interface CdxmlDocument { pages: CdxmlPage[]; }
+export type CdxmlLossCode = 'invalid-page' | 'wildcard-atom' | 'unsupported-element' | 'unsupported-bond';
+export interface CdxmlLoss { code: CdxmlLossCode; path: string; message: string; }
 export interface StepBox { stepIndex: number; x: number; y: number; width: number; height: number; selected: boolean; hovered: boolean; }
 export interface StepArrow { fromIndex: number; toIndex: number; x1: number; y1: number; x2: number; y2: number; }
-export interface SchemeLayout { stepBoxes: StepBox[]; stepArrows: StepArrow[]; canvasWidth: number; canvasHeight: number; padding: number; }
-export interface LayoutMetrics { boxOverlaps: number; arrowCrossings: number; clippedBoxes: number; arrowOverflow: number; deterministicKey: string; }
+export interface LayoutTextBox { id: string; x: number; y: number; width: number; height: number; text: string; }
+export interface SchemeLayout { stepBoxes: StepBox[]; stepArrows: StepArrow[]; textBoxes?: LayoutTextBox[]; canvasWidth: number; canvasHeight: number; padding: number; }
+export interface LayoutMetrics { boxOverlaps: number; arrowCrossings: number; clippedBoxes: number; arrowOverflow: number; textOverlaps: number; textOverflow: number; invalidGeometry: number; deterministicKey: string; }
 export type MoleculeExportFormat = 'smiles' | 'mol-v2000' | 'rxn-v2000' | 'sdf' | 'cml' | 'cdxml';
 export interface ExportLoss { code: 'wildcard' | 'isotope' | 'unsupported-format'; message: string; }
 export interface QueryAtomConstraint { elements?: string[]; wildcard?: boolean; charge?: number; isotope?: number; aromatic?: boolean; valence?: number; hydrogens?: number; ring?: boolean; }
@@ -123,12 +142,66 @@ export type QueryBondOrder = 'single' | 'double' | 'triple' | 'aromatic' | 'any'
 export interface QueryBond { id: number; from: number; to: number; constraint: { order: QueryBondOrder }; }
 export interface MarkushDefinition { id: string; label: string; attachmentAtomIds: number[]; allowedSubstituentSmarts: string[]; }
 export interface PolymerDefinition { id: string; repeatUnitAtomIds: number[]; linkageBondIds: number[]; attachmentAtomIds: number[]; endGroups?: { left?: string; right?: string }; }
-export interface QueryDocument { schema: 'chematic-draw/query-document'; schema_version: 1; atoms: QueryAtom[]; bonds: QueryBond[]; opaque?: Array<{ kind: 'markush' | 'polymer' | 'smarts-token'; raw: string }>; markush?: MarkushDefinition[]; polymers?: PolymerDefinition[]; }
+export type NucleicAcidBase = 'A' | 'C' | 'G' | 'T' | 'U' | 'other';
+export type NucleicAcidSugar = 'ribose' | 'deoxyribose' | 'unknown';
+export interface NucleicAcidResidue { id: string; base: NucleicAcidBase; sugar: NucleicAcidSugar; atomIds: number[]; phosphateAttached?: boolean; label?: string; }
+export interface NucleicAcidDefinition { id: string; residueIds: string[]; backboneBondIds: number[]; residues: NucleicAcidResidue[]; annotations?: Record<string, string>; }
+export interface QueryDocument { schema: 'chematic-draw/query-document'; schema_version: 1; atoms: QueryAtom[]; bonds: QueryBond[]; opaque?: Array<{ kind: 'markush' | 'polymer' | 'nucleic-acid' | 'smarts-token'; raw: string }>; markush?: MarkushDefinition[]; polymers?: PolymerDefinition[]; nucleicAcids?: NucleicAcidDefinition[]; }
 export interface QueryWorkerResult { pattern: string; matches: number[]; }
 export interface QueryValidationError { code: 'invalid' | 'unsupported'; path: string; message: string; }
 export interface HitResult { type: 'atom' | 'bond' | 'empty'; id?: number; }
 export interface GeometryCanvasState { offset: { x: number; y: number }; zoom: number; }
 export interface ArrowPath { startX: number; startY: number; controlX: number; controlY: number; endX: number; endY: number; endAngle: number; }
+
+/** Experimental NMR data stays separate from molecule identity and prediction APIs. */
+export type NmrNucleus = '1H' | '13C' | '19F' | '31P' | '15N' | '29Si' | 'other';
+export interface NmrPeak { id: string; shiftPpm: number; intensity?: number; widthPpm?: number; multiplicity?: string; assignment?: string; note?: string; }
+export interface NmrSpectrum {
+  schema: 'chematic-draw/nmr-spectrum';
+  schema_version: 1;
+  nucleus: NmrNucleus;
+  frequencyMHz?: number;
+  solvent?: string;
+  reference?: string;
+  temperatureC?: number;
+  peaks: NmrPeak[];
+  rawVendorMetadata?: Record<string, string | number | boolean>;
+  provenance: { kind: 'experimental-import' | 'manual-entry'; source?: string; importedAt?: string };
+}
+export interface NmrValidationError { code: 'invalid' | 'unsupported'; path: string; message: string; }
+
+export function validateNmrSpectrum(spectrum: NmrSpectrum): NmrValidationError[] {
+  const errors: NmrValidationError[] = [];
+  if (!spectrum || spectrum.schema !== 'chematic-draw/nmr-spectrum' || spectrum.schema_version !== 1) {
+    return [{ code: 'invalid', path: '$', message: 'Unsupported NMR spectrum schema' }];
+  }
+  const nuclei: NmrNucleus[] = ['1H', '13C', '19F', '31P', '15N', '29Si', 'other'];
+  if (!nuclei.includes(spectrum.nucleus)) errors.push({ code: 'invalid', path: 'nucleus', message: 'Unsupported NMR nucleus' });
+  if (!spectrum.provenance || !['experimental-import', 'manual-entry'].includes(spectrum.provenance.kind)) {
+    errors.push({ code: 'invalid', path: 'provenance.kind', message: 'Unsupported provenance kind' });
+  }
+  for (const field of ['solvent', 'reference'] as const) if (spectrum[field] !== undefined && typeof spectrum[field] !== 'string') {
+    errors.push({ code: 'invalid', path: field, message: `${field} must be a string` });
+  }
+  if (spectrum.temperatureC !== undefined && !Number.isFinite(spectrum.temperatureC)) errors.push({ code: 'invalid', path: 'temperatureC', message: 'Temperature must be finite' });
+  if (spectrum.rawVendorMetadata !== undefined && (!spectrum.rawVendorMetadata || typeof spectrum.rawVendorMetadata !== 'object' || Object.values(spectrum.rawVendorMetadata).some((value) => !['string', 'number', 'boolean'].includes(typeof value) || (typeof value === 'number' && !Number.isFinite(value))))) {
+    errors.push({ code: 'invalid', path: 'rawVendorMetadata', message: 'Vendor metadata must contain finite primitive values' });
+  }
+  if (!Array.isArray(spectrum.peaks)) errors.push({ code: 'invalid', path: 'peaks', message: 'Peaks must be an array' });
+  if (spectrum.frequencyMHz !== undefined && (!Number.isFinite(spectrum.frequencyMHz) || spectrum.frequencyMHz <= 0)) {
+    errors.push({ code: 'invalid', path: 'frequencyMHz', message: 'Frequency must be a positive finite number' });
+  }
+  const ids = new Set<string>();
+  for (const [index, peak] of (spectrum.peaks ?? []).entries()) {
+    const path = `peaks[${index}]`;
+    if (!peak || typeof peak.id !== 'string' || peak.id.length === 0 || ids.has(peak.id)) errors.push({ code: 'invalid', path: `${path}.id`, message: 'Peak IDs must be non-empty and unique' });
+    if (typeof peak?.id === 'string') ids.add(peak.id);
+    if (!Number.isFinite(peak?.shiftPpm)) errors.push({ code: 'invalid', path: `${path}.shiftPpm`, message: 'Chemical shift must be finite' });
+    for (const field of ['intensity', 'widthPpm'] as const) if (peak?.[field] !== undefined && (!Number.isFinite(peak[field]) || peak[field] < 0)) errors.push({ code: 'invalid', path: `${path}.${field}`, message: `${field} must be a non-negative finite number` });
+    for (const field of ['multiplicity', 'assignment', 'note'] as const) if (peak?.[field] !== undefined && typeof peak[field] !== 'string') errors.push({ code: 'invalid', path: `${path}.${field}`, message: `${field} must be a string` });
+  }
+  return errors;
+}
 
 export function validateMolecule(molecule: Molecule): string[] {
   if (!molecule || !Array.isArray(molecule.atoms) || !Array.isArray(molecule.bonds)) return ['Molecule must contain atoms and bonds arrays'];

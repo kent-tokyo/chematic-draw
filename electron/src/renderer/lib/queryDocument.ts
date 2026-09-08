@@ -1,11 +1,12 @@
 import { MoleculeDto } from '../store/types';
 import type { QueryBondOrder, QueryDocument as ContractQueryDocument, QueryValidationError } from '../../../../packages/chematic-contract/src/index';
 export type { QueryAtomConstraint, QueryBond, QueryBondOrder, QueryValidationError } from '../../../../packages/chematic-contract/src/index';
-export type { MarkushDefinition, PolymerDefinition } from '../../../../packages/chematic-contract/src/index';
+export type { MarkushDefinition, NucleicAcidDefinition, NucleicAcidResidue, PolymerDefinition } from '../../../../packages/chematic-contract/src/index';
 
 /** Versioned, UI-independent query representation. Unsupported constructs are
  * retained as typed opaque nodes so they cannot silently become concrete atoms. */
 export const QUERY_DOCUMENT_VERSION = 1;
+export const MAX_QUERY_DOCUMENT_TEXT_LENGTH = 5_000_000;
 
 export type QueryDocument = ContractQueryDocument;
 
@@ -35,14 +36,50 @@ export function validateQueryDocument(document: QueryDocument): QueryValidationE
     if (!BOND_ORDERS.has(bond.constraint?.order)) errors.push({ code: 'invalid', path: `bonds.${bond?.id ?? 'unknown'}.constraint.order`, message: 'Bond query order is invalid' });
     bondIds.add(bond.id);
   }
-  for (const [index, opaque] of (document.opaque ?? []).entries()) if (!['markush', 'polymer', 'smarts-token'].includes(opaque.kind) || typeof opaque.raw !== 'string' || opaque.raw.length > 10_000) errors.push({ code: 'unsupported', path: `opaque.${index}`, message: 'Opaque special-chemistry data is invalid' });
+  for (const [index, opaque] of (document.opaque ?? []).entries()) if (!['markush', 'polymer', 'nucleic-acid', 'smarts-token'].includes(opaque.kind) || typeof opaque.raw !== 'string' || opaque.raw.length > 10_000) errors.push({ code: 'unsupported', path: `opaque.${index}`, message: 'Opaque special-chemistry data is invalid' });
   for (const [index, definition] of (document.markush ?? []).entries()) {
     if (!definition.id || !definition.label || !Array.isArray(definition.attachmentAtomIds) || !Array.isArray(definition.allowedSubstituentSmarts) || definition.allowedSubstituentSmarts.length === 0 || definition.attachmentAtomIds.some((id) => !atomIds.has(id)) || definition.allowedSubstituentSmarts.some((pattern) => typeof pattern !== 'string' || pattern.length === 0)) errors.push({ code: 'unsupported', path: `markush.${index}`, message: 'Markush definition requires attachment atoms and allowed SMARTS substituents' });
   }
   for (const [index, definition] of (document.polymers ?? []).entries()) {
     if (!definition.id || !Array.isArray(definition.repeatUnitAtomIds) || definition.repeatUnitAtomIds.length === 0 || !Array.isArray(definition.linkageBondIds) || !Array.isArray(definition.attachmentAtomIds) || definition.repeatUnitAtomIds.some((id) => !atomIds.has(id)) || definition.linkageBondIds.some((id) => !bondIds.has(id)) || definition.attachmentAtomIds.some((id) => !atomIds.has(id))) errors.push({ code: 'unsupported', path: `polymers.${index}`, message: 'Polymer definition requires repeat-unit, linkage, and attachment references' });
   }
+  for (const [index, definition] of (document.nucleicAcids ?? []).entries()) {
+    const residueIds = new Set<string>();
+    const valid = Boolean(definition.id) && Array.isArray(definition.residueIds) && Array.isArray(definition.backboneBondIds) && Array.isArray(definition.residues)
+      && definition.residueIds.length === definition.residues.length
+      && definition.backboneBondIds.every((id) => bondIds.has(id));
+    if (!valid) {
+      errors.push({ code: 'unsupported', path: `nucleicAcids.${index}`, message: 'Nucleic-acid definition requires residue and backbone references' });
+      continue;
+    }
+    for (const [residueIndex, residue] of definition.residues.entries()) {
+      const path = `nucleicAcids.${index}.residues.${residueIndex}`;
+      if (!residue.id || residueIds.has(residue.id) || !['A', 'C', 'G', 'T', 'U', 'other'].includes(residue.base) || !['ribose', 'deoxyribose', 'unknown'].includes(residue.sugar) || !Array.isArray(residue.atomIds) || residue.atomIds.length === 0 || residue.atomIds.some((id) => !atomIds.has(id))) {
+        errors.push({ code: 'unsupported', path, message: 'Nucleic-acid residue has invalid identity or atom references' });
+      }
+      residueIds.add(residue.id);
+    }
+    if (definition.residueIds.some((id) => !residueIds.has(id))) errors.push({ code: 'unsupported', path: `nucleicAcids.${index}.residueIds`, message: 'Nucleic-acid residueIds must match residue definitions' });
+  }
   return errors;
+}
+
+/** Serialize the lossless query boundary; special chemistry is never flattened. */
+export function serializeQueryDocument(document: QueryDocument): string {
+  const errors = validateQueryDocument(document);
+  if (errors.length) throw new Error(`Query document cannot be serialized: ${errors.map((error) => error.message).join('; ')}`);
+  return JSON.stringify(document, null, 2);
+}
+
+/** Parse only validated query JSON; callers must handle null as a typed reject. */
+export function parseQueryDocument(text: string): QueryDocument | null {
+  if (text.length > MAX_QUERY_DOCUMENT_TEXT_LENGTH) return null;
+  try {
+    const document = JSON.parse(text) as QueryDocument;
+    return validateQueryDocument(document).length === 0 ? document : null;
+  } catch {
+    return null;
+  }
 }
 
 export function queryDocumentFromMolecule(molecule: MoleculeDto): QueryDocument {

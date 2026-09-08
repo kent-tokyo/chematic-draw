@@ -6,6 +6,7 @@ module.exports = {
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    '^@chematic/contract$': '<rootDir>/../packages/chematic-contract/src/index.ts',
   },
   setupFilesAfterEnv: ['<rootDir>/src/test-setup.ts'],
   transform: {

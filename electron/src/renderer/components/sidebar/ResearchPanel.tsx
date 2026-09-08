@@ -3,8 +3,8 @@ import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
 import { PropertiesDto } from '../../store/types';
 import { copyText } from '../../lib/clipboard';
-import { getIdentifiersCached, getIupacNameCached, getPropertiesCached } from '../../lib/analysisCache';
 import { moleculeStructureKey } from '../../lib/moleculeKey';
+import { runAnalysisInWorker } from '../../lib/analysisWorkerClient';
 
 type ResearchState = { sourceKey: string } & (
   | { status: 'idle' | 'loading' }
@@ -38,29 +38,20 @@ export function ResearchPanel() {
   // distinct, correct message) or for the previous molecule's result.
   useEffect(() => {
     if (activeSidebarPanel !== 'research') return;
-    try {
-      const properties = getPropertiesCached(molecule);
-      let iupacName: string;
-      try {
-        iupacName = getIupacNameCached(molecule);
-      } catch {
-        iupacName = '(unavailable)';
-      }
-      let inchi = '';
-      let inchikey = '';
-      let identifierError: string | undefined;
-      try {
-        ({ inchi, inchikey } = getIdentifiersCached(molecule));
-      } catch (err) {
-        identifierError = err instanceof Error ? err.message : String(err);
-      }
-      // This is the asynchronous boundary where the keyed WASM result enters React state.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setState({ status: 'success', properties, iupacName, inchi, inchikey, identifierError, sourceKey: molKey });
-    } catch (err) {
-      setState({ status: 'error', message: err instanceof Error ? err.message : String(err), sourceKey: molKey });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const currentMolecule = useMoleculeStore.getState().molecule;
+    const controller = new AbortController();
+    void Promise.all([
+      runAnalysisInWorker('properties', currentMolecule, controller.signal),
+      runAnalysisInWorker('iupac', currentMolecule, controller.signal).catch(() => '(unavailable)'),
+      runAnalysisInWorker('identifiers', currentMolecule, controller.signal).catch((err) => ({ error: err instanceof Error ? err.message : String(err) })),
+    ]).then(([properties, iupacName, identifiers]) => {
+      if (controller.signal.aborted) return;
+      const identifierResult = identifiers as { inchi?: string; inchikey?: string; error?: string };
+      setState({ status: 'success', properties: properties as PropertiesDto, iupacName: iupacName as string, inchi: identifierResult.inchi ?? '', inchikey: identifierResult.inchikey ?? '', identifierError: identifierResult.error, sourceKey: molKey });
+    }).catch((err) => {
+      if (!controller.signal.aborted) setState({ status: 'error', message: err instanceof Error ? err.message : String(err), sourceKey: molKey });
+    });
+    return () => controller.abort();
   }, [molKey, activeSidebarPanel]);
 
   const loading = visibleState.status === 'loading' || visibleState.status === 'idle';

@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { measureSchemeLayout } from '../renderer/lib/layoutMetrics';
 import { calculateSchemeLayout } from '../renderer/lib/schemeLayout';
+import { exportSchemeAsSVG } from '../renderer/lib/schemeExport';
 import { ReactionSchemeContext } from '../renderer/store/types';
 
 const fixtureDir = path.join(__dirname, '../renderer/wasm/__fixtures__/golden-svg');
@@ -24,6 +25,14 @@ describe('publication artifact gate', () => {
       { id: 'one', reactants: [], products: [], arrows: [], mechanismType: 'sn2' },
       { id: 'two', reactants: [], products: [], arrows: [], mechanismType: 'sn2' },
     ] };
-    expect(measureSchemeLayout(calculateSchemeLayout(scheme))).toMatchObject({ boxOverlaps: 0, arrowCrossings: 0, clippedBoxes: 0, arrowOverflow: 0 });
+    expect(measureSchemeLayout(calculateSchemeLayout(scheme))).toMatchObject({ boxOverlaps: 0, arrowCrossings: 0, clippedBoxes: 0, arrowOverflow: 0, textOverlaps: 0, textOverflow: 0, invalidGeometry: 0 });
+  });
+
+  it('keeps scheme SVG output byte-identical across repeated exports', () => {
+    const scheme: ReactionSchemeContext = { id: 'stable', title: 'Stable', currentStepIndex: 0, viewMode: 'scheme', steps: [
+      { id: 'one', reactants: [], products: [], arrows: [], mechanismType: 'sn2' },
+    ] };
+    const layout = calculateSchemeLayout(scheme);
+    expect(exportSchemeAsSVG(scheme, layout, null, null)).toBe(exportSchemeAsSVG(scheme, layout, null, null));
   });
 });

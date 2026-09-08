@@ -2,8 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
 import { checkLipinski } from '../../lib/advancedFeatures';
-import { getPropertiesCached } from '../../lib/analysisCache';
 import { moleculeStructureKey } from '../../lib/moleculeKey';
+import { runAnalysisInWorker } from '../../lib/analysisWorkerClient';
 
 type LipinskiRule = { rule: string; value: number; limit: number; violated: boolean };
 type LipinskiState = { sourceKey: string } & (
@@ -30,15 +30,13 @@ export function LipinskiPanel() {
   // The visible state is derived as loading until this keyed result arrives.
   useEffect(() => {
     const currentMolecule = useMoleculeStore.getState().molecule;
-    try {
-      const props = getPropertiesCached(currentMolecule);
-      const results = checkLipinski(props);
-      // This is the asynchronous boundary where the keyed WASM result enters React state.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setState({ status: 'success', violations: results, sourceKey: moleculeKey });
-    } catch (err) {
-      setState({ status: 'error', message: err instanceof Error ? err.message : String(err), sourceKey: moleculeKey });
-    }
+    const controller = new AbortController();
+    void runAnalysisInWorker('properties', currentMolecule, controller.signal)
+      .then((value) => setState({ status: 'success', violations: checkLipinski(value as Parameters<typeof checkLipinski>[0]), sourceKey: moleculeKey }))
+      .catch((err) => {
+        if (!controller.signal.aborted) setState({ status: 'error', message: err instanceof Error ? err.message : String(err), sourceKey: moleculeKey });
+      });
+    return () => controller.abort();
   }, [moleculeKey]);
 
   const violations = visibleState.status === 'success' ? visibleState.violations : null;

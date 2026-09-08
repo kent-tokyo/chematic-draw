@@ -2,9 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
 import { PropertiesDto } from '../../store/types';
-import { predictProperties, PropertyPrediction } from '../../lib/advancedFeatures';
-import { getPropertiesCached } from '../../lib/analysisCache';
+import { formatPredictedProperties, PropertyPrediction } from '../../lib/advancedFeatures';
 import { moleculeStructureKey } from '../../lib/moleculeKey';
+import { runAnalysisInWorker } from '../../lib/analysisWorkerClient';
 
 type PredictionState = { sourceKey: string } & (
   | { status: 'idle' | 'loading' }
@@ -32,15 +32,19 @@ export function PropertyPredictionPanel() {
 
   useEffect(() => {
     const currentMolecule = useMoleculeStore.getState().molecule;
-    try {
-      const molecularProps = getPropertiesCached(currentMolecule);
-      const predictions = predictProperties(currentMolecule);
-      // This is the asynchronous boundary where the keyed WASM result enters React state.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setState({ status: 'success', molecularProps, predictions, sourceKey: moleculeKey });
-    } catch (err) {
-      setState({ status: 'error', message: err instanceof Error ? err.message : String(err), sourceKey: moleculeKey });
-    }
+    const controller = new AbortController();
+    void Promise.all([
+      runAnalysisInWorker('properties', currentMolecule, controller.signal),
+      runAnalysisInWorker('extended-properties', currentMolecule, controller.signal),
+    ])
+      .then(([properties, extendedProperties]) => {
+        const molecularProps = properties as PropertiesDto;
+        setState({ status: 'success', molecularProps, predictions: formatPredictedProperties(extendedProperties as Parameters<typeof formatPredictedProperties>[0]), sourceKey: moleculeKey });
+      })
+      .catch((err) => {
+        if (!controller.signal.aborted) setState({ status: 'error', message: err instanceof Error ? err.message : String(err), sourceKey: moleculeKey });
+      });
+    return () => controller.abort();
   }, [moleculeKey]);
 
   const molecularProps = visibleState.status === 'success' ? visibleState.molecularProps : null;

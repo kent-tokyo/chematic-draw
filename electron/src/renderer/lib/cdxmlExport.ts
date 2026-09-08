@@ -1,6 +1,7 @@
 import { MoleculeDto } from '../store/types';
-import type { CdxmlDocument as ContractCdxmlDocument } from '../../../../packages/chematic-contract/src/index';
+import type { CdxmlDocument as ContractCdxmlDocument, CdxmlLoss as ContractCdxmlLoss } from '../../../../packages/chematic-contract/src/index';
 export type { CdxmlDocument, CdxmlPage, CdxmlText, CdxmlArrow } from '../../../../packages/chematic-contract/src/index';
+export type { CdxmlLoss, CdxmlLossCode } from '../../../../packages/chematic-contract/src/index';
 
 const ELEMENT_ATOMIC_NUMBERS: Record<string, number> = {
   H: 1, He: 2, Li: 3, Be: 4, B: 5, C: 6, N: 7, O: 8, F: 9, Ne: 10,
@@ -13,6 +14,23 @@ function escapeXml(value: string): string {
 }
 
 type CdxmlDocument = ContractCdxmlDocument;
+type CdxmlLoss = ContractCdxmlLoss;
+
+/** Report representational gaps before the supported-subset writer runs. */
+export function cdxmlDocumentLosses(document: CdxmlDocument): CdxmlLoss[] {
+  const losses: CdxmlLoss[] = [];
+  if (!document || !Array.isArray(document.pages) || document.pages.length === 0) return [{ code: 'invalid-page', path: 'pages', message: 'CDXML document must contain at least one page' }];
+  for (const [pageIndex, page] of document.pages.entries()) {
+    const path = `pages.${pageIndex}`;
+    if (!page.id || (page.width !== undefined && (!Number.isFinite(page.width) || page.width <= 0)) || (page.height !== undefined && (!Number.isFinite(page.height) || page.height <= 0))) losses.push({ code: 'invalid-page', path, message: 'Page id and dimensions must be valid' });
+    for (const [atomIndex, atom] of page.molecule.atoms.entries()) {
+      if (atom.wildcard === true) losses.push({ code: 'wildcard-atom', path: `${path}.molecule.atoms.${atomIndex}`, message: 'Wildcard atoms are written as carbon in the CDXML subset' });
+      if (ELEMENT_ATOMIC_NUMBERS[atom.element] === undefined && atom.wildcard !== true) losses.push({ code: 'unsupported-element', path: `${path}.molecule.atoms.${atomIndex}`, message: `CDXML does not support element: ${atom.element}` });
+    }
+    for (const [bondIndex, bond] of page.molecule.bonds.entries()) if (![1, 2, 3, 4].includes(bond.order)) losses.push({ code: 'unsupported-bond', path: `${path}.molecule.bonds.${bondIndex}`, message: `CDXML does not support bond order: ${bond.order}` });
+  }
+  return losses;
+}
 
 function writeFragment(molecule: MoleculeDto): string {
   const idByAtomId = new Map(molecule.atoms.map((atom) => [atom.id, atom.id]));

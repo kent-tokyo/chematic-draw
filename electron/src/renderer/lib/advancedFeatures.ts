@@ -1,9 +1,10 @@
 import { MechanismStep, MoleculeDto, PropertiesDto } from '../store/types';
 import * as wasmBridge from '../wasm/wasmBridge';
-import { getExtendedPropertiesCached, getIdentifiersCached } from './analysisCache';
+import { getExtendedPropertiesCached } from './analysisCache';
+import { runAnalysisInWorker } from './analysisWorkerClient';
 export type { StereoAssignmentDto } from '../wasm/wasmBridge';
 export type { DatabaseResult, LipinskiViolation, PropertyPrediction, StereoisomerResult } from '../../../../packages/chematic-contract/src/index';
-import type { DatabaseResult, LipinskiViolation, PropertyPrediction, StereoisomerResult } from '../../../../packages/chematic-contract/src/index';
+import type { DatabaseResult, ExtendedProperties, LipinskiViolation, PropertyPrediction, StereoisomerResult } from '../../../../packages/chematic-contract/src/index';
 
 // Phase 6: Stereoisomer Enumeration
 export function enumerateStereoisomers(mol: MoleculeDto): StereoisomerResult {
@@ -52,6 +53,17 @@ export function predictProperties(mol: MoleculeDto): PropertyPrediction[] {
   // Use the pinned chematic API: get extended properties
   try {
     const props = getExtendedPropertiesCached(mol);
+    return formatPredictedProperties(props);
+  } catch (e) {
+    // Must not return [] here: an empty predictions array reads as "no
+    // properties to show," not "the calculation failed" — the caller
+    // (PropertyPredictionPanel) has an explicit error state for exactly
+    // this and needs the throw to reach it.
+    throw e instanceof Error ? e : new Error(String(e));
+  }
+}
+
+export function formatPredictedProperties(props: ExtendedProperties): PropertyPrediction[] {
     const predictions: PropertyPrediction[] = [
       {
         property: 'Synthetic Accessibility Score',
@@ -80,13 +92,6 @@ export function predictProperties(mol: MoleculeDto): PropertyPrediction[] {
       },
     ];
     return predictions;
-  } catch (e) {
-    // Must not return [] here: an empty predictions array reads as "no
-    // properties to show," not "the calculation failed" — the caller
-    // (PropertyPredictionPanel) has an explicit error state for exactly
-    // this and needs the throw to reach it.
-    throw e instanceof Error ? e : new Error(String(e));
-  }
 }
 
 // Phase 9: Reaction Mechanism Drawing
@@ -109,7 +114,7 @@ export async function searchDatabase(mol: MoleculeDto, source: 'pubchem' | 'chem
     // (see wasmBridge.molToInchi), so the InChIKey computed here will often not
     // match PubChem's own InChIKey for the same molecule — this lookup can
     // legitimately return no results for a molecule that IS in PubChem.
-    const { inchi, inchikey: inchiKey } = getIdentifiersCached(mol);
+    const { inchi, inchikey: inchiKey } = await runAnalysisInWorker('identifiers', mol, signal) as { inchi: string; inchikey: string };
     if (!inchi || inchi.startsWith('InChI_placeholder')) {
       throw new Error('Failed to generate InChI for molecule');
     }

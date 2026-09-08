@@ -1,4 +1,11 @@
-import { SchematicMoleculeElement, defineSchematicMoleculeElement } from '../../../packages/chematic-web/src/index';
+import { SchematicMoleculeElement, defineSchematicMoleculeElement, renderMoleculeSvg, serializeMolecule } from '../../../packages/chematic-web/src/index';
+import { handleMoleculeWorkerRequest } from '../../../packages/chematic-web/src/worker';
+import { installMoleculeWorker } from '../../../packages/chematic-web/src/worker-entry';
+import { createMoleculeWorkerClient } from '../../../packages/chematic-web/src/workerClient';
+import type { MoleculeWorkerLike } from '../../../packages/chematic-web/src/workerClient';
+import { toSchematicMoleculeElementProps } from '../../../packages/chematic-web/src/react';
+import * as webPackage from '../../../packages/chematic-web/package.json';
+import { applyMoleculeEdit } from '../../../packages/chematic-web/src/editor';
 
 describe('chematic-molecule Web Component', () => {
   beforeAll(() => defineSchematicMoleculeElement());
@@ -21,5 +28,77 @@ describe('chematic-molecule Web Component', () => {
     element.setAttribute('value', '{bad');
     expect(error).toHaveBeenCalledTimes(1);
     expect(element.molecule.atoms).toEqual([]);
+  });
+
+  it('provides deterministic dependency-free serialization and SVG rendering', () => {
+    const molecule = { atoms: [{ id: 1, element: 'C', x: 0, y: 0, charge: 0, atom_map: 0 }], bonds: [] };
+    expect(serializeMolecule(molecule)).toBe(JSON.stringify(molecule));
+    expect(renderMoleculeSvg(molecule)).toBe(renderMoleculeSvg(molecule));
+  });
+
+  it('rejects dangling bond endpoints before rendering', () => {
+    expect(() => serializeMolecule({ atoms: [{ id: 1, element: 'C', x: 0, y: 0, charge: 0, atom_map: 0 }], bonds: [{ id: 1, from: 1, to: 9, order: 1, stereo: 0 }] })).toThrow(/endpoints/);
+  });
+
+  it('keeps the Worker entrypoint DOM- and Electron-independent', () => {
+    const molecule = { atoms: [{ id: 1, element: 'C', x: 0, y: 0, charge: 0, atom_map: 0 }], bonds: [] };
+    expect(handleMoleculeWorkerRequest({ type: 'serialize', molecule })).toEqual({ ok: true, type: 'serialize', value: JSON.stringify(molecule) });
+    expect(handleMoleculeWorkerRequest({ type: 'validate', molecule })).toEqual({ ok: true, type: 'validate', value: '[]' });
+    expect(handleMoleculeWorkerRequest({ type: 'render', molecule })).toMatchObject({ ok: true, type: 'render' });
+    expect(handleMoleculeWorkerRequest({ type: 'render', molecule: { ...molecule, bonds: [{ id: 1, from: 1, to: 9, order: 1, stereo: 0 }] } })).toEqual({ ok: false, error: 'Invalid bond endpoints: 1' });
+  });
+
+  it('publishes explicit Web Component and Worker entrypoints without false tree-shaking metadata', () => {
+    expect(webPackage.exports['./worker']).toEqual({ types: './src/worker.ts', default: './src/worker.ts' });
+    expect(webPackage.exports['./worker-entry']).toEqual({ types: './src/worker-entry.ts', default: './src/worker-entry.ts' });
+    expect(webPackage.exports['./worker-client']).toEqual({ types: './src/workerClient.ts', default: './src/workerClient.ts' });
+    expect(webPackage.exports['./react']).toEqual({ types: './src/react.ts', default: './src/react.ts' });
+    expect(webPackage.exports['./editor']).toEqual({ types: './src/editor.ts', default: './src/editor.ts' });
+    expect(webPackage.dependencies).toEqual({ '@chematic/contract': '1.0.7' });
+    expect(webPackage.private).toBe(true);
+    expect(webPackage.sideEffects).toEqual(['./src/index.ts']);
+  });
+
+  it('adapts React-shaped props without importing React at runtime', () => {
+    const molecule = { atoms: [{ id: 1, element: 'C', x: 0, y: 0, charge: 0, atom_map: 0 }], bonds: [] };
+    expect(toSchematicMoleculeElementProps({ molecule, ariaLabel: 'Carbon', readOnly: true })).toEqual({ value: JSON.stringify(molecule), 'aria-label': 'Carbon', readonly: '' });
+  });
+
+  it('applies immutable headless edits with validation', () => {
+    const molecule = { atoms: [{ id: 1, element: 'C', x: 0, y: 0, charge: 0, atom_map: 0 }], bonds: [] };
+    const edited = applyMoleculeEdit(molecule, { type: 'add-atom', atom: { id: 2, element: 'O', x: 1, y: 0, charge: 0, atom_map: 0 } });
+    expect(edited.atoms).toHaveLength(2);
+    expect(molecule.atoms).toHaveLength(1);
+    expect(() => applyMoleculeEdit(edited, { type: 'add-bond', bond: { id: 1, from: 2, to: 9, order: 1, stereo: 0 } })).toThrow(/rejected/);
+    expect(applyMoleculeEdit(edited, { type: 'remove-atom', atomId: 2 })).toEqual(molecule);
+    expect(() => applyMoleculeEdit(molecule, { type: 'remove-atom', atomId: 9 })).toThrow(/does not exist/);
+    expect(() => applyMoleculeEdit(molecule, { type: 'remove-bond', bondId: 9 })).toThrow(/does not exist/);
+  });
+
+  it('provides abort, timeout, error, and disposal lifecycle for Worker clients', async () => {
+    const postMessage = jest.fn();
+    const terminate = jest.fn();
+    const worker = { postMessage, terminate, onmessage: null, onerror: null } as unknown as MoleculeWorkerLike;
+    const client = createMoleculeWorkerClient(worker, 5);
+    const request = client.request({ type: 'validate', molecule: { atoms: [], bonds: [] } });
+    const message = postMessage.mock.calls[0][0] as { id: string };
+    worker.onmessage!({ data: { id: message.id, ok: true, type: 'validate', value: '[]' } } as MessageEvent);
+    await expect(request).resolves.toBe('[]');
+
+    const controller = new AbortController();
+    const aborted = client.request({ type: 'validate', molecule: { atoms: [], bonds: [] } }, controller.signal);
+    controller.abort();
+    await expect(aborted).rejects.toThrow('aborted');
+    await expect(client.request({ type: 'validate', molecule: { atoms: [], bonds: [] } })).rejects.toThrow('timed out');
+    client.dispose();
+    expect(terminate).toHaveBeenCalledTimes(1);
+    await expect(client.request({ type: 'validate', molecule: { atoms: [], bonds: [] } })).rejects.toThrow('disposed');
+  });
+
+  it('installs the request-ID protocol in a real Worker-shaped scope', () => {
+    const scope = { onmessage: null, postMessage: jest.fn() };
+    installMoleculeWorker(scope);
+    scope.onmessage!({ data: { id: 'm1', type: 'validate', molecule: { atoms: [], bonds: [] } } } as MessageEvent);
+    expect(scope.postMessage).toHaveBeenCalledWith({ id: 'm1', ok: true, type: 'validate', value: '[]' });
   });
 });

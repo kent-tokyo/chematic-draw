@@ -133,6 +133,22 @@ export function toSvg(mol: MoleculeDto): string {
   return wasmModule.to_svg(mol);
 }
 
+export function rxnDocumentFromRxn(text: string): unknown {
+  return JSON.parse(wasmModule.rxn_document_from_rxn(text));
+}
+
+export function rxnDocumentToRxn(document: unknown): string {
+  return wasmModule.rxn_document_to_rxn(JSON.stringify(document));
+}
+
+export function cdxmlDocumentJson(text: string): unknown {
+  return JSON.parse(wasmModule.cdxml_document_json(text));
+}
+
+export function editCdxmlDocumentJson(text: string, edit: unknown): string {
+  return wasmModule.edit_cdxml_document_json(text, JSON.stringify(edit));
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Layout and Structure Analysis
 // ─────────────────────────────────────────────────────────────────────────────

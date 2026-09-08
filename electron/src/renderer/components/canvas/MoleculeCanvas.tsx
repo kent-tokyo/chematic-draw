@@ -10,7 +10,7 @@ import { CanvasRenderer } from './CanvasRenderer';
 import { MoleculeDto, Tool } from '../../store/types';
 import { mergeTemplateIntoMolecule } from '../../lib/templateMerge';
 import { createExtensionHost } from '../../lib/documentCommands';
-import * as wasmBridge from '../../wasm/wasmBridge';
+import { runAnalysisInWorker } from '../../lib/analysisWorkerClient';
 
 const documentCommandHost = createExtensionHost();
 documentCommandHost.register(
@@ -263,7 +263,7 @@ export function MoleculeCanvas() {
     }
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLCanvasElement>) => {
+  const handleDrop = async (e: React.DragEvent<HTMLCanvasElement>) => {
     // Don't allow template drops in full scheme view
     if (scheme?.viewMode === 'scheme') {
       e.preventDefault();
@@ -285,7 +285,7 @@ export function MoleculeCanvas() {
       const worldPos = screenToWorld(screenX, screenY);
 
       // Parse template
-      const templateMol = wasmBridge.parseMolecule(smiles);
+      const templateMol = await runAnalysisInWorker('parse', undefined, undefined, undefined, smiles) as MoleculeDto;
 
       // Calculate centroid
       const centroid = {
@@ -300,7 +300,7 @@ export function MoleculeCanvas() {
       };
 
       pushUndo();
-      const merged = documentCommandHost.execute('core', 'template.insert', molecule, {
+      const merged = documentCommandHost.execute('core', 'template.insert', useMoleculeStore.getState().molecule, {
         template: templateMol,
         offsetX: offset.x,
         offsetY: offset.y,

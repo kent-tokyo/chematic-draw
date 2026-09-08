@@ -14,6 +14,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { ALL_FIXTURES } from '../renderer/wasm/__fixtures__/benchmarkMolecules';
+import { formatCoordsAsXyz } from '../renderer/lib/xyzExport';
 
 let wasm: any;
 
@@ -78,5 +79,16 @@ describe('golden SVG: rendered output matches the committed reference', () => {
     const golden = fs.readFileSync(path.join(goldenDir, `${name}.svg`), 'utf-8');
     const actual = wasm.to_svg(wasm.parse_any(smiles));
     expect(actual).toBe(golden);
+  });
+});
+
+describe('golden 3D export: deterministic XYZ snapshot', () => {
+  it.each(['ethanol', 'benzene'])('generate_3d_coords(%s) matches its committed XYZ snapshot', (name) => {
+    const golden = fs.readFileSync(path.join(__dirname, `../renderer/wasm/__fixtures__/golden-3d/${name}.xyz`), 'utf-8');
+    const molecule = ALL_FIXTURES.find((fixture) => fixture.name === name)!.molecule;
+    const actualCoords = wasm.generate_3d_coords(molecule);
+    const actual = formatCoordsAsXyz(actualCoords);
+    expect(actual).toBe(golden);
+    expect(wasm.generate_3d_coords(molecule)).toEqual(actualCoords);
   });
 });

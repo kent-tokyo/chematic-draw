@@ -1,4 +1,4 @@
-import type { QueryDocument, MarkushDefinition, PolymerDefinition } from './queryDocument';
+import type { NucleicAcidDefinition, QueryDocument, MarkushDefinition, PolymerDefinition } from './queryDocument';
 import { validateQueryDocument } from './queryDocument';
 
 export type MarkushSelection = { definitionId: string; substituentSmarts: string };
@@ -35,6 +35,17 @@ export function editPolymer(document: QueryDocument, id: string, patch: Partial<
   if (!definitions.some((definition) => definition.id === id)) throw new Error(`Unknown polymer definition: ${id}`);
   const next = definitions.map((definition) => definition.id === id ? { ...definition, ...patch, id } : definition);
   const result = { ...document, polymers: next };
+  assertValid(result);
+  return result;
+}
+
+/** Immutable metadata edit; no base-pairing or chemical identity is inferred. */
+export function editNucleicAcid(document: QueryDocument, id: string, patch: Partial<Omit<NucleicAcidDefinition, 'id'>>): QueryDocument {
+  assertValid(document);
+  const definitions = document.nucleicAcids ?? [];
+  if (!definitions.some((definition) => definition.id === id)) throw new Error(`Unknown nucleic-acid definition: ${id}`);
+  const next = definitions.map((definition) => definition.id === id ? { ...definition, ...patch, id } : definition);
+  const result = { ...document, nucleicAcids: next };
   assertValid(result);
   return result;
 }

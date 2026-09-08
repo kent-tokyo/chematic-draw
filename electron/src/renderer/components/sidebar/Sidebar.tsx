@@ -13,6 +13,7 @@ import { PropertyPredictionPanel } from './PropertyPredictionPanel';
 import { MechanismPanel } from './MechanismPanel';
 import { DatabaseSearchPanel } from './DatabaseSearchPanel';
 import { Viewer3DPanel } from './Viewer3DPanel';
+import { NmrSpectrumPanel } from './NmrSpectrumPanel';
 import type { BatchResultSummary } from '../../store/uiStore';
 
 export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultSummary) => Promise<void> | void }) {
@@ -45,13 +46,14 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
     { id: 'properties', shortLabel: language === 'ja' ? '物性' : 'Props', accessibleLabel: language === 'ja' ? '物性予測' : 'Property prediction', icon: 'properties' },
     { id: 'mechanism', shortLabel: language === 'ja' ? '機構' : 'Mech', accessibleLabel: language === 'ja' ? '反応機構' : 'Reaction mechanism', icon: 'mechanism' },
     { id: '3d', shortLabel: '3D', accessibleLabel: language === 'ja' ? '3Dビューア' : '3D viewer', icon: 'database' },
+    { id: 'nmr', shortLabel: 'NMR', accessibleLabel: language === 'ja' ? 'NMRスペクトル' : 'NMR spectrum', icon: 'research' },
     { id: 'database', shortLabel: language === 'ja' ? 'DB検索' : 'DB', accessibleLabel: language === 'ja' ? 'データベース検索' : 'Database search', icon: 'database' },
     { id: 'research', shortLabel: language === 'ja' ? '識別子' : 'Research', accessibleLabel: language === 'ja' ? '研究用識別子' : 'Research identifiers', icon: 'research' },
     { id: 'chat', shortLabel: language === 'ja' ? '相談' : 'Chat', accessibleLabel: language === 'ja' ? 'アシスタントチャット' : 'Assistant chat', icon: 'chat' },
   ];
   const tabGroups = [
     { label: language === 'ja' ? '編集' : language === 'zh' ? '编辑' : 'Edit', ids: ['inspector', 'templates', 'reactions'] },
-    { label: language === 'ja' ? '解析' : language === 'zh' ? '分析' : 'Analyze', ids: ['batch-results', 'stereoisomers', 'lipinski', 'properties', 'mechanism', '3d'] },
+    { label: language === 'ja' ? '解析' : language === 'zh' ? '分析' : 'Analyze', ids: ['batch-results', 'stereoisomers', 'lipinski', 'properties', 'mechanism', '3d', 'nmr'] },
     { label: language === 'ja' ? '連携' : language === 'zh' ? '连接' : 'Connect', ids: ['database', 'research', 'chat'] },
   ];
 
@@ -189,6 +191,7 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
         {activeSidebarPanel === 'properties' && <PropertyPredictionPanel />}
         {activeSidebarPanel === 'mechanism' && <MechanismPanel />}
         {activeSidebarPanel === '3d' && <Viewer3DPanel />}
+        {activeSidebarPanel === 'nmr' && <NmrSpectrumPanel />}
         {activeSidebarPanel === 'database' && <DatabaseSearchPanel />}
         {activeSidebarPanel === 'research' && <ResearchPanel />}
         {activeSidebarPanel === 'chat' && <ChatPanel />}

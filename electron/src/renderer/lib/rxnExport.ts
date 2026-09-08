@@ -22,6 +22,8 @@ export function rxnSchemeV2000Losses(stepCount: number): RxnV2000Loss[] {
 
 type MolWriter = (molecule: MoleculeDto) => string;
 type MolParser = (text: string) => MoleculeDto;
+type DocumentWriter = (document: unknown) => string;
+type DocumentParser = (text: string) => unknown;
 
 /** Bounds applied before RXN blocks are handed to the molecule parser. */
 export const MAX_RXN_TEXT_LENGTH = 10_000_000;
@@ -34,6 +36,38 @@ export function exportRxn(document: RxnDocument, writeMol: MolWriter): string {
   output += `${document.reactants.length.toString().padStart(3)}${document.products.length.toString().padStart(3)}\n`;
   for (const molecule of molecules) output += `$MOL\n${writeMol(molecule)}`;
   return output;
+}
+
+/**
+ * Convert the application's single-step loss-checked document into the
+ * upstream ReactionDocument shape before writing RXN. The caller performs the
+ * existing loss checks first; this adapter deliberately does not flatten
+ * agents, coefficients, or additional steps.
+ */
+export function exportRxnViaDocumentAdapter(document: RxnDocument, writeSmiles: (molecule: MoleculeDto) => string, writeDocument: DocumentWriter): string {
+  const components = [
+    ...document.reactants.map((molecule, index) => ({ id: `reactant-${index + 1}`, role: 'reactant', smiles: writeSmiles(molecule), coefficient: 1, origin: 'authored' })),
+    ...document.products.map((molecule, index) => ({ id: `product-${index + 1}`, role: 'product', smiles: writeSmiles(molecule), coefficient: 1, origin: 'authored' })),
+  ];
+  return writeDocument({
+    id: 'chematic-draw-rxn',
+    steps: [{ id: 'step-1', components, conditions: [], provenance: [], origin: 'authored' }],
+    provenance: [],
+  });
+}
+
+/** Read the upstream loss-aware document and project its one-step subset. */
+export function importRxnViaDocumentAdapter(text: string, parseDocument: DocumentParser, parseSmiles: (smiles: string) => MoleculeDto): RxnDocument {
+  const document = parseDocument(text) as { steps?: Array<{ components?: Array<{ role?: string; smiles?: string; coefficient?: number }> }> };
+  if (!document || !Array.isArray(document.steps) || document.steps.length !== 1) throw new Error('RXN document must contain exactly one reaction step');
+  const components = document.steps[0]?.components ?? [];
+  const reactants = components.filter((component) => component.role === 'reactant').map((component) => parseSmiles(component.smiles ?? ''));
+  const products = components.filter((component) => component.role === 'product').map((component) => parseSmiles(component.smiles ?? ''));
+  if (reactants.length === 0 || products.length === 0) throw new Error('RXN document must contain reactants and products');
+  if (components.some((component) => component.role === 'agent' || component.coefficient !== undefined && component.coefficient !== 1)) {
+    throw new Error('RXN document contains fields not representable by the editor subset');
+  }
+  return { reactants, products };
 }
 
 /** Parse an MDL RXN V2000 document without guessing missing molecule blocks. */

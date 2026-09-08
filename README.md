@@ -15,6 +15,7 @@ ChemDoodle, Ketcher, or ChemSketch.
 - Molecule templates, inspector, undo/redo, autosave, and crash recovery
 - Properties, Lipinski checks, stereoisomer enumeration, and SMARTS search
 - 3D viewer with rotation, zoom, and XYZ export
+- Loss-aware NMR spectrum panel for validated experimental peak data
 - Authored reaction schemes and mechanism arrows with verification diagnostics
 - Batch processing with per-item results, filtering, progress, cancellation,
   and failed-item retry
@@ -31,9 +32,11 @@ Known limitations and the maintained documentation index are in
 [`docs/README.md`](docs/README.md). Chemistry format details are in
 [`docs/INTEROP.md`](docs/INTEROP.md).
 
-The Electron-free public data contract lives in
+The Electron-free public data contract and local `@chematic/web` embedding
+package live in
 [`packages/chematic-contract`](packages/chematic-contract/README.md); it is a
-contract boundary, not yet a published standalone editor library.
+contract boundary. The web package is currently private and has not been
+published to a registry.
 
 If you are moving from another structure editor, see the
 [`migration guide`](docs/MIGRATION.md) and the workflow-based

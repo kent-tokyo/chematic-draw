@@ -77,59 +77,31 @@ const benzene: MoleculeDto = {
 
 ---
 
+Current-schema documents must include valid provenance evidence; only legacy
+unversioned documents use migration defaults.
+
 ## Molecule Operations
 
-### Electron-free Web Component
-
 `packages/chematic-web` exposes the dependency-free `<chematic-molecule>`
-custom element. It accepts a validated contract `Molecule` through its
-`molecule` property or JSON `value` attribute and renders a read-only SVG.
-Invalid attribute data emits `schematic-error` and does not replace the last
-valid molecule. Parsing, editing, WASM analysis, and network access remain
-host responsibilities; this boundary is intentionally not a claim of a full
-browser editor.
+custom element for validated read-only SVG rendering. Its `/editor`, `/react`,
+and `/worker` entrypoints provide immutable atom/bond edits, a React-compatible
+props adapter, and DOM/Electron-free validation, serialization, and SVG
+rendering. These are local v1.0.7 package boundaries; they are not registry-
+published APIs. Parsing, chemistry analysis, and network access remain host
+responsibilities.
 
-### Local Extension API (v0.9.4)
+### Local Extension API (v1.0.7)
 
 Local extensions use the renderer's validated command boundary. A command must
-declare `document:write`; its returned molecule is checked for unique IDs,
-valid atom references, finite coordinates, and supported bond orders before it
-can reach the editor. Analysis providers may declare only `analysis:read` and
-receive a molecule for inspection. There is no implicit file or network access.
-
-```typescript
-const host = createExtensionHost();
-host.register(
-  { id: 'example-tools', version: '1.0.0', api_version: 1, permissions: ['analysis:read'] },
-  [],
-  [{ id: 'atom-count', description: 'Count atoms', analyze: (mol) => mol.atoms.length }]
-);
-const count = host.analyze('example-tools', 'atom-count', molecule);
-```
-
-Unknown IDs, duplicate registrations, missing permissions, and invalid command
-results are rejected. Import/export permissions are reserved for explicit
-adapters; future plugin loading must preserve this boundary and add an
-explicit schema migration before changing the API contract.
+declare `document:write`; its returned molecule is checked before it reaches
+the editor. Analysis providers may declare only `analysis:read`. There is no
+implicit file or network access.
 
 ### Session bundle schema (v2)
 
-`serializeSessionBundle` writes the `chematic-draw/session-bundle` v2 envelope
-with `document.schema_version: 1`. `parseSessionBundle` accepts v1 bundles and
-migrates their top-level `molecule` into the current document envelope in
-memory. Unknown future bundle versions, malformed molecules, and provenance
-hash mismatches are rejected; source files are never rewritten implicitly.
-Molecule documents are also bounded to 100,000 atoms and 200,000 bonds, with
-integer validation for charges, map numbers, isotopes, hydrogen counts, and
-bond stereo values before extension commands or session imports run. Session
-bundle JSON is limited to 10,000,000 characters before parsing; its source path
-is limited to 4,096 characters and its schema/provenance metadata is validated.
-Versioned reaction-document JSON is likewise limited to 10,000,000 characters
-and 256 steps, and malformed step arrays or molecule DTOs are rejected rather
-than replaced with empty defaults. Conditions and mechanism arrows are checked
-for bounded values, supported types, and references to atoms in the same step.
-Current-schema documents must include valid provenance evidence; only legacy
-unversioned documents use migration defaults.
+`serializeSessionBundle` writes the `chematic-draw/session-bundle` v2 envelope;
+`parseSessionBundle` accepts v1 and migrates it in memory. Unknown future
+versions, malformed molecules, and provenance mismatches are rejected.
 
 ### Reaction document integrity
 
@@ -226,7 +198,7 @@ const smiles = wasmBridge.toCanonicalSmiles(mol);
 
 Per ROADMAP v0.2.1's scientific capability audit: every calculated property
 below lists the real algorithm and its source, sourced by reading
-chematic 1.0.6's own doc comments and implementation, not assumed from
+chematic 1.0.9's own doc comments and implementation, not assumed from
 the property name. "Domain" notes when a property is unreliable or undefined
 outside typical drug-like organic molecules.
 
@@ -616,7 +588,7 @@ try {
 
 ## Version Support
 
-- **chematic**: 1.0.6 (workspace Git tag `v1.0.6` in `Cargo.toml`)
+- **chematic**: 1.0.9 (workspace Git tag `v1.0.9` in `Cargo.toml`)
 - **wasm-bindgen**: 0.2.x
 - **Node.js**: 24+ (`electron/package.json`'s `engines.node`; matches CI)
 - **Browsers**: whatever Chromium ships in the pinned Electron version (see `electron/package.json`'s `electron` devDependency) — this app runs inside Electron, not an arbitrary browser

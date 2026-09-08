@@ -39,7 +39,7 @@ interface UIStoreState extends UIState {
   setLanguage: (lang: AppLanguage) => void;
   setSidebarOpen: (open: boolean) => void;
   setSidebarWidth: (width: number) => void;
-  setActiveSidebarPanel: (panel: 'inspector' | 'templates' | 'chat' | 'research' | 'reactions' | 'batch-results' | 'stereoisomers' | 'lipinski' | 'properties' | 'mechanism' | 'database' | '3d') => void;
+  setActiveSidebarPanel: (panel: 'inspector' | 'templates' | 'chat' | 'research' | 'reactions' | 'batch-results' | 'stereoisomers' | 'lipinski' | 'properties' | 'mechanism' | 'database' | '3d' | 'nmr') => void;
   setSelectedAtomIdForInspector: (id: number | null) => void;
   setSelectedBondIdForInspector: (id: number | null) => void;
   setFocusMode: (enabled: boolean) => void;
