@@ -2,12 +2,30 @@
 
 [日本語](README_ja.md) · [简体中文](README_zh.md)
 
+[![CI](https://github.com/kent-tokyo/chematic-draw/actions/workflows/test.yml/badge.svg)](https://github.com/kent-tokyo/chematic-draw/actions/workflows/test.yml)
+[![Docs](https://img.shields.io/badge/docs-documentation-2563eb)](docs/README.md)
+
 An open-source, offline-first chemical structure editor for Windows, macOS,
-and Linux. The desktop application is built with Electron and React; chemistry
-operations run in the Rust/WASM bridge at [`crates/chem-wasm`](crates/chem-wasm).
+and Linux. Draw molecules and reaction schemes with a mouse or keyboard,
+check chemical properties locally, and export clean structure diagrams for
+reports, teaching materials, and research notes. The desktop application is
+built with Electron and React; chemistry operations run in the Rust/WASM bridge
+at [`crates/chem-wasm`](crates/chem-wasm).
 
 The project is experimental and is not yet a drop-in replacement for ChemDraw,
 ChemDoodle, Ketcher, or ChemSketch.
+
+## Who it is for
+
+chematic-draw is for students, researchers, teachers, and developers who want
+a simple chemical structure drawing app without an account or a mandatory
+cloud service. It is useful for drawing a molecule for a lab report, preparing
+a lecture slide, checking a SMILES string, sketching a reaction mechanism, or
+converting a structure between common chemistry file formats.
+
+For a quick browser trial, open the [Chematic Draw Playground](electron/playground.html).
+For local work, install the desktop app from the [release downloads](https://github.com/kent-tokyo/chematic-draw/releases)
+or build it from source below.
 
 ## Features
 
@@ -24,9 +42,27 @@ ChemDoodle, Ketcher, or ChemSketch.
 - PubChem lookup by generated InChIKey (network access is required)
 - English, Japanese, and Simplified Chinese UI, with dark mode
 
+The main workflow is local-first: molecule editing, parsing, properties,
+SMARTS matching, and most exports do not require an internet connection.
+PubChem lookup is the exception and requires network access.
+
 Try the browser-only [Chematic Draw Playground](electron/playground.html) to
 edit a molecule, inspect its 2D structure, and export SMILES or SVG without
 installing the desktop app.
+
+## Common tasks
+
+- **Draw a chemical structure:** use the canvas, templates, element tools, and
+  keyboard shortcuts, then inspect formula, molecular weight, and Lipinski
+  properties.
+- **Prepare a reaction scheme:** add steps, conditions, stoichiometric
+  coefficients, agents, component identities, and mechanism arrows. The app
+  reports mapping, balance, and continuity diagnostics from authored data.
+- **Export for documents:** use SVG, PNG, or PDF for figures, or SMILES, MOL,
+  SDF, CML, and the supported CDXML subset for data exchange.
+- **Work offline:** use the desktop editor and local Rust/WASM chemistry
+  engine without uploading structures. See the [interoperability matrix](docs/INTEROP.md)
+  before moving a production corpus.
 
 Known limitations and the maintained documentation index are in
 [`docs/README.md`](docs/README.md). Chemistry format details are in

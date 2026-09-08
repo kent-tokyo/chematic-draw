@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync, renameS
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import { svgPageSizeInches } from './lib/svgPageSize';
+import { isSafeSvgForPdf } from './lib/pdfExportContract';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -76,9 +77,6 @@ const readImportText = (filePath) => {
   if (fileSize > MAX_IMPORT_TEXT_BYTES) throw new Error('File read rejected an oversized input.');
   return readFileSync(filePath, 'utf-8');
 };
-const isSafeSvgForPdf = (svgText) => /^\s*(?:<\?xml\b[^>]*>\s*)?<svg\b/i.test(svgText)
-  && !/<\s*(?:script|iframe|object|embed|foreignObject)\b/i.test(svgText)
-  && !/\bon[a-z][\w:-]*\s*=|\b(?:href|src)\s*=\s*["']\s*(?:https?:|\/\/|javascript:)/i.test(svgText);
 const isSafeSettingsKey = (key) => typeof key === 'string' && ALLOWED_SETTINGS_KEYS.has(key);
 const isSafeSettingsValue = (key, value) => {
   if (key === 'theme') return value === 'dark' || value === 'light';

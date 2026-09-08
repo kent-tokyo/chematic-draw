@@ -1,9 +1,9 @@
 # Search and discoverability plan
 
-This project does not currently ship a public marketing website. The README
-and documentation therefore act as the canonical, crawlable product entry
-points. This plan keeps search content useful for people who are evaluating or
-migrating a chemical structure editor.
+This project does not currently ship a public marketing website. The README,
+desktop entry HTML, and browser playground therefore act as the canonical,
+crawlable product entry points. This plan keeps search content useful for
+people who are evaluating or migrating a chemical structure editor.
 
 ## Canonical positioning
 
@@ -29,6 +29,20 @@ migrating a chemical structure editor.
 | Check file compatibility | `docs/INTEROP.md` | Read/write/round-trip matrix and known loss |
 | Use SMARTS/query features | `docs/API.md` and `docs/INTEROP.md` | Supported query contract and rejection behavior |
 | Assess release safety | `docs/RELEASE_READINESS.md` and `SECURITY.md` | Evidence, signing, and external dependencies |
+
+## Metadata for the current entry points
+
+The repository now implements the user-facing positioning in the README files:
+they lead with molecule/reaction drawing, local property checks, document
+export, target users, and the browser trial. The wording remains deliberately
+bounded by the support matrix and known limitations.
+
+The desktop entrypoint uses:
+
+```text
+Title: chematic-draw — Open-source chemical structure editor
+Description: Open-source offline-first chemical structure editor for Windows, macOS, and Linux. Draw molecules and reaction schemes, inspect properties, and export SVG, PNG, PDF, SMILES, MOL, and SDF.
+```
 
 ## Metadata for the browser playground
 

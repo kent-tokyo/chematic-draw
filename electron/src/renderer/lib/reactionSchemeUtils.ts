@@ -10,28 +10,41 @@ import type { ValidationResult } from '../../../../packages/chematic-contract/sr
 type ReactionDiagnostics = ContractReactionDiagnostics;
 
 function atomBalanceForStep(step: MechanismStep): { balanced: boolean; differences: string[]; chargeDifference: number } {
-  const countAtoms = (molecules: MoleculeDto[]) => {
+  const coefficientsFor = (coefficients: number[] | undefined, moleculeCount: number) => {
+    if (coefficients === undefined) return { values: Array.from({ length: moleculeCount }, () => 1), valid: true };
+    return {
+      values: coefficients,
+      valid: coefficients.length === moleculeCount && coefficients.every((coefficient) => Number.isFinite(coefficient) && coefficient > 0),
+    };
+  };
+  const reactantCoefficients = coefficientsFor(step.reactantCoefficients, step.reactants.length);
+  const productCoefficients = coefficientsFor(step.productCoefficients, step.products.length);
+  const countAtoms = (molecules: MoleculeDto[], coefficients: number[]) => {
     const counts = new Map<string, number>();
-    for (const molecule of molecules) {
+    molecules.forEach((molecule, moleculeIndex) => {
+      const coefficient = coefficients[moleculeIndex] ?? 0;
       for (const atom of molecule.atoms) {
         const key = atom.isotope === undefined ? atom.element : `${atom.isotope}${atom.element}`;
-        counts.set(key, (counts.get(key) ?? 0) + 1);
+        counts.set(key, (counts.get(key) ?? 0) + coefficient);
         if (atom.hydrogen_count !== undefined) {
-          counts.set('H', (counts.get('H') ?? 0) + atom.hydrogen_count);
+          counts.set('H', (counts.get('H') ?? 0) + coefficient * atom.hydrogen_count);
         }
       }
-    }
+    });
     return counts;
   };
-  const reactants = countAtoms(step.reactants);
-  const products = countAtoms(step.products);
+  const reactants = countAtoms(step.reactants, reactantCoefficients.values);
+  const products = countAtoms(step.products, productCoefficients.values);
   const elements = new Set([...reactants.keys(), ...products.keys()]);
   const differences = [...elements].sort().flatMap((element) => {
     const delta = (reactants.get(element) ?? 0) - (products.get(element) ?? 0);
-    return delta === 0 ? [] : [`${element}: ${delta > 0 ? `${delta} extra on reactants` : `${Math.abs(delta)} missing from reactants`}`];
+    const normalizedDelta = Math.abs(delta) < 1e-9 ? 0 : Number(delta.toFixed(9));
+    return normalizedDelta === 0 ? [] : [`${element}: ${normalizedDelta > 0 ? `${normalizedDelta} extra on reactants` : `${Math.abs(normalizedDelta)} missing from reactants`}`];
   });
-  const reactantCharge = step.reactants.flatMap((molecule) => molecule.atoms).reduce((sum, atom) => sum + atom.charge, 0);
-  const productCharge = step.products.flatMap((molecule) => molecule.atoms).reduce((sum, atom) => sum + atom.charge, 0);
+  if (!reactantCoefficients.valid) differences.push('Reactant coefficients must be positive finite values matching the reactant count.');
+  if (!productCoefficients.valid) differences.push('Product coefficients must be positive finite values matching the product count.');
+  const reactantCharge = step.reactants.reduce((sum, molecule, moleculeIndex) => sum + molecule.atoms.reduce((moleculeSum, atom) => moleculeSum + atom.charge, 0) * (reactantCoefficients.values[moleculeIndex] ?? 0), 0);
+  const productCharge = step.products.reduce((sum, molecule, moleculeIndex) => sum + molecule.atoms.reduce((moleculeSum, atom) => moleculeSum + atom.charge, 0) * (productCoefficients.values[moleculeIndex] ?? 0), 0);
   return { balanced: differences.length === 0, differences, chargeDifference: reactantCharge - productCharge };
 }
 

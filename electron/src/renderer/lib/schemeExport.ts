@@ -170,6 +170,20 @@ export function importSchemeFromJSON(jsonString: string): ReactionSchemeContext 
   }
 }
 
+/** SVG visual presets; screen is retained as the compatibility default. */
+export type SchemeSvgPreset = 'screen' | 'journal';
+export interface SchemeSvgOptions { preset?: SchemeSvgPreset; }
+
+function escapeXmlText(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&apos;',
+  }[character] ?? character));
+}
+
 /**
  * Export scheme as SVG image
  */
@@ -177,23 +191,29 @@ export function exportSchemeAsSVG(
   scheme: ReactionSchemeContext,
   schemeLayout: SchemeLayout,
   atomMappings: AtomMapping | null,
-  greenMetrics: GreenChemistryMetrics | null
+  greenMetrics: GreenChemistryMetrics | null,
+  options: SchemeSvgOptions = {}
 ): string {
+  const style = options.preset === 'journal'
+    ? { fontFamily: 'Arial, Helvetica, sans-serif', boxFill: '#ffffff', ink: '#111111', muted: '#333333', accent: '#111111', strokeWidth: '1.4' }
+    : { fontFamily: 'Arial, Helvetica, sans-serif', boxFill: '#f9f9f9', ink: '#333333', muted: '#666666', accent: '#666666', strokeWidth: '2' };
   const width = schemeLayout.canvasWidth + 40;
   const height = schemeLayout.canvasHeight + 200;
+  const title = escapeXmlText(scheme.title || 'Reaction Scheme');
 
   let svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
   <defs>
     <style>
-      .step-box { fill: #f9f9f9; stroke: #333; stroke-width: 2; }
-      .step-title { font-size: 14px; font-weight: bold; fill: #333; }
-      .step-text { font-size: 10px; fill: #666; }
-      .arrow-line { stroke: #666; stroke-width: 2; fill: none; }
-      .arrow-head { fill: #666; }
+      .step-box { fill: ${style.boxFill}; stroke: ${style.ink}; stroke-width: ${style.strokeWidth}; }
+      .step-title { font-size: 14px; font-weight: bold; fill: ${style.ink}; }
+      .step-text { font-size: 10px; fill: ${style.muted}; }
+      .arrow-line { stroke: ${style.accent}; stroke-width: ${style.strokeWidth}; fill: none; }
+      .arrow-head { fill: ${style.accent}; }
       .atom-label { font-size: 10px; font-weight: bold; }
-      .legend-label { font-size: 11px; fill: #333; }
-      .metric-text { font-size: 11px; fill: #333; }
+      .legend-label { font-size: 11px; fill: ${style.ink}; }
+      .metric-text { font-size: 11px; fill: ${style.ink}; }
+      text { font-family: ${style.fontFamily}; }
     </style>
   </defs>
 
@@ -202,7 +222,7 @@ export function exportSchemeAsSVG(
 
   <!-- Title -->
   <text x="20" y="25" class="legend-label" style="font-size: 16px; font-weight: bold;">
-    ${scheme.title || 'Reaction Scheme'}
+    ${title}
   </text>
 
   <!-- Step Boxes -->

@@ -3,6 +3,24 @@
 Notable changes to chematic-draw. Dates use ISO 8601 format. See the git log
 for the full development history.
 
+## [1.0.8] - 2026-09-08
+
+### Added
+
+- Added publication-oriented SVG presets, deterministic export checks, XML
+  text escaping, and bounded PDF page-size and SVG safety contracts.
+- Added reaction step reordering, positive stoichiometric coefficient editing,
+  Worker-validated agent SMILES input, and component identity editing.
+- Added coefficient-aware atom and formal-charge diagnostics plus fail-closed
+  reaction JSON export validation.
+- Expanded user-facing README, multilingual onboarding copy, and SEO metadata.
+
+### Validation
+
+- TypeScript typecheck, ESLint, Jest (40 suites, 310 passed, 6 skipped), and
+  `git diff --check` pass locally. The focused Reaction Renderer E2E suite
+  passes 7 tests.
+
 ## [1.0.7] - 2026-09-08
 
 ### Added
@@ -363,6 +381,7 @@ for the full development history.
 [0.8.0]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.8.0
 [0.9.4]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.9.4
 [1.0.7]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v1.0.7
+[1.0.8]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v1.0.8
 [0.9.3]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.9.3
 [0.9.1]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.9.1
 [0.9.0]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.9.0

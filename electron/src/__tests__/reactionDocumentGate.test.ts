@@ -31,8 +31,18 @@ describe('multi-step reaction document gate', () => {
     invalid.steps[0].reactantCoefficients = [0];
     invalid.steps[0].productCoefficients = [Number.NaN, 1];
     expect(validateReactionDocument(invalid)).toEqual([
-      { code: 'coefficient', path: 'steps.0.reactantCoefficients', message: 'Stoichiometric coefficients must be finite positive numbers' },
+      { code: 'coefficient', path: 'steps.0.reactantCoefficients', message: 'Stoichiometric coefficients must be finite positive numbers no greater than 1000000' },
       { code: 'coefficient', path: 'steps.0.productCoefficients', message: 'Stoichiometric coefficients must align with molecule arrays' },
+    ]);
+  });
+
+  it('rejects malformed component identities and oversized coefficients', () => {
+    const invalid = corpus(1);
+    invalid.steps[0].reactantComponentIds = [''];
+    invalid.steps[0].productCoefficients = [1_000_001];
+    expect(validateReactionDocument(invalid)).toEqual([
+      { code: 'component-id', path: 'steps.0.reactantsComponentIds', message: 'Component IDs must be non-empty strings of at most 256 characters' },
+      { code: 'coefficient', path: 'steps.0.productCoefficients', message: 'Stoichiometric coefficients must be finite positive numbers no greater than 1000000' },
     ]);
   });
 

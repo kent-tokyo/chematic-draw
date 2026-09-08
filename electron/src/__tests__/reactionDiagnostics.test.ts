@@ -52,6 +52,26 @@ describe('reaction diagnostics', () => {
     expect(result.issues).toContain('Step 1: formal charge is not balanced (1 extra charge on reactants).');
   });
 
+  it('uses authored stoichiometric coefficients for atom and charge balance', () => {
+    const weighted = scheme('C', 'C');
+    weighted.steps[0].reactantCoefficients = [2];
+    weighted.steps[0].productCoefficients = [1];
+    const result = diagnoseReactionScheme(weighted);
+    expect(result.status).toBe('not_verified');
+    expect(result.atomBalance.differences).toContain('Step 1: C: 1 extra on reactants');
+
+    weighted.steps[0].productCoefficients = [2];
+    expect(diagnoseReactionScheme(weighted).status).toBe('verified');
+  });
+
+  it('rejects malformed authored coefficient vectors', () => {
+    const malformed = scheme('C', 'C');
+    malformed.steps[0].reactantCoefficients = [0];
+    const result = diagnoseReactionScheme(malformed);
+    expect(result.status).toBe('not_verified');
+    expect(result.atomBalance.differences).toContain('Step 1: Reactant coefficients must be positive finite values matching the reactant count.');
+  });
+
   it('detects isotope and explicit hydrogen inventory differences', () => {
     const isotopeChange = scheme('C', 'C');
     isotopeChange.steps[0].reactants[0].atoms[0].isotope = 13;

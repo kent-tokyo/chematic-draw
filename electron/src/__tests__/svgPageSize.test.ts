@@ -10,4 +10,9 @@ describe('svgPageSizeInches', () => {
     const svg = '<svg xmlns="http://www.w3.org/2000/svg">...</svg>';
     expect(svgPageSizeInches(svg)).toEqual({ width: 600 / 96, height: 400 / 96 });
   });
+
+  it('falls back when authored dimensions are outside the safe print range', () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="10000000">...</svg>';
+    expect(svgPageSizeInches(svg)).toEqual({ width: 600 / 96, height: 400 / 96 });
+  });
 });

@@ -3,11 +3,15 @@ import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
 import { executeReaction, SMIRKS_TEMPLATES } from '../../lib/reactions';
 import { useReactionSchemeStore } from '../../store/reactionSchemeStore';
-import { MechanismStep, ReactionCondition } from '../../store/types';
-import { exportSchemeAsJSON, importSchemeFromJSON, exportSchemeAsSVG, exportSchemeAsCSV } from '../../lib/schemeExport';
+import { MechanismStep, MoleculeDto, ReactionCondition } from '../../store/types';
+import { exportSchemeAsJSON, importSchemeFromJSON, exportSchemeAsSVG, exportSchemeAsCSV, SchemeSvgPreset } from '../../lib/schemeExport';
 import { exportRxnViaDocumentAdapter, importRxnViaDocumentAdapter, rxnSchemeV2000Losses, rxnV2000Losses } from '../../lib/rxnExport';
+import { assertPublicationLayout } from '../../lib/layoutMetrics';
+import { runAnalysisInWorker } from '../../lib/analysisWorkerClient';
 import * as wasmBridge from '../../wasm/wasmBridge';
 import { exportLossMessage, exportLosses } from '../../lib/exportLoss';
+import { parseComponentIds } from '../../lib/reactionComponentEditor';
+import { assertReactionDocument } from '../../lib/reactionDocumentGate';
 
 export function ReactionPanel() {
   const theme = useUIStore((s) => s.theme);
@@ -18,6 +22,10 @@ export function ReactionPanel() {
   const [reactionError, setReactionError] = useState<string>('');
   const [status, setStatus] = useState<string>('');
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [svgPreset, setSvgPreset] = useState<SchemeSvgPreset>('journal');
+  const [agentDrafts, setAgentDrafts] = useState<Record<string, string>>({});
+  const [coefficientDrafts, setCoefficientDrafts] = useState<Record<string, string>>({});
+  const [componentIdDrafts, setComponentIdDrafts] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const schemeLayout = useReactionSchemeStore((s) => s.schemeLayout);
   const isJapanese = language === 'ja';
@@ -30,6 +38,7 @@ export function ReactionPanel() {
   const updateSchemeInfo = useReactionSchemeStore((s) => s.updateSchemeInfo);
   const addStepToScheme = useReactionSchemeStore((s) => s.addStep);
   const removeStepFromScheme = useReactionSchemeStore((s) => s.removeStep);
+  const reorderSteps = useReactionSchemeStore((s) => s.reorderSteps);
   const updateStep = useReactionSchemeStore((s) => s.updateStep);
   const getCurrentStep = useReactionSchemeStore((s) => s.getCurrentStep);
   const nextStep = useReactionSchemeStore((s) => s.nextStep);
@@ -78,6 +87,14 @@ export function ReactionPanel() {
     removeStepFromScheme(stepId);
   };
 
+  const handleMoveStep = (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (target < 0 || target >= scheme.steps.length) return;
+    const indices = scheme.steps.map((_, stepIndex) => stepIndex);
+    [indices[index], indices[target]] = [indices[target], indices[index]];
+    reorderSteps(indices);
+  };
+
   const handleUpdateConditions = (stepId: string, conditions: Partial<ReactionCondition>) => {
     const step = scheme?.steps.find((s) => s.id === stepId);
     if (step) {
@@ -87,6 +104,61 @@ export function ReactionPanel() {
 
   const handleArrowTypeChange = (stepId: string, arrowType: 'single' | 'double' | 'equilibrium' | 'retro') => {
     updateStep(stepId, { arrowType });
+  };
+
+  const commitCoefficients = (stepId: string, role: 'reactant' | 'product', value: string) => {
+    const coefficients = value.split(',').map((item) => item.trim()).filter(Boolean).map(Number);
+    if (value.trim() && coefficients.some((coefficient) => !Number.isFinite(coefficient) || coefficient <= 0)) return;
+    updateStep(stepId, role === 'reactant' ? { reactantCoefficients: coefficients } : { productCoefficients: coefficients });
+    setCoefficientDrafts((drafts) => {
+      const next = { ...drafts };
+      delete next[`${stepId}:${role}`];
+      return next;
+    });
+  };
+
+  const handleAddAgent = async (stepId: string) => {
+    const smiles = agentDrafts[stepId]?.trim();
+    if (!smiles) return;
+    try {
+      const agent = await runAnalysisInWorker('parse', undefined, undefined, undefined, smiles) as MoleculeDto;
+      const step = scheme.steps.find((candidate) => candidate.id === stepId);
+      if (!step) return;
+      updateStep(stepId, {
+        agents: [...(step.agents ?? []), agent],
+        agentComponentIds: [...(step.agentComponentIds ?? []), `agent-${Date.now()}`],
+      });
+      setAgentDrafts((drafts) => ({ ...drafts, [stepId]: '' }));
+    } catch (error) {
+      setStatus(`${isJapanese ? '反応剤SMILESが不正です' : 'Invalid agent SMILES'}: ${(error as Error).message}`);
+    }
+  };
+
+  const commitComponentIds = (stepId: string, role: 'reactant' | 'product' | 'agent', value: string) => {
+    const step = scheme.steps.find((candidate) => candidate.id === stepId);
+    if (!step) return;
+    const expectedCount = role === 'reactant'
+      ? step.reactants.length
+      : role === 'product'
+        ? step.products.length
+        : (step.agents ?? []).length;
+    const ids = parseComponentIds(value, expectedCount);
+    if (ids === null) {
+      setStatus(isJapanese
+        ? `${role === 'reactant' ? '反応物' : role === 'product' ? '生成物' : '反応剤'}の識別子は${expectedCount}件の一意な値で指定してください`
+        : `${role} component IDs must contain exactly ${expectedCount} unique value(s)}`);
+      return;
+    }
+    updateStep(stepId, role === 'reactant'
+      ? { reactantComponentIds: ids }
+      : role === 'product'
+        ? { productComponentIds: ids }
+        : { agentComponentIds: ids });
+    setComponentIdDrafts((drafts) => {
+      const next = { ...drafts };
+      delete next[`${stepId}:${role}`];
+      return next;
+    });
   };
 
   const molecule = useMoleculeStore((s) => s.molecule);
@@ -155,26 +227,37 @@ export function ReactionPanel() {
 
   // Export/Import handlers.
   const handleExportJSON = () => {
-    const json = exportSchemeAsJSON(
-      scheme,
-      useReactionSchemeStore.getState().atomMappings,
-      useReactionSchemeStore.getState().reactionClassification,
-      useReactionSchemeStore.getState().greenMetrics
-    );
-    downloadFile(json, `${scheme.title || 'scheme'}_export.json`, 'application/json');
-    setStatus(isJapanese ? 'JSONとして出力しました' : 'Exported as JSON');
+    try {
+      assertReactionDocument(scheme);
+      const json = exportSchemeAsJSON(
+        scheme,
+        useReactionSchemeStore.getState().atomMappings,
+        useReactionSchemeStore.getState().reactionClassification,
+        useReactionSchemeStore.getState().greenMetrics
+      );
+      downloadFile(json, `${scheme.title || 'scheme'}_export.json`, 'application/json');
+      setStatus(isJapanese ? 'JSONとして出力しました' : 'Exported as JSON');
+    } catch (error) {
+      setStatus(isJapanese ? `JSON出力を停止しました: ${(error as Error).message}` : `JSON export blocked: ${(error as Error).message}`);
+    }
   };
 
   const handleExportSVG = () => {
     if (!schemeLayout) return;
-    const svg = exportSchemeAsSVG(
-      scheme,
-      schemeLayout,
-      useReactionSchemeStore.getState().atomMappings,
-      useReactionSchemeStore.getState().greenMetrics
-    );
-    downloadFile(svg, `${scheme.title || 'scheme'}_diagram.svg`, 'image/svg+xml');
-    setStatus(isJapanese ? 'SVGとして出力しました' : 'Exported as SVG');
+    try {
+      assertPublicationLayout(schemeLayout);
+      const svg = exportSchemeAsSVG(
+        scheme,
+        schemeLayout,
+        useReactionSchemeStore.getState().atomMappings,
+        useReactionSchemeStore.getState().greenMetrics,
+        { preset: svgPreset }
+      );
+      downloadFile(svg, `${scheme.title || 'scheme'}_diagram.svg`, 'image/svg+xml');
+      setStatus(isJapanese ? 'SVGとして出力しました' : 'Exported as SVG');
+    } catch (error) {
+      setStatus(isJapanese ? `SVG出力を停止しました: ${(error as Error).message}` : `SVG export blocked: ${(error as Error).message}`);
+    }
   };
 
   const handleExportCSV = () => {
@@ -334,6 +417,13 @@ export function ReactionPanel() {
                 <button onClick={handleExportSVG} style={{ padding: '4px 6px', fontSize: '9px', ...buttonStyle }}>
                   {isJapanese ? 'SVG画像' : 'SVG Image'}
                 </button>
+                <label style={{ fontSize: '9px', color: labelColor }}>
+                  {isJapanese ? '出版スタイル' : 'Publication style'}
+                  <select aria-label={isJapanese ? '出版スタイル' : 'Publication style'} value={svgPreset} onChange={(event) => setSvgPreset(event.target.value as SchemeSvgPreset)} style={{ marginLeft: '4px', fontSize: '9px' }}>
+                    <option value="journal">{isJapanese ? '論文（モノクロ）' : 'Journal (monochrome)'}</option>
+                    <option value="screen">{isJapanese ? '画面表示' : 'Screen'}</option>
+                  </select>
+                </label>
                 <button onClick={handleExportRXN} style={{ padding: '4px 6px', fontSize: '9px', ...buttonStyle }}>
                   {isJapanese ? 'RXN V2000（単一ステップ）' : 'RXN V2000 (single step)'}
                 </button>
@@ -408,6 +498,7 @@ export function ReactionPanel() {
               >
                 ← Prev
               </button>
+
               <button
                 onClick={() => nextStep()}
                 disabled={!canGoNext()}
@@ -662,6 +753,22 @@ export function ReactionPanel() {
                 <span>{expandedStepId === step.id ? '▼' : '▶'}</span>
               </button>
 
+              <div style={{ display: 'flex', gap: '3px', padding: '4px 8px', backgroundColor: inputBg, borderTop: `1px solid ${borderColor}` }}>
+                <button
+                  aria-label={isJapanese ? `ステップ${idx + 1}を上へ移動` : `Move step ${idx + 1} up`}
+                  disabled={idx === 0}
+                  onClick={() => handleMoveStep(idx, -1)}
+                  style={{ padding: '2px 6px', fontSize: '9px', cursor: idx === 0 ? 'not-allowed' : 'pointer', opacity: idx === 0 ? 0.5 : 1 }}
+                >↑</button>
+                <button
+                  aria-label={isJapanese ? `ステップ${idx + 1}を下へ移動` : `Move step ${idx + 1} down`}
+                  disabled={idx === scheme.steps.length - 1}
+                  onClick={() => handleMoveStep(idx, 1)}
+                  style={{ padding: '2px 6px', fontSize: '9px', cursor: idx === scheme.steps.length - 1 ? 'not-allowed' : 'pointer', opacity: idx === scheme.steps.length - 1 ? 0.5 : 1 }}
+                >↓</button>
+                <span style={{ fontSize: '9px', color: labelColor, alignSelf: 'center' }}>{isJapanese ? '順序' : 'Order'}</span>
+              </div>
+
               {/* Step Details */}
               {expandedStepId === step.id && (
                 <div style={{ padding: '8px', backgroundColor: theme === 'dark' ? '#1e2530' : '#f9f9f9', borderTop: `1px solid ${borderColor}` }}>
@@ -691,6 +798,69 @@ export function ReactionPanel() {
                         </button>
                       ))}
                     </div>
+                  </div>
+
+                  {/* Temperature */}
+                  <div style={{ marginBottom: '8px' }}>
+                    <label style={{ fontSize: '10px', color: labelColor, display: 'block' }}>{isJapanese ? '係数（反応物,製品）' : 'Coefficients (reactants, products)'}</label>
+                    <input
+                      type="text"
+                      aria-label={isJapanese ? `ステップ${idx + 1}の反応物係数` : `Step ${idx + 1} reactant coefficients`}
+                      placeholder="1, 0.5"
+                      value={coefficientDrafts[`${step.id}:reactant`] ?? (step.reactantCoefficients ?? []).join(', ')}
+                      onChange={(event) => setCoefficientDrafts((drafts) => ({ ...drafts, [`${step.id}:reactant`]: event.target.value }))}
+                      onBlur={(event) => commitCoefficients(step.id, 'reactant', event.target.value)}
+                      style={{ width: '100%', padding: '4px', marginTop: '2px', border: `1px solid ${borderColor}`, borderRadius: '3px', backgroundColor: theme === 'dark' ? '#0e1530' : '#ffffff', color: textColor, fontSize: '10px', boxSizing: 'border-box' }}
+                    />
+                    <input
+                      type="text"
+                      aria-label={isJapanese ? `ステップ${idx + 1}の製品係数` : `Step ${idx + 1} product coefficients`}
+                      placeholder="1, 1.25"
+                      value={coefficientDrafts[`${step.id}:product`] ?? (step.productCoefficients ?? []).join(', ')}
+                      onChange={(event) => setCoefficientDrafts((drafts) => ({ ...drafts, [`${step.id}:product`]: event.target.value }))}
+                      onBlur={(event) => commitCoefficients(step.id, 'product', event.target.value)}
+                      style={{ width: '100%', padding: '4px', marginTop: '2px', border: `1px solid ${borderColor}`, borderRadius: '3px', backgroundColor: theme === 'dark' ? '#0e1530' : '#ffffff', color: textColor, fontSize: '10px', boxSizing: 'border-box' }}
+                    />
+                  </div>
+
+                  {/* Agents */}
+                  <div style={{ marginBottom: '8px' }}>
+                    <label style={{ fontSize: '10px', color: labelColor, display: 'block' }}>{isJapanese ? '反応剤（SMILES）' : 'Agents (SMILES)'}</label>
+                    <div style={{ display: 'flex', gap: '4px', marginTop: '2px' }}>
+                      <input
+                        type="text"
+                        aria-label={isJapanese ? `ステップ${idx + 1}の反応剤SMILES` : `Step ${idx + 1} agent SMILES`}
+                        placeholder="O, CC(=O)O"
+                        value={agentDrafts[step.id] ?? ''}
+                        onChange={(event) => setAgentDrafts((drafts) => ({ ...drafts, [step.id]: event.target.value }))}
+                        style={{ flex: 1, padding: '4px', border: `1px solid ${borderColor}`, borderRadius: '3px', backgroundColor: theme === 'dark' ? '#0e1530' : '#ffffff', color: textColor, fontSize: '10px' }}
+                      />
+                      <button onClick={() => void handleAddAgent(step.id)} style={{ padding: '4px 6px', fontSize: '9px' }}>{isJapanese ? '追加' : 'Add'}</button>
+                    </div>
+                    {(step.agents?.length ?? 0) > 0 && <div style={{ marginTop: '3px', fontSize: '9px', color: labelColor }}>{isJapanese ? `登録済み: ${step.agents?.length}件` : `Added: ${step.agents?.length} agent(s)`}</div>}
+                  </div>
+
+                  {/* Component identities */}
+                  <div style={{ marginBottom: '8px' }}>
+                    <label style={{ fontSize: '10px', color: labelColor, display: 'block', marginBottom: '4px' }}>
+                      {isJapanese ? 'コンポーネント識別子（カンマ区切り）' : 'Component IDs (comma-separated)'}
+                    </label>
+                    {([
+                      ['reactant', step.reactantComponentIds ?? [], step.reactants.length, isJapanese ? '反応物' : 'Reactants'],
+                      ['product', step.productComponentIds ?? [], step.products.length, isJapanese ? '生成物' : 'Products'],
+                      ['agent', step.agentComponentIds ?? [], (step.agents ?? []).length, isJapanese ? '反応剤' : 'Agents'],
+                    ] as const).map(([role, ids, expectedCount, label]) => (
+                      <input
+                        key={role}
+                        type="text"
+                        aria-label={isJapanese ? `ステップ${idx + 1}の${label}コンポーネント識別子` : `Step ${idx + 1} ${label.toLowerCase()} component IDs`}
+                        placeholder={expectedCount > 0 ? (isJapanese ? `${expectedCount}件必要` : `${expectedCount} value(s) required`) : (isJapanese ? 'なし' : 'none')}
+                        value={componentIdDrafts[`${step.id}:${role}`] ?? ids.join(', ')}
+                        onChange={(event) => setComponentIdDrafts((drafts) => ({ ...drafts, [`${step.id}:${role}`]: event.target.value }))}
+                        onBlur={(event) => commitComponentIds(step.id, role, event.target.value)}
+                        style={{ width: '100%', padding: '4px', marginTop: '2px', border: `1px solid ${borderColor}`, borderRadius: '3px', backgroundColor: theme === 'dark' ? '#0e1530' : '#ffffff', color: textColor, fontSize: '10px', boxSizing: 'border-box' }}
+                      />
+                    ))}
                   </div>
 
                   {/* Temperature */}

@@ -19,6 +19,10 @@ export function validateReactionDocument(scheme: ReactionSchemeContext): Reactio
     for (const [name, molecules, ids] of groups) {
       if (ids !== undefined && ids.length !== molecules.length) issues.push({ code: 'component-id', path: `steps.${index}.${name}ComponentIds`, message: 'Component IDs must align with molecule arrays' });
       for (const id of ids ?? []) {
+        if (typeof id !== 'string' || id.length === 0 || id.length > 256) {
+          issues.push({ code: 'component-id', path: `steps.${index}.${name}ComponentIds`, message: 'Component IDs must be non-empty strings of at most 256 characters' });
+          continue;
+        }
         if (localIds.has(id)) issues.push({ code: 'component-id', path: `steps.${index}.${name}ComponentIds`, message: `Component id is duplicated within a step: ${id}` });
         localIds.add(id);
       }
@@ -32,8 +36,8 @@ export function validateReactionDocument(scheme: ReactionSchemeContext): Reactio
         issues.push({ code: 'coefficient', path: `steps.${index}.${name}`, message: 'Stoichiometric coefficients must align with molecule arrays' });
         continue;
       }
-      if (coefficients.some((coefficient) => !Number.isFinite(coefficient) || coefficient <= 0)) {
-        issues.push({ code: 'coefficient', path: `steps.${index}.${name}`, message: 'Stoichiometric coefficients must be finite positive numbers' });
+      if (coefficients.some((coefficient) => !Number.isFinite(coefficient) || coefficient <= 0 || coefficient > 1_000_000)) {
+        issues.push({ code: 'coefficient', path: `steps.${index}.${name}`, message: 'Stoichiometric coefficients must be finite positive numbers no greater than 1000000' });
       }
     }
     if (step.authored === false && !step.derivedFrom) issues.push({ code: 'provenance', path: `steps.${index}`, message: 'A derived step must identify its source with derivedFrom' });

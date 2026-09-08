@@ -35,4 +35,26 @@ describe('publication artifact gate', () => {
     const layout = calculateSchemeLayout(scheme);
     expect(exportSchemeAsSVG(scheme, layout, null, null)).toBe(exportSchemeAsSVG(scheme, layout, null, null));
   });
+
+  it('offers a deterministic monochrome journal preset', () => {
+    const scheme: ReactionSchemeContext = { id: 'preset', title: 'Preset', currentStepIndex: 0, viewMode: 'scheme', steps: [
+      { id: 'one', reactants: [], products: [], arrows: [], mechanismType: 'sn2' },
+    ] };
+    const layout = calculateSchemeLayout(scheme);
+    const journal = exportSchemeAsSVG(scheme, layout, null, null, { preset: 'journal' });
+    const screen = exportSchemeAsSVG(scheme, layout, null, null, { preset: 'screen' });
+    expect(journal).toContain('fill: #ffffff');
+    expect(journal).toContain('font-family: Arial, Helvetica, sans-serif');
+    expect(journal).not.toBe(screen);
+    expect(exportSchemeAsSVG(scheme, layout, null, null, { preset: 'journal' })).toBe(journal);
+  });
+
+  it('escapes authored titles before placing them in SVG text', () => {
+    const scheme: ReactionSchemeContext = { id: 'escaped', title: '<script>alert("x")</script> & test', currentStepIndex: 0, viewMode: 'scheme', steps: [
+      { id: 'one', reactants: [], products: [], arrows: [], mechanismType: 'sn2' },
+    ] };
+    const svg = exportSchemeAsSVG(scheme, calculateSchemeLayout(scheme), null, null, { preset: 'journal' });
+    expect(svg).toContain('&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt; &amp; test');
+    expect(svg).not.toContain('<script>alert');
+  });
 });
