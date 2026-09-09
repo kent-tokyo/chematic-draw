@@ -1,10 +1,11 @@
-import { app, BrowserWindow, Menu, dialog, ipcMain, clipboard, shell } from 'electron';
+import { app, BrowserWindow, Menu, dialog, ipcMain, shell } from 'electron';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync, renameSync, statSync } from 'node:fs';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import { createSettingsStore } from './lib/settingsStore';
 import { buildRecentFilesSubmenu } from './lib/recentFilesMenu';
 import { registerFileIpcHandlers } from './lib/ipcFileHandlers';
+import { registerClipboardAutosaveIpcHandlers } from './lib/ipcClipboardAutosave';
 import { svgPageSizeInches } from './lib/svgPageSize';
 import { isSafeSvgForPdf } from './lib/pdfExportContract';
 
@@ -100,6 +101,21 @@ registerFileIpcHandlers({
   maxTextBytes: MAX_FILE_TEXT_LENGTH,
   maxBinaryBytes: MAX_FILE_BINARY_BYTES,
   getMainWindow: () => mainWindow,
+});
+
+registerClipboardAutosaveIpcHandlers({
+  ipcMain,
+  isTrustedRendererEvent,
+  maxTextLength: MAX_FILE_TEXT_LENGTH,
+  maxAutosaveJsonLength: MAX_AUTOSAVE_JSON_LENGTH,
+  maxAutosaveFilePathLength: MAX_AUTOSAVE_FILE_PATH_LENGTH,
+  autosavePath: AUTOSAVE_PATH,
+  autosaveTmpPath: AUTOSAVE_TMP_PATH,
+  isSafeMolecule,
+  getPendingRecovery: () => pendingRecovery,
+  clearPendingRecovery: () => { pendingRecovery = null; },
+  getAutosaveWriteQueue: () => autosaveWriteQueue,
+  setAutosaveWriteQueue: (queue) => { autosaveWriteQueue = queue; },
 });
 
 const createWindow = () => {
@@ -453,50 +469,6 @@ const createMenu = (recentFiles = settingsStore.load().recentFiles) => {
   Menu.setApplicationMenu(menu);
 };
 
-// IPC Handlers for Clipboard
-ipcMain.handle('clipboard:write', async (event, format, content) => {
-  try {
-    if (!isTrustedRendererEvent(event)) throw new Error('Clipboard request came from an untrusted renderer.');
-    if (format !== 'text/plain' || typeof content !== 'string' || content.length > MAX_FILE_TEXT_LENGTH) {
-      throw new Error('Clipboard write rejected an invalid or oversized text payload.');
-    }
-    // Awaited, not fire-and-forget: on this Electron build,
-    // clipboard.readText() below was found to actually return a Promise
-    // (not the plain string its docs describe), not just for read — an
-    // un-awaited async clipboard call here would let this handler return
-    // {success: true} before the write is confirmed to have landed.
-    await clipboard.writeText(content);
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-});
-
-ipcMain.handle('clipboard:read', async (event) => {
-  try {
-    if (!isTrustedRendererEvent(event)) throw new Error('Clipboard request came from an untrusted renderer.');
-    // Must be awaited: clipboard.readText() returns a genuine Promise on
-    // this platform/Electron build, not the plain string its docs
-    // describe (confirmed empirically — logged its constructor.name as
-    // 'Promise'). An un-awaited `text` here embeds that live Promise
-    // object directly in this handler's IPC response, which Electron's
-    // structured-clone serialization cannot handle ("An object could not
-    // be cloned") — that throw happens *after* this handler already
-    // returned, so it never reaches the try/catch here; the renderer's
-    // ipcRenderer.invoke('clipboard:read') call just hangs forever with
-    // no error and no resolution. Paste-from-clipboard never worked in
-    // the packaged app as a result — found while investigating an
-    // unrelated menu issue (Edit > Copy/Paste), not by looking for this.
-    const text = await clipboard.readText();
-    if (typeof text !== 'string' || text.length > MAX_FILE_TEXT_LENGTH) {
-      throw new Error('Clipboard read rejected an oversized text payload.');
-    }
-    return { success: true, content: text };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-});
-
 // IPC Handlers for Settings Persistence
 ipcMain.handle('settings:save', async (event, key, value) => {
   try {
@@ -525,52 +497,6 @@ ipcMain.handle('settings:load', async (event, key) => {
   } catch (err) {
     return { success: false, error: err.message };
   }
-});
-
-// IPC Handlers for Autosave / Crash Recovery
-//
-// This is deliberately NOT "restore unsaved changes" — the app has no
-// dirty-tracking, so it can't tell a saved molecule from an edited one.
-// It's "restore whatever was open last time," offered only when
-// autosave.json still exists at launch, which only happens when the
-// previous run didn't reach a clean quit (before-quit below always clears
-// it). A crash mid-write would otherwise leave a truncated, unparseable
-// JSON file, which is worse than no recovery at all — so the write goes to
-// a temp file first and only replaces the real one via an atomic rename.
-ipcMain.handle('autosave:write', async (event, molecule, filePath) => {
-  if (!isTrustedRendererEvent(event)) return { success: false, error: 'Autosave request came from an untrusted renderer.' };
-  const writeSnapshot = () => {
-    const normalizedFilePath = filePath ?? null;
-    if (!isSafeMolecule(molecule)) throw new Error('Autosave rejected an invalid or oversized molecule.');
-    if (normalizedFilePath !== null && (typeof normalizedFilePath !== 'string' || normalizedFilePath.length > MAX_AUTOSAVE_FILE_PATH_LENGTH)) {
-      throw new Error('Autosave rejected an invalid file path.');
-    }
-    const snapshotText = JSON.stringify({ molecule, filePath: normalizedFilePath });
-    if (snapshotText.length > MAX_AUTOSAVE_JSON_LENGTH) throw new Error('Autosave snapshot exceeds its size limit.');
-    const dir = path.dirname(AUTOSAVE_PATH);
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-    writeFileSync(AUTOSAVE_TMP_PATH, snapshotText, 'utf-8');
-    renameSync(AUTOSAVE_TMP_PATH, AUTOSAVE_PATH);
-  };
-  // Serialize writes with quit cleanup. This closes the small race where
-  // before-quit could unlink the old snapshot between writeFileSync and the
-  // atomic rename, leaving stale recovery data behind.
-  autosaveWriteQueue = autosaveWriteQueue.then(writeSnapshot, writeSnapshot);
-  try {
-    await autosaveWriteQueue;
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-});
-
-// One-shot pull: the renderer calls this once, after WASM (and therefore
-// setMolecule) is ready, instead of main.js pushing at an uncertain time.
-ipcMain.handle('autosave:get-pending-recovery', async (event) => {
-  if (!isTrustedRendererEvent(event)) return null;
-  const snapshot = pendingRecovery;
-  pendingRecovery = null;
-  return snapshot;
 });
 
 // Asks the user, via a native confirm dialog, whether to restore the
