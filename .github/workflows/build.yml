@@ -208,15 +208,7 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          files: |
-            linux-binaries/**
-            macos-binaries/**
-            windows-binaries/**
           generate_release_notes: true
-          # v1.0.8 was already published manually before the tag workflow
-          # completed. Re-running a tag workflow must replace matching assets
-          # instead of failing with ReleaseAsset already_exists (422).
-          overwrite_files: true
           draft: false
           # A tag with a semver pre-release identifier (v1.2.3-rc.1,
           # -beta, -alpha, ...) is a pre-release by definition - marking it
@@ -225,3 +217,14 @@ jobs:
           prerelease: ${{ contains(github.ref_name, '-') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Release Assets (replace existing files)
+        shell: bash
+        run: |
+          assets=()
+          while IFS= read -r -d '' asset; do
+            assets+=("$asset")
+          done < <(find linux-binaries macos-binaries windows-binaries -type f -print0)
+          gh release upload "${GITHUB_REF_NAME}" "${assets[@]}" --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
