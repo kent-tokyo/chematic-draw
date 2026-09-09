@@ -4,6 +4,7 @@ import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import { svgPageSizeInches } from './lib/svgPageSize';
 import { isSafeSvgForPdf } from './lib/pdfExportContract';
+import { createSettingsStore } from './lib/settingsStore';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -11,8 +12,6 @@ if (started) {
 }
 
 let mainWindow;
-const SETTINGS_PATH = path.join(app.getPath('userData'), 'settings.json');
-const SETTINGS_TMP_PATH = `${SETTINGS_PATH}.tmp`;
 const AUTOSAVE_PATH = path.join(app.getPath('userData'), 'autosave.json');
 const AUTOSAVE_TMP_PATH = `${AUTOSAVE_PATH}.tmp`;
 const MAX_AUTOSAVE_JSON_LENGTH = 10_000_000;
@@ -27,12 +26,7 @@ const ALLOWED_EXTERNAL_HOSTS = new Set([
   'pubchem.ncbi.nlm.nih.gov',
   'www.chemspider.com',
 ]);
-const ALLOWED_SETTINGS_KEYS = new Set(['theme', 'language', 'sidebarWidth', 'shortcutBindings']);
-const SHORTCUT_SETTING_KEYS = new Set([
-  'copy', 'paste', 'cleanLayout', 'export', 'undo', 'redo', 'zoomIn', 'zoomOut',
-  'zoomReset', 'focusMode', 'showShortcuts', 'selectAll', 'delete',
-]);
-const MAX_SETTINGS_VALUE_LENGTH = 100_000;
+const settingsStore = createSettingsStore(app.getPath('userData'));
 
 // Set only when the user confirms "Restore" in checkAutosaveRecovery(),
 // consumed exactly once by the 'autosave:get-pending-recovery' IPC handler.
@@ -77,41 +71,6 @@ const readImportText = (filePath) => {
   if (fileSize > MAX_IMPORT_TEXT_BYTES) throw new Error('File read rejected an oversized input.');
   return readFileSync(filePath, 'utf-8');
 };
-const isSafeSettingsKey = (key) => typeof key === 'string' && ALLOWED_SETTINGS_KEYS.has(key);
-const isSafeSettingsValue = (key, value) => {
-  if (key === 'theme') return value === 'dark' || value === 'light';
-  if (key === 'language') return value === 'en' || value === 'ja' || value === 'zh';
-  if (key === 'sidebarWidth') return typeof value === 'number' && Number.isFinite(value)
-    && (value === 0 || (value >= 180 && value <= 480));
-  if (key !== 'shortcutBindings' || !value || typeof value !== 'object' || Array.isArray(value)) return false;
-  if (Object.keys(value).some((shortcut) => !SHORTCUT_SETTING_KEYS.has(shortcut))) return false;
-  try {
-    return JSON.stringify(value).length <= MAX_SETTINGS_VALUE_LENGTH
-      && Object.values(value).every((shortcut) => typeof shortcut === 'string' && shortcut.length <= 128);
-  } catch {
-    return false;
-  }
-};
-
-// Helper functions for settings persistence
-const loadSettings = () => {
-  if (!existsSync(SETTINGS_PATH)) return {};
-  try {
-    const settings = JSON.parse(readFileSync(SETTINGS_PATH, 'utf-8'));
-    return settings && typeof settings === 'object' && !Array.isArray(settings) ? settings : {};
-  } catch (err) {
-    console.error('Failed to load settings:', err);
-    return {};
-  }
-};
-
-const saveSettings = (data) => {
-  const dir = path.dirname(SETTINGS_PATH);
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  writeFileSync(SETTINGS_TMP_PATH, JSON.stringify(data, null, 2), 'utf-8');
-  renameSync(SETTINGS_TMP_PATH, SETTINGS_PATH);
-};
-
 const writeFileAtomically = (filePath, data, options) => {
   const temporaryPath = `${filePath}.tmp-${process.pid}-${Date.now()}`;
   try {
@@ -198,7 +157,7 @@ const createWindow = () => {
 // silently (caught by the IPC handler's try/catch) — the Recent Files
 // submenu never actually updated, in any session, ever. A full rebuild via
 // buildFromTemplate is the only way Electron supports changing it.
-const createMenu = (recentFiles = loadSettings().recentFiles) => {
+const createMenu = (recentFiles = settingsStore.load().recentFiles) => {
   const isMac = process.platform === 'darwin';
 
   // settings.json is user-editable on disk, not just written by
@@ -231,9 +190,9 @@ const createMenu = (recentFiles = loadSettings().recentFiles) => {
   recentFilesSubmenu.push({
     label: 'Clear Recent Files',
     click: () => {
-      const settings = loadSettings();
+      const settings = settingsStore.load();
       settings.recentFiles = [];
-      saveSettings(settings);
+      settingsStore.save(settings);
       createMenu([]);
     },
   });
@@ -625,12 +584,12 @@ ipcMain.handle('clipboard:read', async (event) => {
 ipcMain.handle('settings:save', async (event, key, value) => {
   try {
     if (!isTrustedRendererEvent(event)) throw new Error('Settings request came from an untrusted renderer.');
-    if (!isSafeSettingsKey(key) || !isSafeSettingsValue(key, value)) {
+    if (!settingsStore.isSafeKey(key) || !settingsStore.isSafeValue(key, value)) {
       throw new Error('Settings request rejected an invalid key or oversized value.');
     }
-    const settings = loadSettings();
+    const settings = settingsStore.load();
     settings[key] = value;
-    saveSettings(settings);
+    settingsStore.save(settings);
     return { success: true };
   } catch (err) {
     return { success: false, error: err.message };
@@ -640,9 +599,9 @@ ipcMain.handle('settings:save', async (event, key, value) => {
 ipcMain.handle('settings:load', async (event, key) => {
   try {
     if (!isTrustedRendererEvent(event)) throw new Error('Settings request came from an untrusted renderer.');
-    if (!isSafeSettingsKey(key)) throw new Error('Settings request rejected an invalid key.');
-    const settings = loadSettings();
-    if (settings[key] !== undefined && !isSafeSettingsValue(key, settings[key])) {
+    if (!settingsStore.isSafeKey(key)) throw new Error('Settings request rejected an invalid key.');
+    const settings = settingsStore.load();
+    if (settings[key] !== undefined && !settingsStore.isSafeValue(key, settings[key])) {
       throw new Error('Stored setting failed validation.');
     }
     return { success: true, value: settings[key] };
@@ -744,12 +703,12 @@ ipcMain.handle('recent-file:add', async (event, filePath) => {
   try {
     if (!isTrustedRendererEvent(event)) throw new Error('Recent-file request came from an untrusted renderer.');
     if (!isValidFilePath(filePath)) throw new Error('Recent-file request rejected an invalid file path.');
-    const settings = loadSettings();
+    const settings = settingsStore.load();
     let recentFiles = settings.recentFiles || [];
     // Remove duplicate, add to front, keep last 10
     recentFiles = [filePath, ...recentFiles.filter(isValidFilePath).filter(f => f !== filePath)].slice(0, 10);
     settings.recentFiles = recentFiles;
-    saveSettings(settings);
+    settingsStore.save(settings);
     createMenu(recentFiles);
     return { success: true, recentFiles };
   } catch (err) {
