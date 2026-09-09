@@ -2,10 +2,11 @@ import { app, BrowserWindow, Menu, dialog, ipcMain, clipboard, shell } from 'ele
 import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync, renameSync, statSync } from 'node:fs';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
-import { svgPageSizeInches } from './lib/svgPageSize';
-import { isSafeSvgForPdf } from './lib/pdfExportContract';
 import { createSettingsStore } from './lib/settingsStore';
 import { buildRecentFilesSubmenu } from './lib/recentFilesMenu';
+import { registerFileIpcHandlers } from './lib/ipcFileHandlers';
+import { svgPageSizeInches } from './lib/svgPageSize';
+import { isSafeSvgForPdf } from './lib/pdfExportContract';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -85,6 +86,21 @@ const writeFileAtomically = (filePath, data, options) => {
     }
   }
 };
+
+registerFileIpcHandlers({
+  ipcMain,
+  BrowserWindow,
+  dialog,
+  isTrustedRendererEvent,
+  isValidFilePath,
+  isValidBase64,
+  writeFileAtomically,
+  svgPageSizeInches,
+  isSafeSvgForPdf,
+  maxTextBytes: MAX_FILE_TEXT_LENGTH,
+  maxBinaryBytes: MAX_FILE_BINARY_BYTES,
+  getMainWindow: () => mainWindow,
+});
 
 const createWindow = () => {
   // Create the browser window.
@@ -436,88 +452,6 @@ const createMenu = (recentFiles = settingsStore.load().recentFiles) => {
   const menu = Menu.buildFromTemplate(template);
   Menu.setApplicationMenu(menu);
 };
-
-// IPC Handlers for File Operations
-ipcMain.handle('file:save-dialog', async (event, defaultPath) => {
-  if (!isTrustedRendererEvent(event)) return { canceled: true };
-  if (defaultPath !== undefined && defaultPath !== null && !isValidFilePath(defaultPath)) {
-    return { canceled: true };
-  }
-  const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
-    defaultPath,
-    filters: [
-      { name: 'MOL V2000', extensions: ['mol'] },
-      { name: 'SMILES', extensions: ['smi'] },
-      { name: 'SDF', extensions: ['sdf'] },
-      { name: 'SVG', extensions: ['svg'] },
-      { name: 'PNG', extensions: ['png'] },
-      { name: 'PDF', extensions: ['pdf'] },
-      { name: 'All Files', extensions: ['*'] },
-    ],
-  });
-  return { canceled, filePath };
-});
-
-ipcMain.handle('file:write', async (event, filePath, content) => {
-  try {
-    if (!isTrustedRendererEvent(event)) throw new Error('File write request came from an untrusted renderer.');
-    if (!isValidFilePath(filePath)) throw new Error('File write rejected an invalid file path.');
-    if (typeof content !== 'string' || content.length > MAX_FILE_TEXT_LENGTH) {
-      throw new Error('File write rejected an invalid or oversized text payload.');
-    }
-    writeFileAtomically(filePath, content, 'utf-8');
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-});
-
-// Separate from file:write because that handler always encodes as utf-8 —
-// passing PNG bytes through it would corrupt the file. base64Content is
-// decoded to a raw Buffer here instead.
-ipcMain.handle('file:write-binary', async (event, filePath, base64Content) => {
-  try {
-    if (!isTrustedRendererEvent(event)) throw new Error('Binary file write request came from an untrusted renderer.');
-    if (!isValidFilePath(filePath)) throw new Error('Binary file write rejected an invalid file path.');
-    if (!isValidBase64(base64Content)) throw new Error('Binary file write rejected an invalid base64 payload.');
-    const buffer = Buffer.from(base64Content, 'base64');
-    if (buffer.length > MAX_FILE_BINARY_BYTES) throw new Error('Binary file write payload exceeds its size limit.');
-    writeFileAtomically(filePath, buffer);
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-});
-
-// Renders the molecule's own SVG into a dedicated hidden window (not the
-// live editing canvas) and prints that to PDF, so the export is unaffected
-// by canvas zoom/pan/selection highlighting.
-ipcMain.handle('export:pdf', async (event, filePath, svgText) => {
-  let pdfWindow;
-  try {
-    if (!isTrustedRendererEvent(event)) throw new Error('PDF export request came from an untrusted renderer.');
-    if (!isValidFilePath(filePath)) throw new Error('PDF export rejected an invalid file path.');
-    if (typeof svgText !== 'string' || svgText.length > MAX_FILE_TEXT_LENGTH) {
-      throw new Error('PDF export rejected an invalid or oversized SVG payload.');
-    }
-    if (!isSafeSvgForPdf(svgText)) throw new Error('PDF export rejected unsafe SVG content.');
-    const { width, height } = svgPageSizeInches(svgText);
-    const html = `<!DOCTYPE html><html><head><style>html,body{margin:0;padding:0}</style></head><body>${svgText}</body></html>`;
-    pdfWindow = new BrowserWindow({ show: false });
-    await pdfWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
-    const buffer = await pdfWindow.webContents.printToPDF({
-      printBackground: true,
-      pageSize: { width, height },
-      margins: { marginType: 'none' },
-    });
-    writeFileAtomically(filePath, buffer);
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: err.message };
-  } finally {
-    if (pdfWindow && !pdfWindow.isDestroyed()) pdfWindow.destroy();
-  }
-});
 
 // IPC Handlers for Clipboard
 ipcMain.handle('clipboard:write', async (event, format, content) => {
