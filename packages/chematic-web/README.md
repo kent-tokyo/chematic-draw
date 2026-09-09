@@ -46,6 +46,7 @@ or a Worker command layer.
 The `@chematic/web/editor-element` entrypoint provides an explicitly opt-in
 `<chematic-molecule-editor>` custom element. Hosts own the controls and call
 `applyEdit`; accepted edits emit `molecule-change`, while invalid or read-only
-edits emit `schematic-error`. The original `<chematic-molecule>` element stays
-read-only. This surface does not parse chemistry, infer reactions, or load
-Electron/network dependencies.
+edits emit `schematic-error`. It also exposes bounded `canUndo`/`canRedo`,
+`undo()`, `redo()`, and `dispose()` lifecycle methods. The original
+`<chematic-molecule>` element stays read-only. This surface does not parse
+chemistry, infer reactions, or load Electron/network dependencies.

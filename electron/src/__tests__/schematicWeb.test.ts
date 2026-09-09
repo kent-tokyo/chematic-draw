@@ -93,8 +93,20 @@ describe('chematic-molecule Web Component', () => {
     expect(next.atoms).toHaveLength(1);
     expect(change).toHaveBeenCalledTimes(1);
     expect((change.mock.calls[0][0] as CustomEvent).detail.edit.type).toBe('add-atom');
+    expect((change.mock.calls[0][0] as CustomEvent).detail.direction).toBe('edit');
+    expect(element.canUndo).toBe(true);
+    expect(element.canRedo).toBe(false);
+    expect(element.undo()?.atoms).toEqual([]);
+    expect(element.canRedo).toBe(true);
+    expect((change.mock.calls[1][0] as CustomEvent).detail.direction).toBe('undo');
+    expect(element.redo()?.atoms).toHaveLength(1);
+    expect((change.mock.calls[2][0] as CustomEvent).detail.direction).toBe('redo');
     element.setAttribute('readonly', '');
     expect(() => element.applyEdit({ type: 'remove-atom', atomId: 1 })).toThrow(/read-only/);
+    element.removeAttribute('readonly');
+    element.dispose();
+    expect(element.innerHTML).toBe('');
+    expect(() => element.applyEdit({ type: 'remove-atom', atomId: 1 })).toThrow(/disposed/);
   });
 
   it('reports invalid editor edits without mutating the current molecule', () => {
