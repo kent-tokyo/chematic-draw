@@ -1,4 +1,4 @@
-import { validateNmrSpectrum, type NmrSpectrum } from '../../../packages/chematic-contract/src/index';
+import { normalizeNmrSpectrum, serializeNmrSpectrum, validateNmrSpectrum, type NmrSpectrum } from '../../../packages/chematic-contract/src/index';
 
 const spectrum: NmrSpectrum = {
   schema: 'chematic-draw/nmr-spectrum',
@@ -51,5 +51,26 @@ describe('NMR contract', () => {
       'nucleus', 'provenance.kind', 'temperatureC', 'rawVendorMetadata', 'peaks[0].assignment',
     ]));
     expect(validateNmrSpectrum(spectrum)).toEqual([]);
+  });
+
+  it('normalizes peak and vendor metadata order without mutating the source', () => {
+    const input = {
+      ...spectrum,
+      peaks: [
+        { id: 'z', shiftPpm: 1 },
+        { id: 'a', shiftPpm: 1 },
+        { id: 'p', shiftPpm: 7.26 },
+      ],
+      rawVendorMetadata: { zeta: true, alpha: 'fixture' },
+    };
+    const normalized = normalizeNmrSpectrum(input);
+    expect(normalized.peaks.map((peak) => peak.id)).toEqual(['a', 'z', 'p']);
+    expect(Object.keys(normalized.rawVendorMetadata ?? {})).toEqual(['alpha', 'zeta']);
+    expect(input.peaks.map((peak) => peak.id)).toEqual(['z', 'a', 'p']);
+    expect(serializeNmrSpectrum(input)).toBe(serializeNmrSpectrum({ ...input, peaks: [...input.peaks].reverse() }));
+  });
+
+  it('refuses to serialize invalid spectra instead of exporting an unvalidated document', () => {
+    expect(() => serializeNmrSpectrum({ ...spectrum, peaks: [{ id: '', shiftPpm: 1 }] })).toThrow(/Invalid NMR spectrum/);
   });
 });

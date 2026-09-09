@@ -246,6 +246,38 @@ export function validateNmrSpectrum(spectrum: NmrSpectrum): NmrValidationError[]
   return errors;
 }
 
+/** Return a detached, deterministically ordered NMR document for persistence. */
+export function normalizeNmrSpectrum(spectrum: NmrSpectrum): NmrSpectrum {
+  const errors = validateNmrSpectrum(spectrum);
+  if (errors.length > 0) throw new TypeError(`Invalid NMR spectrum: ${errors.map((error) => `${error.path}: ${error.message}`).join('; ')}`);
+  const rawVendorMetadata = spectrum.rawVendorMetadata === undefined
+    ? undefined
+    : Object.fromEntries(Object.entries(spectrum.rawVendorMetadata).sort(([left], [right]) => left.localeCompare(right)));
+  return {
+    schema: spectrum.schema,
+    schema_version: spectrum.schema_version,
+    nucleus: spectrum.nucleus,
+    ...(spectrum.frequencyMHz === undefined ? {} : { frequencyMHz: spectrum.frequencyMHz }),
+    ...(spectrum.solvent === undefined ? {} : { solvent: spectrum.solvent }),
+    ...(spectrum.reference === undefined ? {} : { reference: spectrum.reference }),
+    ...(spectrum.temperatureC === undefined ? {} : { temperatureC: spectrum.temperatureC }),
+    peaks: spectrum.peaks
+      .map((peak) => ({ ...peak }))
+      .sort((left, right) => left.shiftPpm - right.shiftPpm || left.id.localeCompare(right.id)),
+    ...(rawVendorMetadata === undefined ? {} : { rawVendorMetadata }),
+    provenance: {
+      kind: spectrum.provenance.kind,
+      ...(spectrum.provenance.source === undefined ? {} : { source: spectrum.provenance.source }),
+      ...(spectrum.provenance.importedAt === undefined ? {} : { importedAt: spectrum.provenance.importedAt }),
+    },
+  };
+}
+
+/** Serialize a validated NMR document without input-order drift. */
+export function serializeNmrSpectrum(spectrum: NmrSpectrum): string {
+  return JSON.stringify(normalizeNmrSpectrum(spectrum), null, 2);
+}
+
 export function validateMolecule(molecule: Molecule): string[] {
   if (!molecule || !Array.isArray(molecule.atoms) || !Array.isArray(molecule.bonds)) return ['Molecule must contain atoms and bonds arrays'];
   const ids = new Set<number>();

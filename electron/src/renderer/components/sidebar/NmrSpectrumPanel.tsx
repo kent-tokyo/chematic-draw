@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useUIStore } from '../../store/uiStore';
-import { validateNmrSpectrum, type NmrSpectrum } from '../../../../../packages/chematic-contract/src/index';
+import { serializeNmrSpectrum, validateNmrSpectrum, type NmrSpectrum } from '../../../../../packages/chematic-contract/src/index';
 
 const EMPTY_SPECTRUM: NmrSpectrum = {
   schema: 'chematic-draw/nmr-spectrum', schema_version: 1, nucleus: '1H', peaks: [],
@@ -72,7 +72,7 @@ export function NmrSpectrumPanel() {
 
   const download = () => {
     if (!spectrum) return;
-    const url = URL.createObjectURL(new Blob([JSON.stringify(spectrum, null, 2)], { type: 'application/json' }));
+    const url = URL.createObjectURL(new Blob([serializeNmrSpectrum(spectrum)], { type: 'application/json' }));
     const anchor = document.createElement('a');
     anchor.href = url;
     anchor.download = 'nmr-spectrum.json';
