@@ -5,6 +5,7 @@ import started from 'electron-squirrel-startup';
 import { svgPageSizeInches } from './lib/svgPageSize';
 import { isSafeSvgForPdf } from './lib/pdfExportContract';
 import { createSettingsStore } from './lib/settingsStore';
+import { buildRecentFilesSubmenu } from './lib/recentFilesMenu';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -168,33 +169,15 @@ const createMenu = (recentFiles = settingsStore.load().recentFiles) => {
   // to its own default menu template (wrong labels, missing every custom
   // File/Edit/View/Tools/Help item) instead of ours, not just a broken
   // Recent Files submenu.
-  const safeRecentFiles = Array.isArray(recentFiles)
-    ? recentFiles.filter(isValidFilePath)
-    : [];
-
-  const recentFilesSubmenu = safeRecentFiles.map((filePath, idx) => ({
-    label: `${idx + 1}. ${path.basename(filePath)}`,
-    accelerator: `Ctrl+${idx + 1}`,
-    click: async () => {
-      try {
-        const content = readImportText(filePath);
-        mainWindow.webContents.send('menu:open-file', { path: filePath, content });
-      } catch (err) {
-        dialog.showErrorBox('Error', `Failed to open: ${err.message}`);
-      }
-    },
-  }));
-  if (recentFilesSubmenu.length > 0) {
-    recentFilesSubmenu.push({ type: 'separator' });
-  }
-  recentFilesSubmenu.push({
-    label: 'Clear Recent Files',
-    click: () => {
-      const settings = settingsStore.load();
-      settings.recentFiles = [];
-      settingsStore.save(settings);
-      createMenu([]);
-    },
+  const recentFilesSubmenu = buildRecentFilesSubmenu({
+    recentFiles,
+    isValidFilePath,
+    loadSettings: settingsStore.load,
+    saveSettings: settingsStore.save,
+    readImportText,
+    sendToRenderer: (channel, payload) => mainWindow.webContents.send(channel, payload),
+    showError: (title, message) => dialog.showErrorBox(title, message),
+    rebuildMenu: createMenu,
   });
 
   const template = [
