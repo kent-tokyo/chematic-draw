@@ -18,10 +18,10 @@ import { svgToPngBase64 } from './renderer/lib/svgToPng';
 import * as clipboard from './renderer/lib/clipboard';
 import { exportLossMessage, exportLosses, formatForFilePath, MoleculeExportFormat } from './renderer/lib/exportLoss';
 import { parseSessionBundle, serializeSessionBundle } from './renderer/lib/sessionBundle';
-import { DEFAULT_SHORTCUT_BINDINGS, validateShortcutBindings, ShortcutBindings } from './renderer/lib/shortcuts';
 import { exportCdxml } from './renderer/lib/cdxmlExport';
 import { canPreserveCdxml, captureRichCdxmlSession, RichCdxmlSession, serializeCdxmlForPath } from './renderer/lib/cdxmlWorkflow';
 import { runAnalysisInWorker } from './renderer/lib/analysisWorkerClient';
+import { useAppInitialization } from './renderer/hooks/useAppInitialization';
 
 async function parseMoleculeDocument(content: string, filePath: string): Promise<MoleculeDto> {
   if (filePath.toLowerCase().endsWith('.json')) return parseSessionBundle(content).document.molecule;
@@ -51,13 +51,9 @@ function confirmLossAwareExport(molecule: MoleculeDto, filePath: string): boolea
 }
 
 function App() {
-  const [wasmStatus, setWasmStatus] = useState<wasmBridge.WasmStatus>('loading');
-  const [wasmError, setWasmError] = useState<string | null>(null);
-  const wasmLoaded = wasmStatus === 'ready';
-  const [initialDocumentLoaded, setInitialDocumentLoaded] = useState(false);
   const [filePath, setFilePath] = useState<string | null>(null);
   const [richCdxmlSession, setRichCdxmlSession] = useState<RichCdxmlSession | null>(null);
-  const [settingsHydrated, setSettingsHydrated] = useState(false);
+  const { wasmStatus, wasmError, wasmLoaded, initialDocumentLoaded, settingsHydrated } = useAppInitialization({ setFilePath });
   const theme = useUIStore((s) => s.theme);
   const setTheme = useUIStore((s) => s.setTheme);
   const language = useUIStore((s) => s.language);
@@ -86,99 +82,6 @@ function App() {
   const addBatchResult = useUIStore((s) => s.addBatchResult);
   const shortcutBindings = useUIStore((s) => s.shortcutBindings);
   const tr = (english: string, japanese: string, chinese: string) => language === 'ja' ? japanese : language === 'zh' ? chinese : english;
-
-  // Initialize WASM and hydrate settings. This is the app's startup
-  // boundary: WASM-dependent UI (MoleculeCanvas/Sidebar, below) isn't
-  // mounted until wasmStatus reaches 'ready', so no individual panel needs
-  // to guard its own WASM calls against "not loaded yet" — this replaces
-  // per-panel try/catch guessing with one real precondition.
-  useEffect(() => {
-    const init = async () => {
-      try {
-        await wasmBridge.initWasm();
-      } catch (err) {
-        setWasmStatus('failed');
-        setWasmError(err instanceof Error ? err.message : String(err));
-        return;
-      }
-      setWasmStatus('ready');
-
-      // Hydrate settings from IPC
-      if (typeof window !== 'undefined' && (window as any).electronAPI) {
-        const api = (window as any).electronAPI;
-        try {
-          const savedTheme = await api.loadSettings('theme');
-          if (savedTheme.success && savedTheme.value) {
-            setTheme(savedTheme.value);
-          }
-          const savedLanguage = await api.loadSettings('language');
-          if (savedLanguage.success && ['en', 'ja', 'zh'].includes(savedLanguage.value)) {
-            setLanguage(savedLanguage.value);
-          }
-          // sidebarOpen is persisted encoded into this same key (0 = closed,
-          // see the sidebarOpen save effect below) rather than as its own
-          // setting, so a saved 0 must restore the closed state — a truthy
-          // check on `value` would treat 0 as "nothing saved" and silently
-          // reopen the sidebar on every relaunch.
-          const savedSidebarWidth = await api.loadSettings('sidebarWidth');
-          if (savedSidebarWidth.success && typeof savedSidebarWidth.value === 'number') {
-            if (savedSidebarWidth.value === 0) {
-              useUIStore.setState({ sidebarOpen: false });
-            } else {
-              useUIStore.getState().setSidebarWidth(savedSidebarWidth.value);
-              useUIStore.setState({ sidebarOpen: true });
-            }
-          }
-          const savedShortcuts = await api.loadSettings('shortcutBindings');
-          if (savedShortcuts.success && savedShortcuts.value && typeof savedShortcuts.value === 'object') {
-            const candidate = { ...DEFAULT_SHORTCUT_BINDINGS, ...(savedShortcuts.value as Partial<ShortcutBindings>) };
-            if (!validateShortcutBindings(candidate)) useUIStore.getState().setShortcutBindings(candidate);
-          }
-        } catch (err) {
-          console.error('Failed to hydrate settings:', err);
-        } finally {
-          setSettingsHydrated(true);
-        }
-      } else {
-        setSettingsHydrated(true);
-      }
-    };
-    init();
-  }, [setTheme, setLanguage]);
-
-  // Load sample molecule on mount — unless main.js is holding a crash-
-  // recovery snapshot the user just confirmed restoring, in which case that
-  // takes priority. Checked here (rather than main.js pushing it) because
-  // this is the first point setMolecule is actually safe to call.
-  useEffect(() => {
-    if (!wasmLoaded) return;
-    (async () => {
-      try {
-        if (typeof window !== 'undefined' && (window as any).electronAPI?.getPendingRecovery) {
-          try {
-            const snapshot = await (window as any).electronAPI.getPendingRecovery();
-            if (snapshot) {
-              setMolecule(snapshot.molecule);
-              setFilePath(snapshot.filePath ?? null);
-              announce('Restored last session', '前回のセッションを復元しました');
-              useCanvasStore.getState().requestCenterOnLoad();
-              return;
-            }
-          } catch (err) {
-            console.error('Failed to check for a recoverable session:', err);
-          }
-        }
-        // Try to load benzene
-        const result = await runAnalysisInWorker('parse', undefined, undefined, undefined, 'c1ccccc1') as MoleculeDto;
-        setMolecule(result);
-        useCanvasStore.getState().requestCenterOnLoad();
-      } catch (err) {
-        console.error('Failed to load sample:', err);
-      } finally {
-        setInitialDocumentLoaded(true);
-      }
-    })();
-  }, [wasmLoaded, setMolecule, setStatus, announce]);
 
   // Autosave: debounced crash-recovery snapshot, written to a file main.js
   // clears on every clean quit. Its mere presence at next launch is what
