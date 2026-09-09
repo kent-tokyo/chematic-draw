@@ -213,6 +213,14 @@ export interface NmrSpectrum {
 }
 export interface NmrValidationError { code: 'invalid' | 'unsupported'; path: string; message: string; }
 
+// NMR is a user-imported document boundary. Keep generous limits here so a
+// malformed JSON file cannot turn rendering or serialization into an
+// unbounded operation.
+export const MAX_NMR_PEAKS = 100_000;
+export const MAX_NMR_METADATA_ENTRIES = 256;
+export const MAX_NMR_STRING_LENGTH = 2_048;
+export const MAX_NMR_JSON_LENGTH = 10_000_000;
+
 export function validateNmrSpectrum(spectrum: NmrSpectrum): NmrValidationError[] {
   const errors: NmrValidationError[] = [];
   if (!spectrum || spectrum.schema !== 'chematic-draw/nmr-spectrum' || spectrum.schema_version !== 1) {
@@ -223,14 +231,27 @@ export function validateNmrSpectrum(spectrum: NmrSpectrum): NmrValidationError[]
   if (!spectrum.provenance || !['experimental-import', 'manual-entry'].includes(spectrum.provenance.kind)) {
     errors.push({ code: 'invalid', path: 'provenance.kind', message: 'Unsupported provenance kind' });
   }
-  for (const field of ['solvent', 'reference'] as const) if (spectrum[field] !== undefined && typeof spectrum[field] !== 'string') {
-    errors.push({ code: 'invalid', path: field, message: `${field} must be a string` });
+  for (const field of ['solvent', 'reference'] as const) {
+    if (spectrum[field] !== undefined && (typeof spectrum[field] !== 'string' || spectrum[field].length > MAX_NMR_STRING_LENGTH)) {
+      errors.push({ code: 'invalid', path: field, message: `${field} must be a string of at most ${MAX_NMR_STRING_LENGTH} characters` });
+    }
+  }
+  for (const field of ['source', 'importedAt'] as const) {
+    const value = spectrum.provenance?.[field];
+    if (value !== undefined && (typeof value !== 'string' || value.length > MAX_NMR_STRING_LENGTH)) {
+      errors.push({ code: 'invalid', path: `provenance.${field}`, message: `${field} must be a string of at most ${MAX_NMR_STRING_LENGTH} characters` });
+    }
   }
   if (spectrum.temperatureC !== undefined && !Number.isFinite(spectrum.temperatureC)) errors.push({ code: 'invalid', path: 'temperatureC', message: 'Temperature must be finite' });
-  if (spectrum.rawVendorMetadata !== undefined && (!spectrum.rawVendorMetadata || typeof spectrum.rawVendorMetadata !== 'object' || Object.values(spectrum.rawVendorMetadata).some((value) => !['string', 'number', 'boolean'].includes(typeof value) || (typeof value === 'number' && !Number.isFinite(value))))) {
-    errors.push({ code: 'invalid', path: 'rawVendorMetadata', message: 'Vendor metadata must contain finite primitive values' });
+  if (spectrum.rawVendorMetadata !== undefined) {
+    const metadata = spectrum.rawVendorMetadata;
+    const entries = metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? Object.entries(metadata) : null;
+    if (!entries || entries.length > MAX_NMR_METADATA_ENTRIES || entries.some(([key, value]) => key.length > MAX_NMR_STRING_LENGTH || !['string', 'number', 'boolean'].includes(typeof value) || (typeof value === 'number' && !Number.isFinite(value)) || (typeof value === 'string' && value.length > MAX_NMR_STRING_LENGTH))) {
+      errors.push({ code: 'invalid', path: 'rawVendorMetadata', message: `Vendor metadata must be a plain object with at most ${MAX_NMR_METADATA_ENTRIES} finite primitive entries` });
+    }
   }
   if (!Array.isArray(spectrum.peaks)) errors.push({ code: 'invalid', path: 'peaks', message: 'Peaks must be an array' });
+  else if (spectrum.peaks.length > MAX_NMR_PEAKS) errors.push({ code: 'invalid', path: 'peaks', message: `Peaks must contain at most ${MAX_NMR_PEAKS} entries` });
   if (spectrum.frequencyMHz !== undefined && (!Number.isFinite(spectrum.frequencyMHz) || spectrum.frequencyMHz <= 0)) {
     errors.push({ code: 'invalid', path: 'frequencyMHz', message: 'Frequency must be a positive finite number' });
   }
@@ -238,10 +259,13 @@ export function validateNmrSpectrum(spectrum: NmrSpectrum): NmrValidationError[]
   for (const [index, peak] of (spectrum.peaks ?? []).entries()) {
     const path = `peaks[${index}]`;
     if (!peak || typeof peak.id !== 'string' || peak.id.length === 0 || ids.has(peak.id)) errors.push({ code: 'invalid', path: `${path}.id`, message: 'Peak IDs must be non-empty and unique' });
-    if (typeof peak?.id === 'string') ids.add(peak.id);
+    if (typeof peak?.id === 'string') {
+      if (peak.id.length > MAX_NMR_STRING_LENGTH) errors.push({ code: 'invalid', path: `${path}.id`, message: `Peak IDs must be at most ${MAX_NMR_STRING_LENGTH} characters` });
+      ids.add(peak.id);
+    }
     if (!Number.isFinite(peak?.shiftPpm)) errors.push({ code: 'invalid', path: `${path}.shiftPpm`, message: 'Chemical shift must be finite' });
     for (const field of ['intensity', 'widthPpm'] as const) if (peak?.[field] !== undefined && (!Number.isFinite(peak[field]) || peak[field] < 0)) errors.push({ code: 'invalid', path: `${path}.${field}`, message: `${field} must be a non-negative finite number` });
-    for (const field of ['multiplicity', 'assignment', 'note'] as const) if (peak?.[field] !== undefined && typeof peak[field] !== 'string') errors.push({ code: 'invalid', path: `${path}.${field}`, message: `${field} must be a string` });
+    for (const field of ['multiplicity', 'assignment', 'note'] as const) if (peak?.[field] !== undefined && (typeof peak[field] !== 'string' || peak[field].length > MAX_NMR_STRING_LENGTH)) errors.push({ code: 'invalid', path: `${path}.${field}`, message: `${field} must be a string of at most ${MAX_NMR_STRING_LENGTH} characters` });
   }
   return errors;
 }
@@ -280,11 +304,14 @@ export function serializeNmrSpectrum(spectrum: NmrSpectrum): string {
 
 export function validateMolecule(molecule: Molecule): string[] {
   if (!molecule || !Array.isArray(molecule.atoms) || !Array.isArray(molecule.bonds)) return ['Molecule must contain atoms and bonds arrays'];
+  if (molecule.atoms.length > MAX_MOLECULE_ATOMS) return [`Molecule exceeds the ${MAX_MOLECULE_ATOMS.toLocaleString()} atom limit`];
+  if (molecule.bonds.length > MAX_MOLECULE_BONDS) return [`Molecule exceeds the ${MAX_MOLECULE_BONDS.toLocaleString()} bond limit`];
   const ids = new Set<number>();
   for (const atom of molecule.atoms) {
-    if (!Number.isInteger(atom.id) || ids.has(atom.id) || typeof atom.element !== 'string' || !Number.isFinite(atom.x) || !Number.isFinite(atom.y)) return [`Invalid atom: ${atom?.id ?? 'unknown'}`];
+    if (!atom || typeof atom !== 'object' || !Number.isInteger(atom.id) || ids.has(atom.id) || typeof atom.element !== 'string' || atom.element.length === 0 || atom.element.length > MAX_ELEMENT_TEXT_LENGTH || !Number.isFinite(atom.x) || !Number.isFinite(atom.y)) return [`Invalid atom: ${atom?.id ?? 'unknown'}`];
     ids.add(atom.id);
   }
-  for (const bond of molecule.bonds) if (!ids.has(bond.from) || !ids.has(bond.to) || bond.from === bond.to) return [`Invalid bond: ${bond?.id ?? 'unknown'}`];
+  const bondIds = new Set<number>();
+  for (const bond of molecule.bonds) if (!bond || typeof bond !== 'object' || !Number.isInteger(bond.id) || bondIds.has(bond.id) || !ids.has(bond.from) || !ids.has(bond.to) || bond.from === bond.to || ![1, 2, 3, 4].includes(bond.order) || ![0, 1, 2].includes(bond.stereo)) return [`Invalid bond: ${bond?.id ?? 'unknown'}`]; else bondIds.add(bond.id);
   return [];
 }

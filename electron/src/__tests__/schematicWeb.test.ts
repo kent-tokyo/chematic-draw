@@ -40,6 +40,11 @@ describe('chematic-molecule Web Component', () => {
     expect(() => serializeMolecule({ atoms: [{ id: 1, element: 'C', x: 0, y: 0, charge: 0, atom_map: 0 }], bonds: [{ id: 1, from: 1, to: 9, order: 1, stereo: 0 }] })).toThrow(/endpoints/);
   });
 
+  it('rejects oversized molecules before rendering', () => {
+    const oversized = { atoms: Array.from({ length: 100_001 }, (_, id) => ({ id, element: 'C', x: id, y: 0, charge: 0, atom_map: 0 })), bonds: [] };
+    expect(() => renderMoleculeSvg(oversized)).toThrow(/exceeds/);
+  });
+
   it('keeps the Worker entrypoint DOM- and Electron-independent', () => {
     const molecule = { atoms: [{ id: 1, element: 'C', x: 0, y: 0, charge: 0, atom_map: 0 }], bonds: [] };
     expect(handleMoleculeWorkerRequest({ type: 'serialize', molecule })).toEqual({ ok: true, type: 'serialize', value: JSON.stringify(molecule) });
@@ -93,6 +98,16 @@ describe('chematic-molecule Web Component', () => {
     client.dispose();
     expect(terminate).toHaveBeenCalledTimes(1);
     await expect(client.request({ type: 'validate', molecule: { atoms: [], bonds: [] } })).rejects.toThrow('disposed');
+  });
+
+  it('cleans up a request when the Worker rejects postMessage', async () => {
+    const terminate = jest.fn();
+    const worker = { postMessage: jest.fn(() => { throw new Error('post failed'); }), terminate, onmessage: null, onerror: null } as unknown as MoleculeWorkerLike;
+    const client = createMoleculeWorkerClient(worker, 50);
+    await expect(client.request({ type: 'validate', molecule: { atoms: [], bonds: [] } })).rejects.toThrow('post failed');
+    expect(terminate).not.toHaveBeenCalled();
+    client.dispose();
+    expect(terminate).toHaveBeenCalledTimes(1);
   });
 
   it('installs the request-ID protocol in a real Worker-shaped scope', () => {

@@ -1,4 +1,4 @@
-import { normalizeNmrSpectrum, serializeNmrSpectrum, validateNmrSpectrum, type NmrSpectrum } from '../../../packages/chematic-contract/src/index';
+import { MAX_NMR_METADATA_ENTRIES, MAX_NMR_PEAKS, normalizeNmrSpectrum, serializeNmrSpectrum, validateNmrSpectrum, type NmrSpectrum } from '../../../packages/chematic-contract/src/index';
 
 const spectrum: NmrSpectrum = {
   schema: 'chematic-draw/nmr-spectrum',
@@ -72,5 +72,13 @@ describe('NMR contract', () => {
 
   it('refuses to serialize invalid spectra instead of exporting an unvalidated document', () => {
     expect(() => serializeNmrSpectrum({ ...spectrum, peaks: [{ id: '', shiftPpm: 1 }] })).toThrow(/Invalid NMR spectrum/);
+  });
+
+  it('bounds imported spectrum size and rejects array-shaped vendor metadata', () => {
+    const oversized = { ...spectrum, peaks: Array.from({ length: MAX_NMR_PEAKS + 1 }, (_, index) => ({ id: `p${index}`, shiftPpm: index })) };
+    expect(validateNmrSpectrum(oversized).map((error) => error.path)).toContain('peaks');
+    const metadata = Object.fromEntries(Array.from({ length: MAX_NMR_METADATA_ENTRIES + 1 }, (_, index) => [`k${index}`, true]));
+    expect(validateNmrSpectrum({ ...spectrum, rawVendorMetadata: metadata }).map((error) => error.path)).toContain('rawVendorMetadata');
+    expect(validateNmrSpectrum({ ...spectrum, rawVendorMetadata: [] } as unknown as NmrSpectrum).map((error) => error.path)).toContain('rawVendorMetadata');
   });
 });

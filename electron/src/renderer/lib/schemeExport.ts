@@ -8,6 +8,7 @@ export const REACTION_DOCUMENT_VERSION = 2;
 export const LEGACY_REACTION_DOCUMENT_VERSION = 1;
 export const MAX_REACTION_DOCUMENT_TEXT_LENGTH = 10_000_000;
 export const MAX_REACTION_DOCUMENT_STEPS = 256;
+export const MAX_REACTION_DOCUMENT_STRING_LENGTH = 2_048;
 
 interface ReactionDocumentExport {
   schema: typeof REACTION_DOCUMENT_SCHEMA;
@@ -114,6 +115,22 @@ export function importSchemeFromJSON(jsonString: string): ReactionSchemeContext 
     const scheme = data.scheme as Partial<ReactionSchemeContext>;
     if (scheme.steps.some((step) => !step || typeof step.id !== 'string')) return null;
     if (isVersioned && scheme.steps.length > MAX_REACTION_DOCUMENT_STEPS) return null;
+    if (typeof scheme.id !== 'string' || scheme.id.length === 0 || scheme.id.length > MAX_REACTION_DOCUMENT_STRING_LENGTH) return null;
+    for (const field of ['title', 'description'] as const) {
+      if (scheme[field] !== undefined && (typeof scheme[field] !== 'string' || scheme[field].length > MAX_REACTION_DOCUMENT_STRING_LENGTH)) return null;
+    }
+    if (scheme.currentStepIndex !== undefined && (!Number.isInteger(scheme.currentStepIndex) || scheme.currentStepIndex < 0 || (scheme.steps.length > 0 && scheme.currentStepIndex >= scheme.steps.length))) return null;
+    if (scheme.viewMode !== undefined && scheme.viewMode !== 'step' && scheme.viewMode !== 'scheme') return null;
+    // Legacy envelopes may omit optional arrays, but an array they do provide
+    // must still be a valid molecule collection. Otherwise malformed legacy
+    // data would be normalized into the live store and fail later in rendering.
+    if (scheme.steps.some((step) => {
+      if (step.reactants !== undefined && !Array.isArray(step.reactants)) return true;
+      if (step.products !== undefined && !Array.isArray(step.products)) return true;
+      if (step.agents !== undefined && !Array.isArray(step.agents)) return true;
+      const molecules = [...(Array.isArray(step.reactants) ? step.reactants : []), ...(Array.isArray(step.products) ? step.products : []), ...(Array.isArray(step.agents) ? step.agents : [])];
+      return molecules.some((molecule) => validateMoleculeDocument(molecule).length > 0);
+    })) return null;
     if (isVersioned && scheme.steps.some((step) => {
       if (!Array.isArray(step.reactants) || !Array.isArray(step.products) || !Array.isArray(step.arrows)) return true;
       if (!['sn2', 'sn1', 'e1', 'e2', 'electrophilic_addition'].includes(step.mechanismType ?? '')) return true;
@@ -126,7 +143,6 @@ export function importSchemeFromJSON(jsonString: string): ReactionSchemeContext 
       })) return true;
       if (step.agents !== undefined && !Array.isArray(step.agents)) return true;
       const molecules = [...step.reactants, ...step.products, ...(step.agents ?? [])];
-      if (molecules.some((molecule) => validateMoleculeDocument(molecule).length > 0)) return true;
       for (const [coefficients, expectedLength] of [[step.reactantCoefficients, step.reactants.length], [step.productCoefficients, step.products.length]] as const) {
         // Fractions are valid stoichiometric coefficients in the v2 document;
         // RXN V2000 remains loss-aware and will refuse to preserve them.
@@ -146,7 +162,6 @@ export function importSchemeFromJSON(jsonString: string): ReactionSchemeContext 
         || !Number.isInteger(arrow.sinkAtomId) || !atomIds.has(arrow.sinkAtomId)
         || (arrow.label !== undefined && (typeof arrow.label !== 'string' || arrow.label.length > 1_024)));
     })) return null;
-    if (typeof scheme.id !== 'string') return null;
     return {
       id: scheme.id,
       title: typeof scheme.title === 'string' ? scheme.title : '',
@@ -301,20 +316,27 @@ export function exportSchemeAsSVG(
 /**
  * Export scheme metrics as CSV
  */
+function csvCell(value: string): string {
+  // Quote according to RFC 4180 and neutralize spreadsheet formula prefixes
+  // so a user-authored title or note cannot become an executable cell.
+  const safeValue = /^[=+\-@]/.test(value) ? `'${value}` : value;
+  return `"${safeValue.replace(/"/g, '""')}"`;
+}
+
 export function exportSchemeAsCSV(
   scheme: ReactionSchemeContext,
   reactionClassification: ReactionClassification | null,
   greenMetrics: GreenChemistryMetrics | null
 ): string {
   let csv = 'Reaction Summary\n';
-  csv += `Title,"${scheme.title || 'Untitled'}"\n`;
-  csv += `Description,"${scheme.description || ''}"\n`;
+  csv += `Title,${csvCell(scheme.title || 'Untitled')}\n`;
+  csv += `Description,${csvCell(scheme.description || '')}\n`;
   csv += `Steps,${scheme.steps.length}\n\n`;
 
   if (reactionClassification) {
     csv += 'Reaction Structure\n';
-    csv += `Type,"${reactionClassification.type}"\n`;
-    csv += `Indicators,"${reactionClassification.indicators.join('; ')}"\n\n`;
+    csv += `Type,${csvCell(reactionClassification.type)}\n`;
+    csv += `Indicators,${csvCell(reactionClassification.indicators.join('; '))}\n\n`;
   }
 
   if (greenMetrics) {

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useUIStore } from '../../store/uiStore';
-import { serializeNmrSpectrum, validateNmrSpectrum, type NmrSpectrum } from '../../../../../packages/chematic-contract/src/index';
+import { MAX_NMR_JSON_LENGTH, serializeNmrSpectrum, validateNmrSpectrum, type NmrSpectrum } from '../../../../../packages/chematic-contract/src/index';
 
 const EMPTY_SPECTRUM: NmrSpectrum = {
   schema: 'chematic-draw/nmr-spectrum', schema_version: 1, nucleus: '1H', peaks: [],
@@ -30,6 +30,10 @@ export function NmrSpectrumPanel() {
   })) ?? [], [spectrum, maxShift, range]);
 
   const validate = () => {
+    if (raw.length > MAX_NMR_JSON_LENGTH) {
+      setErrors([`$: NMR JSON must be at most ${MAX_NMR_JSON_LENGTH} characters`]);
+      return;
+    }
     try {
       const candidate = JSON.parse(raw) as NmrSpectrum;
       const validationErrors = validateNmrSpectrum(candidate);
@@ -55,6 +59,10 @@ export function NmrSpectrumPanel() {
         reader.readAsText(file);
       });
       setRaw(text);
+      if (text.length > MAX_NMR_JSON_LENGTH) {
+        setErrors([`$: NMR JSON must be at most ${MAX_NMR_JSON_LENGTH} characters`]);
+        return;
+      }
       const candidate = JSON.parse(text) as NmrSpectrum;
       const validationErrors = validateNmrSpectrum(candidate);
       if (validationErrors.length > 0) {

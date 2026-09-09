@@ -1,5 +1,6 @@
 import {
   exportSchemeAsJSON,
+  exportSchemeAsCSV,
   importSchemeFromJSON,
   REACTION_DOCUMENT_SCHEMA,
   REACTION_DOCUMENT_VERSION,
@@ -173,6 +174,23 @@ describe('versioned reaction document JSON', () => {
       ...oversized.scheme.steps[0], id: `step-${index}`,
     }));
     expect(importSchemeFromJSON(JSON.stringify(oversized))).toBeNull();
+  });
+
+  it('rejects invalid navigation metadata and malformed legacy molecules', () => {
+    const exported = JSON.parse(exportSchemeAsJSON(scheme, null, null, null));
+    exported.scheme.currentStepIndex = 99;
+    expect(importSchemeFromJSON(JSON.stringify(exported))).toBeNull();
+    const legacy = {
+      version: '1.0',
+      scheme: { id: 'legacy', steps: [{ id: 'step-1', reactants: [{ atoms: 'not-an-array', bonds: [] }] }] },
+    };
+    expect(importSchemeFromJSON(JSON.stringify(legacy))).toBeNull();
+  });
+
+  it('escapes CSV text and neutralizes spreadsheet formula prefixes', () => {
+    const csv = exportSchemeAsCSV({ ...scheme, title: '=SUM(A1:A2)"quoted"', description: 'line 1, line 2' }, null, null);
+    expect(csv).toContain('Title,\"\'=SUM(A1:A2)\"\"quoted\"\"\"');
+    expect(csv).toContain('Description,\"line 1, line 2\"');
   });
 });
 

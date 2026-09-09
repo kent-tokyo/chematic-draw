@@ -27,6 +27,10 @@ export function runAnalysisInWorker(operation: AnalysisOperation, molecule: Mole
     worker.onerror = (event) => fail(new Error(event.message || 'Analysis worker failed'));
     if (signal?.aborted) return onAbort();
     signal?.addEventListener('abort', onAbort, { once: true });
-    worker.postMessage({ id, operation, ...(molecule ? { molecule } : {}), ...(comparison ? { comparison } : {}), ...(text !== undefined ? { text } : {}) });
+    try {
+      worker.postMessage({ id, operation, ...(molecule ? { molecule } : {}), ...(comparison ? { comparison } : {}), ...(text !== undefined ? { text } : {}) });
+    } catch (error) {
+      fail(error instanceof Error ? error : new Error(String(error)));
+    }
   });
 }

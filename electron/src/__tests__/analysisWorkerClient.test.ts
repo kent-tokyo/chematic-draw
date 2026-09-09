@@ -48,6 +48,13 @@ describe('analysis worker client', () => {
     await expect(promise).resolves.toEqual({ atoms: [], bonds: [] });
   });
 
+  it('terminates the worker when posting a request fails synchronously', async () => {
+    const worker = { terminate: jest.fn(), postMessage: jest.fn(() => { throw new Error('post failed'); }), onmessage: null, onerror: null };
+    (globalThis as unknown as { Worker: typeof Worker }).Worker = jest.fn(() => worker) as unknown as typeof Worker;
+    await expect(runAnalysisInWorker('properties', { atoms: [], bonds: [] })).rejects.toThrow('post failed');
+    expect(worker.terminate).toHaveBeenCalledTimes(1);
+  });
+
   it.each(['canonical-smiles', 'mol-v2000', 'sdf', 'cml', 'svg'] as const)(
     'dispatches %s serialization through the worker',
     async (operation) => {

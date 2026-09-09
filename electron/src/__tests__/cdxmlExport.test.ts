@@ -62,4 +62,9 @@ describe('CDXML writer', () => {
     } }] });
     expect(losses.map((loss) => loss.code)).toEqual(['invalid-page', 'wildcard-atom', 'unsupported-element', 'unsupported-bond']);
   });
+
+  it('rejects invalid or reserved custom page attribute names', () => {
+    expect(() => exportCdxmlDocument({ pages: [{ id: 'p1', molecule, attributes: { 'bad name': 'x' } }] })).toThrow('invalid or reserved attribute name');
+    expect(() => exportCdxmlDocument({ pages: [{ id: 'p1', molecule, attributes: { Width: 'override' } }] })).toThrow('invalid or reserved attribute name');
+  });
 });

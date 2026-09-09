@@ -13,6 +13,10 @@ function escapeXml(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+function isXmlAttributeName(value: string): boolean {
+  return /^[A-Za-z_][A-Za-z0-9_.:-]*$/.test(value);
+}
+
 type CdxmlDocument = ContractCdxmlDocument;
 type CdxmlLoss = ContractCdxmlLoss;
 
@@ -59,7 +63,11 @@ function writeFragment(molecule: MoleculeDto): string {
 export function exportCdxmlDocument(document: CdxmlDocument): string {
   if (!document.pages.length) throw new Error('CDXML document must contain at least one page');
   const pages = document.pages.map((page) => {
-    const attrs = [`id="${escapeXml(page.id)}"`, ...Object.entries(page.attributes ?? {}).map(([key, value]) => `${key}="${escapeXml(value)}"`)];
+    const customAttributes = Object.entries(page.attributes ?? {}).map(([key, value]) => {
+      if (!isXmlAttributeName(key) || ['id', 'Width', 'Height'].includes(key)) throw new Error(`CDXML page contains an invalid or reserved attribute name: ${key}`);
+      return `${key}="${escapeXml(value)}"`;
+    });
+    const attrs = [`id="${escapeXml(page.id)}"`, ...customAttributes];
     if (page.width !== undefined) attrs.push(`Width="${page.width}"`);
     if (page.height !== undefined) attrs.push(`Height="${page.height}"`);
     const title = page.title ? `<t id="${escapeXml(`${page.id}-title`)}" p="0 0" Label="${escapeXml(page.title)}"/>` : '';

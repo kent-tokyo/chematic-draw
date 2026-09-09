@@ -47,7 +47,11 @@ export function createMoleculeWorkerClient(worker: MoleculeWorkerLike, timeoutMs
         const onAbort = () => settle(id, (entry) => entry.reject(new Error('Molecule worker request aborted')));
         pending.set(id, { resolve, reject, timer, signal, onAbort });
         signal?.addEventListener('abort', onAbort, { once: true });
-        worker.postMessage({ id, ...request });
+        try {
+          worker.postMessage({ id, ...request });
+        } catch (error) {
+          settle(id, (entry) => entry.reject(error instanceof Error ? error : new Error(String(error))));
+        }
       });
     },
     dispose() {

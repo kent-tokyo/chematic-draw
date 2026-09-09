@@ -1,4 +1,4 @@
-import type { Molecule, MoleculeAtom, MoleculeBond } from '@chematic/contract';
+import { MAX_MOLECULE_ATOMS, MAX_MOLECULE_BONDS, type Molecule, type MoleculeAtom, type MoleculeBond } from '@chematic/contract';
 
 const ELEMENT_COLORS: Record<string, string> = { C: '#e5e7eb', N: '#60a5fa', O: '#f87171', S: '#facc15', P: '#fb923c' };
 
@@ -18,6 +18,9 @@ function finiteMolecule(value: unknown): Molecule {
     throw new TypeError('schematic-molecule expects a molecule with atoms and bonds arrays');
   }
   const molecule = value as Molecule;
+  if (molecule.atoms.length > MAX_MOLECULE_ATOMS || molecule.bonds.length > MAX_MOLECULE_BONDS) {
+    throw new RangeError(`schematic-molecule exceeds the ${MAX_MOLECULE_ATOMS.toLocaleString()} atom or ${MAX_MOLECULE_BONDS.toLocaleString()} bond limit`);
+  }
   for (const atom of molecule.atoms) {
     if (!Number.isFinite(atom.x) || !Number.isFinite(atom.y) || !Number.isInteger(atom.id) || typeof atom.element !== 'string') throw new TypeError(`Invalid atom: ${atom?.id ?? 'unknown'}`);
   }
@@ -34,7 +37,10 @@ function bounds(molecule: Molecule): { minX: number; minY: number; width: number
   const atoms = molecule.atoms;
   if (!atoms.length) return { minX: 0, minY: 0, width: 120, height: 80 };
   const xs = atoms.map((atom) => atom.x), ys = atoms.map((atom) => atom.y);
-  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  const minX = xs.reduce((minimum, value) => Math.min(minimum, value), Number.POSITIVE_INFINITY);
+  const maxX = xs.reduce((maximum, value) => Math.max(maximum, value), Number.NEGATIVE_INFINITY);
+  const minY = ys.reduce((minimum, value) => Math.min(minimum, value), Number.POSITIVE_INFINITY);
+  const maxY = ys.reduce((maximum, value) => Math.max(maximum, value), Number.NEGATIVE_INFINITY);
   return { minX: minX - 32, minY: minY - 32, width: Math.max(64, maxX - minX + 64), height: Math.max(64, maxY - minY + 64) };
 }
 

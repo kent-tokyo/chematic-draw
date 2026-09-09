@@ -54,6 +54,7 @@ function App() {
   const [wasmStatus, setWasmStatus] = useState<wasmBridge.WasmStatus>('loading');
   const [wasmError, setWasmError] = useState<string | null>(null);
   const wasmLoaded = wasmStatus === 'ready';
+  const [initialDocumentLoaded, setInitialDocumentLoaded] = useState(false);
   const [filePath, setFilePath] = useState<string | null>(null);
   const [richCdxmlSession, setRichCdxmlSession] = useState<RichCdxmlSession | null>(null);
   const [settingsHydrated, setSettingsHydrated] = useState(false);
@@ -152,27 +153,29 @@ function App() {
   useEffect(() => {
     if (!wasmLoaded) return;
     (async () => {
-      if (typeof window !== 'undefined' && (window as any).electronAPI?.getPendingRecovery) {
-        try {
-          const snapshot = await (window as any).electronAPI.getPendingRecovery();
-          if (snapshot) {
-            setMolecule(snapshot.molecule);
-            setFilePath(snapshot.filePath ?? null);
-            announce('Restored last session', '前回のセッションを復元しました');
-            useCanvasStore.getState().requestCenterOnLoad();
-            return;
-          }
-        } catch (err) {
-          console.error('Failed to check for a recoverable session:', err);
-        }
-      }
-      // Try to load benzene
       try {
+        if (typeof window !== 'undefined' && (window as any).electronAPI?.getPendingRecovery) {
+          try {
+            const snapshot = await (window as any).electronAPI.getPendingRecovery();
+            if (snapshot) {
+              setMolecule(snapshot.molecule);
+              setFilePath(snapshot.filePath ?? null);
+              announce('Restored last session', '前回のセッションを復元しました');
+              useCanvasStore.getState().requestCenterOnLoad();
+              return;
+            }
+          } catch (err) {
+            console.error('Failed to check for a recoverable session:', err);
+          }
+        }
+        // Try to load benzene
         const result = await runAnalysisInWorker('parse', undefined, undefined, undefined, 'c1ccccc1') as MoleculeDto;
         setMolecule(result);
         useCanvasStore.getState().requestCenterOnLoad();
       } catch (err) {
         console.error('Failed to load sample:', err);
+      } finally {
+        setInitialDocumentLoaded(true);
       }
     })();
   }, [wasmLoaded, setMolecule, setStatus, announce]);
@@ -664,7 +667,7 @@ function App() {
   return (
     <div
       data-testid="app-root"
-      data-ready={wasmLoaded}
+      data-ready={wasmLoaded && initialDocumentLoaded}
       data-wasm-status={wasmStatus}
       className="app-root"
       style={{
