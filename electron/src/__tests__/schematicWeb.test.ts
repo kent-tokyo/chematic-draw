@@ -6,9 +6,11 @@ import type { MoleculeWorkerLike } from '../../../packages/chematic-web/src/work
 import { toSchematicMoleculeElementProps } from '../../../packages/chematic-web/src/react';
 import * as webPackage from '../../../packages/chematic-web/package.json';
 import { applyMoleculeEdit } from '../../../packages/chematic-web/src/editor';
+import { SchematicMoleculeEditorElement, defineSchematicMoleculeEditorElement } from '../../../packages/chematic-web/src/editorElement';
 
 describe('chematic-molecule Web Component', () => {
   beforeAll(() => defineSchematicMoleculeElement());
+  beforeAll(() => defineSchematicMoleculeEditorElement());
 
   it('registers without Electron and renders a validated molecule as SVG', () => {
     const element = document.createElement('chematic-molecule') as SchematicMoleculeElement;
@@ -59,6 +61,7 @@ describe('chematic-molecule Web Component', () => {
     expect(webPackage.exports['./worker-client']).toEqual({ types: './src/workerClient.ts', default: './src/workerClient.ts' });
     expect(webPackage.exports['./react']).toEqual({ types: './src/react.ts', default: './src/react.ts' });
     expect(webPackage.exports['./editor']).toEqual({ types: './src/editor.ts', default: './src/editor.ts' });
+    expect(webPackage.exports['./editor-element']).toEqual({ types: './src/editorElement.ts', default: './src/editorElement.ts' });
     expect(webPackage.dependencies).toEqual({ '@chematic/contract': '1.0.7' });
     expect(webPackage.private).toBe(true);
     expect(webPackage.sideEffects).toEqual(['./src/index.ts']);
@@ -78,6 +81,30 @@ describe('chematic-molecule Web Component', () => {
     expect(applyMoleculeEdit(edited, { type: 'remove-atom', atomId: 2 })).toEqual(molecule);
     expect(() => applyMoleculeEdit(molecule, { type: 'remove-atom', atomId: 9 })).toThrow(/does not exist/);
     expect(() => applyMoleculeEdit(molecule, { type: 'remove-bond', bondId: 9 })).toThrow(/does not exist/);
+  });
+
+  it('keeps editing explicitly opt-in and emits validated molecule changes', () => {
+    const element = document.createElement('chematic-molecule-editor') as SchematicMoleculeEditorElement;
+    element.molecule = { atoms: [], bonds: [] };
+    const change = jest.fn();
+    element.addEventListener('molecule-change', change);
+    document.body.append(element);
+    const next = element.applyEdit({ type: 'add-atom', atom: { id: 1, element: 'C', x: 0, y: 0, charge: 0, atom_map: 0 } });
+    expect(next.atoms).toHaveLength(1);
+    expect(change).toHaveBeenCalledTimes(1);
+    expect((change.mock.calls[0][0] as CustomEvent).detail.edit.type).toBe('add-atom');
+    element.setAttribute('readonly', '');
+    expect(() => element.applyEdit({ type: 'remove-atom', atomId: 1 })).toThrow(/read-only/);
+  });
+
+  it('reports invalid editor edits without mutating the current molecule', () => {
+    const element = document.createElement('chematic-molecule-editor') as SchematicMoleculeEditorElement;
+    element.molecule = { atoms: [], bonds: [] };
+    const error = jest.fn();
+    element.addEventListener('schematic-error', error);
+    expect(() => element.applyEdit({ type: 'remove-atom', atomId: 9 })).toThrow(/does not exist/);
+    expect(error).toHaveBeenCalledTimes(1);
+    expect(element.molecule.atoms).toEqual([]);
   });
 
   it('provides abort, timeout, error, and disposal lifecycle for Worker clients', async () => {

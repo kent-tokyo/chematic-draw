@@ -14,6 +14,7 @@
     "./worker-entry": { "types": "./src/worker-entry.ts", "default": "./src/worker-entry.ts" },
     "./worker-client": { "types": "./src/workerClient.ts", "default": "./src/workerClient.ts" },
     "./react": { "types": "./src/react.ts", "default": "./src/react.ts" },
-    "./editor": { "types": "./src/editor.ts", "default": "./src/editor.ts" }
+    "./editor": { "types": "./src/editor.ts", "default": "./src/editor.ts" },
+    "./editor-element": { "types": "./src/editorElement.ts", "default": "./src/editorElement.ts" }
   }
 }
