@@ -12,6 +12,7 @@ import * as wasmBridge from '../../wasm/wasmBridge';
 import { exportLossMessage, exportLosses } from '../../lib/exportLoss';
 import { parseComponentIds } from '../../lib/reactionComponentEditor';
 import { assertReactionDocument } from '../../lib/reactionDocumentGate';
+import { ReactionExportSection } from './ReactionExportSection';
 
 export function ReactionPanel() {
   const theme = useUIStore((s) => s.theme);
@@ -333,16 +334,6 @@ export function ReactionPanel() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // Button style definition
-  const buttonStyle = {
-    width: '100%',
-    backgroundColor: isDark ? '#2a3a3a' : '#f0f0f0',
-    color: textColor,
-    border: `1px solid ${borderColor}`,
-    borderRadius: '3px',
-    cursor: 'pointer' as const,
-  };
-
   return (
     <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
       {/* Title */}
@@ -379,85 +370,24 @@ export function ReactionPanel() {
         }}
       />
 
-      {/* Export/Import Section */}
-      {scheme && (
-        <div style={{
-          padding: '12px',
-          backgroundColor: isDark ? '#1e2a2a' : '#f9f9f9',
-          border: `1px solid ${borderColor}`,
-          borderRadius: '6px',
-          marginBottom: '12px',
-        }}>
-          <div style={{ fontSize: '11px', fontWeight: 'bold', color: textColor, marginBottom: '8px' }}>
-            {isJapanese ? 'エクスポートとインポート' : 'Export & Import'}
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <button
-              onClick={() => setShowExportMenu(!showExportMenu)}
-              style={{
-                padding: '6px 8px',
-                backgroundColor: accentColor,
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '10px',
-                fontWeight: 'bold',
-              }}
-            >
-              {isJapanese ? '▼ 反応スキームを出力' : '▼ Export Scheme'}
-            </button>
-
-            {showExportMenu && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                <button onClick={handleExportJSON} style={{ padding: '4px 6px', fontSize: '9px', ...buttonStyle }}>
-                  {isJapanese ? 'JSON（全データ）' : 'JSON (full data)'}
-                </button>
-                <button onClick={handleExportSVG} style={{ padding: '4px 6px', fontSize: '9px', ...buttonStyle }}>
-                  {isJapanese ? 'SVG画像' : 'SVG Image'}
-                </button>
-                <label style={{ fontSize: '9px', color: labelColor }}>
-                  {isJapanese ? '出版スタイル' : 'Publication style'}
-                  <select aria-label={isJapanese ? '出版スタイル' : 'Publication style'} value={svgPreset} onChange={(event) => setSvgPreset(event.target.value as SchemeSvgPreset)} style={{ marginLeft: '4px', fontSize: '9px' }}>
-                    <option value="journal">{isJapanese ? '論文（モノクロ）' : 'Journal (monochrome)'}</option>
-                    <option value="screen">{isJapanese ? '画面表示' : 'Screen'}</option>
-                  </select>
-                </label>
-                <button onClick={handleExportRXN} style={{ padding: '4px 6px', fontSize: '9px', ...buttonStyle }}>
-                  {isJapanese ? 'RXN V2000（単一ステップ）' : 'RXN V2000 (single step)'}
-                </button>
-                <button onClick={handleExportCSV} style={{ padding: '4px 6px', fontSize: '9px', ...buttonStyle }}>
-                  {isJapanese ? 'CSVレポート' : 'CSV Report'}
-                </button>
-              </div>
-            )}
-
-            <input
-              type="file"
-              accept=".json,.rxn"
-              onChange={handleImportJSON}
-              ref={fileInputRef}
-              style={{ display: 'none' }}
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              style={{
-                padding: '6px 8px',
-                backgroundColor: borderColor,
-                color: textColor,
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '10px',
-                fontWeight: 'bold',
-              }}
-            >
-              {isJapanese ? 'JSONまたはRXNを読み込む' : 'Import JSON or RXN'}
-            </button>
-          </div>
-        </div>
-      )}
+      <ReactionExportSection
+        isJapanese={isJapanese}
+        isDark={isDark}
+        textColor={textColor}
+        labelColor={labelColor}
+        borderColor={borderColor}
+        accentColor={accentColor}
+        showExportMenu={showExportMenu}
+        setShowExportMenu={setShowExportMenu}
+        svgPreset={svgPreset}
+        setSvgPreset={setSvgPreset}
+        onExportJSON={handleExportJSON}
+        onExportSVG={handleExportSVG}
+        onExportRXN={handleExportRXN}
+        onExportCSV={handleExportCSV}
+        onImport={handleImportJSON}
+        fileInputRef={fileInputRef}
+      />
 
       {/* Multi-Step Scheme Navigation */}
       {scheme.steps.length > 0 && (
