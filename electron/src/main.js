@@ -1,5 +1,5 @@
 import { app, BrowserWindow, Menu, dialog, ipcMain, shell } from 'electron';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync, renameSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, unlinkSync, renameSync, statSync } from 'node:fs';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import { createSettingsStore } from './lib/settingsStore';
