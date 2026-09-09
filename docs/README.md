@@ -25,7 +25,7 @@ authoritative when a version or capability changes.
 
 ## Current release
 
-The current tagged release is `v1.0.9` (2026-09-09). The application version
+The current tagged release is `v1.0.10` (2026-09-10). The application version
 is defined in `electron/package.json` and `crates/chem-wasm/Cargo.toml`; CI
 checks that they stay in sync.
 

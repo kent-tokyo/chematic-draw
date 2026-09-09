@@ -3,6 +3,25 @@
 Notable changes to chematic-draw. Dates use ISO 8601 format. See the git log
 for the full development history.
 
+## [1.0.10] - 2026-09-10
+
+### Changed
+
+- Refactored Electron main-process file/PDF, Clipboard, and Autosave IPC
+  handlers into focused modules without changing their validation contracts.
+- Updated Electron, React, Playwright, Jest, ESLint, React type definitions,
+  and typescript-eslint within their compatible release lines.
+- Updated release and compatibility documentation for the v1.0.10 application
+  release.
+
+### Validation
+
+- Unit tests: 43 suites passed, 344 tests passed, 6 skipped.
+- TypeScript typecheck, ESLint, Electron Forge packaging, and `git diff --check`
+  pass locally.
+- The upstream `chematic` engine remains pinned at v1.0.9; its separate
+  semantic and format limitations remain documented explicitly.
+
 ## [1.0.9] - 2026-09-09
 
 ### Added
@@ -402,6 +421,7 @@ for the full development history.
 [0.9.4]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.9.4
 [1.0.7]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v1.0.7
 [1.0.9]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v1.0.9
+[1.0.10]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v1.0.10
 [1.0.8]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v1.0.8
 [0.9.3]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.9.3
 [0.9.1]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.9.1
