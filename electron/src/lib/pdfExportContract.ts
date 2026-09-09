@@ -5,6 +5,7 @@
  */
 export function isSafeSvgForPdf(svgText: string): boolean {
   return /^\s*(?:<\?xml\b[^>]*>\s*)?<svg\b/i.test(svgText)
-    && !/<\s*(?:script|iframe|object|embed|foreignObject)\b/i.test(svgText)
-    && !/\bon[a-z][\w:-]*\s*=|\b(?:href|src)\s*=\s*["']\s*(?:https?:|data:|\/\/|javascript:)/i.test(svgText);
+    && !/<\s*(?:script|iframe|object|embed|foreignObject)\b|<!DOCTYPE\b/i.test(svgText)
+    && !/\bon[a-z][\w:-]*\s*=|\b(?:href|src)\s*=\s*["']\s*(?:https?:|data:|\/\/|javascript:)/i.test(svgText)
+    && !/@import\b|url\(\s*(?:["']\s*)?(?:https?:|data:|\/\/|javascript:)/i.test(svgText);
 }

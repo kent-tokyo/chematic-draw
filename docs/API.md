@@ -86,11 +86,11 @@ unversioned documents use migration defaults.
 custom element for validated read-only SVG rendering. Its `/editor`, `/react`,
 and `/worker` entrypoints provide immutable atom/bond edits, a React-compatible
 props adapter, and DOM/Electron-free validation, serialization, and SVG
-rendering. These are local v1.0.8 package boundaries; they are not registry-
+rendering. These are local v1.0.9 package boundaries; they are not registry-
 published APIs. Parsing, chemistry analysis, and network access remain host
 responsibilities.
 
-### Local Extension API (v1.0.8)
+### Local Extension API (v1.0.9)
 
 Local extensions use the renderer's validated command boundary. A command must
 declare `document:write`; its returned molecule is checked before it reaches

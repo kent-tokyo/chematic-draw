@@ -47,4 +47,17 @@ describe('analysis worker client', () => {
     worker.onmessage!({ data: { id: task.id, value: { atoms: [], bonds: [] } } } as MessageEvent);
     await expect(promise).resolves.toEqual({ atoms: [], bonds: [] });
   });
+
+  it.each(['canonical-smiles', 'mol-v2000', 'sdf', 'cml', 'svg'] as const)(
+    'dispatches %s serialization through the worker',
+    async (operation) => {
+      const worker = { terminate: jest.fn(), postMessage: jest.fn(), onmessage: null, onerror: null };
+      (globalThis as unknown as { Worker: typeof Worker }).Worker = jest.fn(() => worker) as unknown as typeof Worker;
+      const promise = runAnalysisInWorker(operation, { atoms: [], bonds: [] });
+      const task = worker.postMessage.mock.calls[0][0] as { id: string; operation: string };
+      expect(task.operation).toBe(operation);
+      worker.onmessage!({ data: { id: task.id, operation, value: `serialized:${operation}` } } as MessageEvent);
+      await expect(promise).resolves.toBe(`serialized:${operation}`);
+    }
+  );
 });

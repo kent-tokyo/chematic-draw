@@ -1,5 +1,6 @@
 import type { MoleculeDto } from '../store/types';
 import type { AnalysisOperation } from '../workers/analysisWorker';
+import analysisWorkerUrl from './analysisWorkerUrl';
 
 const ANALYSIS_WORKER_TIMEOUT_MS = 10_000;
 let nextId = 0;
@@ -9,7 +10,7 @@ interface AnalysisWorkerResponse { id: string; operation?: AnalysisOperation; va
 export function runAnalysisInWorker(operation: AnalysisOperation, molecule: MoleculeDto | undefined, signal?: AbortSignal, comparison?: MoleculeDto, text?: string): Promise<unknown> {
   // Keep the source URL explicit so Vite can transform the worker in the
   // renderer dev server and in the packaged renderer alike.
-  const worker = new Worker(new URL('/src/renderer/workers/analysisWorker.ts', document.baseURI), { type: 'module' });
+  const worker = new Worker(new URL(analysisWorkerUrl, document.baseURI), { type: 'module' });
   const id = `analysis-${++nextId}`;
   return new Promise((resolve, reject) => {
     let settled = false;

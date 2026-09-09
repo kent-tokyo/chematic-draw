@@ -14,7 +14,7 @@ function atomBalanceForStep(step: MechanismStep): { balanced: boolean; differenc
     if (coefficients === undefined) return { values: Array.from({ length: moleculeCount }, () => 1), valid: true };
     return {
       values: coefficients,
-      valid: coefficients.length === moleculeCount && coefficients.every((coefficient) => Number.isFinite(coefficient) && coefficient > 0),
+      valid: coefficients.length === moleculeCount && coefficients.every((coefficient) => Number.isFinite(coefficient) && coefficient > 0 && coefficient <= 1_000_000),
     };
   };
   const reactantCoefficients = coefficientsFor(step.reactantCoefficients, step.reactants.length);
@@ -45,7 +45,8 @@ function atomBalanceForStep(step: MechanismStep): { balanced: boolean; differenc
   if (!productCoefficients.valid) differences.push('Product coefficients must be positive finite values matching the product count.');
   const reactantCharge = step.reactants.reduce((sum, molecule, moleculeIndex) => sum + molecule.atoms.reduce((moleculeSum, atom) => moleculeSum + atom.charge, 0) * (reactantCoefficients.values[moleculeIndex] ?? 0), 0);
   const productCharge = step.products.reduce((sum, molecule, moleculeIndex) => sum + molecule.atoms.reduce((moleculeSum, atom) => moleculeSum + atom.charge, 0) * (productCoefficients.values[moleculeIndex] ?? 0), 0);
-  return { balanced: differences.length === 0, differences, chargeDifference: reactantCharge - productCharge };
+  const chargeDifference = Number((reactantCharge - productCharge).toFixed(9));
+  return { balanced: differences.length === 0, differences, chargeDifference };
 }
 
 function mappingForStep(step: MechanismStep): ReactionDiagnostics['mapping'] & { mappedAtomCount: number } {

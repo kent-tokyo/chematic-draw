@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Viewer3DPanel } from '../renderer/components/sidebar/Viewer3DPanel';
 import * as wasmBridge from '../renderer/wasm/wasmBridge';
 import * as moleculeStore from '../renderer/store/moleculeStore';
+import * as uiStore from '../renderer/store/uiStore';
 
 jest.mock('../renderer/wasm/wasmBridge');
 jest.mock('../renderer/store/moleculeStore');
@@ -27,6 +28,10 @@ describe('Viewer3DPanel', () => {
     jest.clearAllMocks();
     (moleculeStore.useMoleculeStore as unknown as jest.Mock).mockImplementation(
       (selector: (s: { molecule: typeof stableMolecule }) => unknown) => selector({ molecule: stableMolecule })
+    );
+    (uiStore.useUIStore as unknown as jest.Mock).mockImplementation(
+      (selector: (s: { theme: string; language: string }) => unknown) =>
+        selector({ theme: 'dark', language: 'en' })
     );
   });
 
@@ -95,6 +100,49 @@ describe('Viewer3DPanel', () => {
     expect(exportButton).toBeDisabled();
   });
 
+  it('should render localized light-theme copy and disable generation for an empty molecule', () => {
+    (moleculeStore.useMoleculeStore as unknown as jest.Mock).mockImplementation(
+      (selector: (s: { molecule: { atoms: never[]; bonds: never[] } }) => unknown) =>
+        selector({ molecule: { atoms: [], bonds: [] } })
+    );
+    (uiStore.useUIStore as unknown as jest.Mock).mockImplementation(
+      (selector: (s: { theme: string; language: string }) => unknown) =>
+        selector({ theme: 'light', language: 'ja' })
+    );
+
+    render(<Viewer3DPanel />);
+
+    expect(screen.getByText('分子から3D座標を生成し、UFF力場で最適化します。')).toBeInTheDocument();
+    expect(screen.getByText('XYZを出力')).toBeDisabled();
+    expect(screen.getByText('3D 生成')).toBeDisabled();
+  });
+
+  it('should draw non-carbon and unknown elements and export generated XYZ', async () => {
+    const mockCoords = {
+      atoms: [
+        { id: 0, element: 'O', x: 0, y: 0, z: 0 },
+        { id: 1, element: 'Xe', x: 1, y: 0, z: 0 },
+      ],
+    };
+    (wasmBridge.generate3dCoords as jest.Mock).mockReturnValue(mockCoords);
+    (wasmBridge.minimize3d as jest.Mock).mockReturnValue(mockCoords);
+    const createObjectURL = jest.fn(() => 'blob:xyz');
+    const revokeObjectURL = jest.fn();
+    Object.assign(URL, { createObjectURL, revokeObjectURL });
+    const click = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+
+    render(<Viewer3DPanel />);
+    fireEvent.click(screen.getByText('3D 生成'));
+    const exportButton = screen.getByText('XYZ エクスポート');
+    await waitFor(() => expect(exportButton).toBeEnabled());
+    fireEvent.click(exportButton);
+
+    expect(createObjectURL).toHaveBeenCalled();
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:xyz');
+    expect(click).toHaveBeenCalled();
+    click.mockRestore();
+  });
+
   it('should handle mouse drag for rotation', async () => {
     render(<Viewer3DPanel />);
 
@@ -119,6 +167,13 @@ describe('Viewer3DPanel', () => {
     fireEvent.wheel(canvas, { deltaY: 100 });
 
     // Zoom should be updated
+    expect(canvas).toBeInTheDocument();
+  });
+
+  it('should handle zooming in as well as out', () => {
+    render(<Viewer3DPanel />);
+    const canvas = screen.getByTestId('viewer-3d-canvas');
+    fireEvent.wheel(canvas, { deltaY: -100 });
     expect(canvas).toBeInTheDocument();
   });
 });

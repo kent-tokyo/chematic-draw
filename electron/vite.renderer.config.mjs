@@ -12,9 +12,17 @@ export default defineConfig(({ mode }) => {
   return {
   root: isPlayground ? resolve(rootDir, '..') : rootDir,
   plugins: [topLevelAwait(), wasm()],
-  base: isPlayground ? './' : '/',
+  // The packaged Electron renderer is loaded from a file:// URL. Absolute
+  // asset URLs (/) resolve against the filesystem and leave a blank window;
+  // relative URLs work for both the packaged app and the standalone Vite
+  // renderer E2E server.
+  base: './',
   build: {
-    outDir: isPlayground ? resolve(rootDir, 'site') : resolve(rootDir, 'dist'),
+    // electron-forge's Vite plugin owns the production renderer directory
+    // for the Electron build (.vite/renderer/<name>). Overriding it with
+    // dist/ leaves main.js packaged without the renderer bundle. Playground
+    // is the standalone build and intentionally keeps its site/ output.
+    ...(isPlayground ? { outDir: resolve(rootDir, 'site') } : {}),
     rollupOptions: {
       input: isPlayground
         ? resolve(rootDir, '../playground/index.html')

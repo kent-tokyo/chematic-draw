@@ -1,7 +1,7 @@
-import initWasm, { find_mcs, get_extended_properties, get_fingerprint, get_properties, inchi_to_inchikey, iupac_name, mol_to_inchi, parse_any } from '../wasm/pkg/chem_wasm';
+import initWasm, { find_mcs, get_extended_properties, get_fingerprint, get_properties, inchi_to_inchikey, iupac_name, mol_to_inchi, parse_any, to_canonical_smiles, to_cml, to_mol_v2000, to_sdf, to_svg } from '../wasm/pkg/chem_wasm';
 import { MoleculeDto } from '../store/types';
 
-export type AnalysisOperation = 'properties' | 'extended-properties' | 'fingerprint' | 'iupac' | 'identifiers' | 'mcs' | 'parse';
+export type AnalysisOperation = 'properties' | 'extended-properties' | 'fingerprint' | 'iupac' | 'identifiers' | 'mcs' | 'parse' | 'canonical-smiles' | 'mol-v2000' | 'sdf' | 'cml' | 'svg';
 export interface AnalysisTask { id: string; operation: AnalysisOperation; molecule?: MoleculeDto; comparison?: MoleculeDto; text?: string; }
 
 let ready: Promise<unknown> | null = null;
@@ -25,7 +25,17 @@ self.onmessage = (event: MessageEvent<AnalysisTask>) => {
           ? get_extended_properties(molecule)
           : operation === 'fingerprint'
             ? get_fingerprint(molecule)
-            : operation === 'iupac'
+          : operation === 'canonical-smiles'
+            ? to_canonical_smiles(molecule)
+          : operation === 'mol-v2000'
+            ? to_mol_v2000(molecule)
+          : operation === 'sdf'
+            ? to_sdf(molecule)
+          : operation === 'cml'
+            ? to_cml(molecule)
+          : operation === 'svg'
+            ? to_svg(molecule)
+          : operation === 'iupac'
               ? iupac_name(molecule)
             : operation === 'identifiers'
               ? (() => { const inchi = mol_to_inchi(molecule); return { inchi, inchikey: inchi_to_inchikey(inchi) }; })()

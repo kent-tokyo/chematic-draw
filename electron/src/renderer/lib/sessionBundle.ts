@@ -61,6 +61,7 @@ function isMolecule(value: unknown): value is MoleculeDto {
 }
 
 function hasValidBundleMetadata(bundle: VersionedInputBundle): boolean {
+  if (!bundle.app || typeof bundle.app !== 'object' || bundle.app.name !== 'chematic-draw' || bundle.app.engine !== 'chematic 1.0.9') return false;
   if (!bundle.document || bundle.document.schema_version !== DOCUMENT_SCHEMA_VERSION) return false;
   if (!bundle.source || typeof bundle.source !== 'object') return false;
   const filePath = bundle.source.file_path;

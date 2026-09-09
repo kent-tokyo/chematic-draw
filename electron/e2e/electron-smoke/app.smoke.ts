@@ -2,6 +2,9 @@ import { test, expect, _electron as electron } from '@playwright/test';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
+import { packagedAppPath } from './packaged-app';
+
+const PACKAGED_APP_PATH = packagedAppPath();
 
 /**
  * Launches the real, packaged Electron app via Playwright's dedicated
@@ -17,7 +20,7 @@ import os from 'node:os';
 test.describe('Electron Smoke', () => {
   test('app launches, renderer becomes ready, electronAPI is exposed, and it exits cleanly', async () => {
     const electronApp = await electron.launch({
-      args: [path.resolve(__dirname, '..', '..')],
+      args: [PACKAGED_APP_PATH],
     });
 
     const window = await electronApp.firstWindow();
@@ -51,7 +54,7 @@ test.describe('Electron Smoke', () => {
     // sends the exact IPC event the menu item's click handler sends,
     // exercising the same renderer-side code path a real click would.
     const electronApp = await electron.launch({
-      args: [path.resolve(__dirname, '..', '..')],
+      args: [PACKAGED_APP_PATH],
     });
     const window = await electronApp.firstWindow();
     await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
@@ -69,7 +72,7 @@ test.describe('Electron Smoke', () => {
 
   test('File > Export exposes the importable JSON session bundle', async () => {
     const electronApp = await electron.launch({
-      args: [path.resolve(__dirname, '..', '..')],
+      args: [PACKAGED_APP_PATH],
     });
     const window = await electronApp.firstWindow();
     await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
@@ -89,7 +92,7 @@ test.describe('Electron Smoke', () => {
 
   test('file export IPC rejects invalid paths and oversized payloads', async () => {
     const electronApp = await electron.launch({
-      args: [path.resolve(__dirname, '..', '..')],
+      args: [PACKAGED_APP_PATH],
     });
     const window = await electronApp.firstWindow();
     await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
@@ -118,7 +121,7 @@ test.describe('Electron Smoke', () => {
 
   test('packaged renderer cannot navigate or open an arbitrary popup', async () => {
     const electronApp = await electron.launch({
-      args: [path.resolve(__dirname, '..', '..')],
+      args: [PACKAGED_APP_PATH],
     });
     const window = await electronApp.firstWindow();
     await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
@@ -138,7 +141,7 @@ test.describe('Electron Smoke', () => {
 
   test('recent-file IPC rejects malformed renderer paths', async () => {
     const electronApp = await electron.launch({
-      args: [path.resolve(__dirname, '..', '..')],
+      args: [PACKAGED_APP_PATH],
     });
     const window = await electronApp.firstWindow();
     await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
@@ -163,7 +166,7 @@ test.describe('Electron Smoke', () => {
 
   test('clipboard and settings IPC reject malformed renderer arguments', async () => {
     const electronApp = await electron.launch({
-      args: [path.resolve(__dirname, '..', '..')],
+      args: [PACKAGED_APP_PATH],
     });
     const window = await electronApp.firstWindow();
     await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
@@ -193,7 +196,7 @@ test.describe('Electron Smoke', () => {
 
   test('packaged app migrates a v1 session bundle on open', async () => {
     const electronApp = await electron.launch({
-      args: [path.resolve(__dirname, '..', '..')],
+      args: [PACKAGED_APP_PATH],
     });
     const window = await electronApp.firstWindow();
     await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
@@ -227,7 +230,7 @@ test.describe('Electron Smoke', () => {
     // Delete: selecting everything then deleting must empty the canvas;
     // with the bug, Delete would have nothing selected to act on.
     const electronApp = await electron.launch({
-      args: [path.resolve(__dirname, '..', '..')],
+      args: [PACKAGED_APP_PATH],
     });
     const window = await electronApp.firstWindow();
     await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
@@ -269,7 +272,7 @@ test.describe('Electron Smoke', () => {
     // unaffected by this menu and were already covered by this session's
     // earlier undo-coverage tests.
     const electronApp = await electron.launch({
-      args: [path.resolve(__dirname, '..', '..')],
+      args: [PACKAGED_APP_PATH],
     });
     const window = await electronApp.firstWindow();
     await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
@@ -297,7 +300,7 @@ test.describe('Electron Smoke', () => {
 
   test('a successful batch transformation is one undoable document change', async () => {
     const electronApp = await electron.launch({
-      args: [path.resolve(__dirname, '..', '..')],
+      args: [PACKAGED_APP_PATH],
     });
     const window = await electronApp.firstWindow();
     await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
@@ -330,7 +333,7 @@ test.describe('Electron Smoke', () => {
 
   test('the batch dialog exposes property calculation results', async () => {
     const electronApp = await electron.launch({
-      args: [path.resolve(__dirname, '..', '..')],
+      args: [PACKAGED_APP_PATH],
     });
     const window = await electronApp.firstWindow();
     await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
@@ -390,7 +393,7 @@ test.describe('Electron Smoke', () => {
     // resolution. Paste-from-the-real-OS-clipboard never worked in the
     // packaged app, via keyboard or menu, before this fix.
     const electronApp = await electron.launch({
-      args: [path.resolve(__dirname, '..', '..')],
+      args: [PACKAGED_APP_PATH],
     });
     const window = await electronApp.firstWindow();
     await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
@@ -417,7 +420,7 @@ test.describe('Electron Smoke', () => {
     // same no-accelerator reasoning (Cmd+C/Cmd+V are unaffected, already
     // covered by useKeyboard.ts's own listener).
     const electronApp = await electron.launch({
-      args: [path.resolve(__dirname, '..', '..')],
+      args: [PACKAGED_APP_PATH],
     });
     const window = await electronApp.firstWindow();
     await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
@@ -481,7 +484,7 @@ test.describe('Electron Smoke', () => {
     const openedPath = path.join(userDataDir, 'test-molecule.smi');
 
     const electronApp = await electron.launch({
-      args: [`--user-data-dir=${userDataDir}`, path.resolve(__dirname, '..', '..')],
+      args: [`--user-data-dir=${userDataDir}`, PACKAGED_APP_PATH],
     });
     const window = await electronApp.firstWindow();
     await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
@@ -549,7 +552,7 @@ test.describe('Electron Smoke', () => {
     );
 
     const electronApp = await electron.launch({
-      args: [`--user-data-dir=${userDataDir}`, path.resolve(__dirname, '..', '..')],
+      args: [`--user-data-dir=${userDataDir}`, PACKAGED_APP_PATH],
     });
     const window = await electronApp.firstWindow();
     await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
@@ -570,7 +573,7 @@ test.describe('Electron Smoke', () => {
     fs.writeFileSync(path.join(userDataDir, 'settings.json'), JSON.stringify(['invalid']), 'utf-8');
 
     const electronApp = await electron.launch({
-      args: [`--user-data-dir=${userDataDir}`, path.resolve(__dirname, '..', '..')],
+      args: [`--user-data-dir=${userDataDir}`, PACKAGED_APP_PATH],
     });
     const window = await electronApp.firstWindow();
     await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
@@ -596,7 +599,7 @@ test.describe('Electron Smoke', () => {
     const settingsPath = path.join(userDataDir, 'settings.json');
 
     const firstApp = await electron.launch({
-      args: [`--user-data-dir=${userDataDir}`, path.resolve(__dirname, '..', '..')],
+      args: [`--user-data-dir=${userDataDir}`, PACKAGED_APP_PATH],
     });
     const firstWindow = await firstApp.firstWindow();
     await expect(firstWindow.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
@@ -618,7 +621,7 @@ test.describe('Electron Smoke', () => {
     await firstApp.close();
 
     const secondApp = await electron.launch({
-      args: [`--user-data-dir=${userDataDir}`, path.resolve(__dirname, '..', '..')],
+      args: [`--user-data-dir=${userDataDir}`, PACKAGED_APP_PATH],
     });
     const secondWindow = await secondApp.firstWindow();
     await expect(secondWindow.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {

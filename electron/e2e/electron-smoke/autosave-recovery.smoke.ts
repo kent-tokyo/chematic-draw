@@ -2,8 +2,9 @@ import { test, expect, _electron as electron } from '@playwright/test';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
+import { packagedAppPath } from './packaged-app';
 
-const ELECTRON_DIR = path.resolve(__dirname, '..', '..');
+const ELECTRON_DIR = packagedAppPath();
 
 // main.js's checkAutosaveRecovery() shows a native OS "Restore?" dialog that
 // Playwright can't click (no CDP access outside the web content) — these

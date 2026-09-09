@@ -10,6 +10,10 @@ describe('PDF SVG export contract', () => {
     '<svg><foreignObject><div>text</div></foreignObject></svg>',
     '<svg><image href="https://example.com/a.png" /></svg>',
     '<svg><a href="javascript:alert(1)">x</a></svg>',
+    '<svg><style>@import url("https://example.com/theme.css")</style></svg>',
+    '<svg><rect style="fill: url(https://example.com/pattern.svg)" /></svg>',
+    '<svg><rect style="fill: url(  \'https://example.com/pattern.svg\')" /></svg>',
+    '<!DOCTYPE svg SYSTEM "https://example.com/svg.dtd"><svg></svg>',
   ])('rejects unsafe SVG content: %s', (svg) => {
     expect(isSafeSvgForPdf(svg)).toBe(false);
   });

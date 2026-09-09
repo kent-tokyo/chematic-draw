@@ -3,6 +3,26 @@
 Notable changes to chematic-draw. Dates use ISO 8601 format. See the git log
 for the full development history.
 
+## [1.0.9] - 2026-09-09
+
+### Added
+
+- Added idempotent release uploads, packaged Electron smoke-target discovery,
+  and production Worker asset verification.
+- Added Worker-backed normal molecule parsing/serialization and a reproducible
+  candidate verification command with coverage thresholds.
+- Added complete capability fixture inventory, reaction corpus diagnostics,
+  session provenance checks, and hardened PDF SVG input safety.
+
+### Validation
+
+- `npm run verify:candidate` passes: 41 suites, 336 tests total, 330 passed,
+  6 skipped; typecheck, lint, coverage, and diff checks pass.
+- Forge Vite compilation and packaging pass locally; packaged Electron smoke
+  launch is blocked in the current macOS environment by an early SIGABRT,
+  while signing, external audit remediation, and human review remain separate
+  gates.
+
 ## [1.0.8] - 2026-09-08
 
 ### Added
@@ -381,6 +401,7 @@ for the full development history.
 [0.8.0]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.8.0
 [0.9.4]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.9.4
 [1.0.7]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v1.0.7
+[1.0.9]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v1.0.9
 [1.0.8]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v1.0.8
 [0.9.3]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.9.3
 [0.9.1]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.9.1

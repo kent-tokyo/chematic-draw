@@ -213,6 +213,10 @@ jobs:
             macos-binaries/**
             windows-binaries/**
           generate_release_notes: true
+          # v1.0.8 was already published manually before the tag workflow
+          # completed. Re-running a tag workflow must replace matching assets
+          # instead of failing with ReleaseAsset already_exists (422).
+          overwrite_files: true
           draft: false
           # A tag with a semver pre-release identifier (v1.2.3-rc.1,
           # -beta, -alpha, ...) is a pre-release by definition - marking it

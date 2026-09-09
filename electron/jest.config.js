@@ -7,6 +7,7 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@chematic/contract$': '<rootDir>/../packages/chematic-contract/src/index.ts',
+    '^.+/analysisWorker\\.ts\\?worker&url$': '<rootDir>/src/__mocks__/analysisWorkerUrl.ts',
   },
   setupFilesAfterEnv: ['<rootDir>/src/test-setup.ts'],
   transform: {

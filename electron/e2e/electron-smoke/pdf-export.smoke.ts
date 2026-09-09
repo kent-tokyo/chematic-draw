@@ -2,6 +2,9 @@ import { test, expect, _electron as electron } from '@playwright/test';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
+import { packagedAppPath } from './packaged-app';
+
+const PACKAGED_APP_PATH = packagedAppPath();
 
 // Drives the real export:pdf IPC handler in the packaged main process — the
 // part a unit test can't reach (BrowserWindow, data: URL navigation,
@@ -12,7 +15,7 @@ import os from 'node:os';
 test.describe('PDF export', () => {
   test('renders SVG to a PDF page sized to match', async () => {
     const electronApp = await electron.launch({
-      args: [path.resolve(__dirname, '..', '..')],
+      args: [PACKAGED_APP_PATH],
     });
     const window = await electronApp.firstWindow();
     await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {
@@ -50,7 +53,7 @@ test.describe('PDF export', () => {
 
   test('rejects SVG with executable or external content before creating a PDF window', async () => {
     const electronApp = await electron.launch({
-      args: [path.resolve(__dirname, '..', '..')],
+      args: [PACKAGED_APP_PATH],
     });
     const window = await electronApp.firstWindow();
     await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', {

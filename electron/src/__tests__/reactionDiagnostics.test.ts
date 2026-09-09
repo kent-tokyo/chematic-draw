@@ -11,6 +11,23 @@ const scheme = (reactantElement: string, productElement: string, reactantMap = 1
 });
 
 describe('reaction diagnostics', () => {
+  it('checks a stoichiometrically balanced corpus fixture without inferring products', () => {
+    const atom = (id: number, element: string) => ({ id, element, x: id, y: 0, charge: 0, atom_map: 0 });
+    const molecule = (atoms: ReturnType<typeof atom>[], bonds: { id: number; from: number; to: number; order: number; stereo: number }[] = []) => ({ atoms, bonds });
+    const water: ReactionSchemeContext = {
+      id: 'water-corpus', title: '2 H2 + O2 -> 2 H2O', currentStepIndex: 0, viewMode: 'step', steps: [{
+        id: 'combustion',
+        reactants: [molecule([atom(1, 'H'), atom(2, 'H')], [{ id: 1, from: 1, to: 2, order: 1, stereo: 0 }]), molecule([atom(3, 'O'), atom(4, 'O')], [{ id: 2, from: 3, to: 4, order: 2, stereo: 0 }])],
+        products: [molecule([atom(5, 'O'), atom(6, 'H'), atom(7, 'H')], [{ id: 3, from: 5, to: 6, order: 1, stereo: 0 }, { id: 4, from: 5, to: 7, order: 1, stereo: 0 }])],
+        reactantCoefficients: [2, 1], productCoefficients: [2], arrows: [], mechanismType: 'sn2',
+      }],
+    };
+    const result = diagnoseReactionScheme(water);
+    expect(result.atomBalance).toEqual({ balanced: true, differences: [] });
+    expect(result.chargeBalance).toEqual({ balanced: true, difference: 0 });
+    expect(result.mapping.complete).toBe(false);
+  });
+
   it('verifies an element-balanced, consistently mapped authored step', () => {
     const result = diagnoseReactionScheme(scheme('C', 'C'));
     expect(result.status).toBe('verified');
@@ -64,12 +81,60 @@ describe('reaction diagnostics', () => {
     expect(diagnoseReactionScheme(weighted).status).toBe('verified');
   });
 
+  it('normalizes fractional charge arithmetic before deciding balance', () => {
+    const fractional = scheme('C', 'C');
+    fractional.steps[0].reactants = [
+      { atoms: [{ id: 1, element: 'C', x: 0, y: 0, charge: 1, atom_map: 1 }], bonds: [] },
+      { atoms: [{ id: 2, element: 'C', x: 0, y: 0, charge: 1, atom_map: 2 }], bonds: [] },
+    ];
+    fractional.steps[0].products = [{ atoms: [{ id: 3, element: 'C', x: 0, y: 0, charge: 1, atom_map: 1 }], bonds: [] }];
+    fractional.steps[0].reactantCoefficients = [0.1, 0.2];
+    fractional.steps[0].productCoefficients = [0.3];
+    const result = diagnoseReactionScheme(fractional);
+    expect(result.chargeBalance).toEqual({ balanced: true, difference: 0 });
+    expect(result.issues).not.toContain(expect.stringContaining('formal charge is not balanced'));
+  });
+
+  it('fully verifies a mapped multi-component balance fixture', () => {
+    const atom = (id: number, element: string, atom_map: number, charge = 0) => ({ id, element, x: id, y: 0, charge, atom_map });
+    const step = {
+      id: 'neutralization',
+      reactants: [
+        { atoms: [atom(1, 'H', 1), atom(2, 'Cl', 2)], bonds: [{ id: 1, from: 1, to: 2, order: 1, stereo: 0 }] },
+        { atoms: [atom(3, 'Na', 3), atom(4, 'O', 4), atom(5, 'H', 5)], bonds: [{ id: 2, from: 3, to: 4, order: 1, stereo: 0 }, { id: 3, from: 4, to: 5, order: 1, stereo: 0 }] },
+      ],
+      products: [
+        { atoms: [atom(6, 'Na', 3), atom(7, 'Cl', 2)], bonds: [{ id: 4, from: 6, to: 7, order: 1, stereo: 0 }] },
+        { atoms: [atom(8, 'O', 4), atom(9, 'H', 1), atom(10, 'H', 5)], bonds: [{ id: 5, from: 8, to: 9, order: 1, stereo: 0 }, { id: 6, from: 8, to: 10, order: 1, stereo: 0 }] },
+      ],
+      arrows: [], mechanismType: 'sn2' as const,
+    };
+    const result = diagnoseReactionScheme({ id: 'mapped-corpus', title: 'Mapped balance', currentStepIndex: 0, viewMode: 'step', steps: [step] });
+    expect(result.status).toBe('verified');
+    expect(result.mapping).toMatchObject({ complete: true, duplicateMapNumbers: [], unmatchedMapNumbers: [] });
+    expect(result.stepResults[0].mapping.mappedAtomCount).toBe(5);
+    expect(result.atomBalance.balanced).toBe(true);
+    expect(result.chargeBalance.balanced).toBe(true);
+  });
+
   it('rejects malformed authored coefficient vectors', () => {
     const malformed = scheme('C', 'C');
     malformed.steps[0].reactantCoefficients = [0];
     const result = diagnoseReactionScheme(malformed);
     expect(result.status).toBe('not_verified');
     expect(result.atomBalance.differences).toContain('Step 1: Reactant coefficients must be positive finite values matching the reactant count.');
+  });
+
+  it('uses the same upper coefficient bound as the document import gate', () => {
+    const oversized = scheme('C', 'C');
+    oversized.steps[0].reactantCoefficients = [1_000_001];
+    oversized.steps[0].productCoefficients = [1_000_001];
+    const result = diagnoseReactionScheme(oversized);
+    expect(result.status).toBe('not_verified');
+    expect(result.atomBalance.differences).toEqual([
+      'Step 1: Reactant coefficients must be positive finite values matching the reactant count.',
+      'Step 1: Product coefficients must be positive finite values matching the product count.',
+    ]);
   });
 
   it('detects isotope and explicit hydrogen inventory differences', () => {

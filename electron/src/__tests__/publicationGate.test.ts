@@ -3,6 +3,8 @@ import * as path from 'path';
 import { measureSchemeLayout } from '../renderer/lib/layoutMetrics';
 import { calculateSchemeLayout } from '../renderer/lib/schemeLayout';
 import { exportSchemeAsSVG } from '../renderer/lib/schemeExport';
+import { isSafeSvgForPdf } from '../lib/pdfExportContract';
+import { svgPageSizeInches } from '../lib/svgPageSize';
 import { ReactionSchemeContext } from '../renderer/store/types';
 
 const fixtureDir = path.join(__dirname, '../renderer/wasm/__fixtures__/golden-svg');
@@ -17,6 +19,20 @@ describe('publication artifact gate', () => {
       expect(size).not.toBeNull();
       expect(Number(size![3])).toBeGreaterThan(0);
       expect(Number(size![4])).toBeGreaterThan(0);
+    }
+  });
+
+  it('keeps the complete SVG golden corpus safe and PDF-sizeable', () => {
+    const names = fs.readdirSync(fixtureDir).filter((name) => name.endsWith('.svg')).sort();
+    expect(names.length).toBeGreaterThanOrEqual(3);
+    for (const name of names) {
+      const svg = fs.readFileSync(path.join(fixtureDir, name), 'utf8');
+      expect(isSafeSvgForPdf(svg)).toBe(true);
+      const page = svgPageSizeInches(svg);
+      expect(page.width).toBeGreaterThanOrEqual(0.1);
+      expect(page.height).toBeGreaterThanOrEqual(0.1);
+      expect(page.width).toBeLessThanOrEqual(100);
+      expect(page.height).toBeLessThanOrEqual(100);
     }
   });
 

@@ -85,6 +85,29 @@ export const CAPABILITY_FIXTURE_MANIFEST: readonly CapabilityFixtureDescriptor[]
   { capability: 'nmr', fixture: 'nmr-1h-spectrum-panel', gate: 'preserve' },
   { capability: '3d', fixture: '3d-export-snapshot', gate: 'preserve' },
 ] as const;
+export type ConformanceFixtureGate = 'preserve' | 'warn' | 'reject';
+export interface ConformanceFixtureDescriptor {
+  id: string;
+  capability: CapabilityDescriptor['id'];
+  gate: ConformanceFixtureGate;
+  testPath: string;
+  network: 'none' | 'external';
+}
+/** Test-backed boundary inventory. Paths are repository-relative and kept
+ * dependency-free so release tooling can verify the contract without loading
+ * Electron or the chemistry engine. */
+export const CONFORMANCE_FIXTURE_MANIFEST: readonly ConformanceFixtureDescriptor[] = [
+  { id: 'query-nested-attachments', capability: 'markush', gate: 'preserve', testPath: 'electron/src/__tests__/queryDocument.test.ts', network: 'none' },
+  { id: 'rxn-multi-step-agents-coefficients', capability: 'rich-rxn', gate: 'preserve', testPath: 'electron/src/__tests__/reactionDocumentGate.test.ts', network: 'none' },
+  { id: 'cdxml-multi-page-loss-matrix', capability: 'cdxml-presentation', gate: 'warn', testPath: 'electron/src/__tests__/cdxmlExport.test.ts', network: 'none' },
+  { id: 'svg-pdf-layout-metrics', capability: 'publication-layout', gate: 'preserve', testPath: 'electron/src/__tests__/layoutMetrics.test.ts', network: 'none' },
+  { id: 'html-react-worker-contract', capability: 'embedding', gate: 'preserve', testPath: 'electron/src/__tests__/contractConformance.test.ts', network: 'none' },
+  { id: 'network-disabled-provider', capability: 'chemspider', gate: 'reject', testPath: 'electron/src/__tests__/providerBoundary.test.ts', network: 'external' },
+  { id: 'polymer-two-attachment-expansion', capability: 'polymer', gate: 'preserve', testPath: 'electron/src/__tests__/specialChemistry.test.ts', network: 'none' },
+  { id: 'nucleic-acid-typed-boundary', capability: 'nucleic-acid', gate: 'warn', testPath: 'electron/src/__tests__/queryDocument.test.ts', network: 'none' },
+  { id: 'nmr-1h-spectrum-panel', capability: 'nmr', gate: 'preserve', testPath: 'electron/src/__tests__/nmrContract.test.ts', network: 'none' },
+  { id: '3d-export-snapshot', capability: '3d', gate: 'preserve', testPath: 'electron/src/__tests__/layoutDeterminism.test.ts', network: 'none' },
+] as const;
 export interface ExtensionManifest { id: string; version: string; api_version?: number; permissions: ExtensionPermission[]; }
 export interface DocumentCommandContext { molecule: Molecule; payload?: unknown; }
 export interface DocumentCommand { id: string; description: string; requiredPermission: 'document:write'; execute: (context: DocumentCommandContext) => Molecule; }

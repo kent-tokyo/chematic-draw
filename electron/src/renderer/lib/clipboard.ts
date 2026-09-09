@@ -1,4 +1,3 @@
-import * as wasmBridge from '../wasm/wasmBridge';
 import { MoleculeDto } from '../store/types';
 import { runAnalysisInWorker } from './analysisWorkerClient';
 
@@ -13,7 +12,7 @@ export async function copyText(text: string): Promise<void> {
 
 export async function copyMoleculeSmiles(mol: MoleculeDto): Promise<void> {
   if (typeof window !== 'undefined' && (window as any).electronAPI) {
-    const smiles = wasmBridge.toCanonicalSmiles(mol);
+    const smiles = await runAnalysisInWorker('canonical-smiles', mol) as string;
     const result = await (window as any).electronAPI.copyToClipboard('text/plain', smiles);
     if (!result.success) throw new Error(result.error);
   }
@@ -21,7 +20,7 @@ export async function copyMoleculeSmiles(mol: MoleculeDto): Promise<void> {
 
 export async function copyMoleculeMol(mol: MoleculeDto): Promise<void> {
   if (typeof window !== 'undefined' && (window as any).electronAPI) {
-    const molContent = wasmBridge.toMolV2000(mol);
+    const molContent = await runAnalysisInWorker('mol-v2000', mol) as string;
     const result = await (window as any).electronAPI.copyToClipboard('text/plain', molContent);
     if (!result.success) throw new Error(result.error);
   }

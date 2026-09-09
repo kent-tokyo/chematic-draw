@@ -26,7 +26,6 @@ documentCommandHost.register(
   }]
 );
 import { useReactionSchemeStore } from '../../store/reactionSchemeStore';
-import { getPropertiesCached } from '../../lib/analysisCache';
 
 export function MoleculeCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -104,17 +103,23 @@ export function MoleculeCanvas() {
     if (atomCount === 0) {
       return;
     }
+    const controller = new AbortController();
     const timeout = setTimeout(() => {
-      try {
-        const props = getPropertiesCached(displayMolecule);
-        setFormulaSummary(`${props.formula}, molecular weight ${props.molecular_weight.toFixed(2)}, `);
-      } catch {
-        // Mid-edit states (e.g. a dangling bond being drawn) aren't always
-        // valid molecules — leave the cheap atom/bond-count summary as-is.
-        setFormulaSummary('');
-      }
+      void runAnalysisInWorker('properties', displayMolecule, controller.signal)
+        .then((props) => {
+          const properties = props as { formula: string; molecular_weight: number };
+          setFormulaSummary(`${properties.formula}, molecular weight ${properties.molecular_weight.toFixed(2)}, `);
+        })
+        .catch(() => {
+          // Mid-edit states (e.g. a dangling bond being drawn) aren't always
+          // valid molecules — leave the cheap atom/bond-count summary as-is.
+          setFormulaSummary('');
+        });
     }, 500);
-    return () => clearTimeout(timeout);
+    return () => {
+      clearTimeout(timeout);
+      controller.abort();
+    };
   }, [displayMolecule, atomCount]);
 
   const canvasLabel =

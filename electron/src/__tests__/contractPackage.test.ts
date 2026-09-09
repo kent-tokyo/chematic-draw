@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { CAPABILITY_FIXTURE_MANIFEST, CAPABILITY_MANIFEST } from '../../../packages/chematic-contract/src/index';
+import { CAPABILITY_FIXTURE_MANIFEST, CAPABILITY_MANIFEST, CONFORMANCE_FIXTURE_MANIFEST } from '../../../packages/chematic-contract/src/index';
 
 describe('Electron-free contract package', () => {
   it('contains no Electron, Zustand, filesystem, or app-private imports', () => {
@@ -39,6 +39,22 @@ describe('Electron-free contract package', () => {
     expect(CAPABILITY_FIXTURE_MANIFEST).toEqual(expect.arrayContaining([
       { capability: 'nmr', fixture: 'nmr-1h-spectrum-panel', gate: 'preserve' },
       { capability: '3d', fixture: '3d-export-snapshot', gate: 'preserve' },
+    ]));
+  });
+
+  it('keeps every declared P0 boundary fixture executable and uniquely identified', () => {
+    const fixtures = CONFORMANCE_FIXTURE_MANIFEST;
+    expect(new Set(fixtures.map((fixture) => fixture.id)).size).toBe(fixtures.length);
+    for (const fixture of fixtures) {
+      expect(CAPABILITY_MANIFEST.some((capability) => capability.id === fixture.capability)).toBe(true);
+      expect(['preserve', 'warn', 'reject']).toContain(fixture.gate);
+      expect(fs.existsSync(path.join(__dirname, '../../../', fixture.testPath))).toBe(true);
+    }
+    expect(fixtures.find((fixture) => fixture.id === 'network-disabled-provider')).toMatchObject({ gate: 'reject', network: 'external' });
+    expect(fixtures.filter((fixture) => fixture.network === 'none')).toHaveLength(9);
+    expect(fixtures.map((fixture) => fixture.capability)).toEqual(expect.arrayContaining([
+      'markush', 'polymer', 'nucleic-acid', 'rich-rxn', 'cdxml-presentation',
+      'publication-layout', 'embedding', 'nmr', '3d',
     ]));
   });
 });

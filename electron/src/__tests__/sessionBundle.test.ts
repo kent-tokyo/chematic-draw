@@ -58,4 +58,10 @@ describe('session bundle', () => {
     tampered.document.molecule.atoms[0].element = 'N';
     expect(() => parseSessionBundle(JSON.stringify(tampered))).toThrow(/hash/);
   });
+
+  it('rejects bundles claiming a different application or engine', () => {
+    const tampered = JSON.parse(serializeSessionBundle(molecule, null));
+    tampered.app = { name: 'other-app', engine: 'other-engine' };
+    expect(() => parseSessionBundle(JSON.stringify(tampered))).toThrow(/molecule/);
+  });
 });

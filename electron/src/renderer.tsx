@@ -21,22 +21,23 @@ import { parseSessionBundle, serializeSessionBundle } from './renderer/lib/sessi
 import { DEFAULT_SHORTCUT_BINDINGS, validateShortcutBindings, ShortcutBindings } from './renderer/lib/shortcuts';
 import { exportCdxml } from './renderer/lib/cdxmlExport';
 import { canPreserveCdxml, captureRichCdxmlSession, RichCdxmlSession, serializeCdxmlForPath } from './renderer/lib/cdxmlWorkflow';
+import { runAnalysisInWorker } from './renderer/lib/analysisWorkerClient';
 
-function parseMoleculeDocument(content: string, filePath: string): MoleculeDto {
+async function parseMoleculeDocument(content: string, filePath: string): Promise<MoleculeDto> {
   if (filePath.toLowerCase().endsWith('.json')) return parseSessionBundle(content).document.molecule;
-  return wasmBridge.parseMolecule(content);
+  return await runAnalysisInWorker('parse', undefined, undefined, undefined, content) as MoleculeDto;
 }
 
-function serializeMoleculeForPath(molecule: MoleculeDto, filePath: string): string {
+async function serializeMoleculeForPath(molecule: MoleculeDto, filePath: string): Promise<string> {
   switch (formatForFilePath(filePath)) {
     case 'smiles':
-      return wasmBridge.toCanonicalSmiles(molecule);
+      return await runAnalysisInWorker('canonical-smiles', molecule) as string;
     case 'sdf':
-      return wasmBridge.toSdf(molecule);
+      return await runAnalysisInWorker('sdf', molecule) as string;
     case 'cml':
-      return wasmBridge.toCml(molecule);
+      return await runAnalysisInWorker('cml', molecule) as string;
     case 'mol-v2000':
-      return wasmBridge.toMolV2000(molecule);
+      return await runAnalysisInWorker('mol-v2000', molecule) as string;
     case 'cdxml':
       return exportCdxml(molecule);
   }
@@ -167,7 +168,7 @@ function App() {
       }
       // Try to load benzene
       try {
-        const result = wasmBridge.parseMolecule('c1ccccc1');
+        const result = await runAnalysisInWorker('parse', undefined, undefined, undefined, 'c1ccccc1') as MoleculeDto;
         setMolecule(result);
         useCanvasStore.getState().requestCenterOnLoad();
       } catch (err) {
@@ -240,11 +241,11 @@ function App() {
         announce('New molecule', '新しい分子');
       });
 
-      api.onMenuOpenFile((data: { path: string; content: string }) => {
+      api.onMenuOpenFile(async (data: { path: string; content: string }) => {
         try {
           const isCdxml = data.path.toLowerCase().endsWith('.cdxml');
           if (isCdxml) wasmBridge.cdxmlDocumentJson(data.content);
-          const mol = parseMoleculeDocument(data.content, data.path);
+          const mol = await parseMoleculeDocument(data.content, data.path);
           setMolecule(mol);
           setFilePath(data.path);
           setRichCdxmlSession(isCdxml
@@ -268,7 +269,7 @@ function App() {
           }
           const content = format === 'cdxml'
             ? serializeCdxmlForPath(molecule, filePath, richCdxmlSession)
-            : serializeMoleculeForPath(molecule, filePath);
+            : await serializeMoleculeForPath(molecule, filePath);
           const result = await api.fileWrite(filePath, content);
           if (result.success) {
             announce('Saved', '保存しました');
@@ -291,7 +292,7 @@ function App() {
           }
           const content = formatForFilePath(result.filePath) === 'cdxml'
             ? serializeCdxmlForPath(molecule, result.filePath, richCdxmlSession)
-            : serializeMoleculeForPath(molecule, result.filePath);
+            : await serializeMoleculeForPath(molecule, result.filePath);
           const writeResult = await api.fileWrite(result.filePath, content);
           if (writeResult.success) {
             setFilePath(result.filePath);
@@ -311,7 +312,7 @@ function App() {
       api.onMenuExportSvg(async () => {
         const result = await api.fileSaveDialog('untitled.svg');
         if (!result.canceled && result.filePath) {
-          const content = wasmBridge.toSvg(molecule);
+          const content = await runAnalysisInWorker('svg', molecule) as string;
           const writeResult = await api.fileWrite(result.filePath, content);
           if (writeResult.success) {
             setStatus(`Exported: ${result.filePath}`);
@@ -325,7 +326,7 @@ function App() {
         const result = await api.fileSaveDialog('untitled.png');
         if (!result.canceled && result.filePath) {
           try {
-            const svg = wasmBridge.toSvg(molecule);
+            const svg = await runAnalysisInWorker('svg', molecule) as string;
             const base64 = await svgToPngBase64(svg);
             const writeResult = await api.fileWriteBinary(result.filePath, base64);
             if (writeResult.success) {
@@ -343,7 +344,7 @@ function App() {
         const result = await api.fileSaveDialog('untitled.pdf');
         if (!result.canceled && result.filePath) {
           try {
-            const svg = wasmBridge.toSvg(molecule);
+            const svg = await runAnalysisInWorker('svg', molecule) as string;
             const writeResult = await api.exportPdf(result.filePath, svg);
             if (writeResult.success) {
               setStatus(`Exported: ${result.filePath}`);
@@ -363,7 +364,7 @@ function App() {
             announce('Export cancelled', '書き出しをキャンセルしました');
             return;
           }
-          const content = wasmBridge.toMolV2000(molecule);
+          const content = await runAnalysisInWorker('mol-v2000', molecule) as string;
           const writeResult = await api.fileWrite(result.filePath, content);
           if (writeResult.success) {
             setStatus(`Exported: ${result.filePath}`);
@@ -380,7 +381,7 @@ function App() {
             announce('Export cancelled', '書き出しをキャンセルしました');
             return;
           }
-          const content = wasmBridge.toCanonicalSmiles(molecule);
+          const content = await runAnalysisInWorker('canonical-smiles', molecule) as string;
           const writeResult = await api.fileWrite(result.filePath, content);
           if (writeResult.success) {
             setStatus(`Exported: ${result.filePath}`);
@@ -464,11 +465,11 @@ function App() {
             .catch(() => announce('Copy failed', 'コピーに失敗しました'));
         }
       });
-      api.onMenuPaste?.(() => {
+      api.onMenuPaste?.(async () => {
         if ((document.activeElement as HTMLElement | null)?.tagName !== 'INPUT') {
           clipboard.pasteFromClipboard()
-            .then((content) => {
-              const mol = wasmBridge.parseMolecule(content);
+            .then((content) => clipboard.parsePastedContent(content))
+            .then((mol) => {
               pushUndo();
               setMolecule(mol);
               announce('Pasted structure', '構造を貼り付けました');

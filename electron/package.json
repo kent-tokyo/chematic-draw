@@ -1,7 +1,7 @@
 {
   "name": "chematic-draw",
   "productName": "Chematic Draw",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "chematic-draw — Electron/WASM chemical structure editor",
   "main": ".vite/build/main.js",
   "private": true,
@@ -12,6 +12,7 @@
     "publish": "electron-forge publish",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
+    "verify:candidate": "node scripts/verify-candidate.mjs",
     "build:wasm": "cd .. && wasm-pack build crates/chem-wasm --target web --out-dir ../../electron/src/renderer/wasm/pkg --out-name chem_wasm",
     "build:wasm:release": "cd .. && wasm-pack build crates/chem-wasm --target web --release --out-dir ../../electron/src/renderer/wasm/pkg --out-name chem_wasm",
     "build:wasm:test": "cd .. && wasm-pack build crates/chem-wasm --target nodejs --out-dir ../../electron/src/renderer/wasm/pkg-node --out-name chem_wasm && cd electron && npm pkg set name=chem-wasm-node-test --prefix src/renderer/wasm/pkg-node",
@@ -21,7 +22,7 @@
     "test:coverage": "jest --coverage --testPathIgnorePatterns='\\.bench\\.ts$'",
     "test:perf": "jest --testPathPatterns='\\.bench\\.ts$'",
     "test:e2e": "playwright test --project=renderer-e2e",
-    "test:e2e:electron": "playwright test --project=electron-smoke",
+    "test:e2e:electron": "playwright test --config=playwright.electron.config.ts",
     "test:e2e:all": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug"
