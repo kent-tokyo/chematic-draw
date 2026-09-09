@@ -524,6 +524,14 @@ export function ReactionPanel() {
           <div style={{ fontSize: '12px', fontWeight: 'bold', color: textColor, marginBottom: '6px' }}>
             {isJapanese ? '反応検証' : 'Reaction Verification'}: {reactionDiagnostics.status === 'verified' ? (isJapanese ? '検証済み' : 'VERIFIED') : (isJapanese ? '未検証' : 'NOT VERIFIED')}
           </div>
+          <div
+            data-testid="reaction-verification-scope"
+            style={{ fontSize: '10px', color: labelColor, lineHeight: 1.4, marginBottom: '6px' }}
+          >
+            {isJapanese
+              ? '注: これは入力された原子・電荷・マップ・中間体の整合性確認です。反応機構の正しさ、完全な化学量論、生成物予測は保証しません。'
+              : 'Scope: checks authored atoms, charges, maps, and intermediate continuity only. It does not prove mechanism correctness, complete stoichiometry, or product prediction.'}
+          </div>
           {reactionDiagnostics.issues.map((issue, index) => (
             <div key={index} style={{ fontSize: '10px', color: reactionDiagnostics.status === 'verified' ? '#4caf50' : '#d88900', marginTop: '3px' }}>
               {reactionDiagnostics.status === 'verified' ? '✓' : '⚠'} {issue}

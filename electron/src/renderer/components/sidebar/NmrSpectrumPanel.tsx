@@ -94,7 +94,7 @@ export function NmrSpectrumPanel() {
     <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
       <div style={{ fontSize: '13px', fontWeight: 'bold', color: textColor }}>{isJapanese ? 'NMRスペクトル' : 'NMR spectrum'}</div>
       <div style={{ fontSize: '10px', color: labelColor, lineHeight: 1.4 }}>
-        {isJapanese ? '実験データのみを表示します。帰属・予測は行いません。' : 'Experimental data only. Assignment and prediction are not inferred.'}
+        {isJapanese ? '汎用JSONの実験データのみを表示・検証します。ベンダー形式の読込、帰属、予測は行いません。' : 'Generic JSON experimental data is displayed and validated only. Vendor import, assignment, and prediction are not provided.'}
       </div>
       <textarea
         aria-label={isJapanese ? 'NMRスペクトルJSON' : 'NMR spectrum JSON'}

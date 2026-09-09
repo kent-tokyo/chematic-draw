@@ -6,7 +6,7 @@ describe('NmrSpectrumPanel', () => {
   it('renders a validated experimental spectrum without inventing assignments', () => {
     render(<NmrSpectrumPanel />);
     expect(screen.getByRole('img', { name: '1H spectrum plot' })).toBeInTheDocument();
-    expect(screen.getByText(/Experimental data only/)).toBeInTheDocument();
+    expect(screen.getByText(/Generic JSON experimental data/)).toBeInTheDocument();
   });
 
   it('rejects malformed spectrum input while preserving the previous plot', () => {
