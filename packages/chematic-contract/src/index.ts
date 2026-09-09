@@ -93,6 +93,26 @@ export interface ConformanceFixtureDescriptor {
   testPath: string;
   network: 'none' | 'external';
 }
+export type InteropDirection = 'import' | 'export' | 'embed' | 'lookup';
+export type InteropBehavior = 'preserve' | 'warn' | 'reject' | 'read-only' | 'unavailable';
+export interface InteropBoundaryDescriptor {
+  id: string;
+  capability: CapabilityDescriptor['id'];
+  direction: InteropDirection;
+  format: string;
+  behavior: InteropBehavior;
+  lossCodes: readonly string[];
+  alternative?: string;
+}
+/** Machine-readable details for boundaries easily mistaken for full compatibility. */
+export const INTEROP_BOUNDARY_MANIFEST: readonly InteropBoundaryDescriptor[] = [
+  { id: 'cdxml-import-supported-subset', capability: 'cdxml-presentation', direction: 'import', format: 'CDXML', behavior: 'warn', lossCodes: ['unsupported-page-object', 'unsupported-presentation-attribute'], alternative: 'preserve source CDXML and inspect the loss report' },
+  { id: 'cdxml-export-supported-subset', capability: 'cdxml-presentation', direction: 'export', format: 'CDXML', behavior: 'warn', lossCodes: ['wildcard-atom', 'unsupported-element', 'unsupported-bond', 'unsupported-page-object'], alternative: 'export reaction/document JSON when presentation fidelity is not required' },
+  { id: 'rxn-v2000-export-loss-aware', capability: 'rich-rxn', direction: 'export', format: 'RXN V2000', behavior: 'warn', lossCodes: ['agents', 'coefficients', 'multi-step'], alternative: 'reaction-document JSON v2' },
+  { id: 'nmr-generic-json', capability: 'nmr', direction: 'import', format: 'Generic NMR JSON', behavior: 'preserve', lossCodes: ['vendor-format', 'assignment', 'prediction'], alternative: 'retain raw vendor data under explicit provenance until an adapter exists' },
+  { id: 'web-component-viewer', capability: 'embedding', direction: 'embed', format: 'HTML Web Component', behavior: 'read-only', lossCodes: ['editing', 'analysis', 'network-lookup'], alternative: 'host-controlled editor integration' },
+  { id: 'chemspider-provider', capability: 'chemspider', direction: 'lookup', format: 'ChemSpider API', behavior: 'unavailable', lossCodes: ['credentials', 'network', 'terms'], alternative: 'PubChem lookup or offline molecule operations' },
+] as const;
 /** Test-backed boundary inventory. Paths are repository-relative and kept
  * dependency-free so release tooling can verify the contract without loading
  * Electron or the chemistry engine. */

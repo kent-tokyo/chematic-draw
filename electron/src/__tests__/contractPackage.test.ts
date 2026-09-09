@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { CAPABILITY_FIXTURE_MANIFEST, CAPABILITY_MANIFEST, CONFORMANCE_FIXTURE_MANIFEST } from '../../../packages/chematic-contract/src/index';
+import { CAPABILITY_FIXTURE_MANIFEST, CAPABILITY_MANIFEST, CONFORMANCE_FIXTURE_MANIFEST, INTEROP_BOUNDARY_MANIFEST } from '../../../packages/chematic-contract/src/index';
 
 describe('Electron-free contract package', () => {
   it('contains no Electron, Zustand, filesystem, or app-private imports', () => {
@@ -56,5 +56,21 @@ describe('Electron-free contract package', () => {
       'markush', 'polymer', 'nucleic-acid', 'rich-rxn', 'cdxml-presentation',
       'publication-layout', 'embedding', 'nmr', '3d',
     ]));
+  });
+
+  it('publishes exact direction and behavior for the five interoperability gaps', () => {
+    expect(new Set(INTEROP_BOUNDARY_MANIFEST.map((boundary) => boundary.id)).size).toBe(INTEROP_BOUNDARY_MANIFEST.length);
+    expect(INTEROP_BOUNDARY_MANIFEST).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'cdxml-export-supported-subset', direction: 'export', behavior: 'warn', format: 'CDXML' }),
+      expect.objectContaining({ id: 'rxn-v2000-export-loss-aware', direction: 'export', behavior: 'warn', format: 'RXN V2000', alternative: 'reaction-document JSON v2' }),
+      expect.objectContaining({ id: 'nmr-generic-json', direction: 'import', behavior: 'preserve', format: 'Generic NMR JSON' }),
+      expect.objectContaining({ id: 'web-component-viewer', direction: 'embed', behavior: 'read-only' }),
+      expect.objectContaining({ id: 'chemspider-provider', direction: 'lookup', behavior: 'unavailable' }),
+    ]));
+    for (const boundary of INTEROP_BOUNDARY_MANIFEST) {
+      expect(CAPABILITY_MANIFEST.some((capability) => capability.id === boundary.capability)).toBe(true);
+      expect(boundary.lossCodes.length).toBeGreaterThan(0);
+      expect(boundary.alternative).toEqual(expect.any(String));
+    }
   });
 });
