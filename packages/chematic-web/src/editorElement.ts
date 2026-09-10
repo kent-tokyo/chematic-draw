@@ -18,12 +18,13 @@ export const DEFAULT_EDITOR_HISTORY_LIMIT = 100;
  * emits the resulting immutable molecule.
  */
 export class SchematicMoleculeEditorElement extends HTMLElementBase {
-  static observedAttributes = ['value', 'readonly', 'interaction'];
+  static observedAttributes = ['value', 'readonly', 'interaction', 'keyboard'];
   private current: Molecule = { atoms: [], bonds: [] };
   private history: Molecule[] = [this.current];
   private historyIndex = 0;
   private disposed = false;
   private pointerStart: { atomId: number | null; x: number; y: number } | null = null;
+  private ownsKeyboardTabIndex = false;
 
   get molecule(): Molecule { return JSON.parse(serializeMolecule(this.current)) as Molecule; }
 
@@ -40,6 +41,8 @@ export class SchematicMoleculeEditorElement extends HTMLElementBase {
     this.setAttribute('aria-label', this.getAttribute('aria-label') ?? 'Molecule editor');
     this.addEventListener('pointerdown', this.handlePointerDown);
     this.addEventListener('pointerup', this.handlePointerUp);
+    this.addEventListener('keydown', this.handleKeyDown);
+    this.syncKeyboardSemantics();
     this.readAttributeValue();
     this.render();
   }
@@ -47,6 +50,7 @@ export class SchematicMoleculeEditorElement extends HTMLElementBase {
   disconnectedCallback(): void {
     this.removeEventListener('pointerdown', this.handlePointerDown);
     this.removeEventListener('pointerup', this.handlePointerUp);
+    this.removeEventListener('keydown', this.handleKeyDown);
     this.pointerStart = null;
   }
 
@@ -55,6 +59,7 @@ export class SchematicMoleculeEditorElement extends HTMLElementBase {
       this.readAttributeValue();
       this.render();
     }
+    if (name === 'keyboard' && this.isConnected) this.syncKeyboardSemantics();
   }
 
   /** Apply one validated edit and notify the host of the new molecule. */
@@ -127,6 +132,34 @@ export class SchematicMoleculeEditorElement extends HTMLElementBase {
       detail: { molecule: this.molecule, edit: null, direction },
     }));
     return this.molecule;
+  }
+
+  private handleKeyDown = (event: Event): void => {
+    if (this.disposed || this.hasAttribute('readonly') || this.getAttribute('keyboard') !== 'edit') return;
+    const keyboard = event as KeyboardEvent;
+    if (keyboard.altKey || (!keyboard.ctrlKey && !keyboard.metaKey)) return;
+    const key = keyboard.key.toLowerCase();
+    const isUndo = key === 'z' && !keyboard.shiftKey;
+    const isRedo = (key === 'z' && keyboard.shiftKey) || key === 'y';
+    if ((isUndo && !this.canUndo) || (isRedo && !this.canRedo) || (!isUndo && !isRedo)) return;
+    event.preventDefault();
+    if (isUndo) this.undo();
+    else this.redo();
+  };
+
+  private syncKeyboardSemantics(): void {
+    const enabled = this.getAttribute('keyboard') === 'edit';
+    if (enabled) {
+      if (!this.hasAttribute('tabindex')) {
+        this.setAttribute('tabindex', '0');
+        this.ownsKeyboardTabIndex = true;
+      }
+      this.setAttribute('aria-keyshortcuts', 'Control+Z Meta+Z Control+Shift+Z Meta+Shift+Z Control+Y Meta+Y');
+    } else {
+      if (this.ownsKeyboardTabIndex) this.removeAttribute('tabindex');
+      this.ownsKeyboardTabIndex = false;
+      this.removeAttribute('aria-keyshortcuts');
+    }
   }
 
   private handlePointerDown = (event: Event): void => {

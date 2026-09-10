@@ -133,6 +133,25 @@ describe('chematic-molecule Web Component', () => {
     expect(change).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps keyboard editing opt-in and exposes accessible history shortcuts', () => {
+    const element = document.createElement('chematic-molecule-editor') as SchematicMoleculeEditorElement;
+    element.molecule = { atoms: [], bonds: [] };
+    document.body.append(element);
+    element.applyEdit({ type: 'add-atom', atom: { id: 1, element: 'C', x: 0, y: 0, charge: 0, atom_map: 0 } });
+    element.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }));
+    expect(element.molecule.atoms).toHaveLength(1);
+    element.setAttribute('keyboard', 'edit');
+    expect(element).toHaveAttribute('tabindex', '0');
+    expect(element).toHaveAttribute('aria-keyshortcuts');
+    element.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }));
+    expect(element.molecule.atoms).toEqual([]);
+    element.dispatchEvent(new KeyboardEvent('keydown', { key: 'y', ctrlKey: true, bubbles: true }));
+    expect(element.molecule.atoms).toHaveLength(1);
+    element.setAttribute('readonly', '');
+    element.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }));
+    expect(element.molecule.atoms).toHaveLength(1);
+  });
+
   it('reports invalid editor edits without mutating the current molecule', () => {
     const element = document.createElement('chematic-molecule-editor') as SchematicMoleculeEditorElement;
     element.molecule = { atoms: [], bonds: [] };

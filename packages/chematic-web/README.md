@@ -54,3 +54,7 @@ chemistry, infer reactions, or load Electron/network dependencies.
 Pointer drawing is opt-in with `interaction="draw"`: an empty-space click adds
 a carbon atom and dragging between two atoms adds a single bond. The default
 interaction is inert, and invalid edits still emit `schematic-error`.
+
+Keyboard history is opt-in with `keyboard="edit"`. The element becomes
+focusable and supports Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, and Ctrl/Cmd+Y for the
+validated bounded history. Read-only mode disables these mutations.
