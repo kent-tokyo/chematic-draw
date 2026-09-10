@@ -50,3 +50,7 @@ edits emit `schematic-error`. It also exposes bounded `canUndo`/`canRedo`,
 `undo()`, `redo()`, and `dispose()` lifecycle methods. The original
 `<chematic-molecule>` element stays read-only. This surface does not parse
 chemistry, infer reactions, or load Electron/network dependencies.
+
+Pointer drawing is opt-in with `interaction="draw"`: an empty-space click adds
+a carbon atom and dragging between two atoms adds a single bond. The default
+interaction is inert, and invalid edits still emit `schematic-error`.

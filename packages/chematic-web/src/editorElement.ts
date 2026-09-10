@@ -18,11 +18,12 @@ export const DEFAULT_EDITOR_HISTORY_LIMIT = 100;
  * emits the resulting immutable molecule.
  */
 export class SchematicMoleculeEditorElement extends HTMLElementBase {
-  static observedAttributes = ['value', 'readonly'];
+  static observedAttributes = ['value', 'readonly', 'interaction'];
   private current: Molecule = { atoms: [], bonds: [] };
   private history: Molecule[] = [this.current];
   private historyIndex = 0;
   private disposed = false;
+  private pointerStart: { atomId: number | null; x: number; y: number } | null = null;
 
   get molecule(): Molecule { return JSON.parse(serializeMolecule(this.current)) as Molecule; }
 
@@ -37,8 +38,16 @@ export class SchematicMoleculeEditorElement extends HTMLElementBase {
     if (this.disposed) return;
     this.setAttribute('role', 'application');
     this.setAttribute('aria-label', this.getAttribute('aria-label') ?? 'Molecule editor');
+    this.addEventListener('pointerdown', this.handlePointerDown);
+    this.addEventListener('pointerup', this.handlePointerUp);
     this.readAttributeValue();
     this.render();
+  }
+
+  disconnectedCallback(): void {
+    this.removeEventListener('pointerdown', this.handlePointerDown);
+    this.removeEventListener('pointerup', this.handlePointerUp);
+    this.pointerStart = null;
   }
 
   attributeChangedCallback(name: string): void {
@@ -78,6 +87,7 @@ export class SchematicMoleculeEditorElement extends HTMLElementBase {
 
   dispose(): void {
     this.disposed = true;
+    this.pointerStart = null;
     this.history = [];
     this.historyIndex = -1;
     this.innerHTML = '';
@@ -117,6 +127,46 @@ export class SchematicMoleculeEditorElement extends HTMLElementBase {
       detail: { molecule: this.molecule, edit: null, direction },
     }));
     return this.molecule;
+  }
+
+  private handlePointerDown = (event: Event): void => {
+    if (this.disposed || this.hasAttribute('readonly') || this.getAttribute('interaction') !== 'draw') return;
+    const pointer = event as PointerEvent;
+    const point = this.canvasPoint(pointer.clientX, pointer.clientY);
+    if (!point) return;
+    const atom = (event.target as Element | null)?.closest?.('[data-atom-id]');
+    this.pointerStart = { atomId: atom ? Number(atom.getAttribute('data-atom-id')) : null, ...point };
+  };
+
+  private handlePointerUp = (event: Event): void => {
+    const start = this.pointerStart;
+    this.pointerStart = null;
+    if (!start || this.disposed || this.hasAttribute('readonly') || this.getAttribute('interaction') !== 'draw') return;
+    const pointer = event as PointerEvent;
+    const point = this.canvasPoint(pointer.clientX, pointer.clientY);
+    if (!point) return;
+    const atom = (event.target as Element | null)?.closest?.('[data-atom-id]');
+    const endAtomId = atom ? Number(atom.getAttribute('data-atom-id')) : null;
+    try {
+      if (start.atomId !== null && endAtomId !== null && start.atomId !== endAtomId) {
+        const bondId = this.current.bonds.reduce((maximum, bond) => Math.max(maximum, bond.id), 0) + 1;
+        this.applyEdit({ type: 'add-bond', bond: { id: bondId, from: start.atomId, to: endAtomId, order: 1, stereo: 0 } });
+      } else if (start.atomId === null && endAtomId === null) {
+        const atomId = this.current.atoms.reduce((maximum, candidate) => Math.max(maximum, candidate.id), 0) + 1;
+        this.applyEdit({ type: 'add-atom', atom: { id: atomId, element: 'C', x: point.x, y: point.y, charge: 0, atom_map: 0 } });
+      }
+    } catch {
+      // applyEdit already emits the structured schematic-error event.
+    }
+  };
+
+  private canvasPoint(clientX: number, clientY: number): { x: number; y: number } | null {
+    const svg = this.querySelector('svg');
+    if (!svg || !Number.isFinite(clientX) || !Number.isFinite(clientY)) return null;
+    const rect = svg.getBoundingClientRect();
+    const viewBox = svg.getAttribute('viewBox')?.trim().split(/\s+/).map(Number);
+    if (!viewBox || viewBox.length !== 4 || !viewBox.every(Number.isFinite) || rect.width <= 0 || rect.height <= 0) return null;
+    return { x: viewBox[0] + ((clientX - rect.left) / rect.width) * viewBox[2], y: viewBox[1] + ((clientY - rect.top) / rect.height) * viewBox[3] };
   }
 }
 

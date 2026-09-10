@@ -109,6 +109,30 @@ describe('chematic-molecule Web Component', () => {
     expect(() => element.applyEdit({ type: 'remove-atom', atomId: 1 })).toThrow(/disposed/);
   });
 
+  it('keeps pointer drawing opt-in and translates valid gestures into edits', () => {
+    const element = document.createElement('chematic-molecule-editor') as SchematicMoleculeEditorElement;
+    const change = jest.fn();
+    element.addEventListener('molecule-change', change);
+    document.body.append(element);
+    const inertEvent = new Event('pointerup', { bubbles: true });
+    Object.defineProperties(inertEvent, { clientX: { value: 20 }, clientY: { value: 20 } });
+    element.dispatchEvent(inertEvent);
+    expect(element.molecule.atoms).toEqual([]);
+    element.setAttribute('interaction', 'draw');
+    const drawEvent = (type: string, x: number, y: number, target: EventTarget = element): Event => {
+      const event = new Event(type, { bubbles: true });
+      Object.defineProperties(event, { clientX: { value: x }, clientY: { value: y } });
+      target.dispatchEvent(event);
+      return event;
+    };
+    const svg = element.querySelector('svg')!;
+    Object.defineProperty(svg, 'getBoundingClientRect', { value: () => ({ left: 0, top: 0, width: 120, height: 80 }) });
+    drawEvent('pointerdown', 60, 40, svg);
+    drawEvent('pointerup', 60, 40, svg);
+    expect(element.molecule.atoms).toHaveLength(1);
+    expect(change).toHaveBeenCalledTimes(1);
+  });
+
   it('reports invalid editor edits without mutating the current molecule', () => {
     const element = document.createElement('chematic-molecule-editor') as SchematicMoleculeEditorElement;
     element.molecule = { atoms: [], bonds: [] };
