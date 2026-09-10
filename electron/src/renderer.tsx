@@ -455,7 +455,7 @@ function App() {
       });
 
       const provenance = {
-        engine: 'chematic 1.0.9' as const,
+        engine: 'chematic 1.0.12' as const,
         inputFormat: config.inputFormat,
         outputFormat: config.outputFormat,
         filterOptions: config.operation === 'filter' ? {
@@ -509,7 +509,7 @@ function App() {
       setStatus(`Batch processing failed: ${(err as Error).message}`);
       console.error('Batch error:', err);
       addBatchResult(config.operation, 0, 1, 0, 'fnv1a-32:00000000', [(err as Error).message], {
-        engine: 'chematic 1.0.9',
+        engine: 'chematic 1.0.12',
         inputFormat: config.inputFormat,
         outputFormat: config.outputFormat,
       }, {

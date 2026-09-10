@@ -296,7 +296,7 @@ describe('WASM contract (real binary, not mocked)', () => {
     expect(wasm.assign_cip(wasm.parse_any('CCO'))).toEqual([]);
   });
 
-  it('exposes chematic v1.0.9 semantic validation, selection, and expansion', () => {
+  it('exposes chematic v1.0.12 semantic validation, selection, and expansion', () => {
     const model = {
       schema: 'chematic.semantic.v1',
       atom_ids: ['a', 'b'],

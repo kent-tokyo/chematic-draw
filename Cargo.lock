@@ -59,8 +59,8 @@ dependencies = [
 
 [[package]]
 name = "chematic"
-version = "1.0.9"
-source = "git+https://github.com/kent-tokyo/chematic.git?tag=v1.0.9#9d1e98d2d535d4a6d0787a59ad6198ef50d1fd3d"
+version = "1.0.12"
+source = "git+https://github.com/kent-tokyo/chematic.git?tag=v1.0.12#5ce723384d546cbd91a288486f9e20b9debdb5cd"
 dependencies = [
  "chematic-3d",
  "chematic-chem",
@@ -79,8 +79,8 @@ dependencies = [
 
 [[package]]
 name = "chematic-3d"
-version = "1.0.9"
-source = "git+https://github.com/kent-tokyo/chematic.git?tag=v1.0.9#9d1e98d2d535d4a6d0787a59ad6198ef50d1fd3d"
+version = "1.0.12"
+source = "git+https://github.com/kent-tokyo/chematic.git?tag=v1.0.12#5ce723384d546cbd91a288486f9e20b9debdb5cd"
 dependencies = [
  "chematic-chem",
  "chematic-core",
@@ -94,8 +94,8 @@ dependencies = [
 
 [[package]]
 name = "chematic-chem"
-version = "1.0.9"
-source = "git+https://github.com/kent-tokyo/chematic.git?tag=v1.0.9#9d1e98d2d535d4a6d0787a59ad6198ef50d1fd3d"
+version = "1.0.12"
+source = "git+https://github.com/kent-tokyo/chematic.git?tag=v1.0.12#5ce723384d546cbd91a288486f9e20b9debdb5cd"
 dependencies = [
  "chematic-cip",
  "chematic-core",
@@ -109,8 +109,8 @@ dependencies = [
 
 [[package]]
 name = "chematic-cip"
-version = "1.0.9"
-source = "git+https://github.com/kent-tokyo/chematic.git?tag=v1.0.9#9d1e98d2d535d4a6d0787a59ad6198ef50d1fd3d"
+version = "1.0.12"
+source = "git+https://github.com/kent-tokyo/chematic.git?tag=v1.0.12#5ce723384d546cbd91a288486f9e20b9debdb5cd"
 dependencies = [
  "chematic-core",
  "chematic-perception",
@@ -118,33 +118,35 @@ dependencies = [
 
 [[package]]
 name = "chematic-core"
-version = "1.0.9"
-source = "git+https://github.com/kent-tokyo/chematic.git?tag=v1.0.9#9d1e98d2d535d4a6d0787a59ad6198ef50d1fd3d"
+version = "1.0.12"
+source = "git+https://github.com/kent-tokyo/chematic.git?tag=v1.0.12#5ce723384d546cbd91a288486f9e20b9debdb5cd"
 
 [[package]]
 name = "chematic-crystal"
-version = "1.0.9"
-source = "git+https://github.com/kent-tokyo/chematic.git?tag=v1.0.9#9d1e98d2d535d4a6d0787a59ad6198ef50d1fd3d"
+version = "1.0.12"
+source = "git+https://github.com/kent-tokyo/chematic.git?tag=v1.0.12#5ce723384d546cbd91a288486f9e20b9debdb5cd"
 dependencies = [
  "chematic-core",
 ]
 
 [[package]]
 name = "chematic-depict"
-version = "1.0.9"
-source = "git+https://github.com/kent-tokyo/chematic.git?tag=v1.0.9#9d1e98d2d535d4a6d0787a59ad6198ef50d1fd3d"
+version = "1.0.12"
+source = "git+https://github.com/kent-tokyo/chematic.git?tag=v1.0.12#5ce723384d546cbd91a288486f9e20b9debdb5cd"
 dependencies = [
  "chematic-core",
  "chematic-perception",
  "chematic-rxn",
  "chematic-smiles",
+ "serde",
+ "serde_json",
  "tiny-skia",
 ]
 
 [[package]]
 name = "chematic-ff"
-version = "1.0.9"
-source = "git+https://github.com/kent-tokyo/chematic.git?tag=v1.0.9#9d1e98d2d535d4a6d0787a59ad6198ef50d1fd3d"
+version = "1.0.12"
+source = "git+https://github.com/kent-tokyo/chematic.git?tag=v1.0.12#5ce723384d546cbd91a288486f9e20b9debdb5cd"
 dependencies = [
  "chematic-core",
  "chematic-perception",
@@ -153,8 +155,8 @@ dependencies = [
 
 [[package]]
 name = "chematic-fp"
-version = "1.0.9"
-source = "git+https://github.com/kent-tokyo/chematic.git?tag=v1.0.9#9d1e98d2d535d4a6d0787a59ad6198ef50d1fd3d"
+version = "1.0.12"
+source = "git+https://github.com/kent-tokyo/chematic.git?tag=v1.0.12#5ce723384d546cbd91a288486f9e20b9debdb5cd"
 dependencies = [
  "chematic-cip",
  "chematic-core",
@@ -169,8 +171,8 @@ dependencies = [
 
 [[package]]
 name = "chematic-inchi"
-version = "1.0.9"
-source = "git+https://github.com/kent-tokyo/chematic.git?tag=v1.0.9#9d1e98d2d535d4a6d0787a59ad6198ef50d1fd3d"
+version = "1.0.12"
+source = "git+https://github.com/kent-tokyo/chematic.git?tag=v1.0.12#5ce723384d546cbd91a288486f9e20b9debdb5cd"
 dependencies = [
  "chematic-chem",
  "chematic-core",
@@ -180,8 +182,8 @@ dependencies = [
 
 [[package]]
 name = "chematic-iupac"
-version = "1.0.9"
-source = "git+https://github.com/kent-tokyo/chematic.git?tag=v1.0.9#9d1e98d2d535d4a6d0787a59ad6198ef50d1fd3d"
+version = "1.0.12"
+source = "git+https://github.com/kent-tokyo/chematic.git?tag=v1.0.12#5ce723384d546cbd91a288486f9e20b9debdb5cd"
 dependencies = [
  "chematic-core",
  "chematic-perception",
@@ -189,8 +191,8 @@ dependencies = [
 
 [[package]]
 name = "chematic-mol"
-version = "1.0.9"
-source = "git+https://github.com/kent-tokyo/chematic.git?tag=v1.0.9#9d1e98d2d535d4a6d0787a59ad6198ef50d1fd3d"
+version = "1.0.12"
+source = "git+https://github.com/kent-tokyo/chematic.git?tag=v1.0.12#5ce723384d546cbd91a288486f9e20b9debdb5cd"
 dependencies = [
  "chematic-3d",
  "chematic-core",
@@ -204,8 +206,8 @@ dependencies = [
 
 [[package]]
 name = "chematic-perception"
-version = "1.0.9"
-source = "git+https://github.com/kent-tokyo/chematic.git?tag=v1.0.9#9d1e98d2d535d4a6d0787a59ad6198ef50d1fd3d"
+version = "1.0.12"
+source = "git+https://github.com/kent-tokyo/chematic.git?tag=v1.0.12#5ce723384d546cbd91a288486f9e20b9debdb5cd"
 dependencies = [
  "chematic-core",
  "rustc-hash",
@@ -213,8 +215,8 @@ dependencies = [
 
 [[package]]
 name = "chematic-rxn"
-version = "1.0.9"
-source = "git+https://github.com/kent-tokyo/chematic.git?tag=v1.0.9#9d1e98d2d535d4a6d0787a59ad6198ef50d1fd3d"
+version = "1.0.12"
+source = "git+https://github.com/kent-tokyo/chematic.git?tag=v1.0.12#5ce723384d546cbd91a288486f9e20b9debdb5cd"
 dependencies = [
  "chematic-core",
  "chematic-perception",
@@ -222,12 +224,13 @@ dependencies = [
  "chematic-smiles",
  "rustc-hash",
  "serde",
+ "serde_json",
 ]
 
 [[package]]
 name = "chematic-smarts"
-version = "1.0.9"
-source = "git+https://github.com/kent-tokyo/chematic.git?tag=v1.0.9#9d1e98d2d535d4a6d0787a59ad6198ef50d1fd3d"
+version = "1.0.12"
+source = "git+https://github.com/kent-tokyo/chematic.git?tag=v1.0.12#5ce723384d546cbd91a288486f9e20b9debdb5cd"
 dependencies = [
  "chematic-core",
  "chematic-perception",
@@ -237,8 +240,8 @@ dependencies = [
 
 [[package]]
 name = "chematic-smiles"
-version = "1.0.9"
-source = "git+https://github.com/kent-tokyo/chematic.git?tag=v1.0.9#9d1e98d2d535d4a6d0787a59ad6198ef50d1fd3d"
+version = "1.0.12"
+source = "git+https://github.com/kent-tokyo/chematic.git?tag=v1.0.12#5ce723384d546cbd91a288486f9e20b9debdb5cd"
 dependencies = [
  "chematic-core",
  "chematic-perception",

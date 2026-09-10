@@ -86,7 +86,7 @@ cleanup; it does not change the 3D path.
 | **Styling** | Inline styles | No CSS/Tailwind framework | — |
 | **State** | Zustand | Lightweight store | 5.0.15 |
 | **Canvas** | Canvas 2D API | 2D drawing, 3D projection | Native |
-| **Chemistry Engine** | chematic (Rust) | Molecule operations | 1.0.9 (`v1.0.9`) |
+| **Chemistry Engine** | chematic (Rust) | Molecule operations | 1.0.12 (`v1.0.12`) |
 | **WASM** | wasm-bindgen | Rust → JavaScript bridge | via wasm-pack |
 | **Build** | Vite | Bundler and dev server | 7.3.6 (pinned exact — see Round 1 CI notes) |
 | **WASM Build** | wasm-pack | Rust → WASM compilation | 0.13.x |

@@ -198,7 +198,7 @@ const smiles = wasmBridge.toCanonicalSmiles(mol);
 
 Per ROADMAP v0.2.1's scientific capability audit: every calculated property
 below lists the real algorithm and its source, sourced by reading
-chematic 1.0.9's own doc comments and implementation, not assumed from
+chematic 1.0.12's own doc comments and implementation, not assumed from
 the property name. "Domain" notes when a property is unreliable or undefined
 outside typical drug-like organic molecules.
 
@@ -588,7 +588,7 @@ try {
 
 ## Version Support
 
-- **chematic**: 1.0.9 (workspace Git tag `v1.0.9` in `Cargo.toml`)
+- **chematic**: 1.0.12 (workspace Git tag `v1.0.12` in `Cargo.toml`)
 - **wasm-bindgen**: 0.2.x
 - **Node.js**: 24+ (`electron/package.json`'s `engines.node`; matches CI)
 - **Browsers**: whatever Chromium ships in the pinned Electron version (see `electron/package.json`'s `electron` devDependency) — this app runs inside Electron, not an arbitrary browser

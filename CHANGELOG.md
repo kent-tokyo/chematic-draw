@@ -3,6 +3,14 @@
 Notable changes to chematic-draw. Dates use ISO 8601 format. See the git log
 for the full development history.
 
+## [Unreleased]
+
+### Changed
+
+- Updated the Rust/WASM chemistry engine dependency to upstream `chematic`
+  v1.0.12. Rich RXN and evidence-scoped reaction diagnostics are available;
+  CDXML presentation and Markush/polymer semantics remain upstream-pending.
+
 ## [1.0.10] - 2026-09-10
 
 ### Changed

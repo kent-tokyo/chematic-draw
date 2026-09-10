@@ -176,7 +176,7 @@ npm install
 2. **Check Cargo.toml versions:**
    ```toml
    [dependencies]
-   chematic = { git = "https://github.com/kent-tokyo/chematic.git", tag = "v1.0.9", features = ["full"] }
+   chematic = { git = "https://github.com/kent-tokyo/chematic.git", tag = "v1.0.12", features = ["full"] }
    ```
 
 3. **Clean build:**
