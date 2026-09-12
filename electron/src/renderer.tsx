@@ -62,7 +62,7 @@ function confirmLossAwareExport(molecule: MoleculeDto, filePath: string, extraWa
   return window.confirm(warningText);
 }
 
-function App() {
+export function App() {
   const [filePath, setFilePath] = useState<string | null>(null);
   const [richCdxmlSession, setRichCdxmlSession] = useState<RichCdxmlSession | null>(null);
   const { wasmStatus, wasmError, wasmLoaded, initialDocumentLoaded, settingsHydrated } = useAppInitialization({ setFilePath });
@@ -960,5 +960,7 @@ function App() {
   );
 }
 
-const root = ReactDOM.createRoot(document.getElementById('root')!);
-root.render(<App />);
+export function mountApp(rootElement: HTMLElement | null = document.getElementById('root')): void {
+  if (!rootElement) throw new Error('Chematic Draw mount element was not found');
+  ReactDOM.createRoot(rootElement).render(<App />);
+}

@@ -11,6 +11,7 @@
     "paths": { "@chematic/contract": ["../packages/chematic-contract/src/index.ts"] },
     "ignoreDeprecations": "6.0",
     "isolatedModules": true,
+    "allowImportingTsExtensions": true,
     "skipLibCheck": true,
     "noEmit": true,
     "strict": false,
