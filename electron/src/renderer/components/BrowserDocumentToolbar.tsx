@@ -42,26 +42,28 @@ export function BrowserDocumentToolbar({ molecule, language, onMoleculeLoaded, o
 
   useEffect(() => {
     let cancelled = false;
-    try {
-      const raw = browserDocumentHost.readRecovery();
-      if (raw && raw.length <= MAX_RECOVERY_TEXT_LENGTH) {
-        const recovered = parseSessionBundle(raw).document.molecule;
-        if (!cancelled && recovered.atoms.length > 0) {
-          const shouldRestore = window.confirm(ja ? '前回の編集を復元しますか？' : 'Restore the previous browser session?');
-          if (shouldRestore) {
-            onMoleculeLoaded(recovered, 'browser-recovery.schematic.json');
-            window.setTimeout(() => setSavedFingerprint(moleculeFingerprint(recovered)), 0);
-            onStatus(ja ? '前回のセッションを復元しました' : 'Previous session restored');
-          } else {
-            browserDocumentHost.clearRecovery();
-            onStatus(ja ? '復旧データを破棄しました' : 'Recovery discarded');
+    void (async () => {
+      try {
+        const raw = await browserDocumentHost.readRecovery();
+        if (raw && raw.length <= MAX_RECOVERY_TEXT_LENGTH) {
+          const recovered = parseSessionBundle(raw).document.molecule;
+          if (!cancelled && recovered.atoms.length > 0) {
+            const shouldRestore = window.confirm(ja ? '前回の編集を復元しますか？' : 'Restore the previous browser session?');
+            if (shouldRestore) {
+              onMoleculeLoaded(recovered, 'browser-recovery.schematic.json');
+              window.setTimeout(() => setSavedFingerprint(moleculeFingerprint(recovered)), 0);
+              onStatus(ja ? '前回のセッションを復元しました' : 'Previous session restored');
+            } else {
+              void browserDocumentHost.clearRecovery();
+              onStatus(ja ? '復旧データを破棄しました' : 'Recovery discarded');
+            }
           }
         }
+      } catch {
+        // A stale, malformed, or unavailable browser store must not block editing.
+        void browserDocumentHost.clearRecovery();
       }
-    } catch {
-      // A stale, malformed, or unavailable browser store must not block editing.
-      browserDocumentHost.clearRecovery();
-    }
+    })();
     return () => { cancelled = true; };
     // Restore exactly once when the browser host mounts.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -85,7 +87,7 @@ export function BrowserDocumentToolbar({ molecule, language, onMoleculeLoaded, o
     if (!guardUnsaved()) return;
     onNew();
     setSavedFingerprint(moleculeFingerprint({ atoms: [], bonds: [] }));
-    browserDocumentHost.clearRecovery();
+    void browserDocumentHost.clearRecovery();
     onStatus(ja ? '新しい分子' : 'New molecule');
   };
 
@@ -93,7 +95,7 @@ export function BrowserDocumentToolbar({ molecule, language, onMoleculeLoaded, o
     const fileName = `chematic-${new Date().toISOString().slice(0, 10)}.schematic.json`;
     browserDocumentHost.download(fileName, serializeSessionBundle(molecule, null), 'application/json;charset=utf-8');
     setSavedFingerprint(moleculeFingerprint(molecule));
-    browserDocumentHost.clearRecovery();
+    void browserDocumentHost.clearRecovery();
     onStatus(ja ? 'セッションをダウンロードしました' : 'Session downloaded');
   };
 
