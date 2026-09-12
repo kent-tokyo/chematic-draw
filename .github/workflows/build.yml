@@ -17,39 +17,18 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v4
-
-      # Fails fast, before spending build minutes, if electron/package.json
-      # and crates/chem-wasm/Cargo.toml (the two halves of what actually
-      # ships together) have drifted apart, or if a tagged release (v*)
-      # doesn't match either. Nothing enforced this before — the versions
-      # only happened to agree because nobody had bumped just one side yet.
-      - name: Check version consistency
-        shell: bash
-        run: |
-          PKG_VERSION=$(node -p "require('./electron/package.json').version")
-          WASM_VERSION=$(grep -m1 '^version' crates/chem-wasm/Cargo.toml | sed -E 's/version *= *"([^"]+)"/\1/')
-          echo "electron/package.json: $PKG_VERSION"
-          echo "crates/chem-wasm/Cargo.toml: $WASM_VERSION"
-          if [ "$PKG_VERSION" != "$WASM_VERSION" ]; then
-            echo "::error::Version mismatch: electron/package.json ($PKG_VERSION) != crates/chem-wasm/Cargo.toml ($WASM_VERSION)"
-            exit 1
-          fi
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            TAG_VERSION="${GITHUB_REF#refs/tags/v}"
-            echo "git tag: v$TAG_VERSION"
-            if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
-              echo "::error::Tag v$TAG_VERSION does not match package version $PKG_VERSION"
-              exit 1
-            fi
-          fi
+      - uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: 'npm'
           cache-dependency-path: electron/package-lock.json
+
+      - name: Check workflow and version invariants
+        working-directory: electron
+        run: npm run check:ci-config
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -62,7 +41,7 @@ jobs:
           workspaces: 'crates'
 
       - name: Install wasm-pack
-        run: cargo install wasm-pack
+        run: cargo install wasm-pack --version 0.13.1 --locked
 
       - name: Build WASM Release
         working-directory: electron
@@ -142,13 +121,15 @@ jobs:
         run: |
           # sha256sum ships on Linux and in Windows' Git Bash; macOS has
           # shasum -a 256 instead (no GNU coreutils by default).
-          if command -v sha256sum >/dev/null 2>&1; then
-            SHA256='sha256sum'
-          else
-            SHA256='shasum -a 256'
-          fi
-          find . -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.zip' -o -name '*.exe' -o -name '*.nupkg' \) -print0 \
-            | xargs -0 $SHA256 >> "SHA256SUMS-${{ runner.os }}.txt"
+          while IFS= read -r -d '' artifact; do
+            if command -v sha256sum >/dev/null 2>&1; then
+              sha256sum "$artifact"
+            else
+              shasum -a 256 "$artifact"
+            fi
+          done < <(find . -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.zip' -o -name '*.exe' -o -name '*.nupkg' \) -print0) \
+            > "SHA256SUMS-${{ runner.os }}.txt"
+          test -s "SHA256SUMS-${{ runner.os }}.txt"
           cat "SHA256SUMS-${{ runner.os }}.txt"
 
       # forge.config.js's actual makers: maker-deb + maker-rpm on Linux,
@@ -200,13 +181,13 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Download artifacts
         uses: actions/download-artifact@v4
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
           draft: false

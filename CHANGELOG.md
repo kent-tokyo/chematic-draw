@@ -5,11 +5,54 @@ for the full development history.
 
 ## [Unreleased]
 
+### Added
+
+- Added explicit multi-reactant SMIRKS execution for two to eight reactant
+  molecules, with validated Worker parsing and visible failure states.
+- Added typed query-document boundaries for SMARTS constraints, Markush,
+  polymer, and nucleic-acid metadata without flattening unsupported semantics.
+- Added loss-aware CDXML page handling for presentation-only pages, nested
+  chemistry fragments, opaque presentation groups, and fragment-scoped rich
+  source patching.
+- Added a dependency-free Web Component validation boundary that rejects
+  duplicate IDs, invalid bond endpoints, and unsupported bond values before
+  SVG rendering.
+
 ### Changed
 
 - Updated the Rust/WASM chemistry engine dependency to upstream `chematic`
-  v1.0.12. Rich RXN and evidence-scoped reaction diagnostics are available;
-  CDXML presentation and Markush/polymer semantics remain upstream-pending.
+  v1.0.12.
+- Hardened CI with a shared workflow/version invariant check, maintained
+  GitHub Action majors, pinned `wasm-pack 0.13.1 --locked` installs, and a full
+  local `npm run verify:ci` gate.
+- Split the nightly npm audit into a blocking production-dependency gate and
+  a visible, non-blocking report for known Electron Forge build-tool findings;
+  production dependencies currently audit cleanly.
+- Made packaged Electron canvas smoke interactions derive a blank point from
+  the rendered canvas bounds instead of relying on a layout-dependent fixed
+  coordinate.
+- Refactored the Web Component validation, summary, and SVG rendering paths
+  into focused modules, and extracted the reaction execution controls from
+  the main ReactionPanel.
+- Refactored the Rust/WASM bridge into focused document-adapter,
+  molecule-conversion, and fingerprint modules; the public WASM API remains
+  unchanged.
+- Refactored CDXML atom, bond, text, and group handling into focused parser
+  functions while preserving the existing supported-subset boundary.
+
+### Validation
+
+- TypeScript typecheck and ESLint pass locally.
+- Jest: 51 suites passed, 451 tests passed, 6 skipped.
+- Renderer E2E: 105 tests passed in the latest completed UI gate; the focused
+  reaction and Web Component tests pass after the latest refactoring.
+- Packaged Electron smoke: 26 tests passed, including the two Linux CI cases
+  that previously timed out while exercising Undo/Redo and batch undo.
+- Rust `chem-wasm`: 30 tests passed locally.
+- Workflow lint and the production dependency audit pass; the production
+  dependency audit reports zero vulnerabilities.
+- The final refactoring gate passes with no new Rust warnings; `lib.rs` is now
+  1,680 lines, down from approximately 2,017 before the module extraction.
 
 ## [1.0.10] - 2026-09-10
 

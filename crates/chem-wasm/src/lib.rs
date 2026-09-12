@@ -7,6 +7,17 @@
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
+mod document_adapters;
+mod fingerprint;
+mod molecule_conversion;
+
+#[cfg(test)]
+use fingerprint::{
+    bitvec_to_hex, decode_fingerprint_pair, dice_similarity, fingerprint_with_metadata,
+    hex_to_bitvec, tanimoto_similarity,
+};
+use molecule_conversion::{chem_to_dto, dto_to_chem, dto_to_coords};
+
 // ─────────────────────────────────────────────────────────────────────────────────
 // DTO Types (serialized between WASM and JS via serde_wasm_bindgen::to_value)
 // ─────────────────────────────────────────────────────────────────────────────────
@@ -198,77 +209,6 @@ pub fn expand_semantic_model(
     semantic_to_js(&expanded.to_json(), "Expanded semantic serialization failed")
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Loss-preserving document adapters (chematic v1.0.12)
-// ─────────────────────────────────────────────────────────────────────────────
-
-const DOCUMENT_MAX_INPUT_BYTES: usize = 64 * 1024 * 1024;
-const DOCUMENT_MAX_JSON_BYTES: usize = 64 * 1024 * 1024;
-
-fn check_document_size(label: &str, bytes: usize, limit: usize) -> Result<(), JsValue> {
-    if bytes > limit {
-        return Err(JsValue::from_str(&format!(
-            "{label} exceeds maximum size ({bytes} > {limit} bytes)"
-        )));
-    }
-    Ok(())
-}
-
-/// Parse an RXN V2000 file into schematic's loss-aware ReactionDocument JSON.
-#[wasm_bindgen]
-pub fn rxn_document_from_rxn(text: &str) -> Result<String, JsValue> {
-    check_document_size("RXN input", text.len(), DOCUMENT_MAX_INPUT_BYTES)?;
-    let document = chematic::mol::parse_rxn_document(text)
-        .map_err(|error| JsValue::from_str(&error.to_string()))?;
-    serde_json::to_string(&document)
-        .map_err(|error| JsValue::from_str(&format!("RXN document serialization failed: {error}")))
-}
-
-/// Write a loss-aware ReactionDocument JSON value as RXN V2000.
-#[wasm_bindgen]
-pub fn rxn_document_to_rxn(document_json: &str) -> Result<String, JsValue> {
-    check_document_size("RXN document JSON", document_json.len(), DOCUMENT_MAX_JSON_BYTES)?;
-    let document: chematic::rxn::ReactionDocument = serde_json::from_str(document_json)
-        .map_err(|error| JsValue::from_str(&format!("invalid reaction document JSON: {error}")))?;
-    chematic::mol::write_rxn_document(&document)
-        .map_err(|error| JsValue::from_str(&error.to_string()))
-}
-
-/// Parse CDXML while retaining document/page/presentation objects as JSON.
-#[wasm_bindgen]
-pub fn cdxml_document_json(cdxml: &str) -> Result<String, JsValue> {
-    check_document_size("CDXML input", cdxml.len(), DOCUMENT_MAX_INPUT_BYTES)?;
-    let document = chematic::mol::CdxmlDocument::parse_with_limits(
-        cdxml,
-        &chematic::mol::CdxmlParseLimits {
-            max_input_bytes: DOCUMENT_MAX_INPUT_BYTES,
-            ..Default::default()
-        },
-    )
-    .map_err(|error| JsValue::from_str(&error.to_string()))?;
-    serde_json::to_string(&document.to_json())
-        .map_err(|error| JsValue::from_str(&format!("CDXML document serialization failed: {error}")))
-}
-
-/// Apply a bounded, loss-preserving CDXML document edit and return its XML.
-#[wasm_bindgen]
-pub fn edit_cdxml_document_json(cdxml: &str, edit_json: &str) -> Result<String, JsValue> {
-    check_document_size("CDXML input", cdxml.len(), DOCUMENT_MAX_INPUT_BYTES)?;
-    check_document_size("CDXML edit JSON", edit_json.len(), DOCUMENT_MAX_JSON_BYTES)?;
-    let document = chematic::mol::CdxmlDocument::parse_with_limits(
-        cdxml,
-        &chematic::mol::CdxmlParseLimits {
-            max_input_bytes: DOCUMENT_MAX_INPUT_BYTES,
-            ..Default::default()
-        },
-    )
-    .map_err(|error| JsValue::from_str(&error.to_string()))?;
-    document
-        .apply_json_edit(edit_json)
-        .map(|edited| edited.write())
-        .map_err(|error| JsValue::from_str(&error.to_string()))
-}
-
 fn parse_any_impl(text: &str) -> Result<MoleculeDto, JsValue> {
     use chematic::mol;
     use chematic::smiles;
@@ -291,11 +231,7 @@ fn parse_any_impl(text: &str) -> Result<MoleculeDto, JsValue> {
     if sniff.contains("<CDXML") {
         let fragments = mol::parse_cdxml_all(sniff)
             .map_err(|e| JsValue::from_str(&format!("CDXML parse failed: {e}")))?;
-        let (mol, coords) = fragments
-            .into_iter()
-            .next()
-            .ok_or_else(|| JsValue::from_str("CDXML: no molecules found"))?;
-        return Ok(chem_to_dto(&mol, Some(&coords)));
+        return merge_fragment_dtos(fragments);
     }
 
     // Try CML
@@ -336,6 +272,41 @@ fn parse_any_impl(text: &str) -> Result<MoleculeDto, JsValue> {
     let mol = smiles::parse(sniff)
         .map_err(|e| JsValue::from_str(&format!("SMILES parse failed: {e}")))?;
     Ok(chem_to_dto(&mol, None))
+}
+
+/// Flatten disconnected CDXML fragments into the editor's single-molecule
+/// DTO while preserving every atom, bond, and source coordinate. The editor
+/// has no page/component container at this boundary, so IDs are rebased to
+/// remain unique and disconnected topology is retained explicitly.
+fn merge_fragment_dtos(
+    fragments: Vec<(chematic::core::Molecule, Vec<(f64, f64)>)>,
+) -> Result<MoleculeDto, JsValue> {
+    let mut merged = MoleculeDto { atoms: Vec::new(), bonds: Vec::new() };
+    for (molecule, coords) in fragments {
+        let mut fragment = chem_to_dto(&molecule, Some(&coords));
+        let atom_offset = u32::try_from(merged.atoms.len())
+            .map_err(|_| JsValue::from_str("CDXML contains too many atoms"))?;
+        let bond_offset = u32::try_from(merged.bonds.len())
+            .map_err(|_| JsValue::from_str("CDXML contains too many bonds"))?;
+        for atom in &mut fragment.atoms {
+            atom.id = atom.id.checked_add(atom_offset)
+                .ok_or_else(|| JsValue::from_str("CDXML atom id overflow"))?;
+        }
+        for bond in &mut fragment.bonds {
+            bond.id = bond.id.checked_add(bond_offset)
+                .ok_or_else(|| JsValue::from_str("CDXML bond id overflow"))?;
+            bond.from = bond.from.checked_add(atom_offset)
+                .ok_or_else(|| JsValue::from_str("CDXML bond endpoint overflow"))?;
+            bond.to = bond.to.checked_add(atom_offset)
+                .ok_or_else(|| JsValue::from_str("CDXML bond endpoint overflow"))?;
+        }
+        merged.atoms.extend(fragment.atoms);
+        merged.bonds.extend(fragment.bonds);
+    }
+    if merged.atoms.is_empty() {
+        return Err(JsValue::from_str("CDXML: no molecules found"));
+    }
+    Ok(merged)
 }
 
 /// Generate SMILES string from a molecule.
@@ -624,221 +595,30 @@ pub fn invert_stereocenter(mol_json: &JsValue, atom_id: u32) -> Result<JsValue, 
         .get(&atom_id)
         .ok_or_else(|| JsValue::from_str(&format!("Atom ID {} not found", atom_id)))?;
 
+    let coords = dto_to_coords(&mol);
     let inverted = invert_stereo(&chem_mol, AtomIdx(*idx as u32));
-    serde_wasm_bindgen::to_value(&chem_to_dto(&inverted, None))
-        .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
-}
+    let mut result = chem_to_dto(&inverted, Some(&coords));
 
-// ─────────────────────────────────────────────────────────────────────────────────
-// Internal Conversion Helpers
-// ─────────────────────────────────────────────────────────────────────────────────
-
-/// Convert MoleculeDto to chematic::core::Molecule.
-/// Returns error if a non-wildcard atom's element symbol is unrecognized.
-fn dto_to_chem(dto: &MoleculeDto) -> Result<chematic::core::Molecule, JsValue> {
-    use chematic::core::{
-        Atom, AtomIdx, BondOrder as ChemBondOrder, Chirality, Element, MoleculeBuilder,
-    };
-    use std::collections::{HashMap, HashSet};
-
-    // Aromaticity must be set on each Atom AT CONSTRUCTION TIME, not derived
-    // afterward: chematic-core exposes no public setter for `Atom.aromatic`,
-    // and calling `perception::apply_aromaticity` on a molecule whose bonds
-    // are ALREADY BondOrder::Aromatic (rather than a Kekulized single/double
-    // structure, which is what that perception pass expects as input) is a
-    // no-op — it leaves every atom's `aromatic` flag false. That silently
-    // broke ring perception for any DTO round-trip of an aromatic molecule,
-    // and specifically broke aromatic-heteroatom implicit-H inference below
-    // (confirmed via a native chematic probe: pyrrole's `c1cc[nH]c1` came
-    // back from this bridge as the non-aromatic-perceived, wrong-formula
-    // "C4H4N" instead of the correct "C4H5N" until this was fixed).
-    let aromatic_atom_ids: HashSet<u32> = dto
+    // `Chirality` is an upstream internal side-channel and is intentionally
+    // not part of MoleculeDto. For tetrahedral centers the public DTO
+    // representation is the wedge/hash direction, so preserve the inversion
+    // across the WASM boundary by toggling one incident wedge/hash bond. The
+    // double-bond path has no incident wedge and keeps the upstream result.
+    if let Some(source_bond) = mol
         .bonds
         .iter()
-        .filter(|b| b.order == 4)
-        .flat_map(|b| [b.from, b.to])
-        .collect();
-
-    let mut builder = MoleculeBuilder::new();
-    let mut id_to_idx: HashMap<u32, AtomIdx> = HashMap::new();
-
-    for atom in &dto.atoms {
-        // Wildcard/R-group atoms carry no real chemical element — chematic-core
-        // itself has no dedicated "wildcard element," `Atom::wildcard()` just
-        // uses Carbon as an placeholder callers are told to ignore. Trust the
-        // explicit `wildcard` flag instead of guessing from the (meaningless,
-        // for these atoms) `element` string, and skip `Element::from_symbol`
-        // entirely so a wildcard atom can never trigger "Unknown element."
-        let element = if atom.wildcard {
-            Element::C
-        } else {
-            Element::from_symbol(&atom.element)
-                .ok_or_else(|| JsValue::from_str(&format!("Unknown element: {}", atom.element)))?
-        };
-
-        let chem_atom = Atom {
-            element,
-            isotope: atom.isotope,
-            charge: atom.charge,
-            // Explicit H count from the DTO, not inferred: ring topology
-            // alone can't distinguish e.g. pyrrole-type N (donates its lone
-            // pair, carries an H) from pyridine-type N (doesn't) — only the
-            // originating parse (or an explicit edit) knows which one this
-            // is. `None` falls back to chematic's own valence-based
-            // inference, correct only when there's no such ambiguity.
-            hydrogen_count: atom.hydrogen_count,
-            aromatic: aromatic_atom_ids.contains(&atom.id),
-            chirality: Chirality::None,
-            wildcard: atom.wildcard,
-            atom_map: if atom.atom_map != 0 {
-                Some(atom.atom_map)
-            } else {
-                None
-            },
-            cip_code: None,
-        };
-        let idx = builder.add_atom(chem_atom);
-        id_to_idx.insert(atom.id, idx);
+        .find(|bond| bond.stereo != 0 && (bond.from == atom_id || bond.to == atom_id))
+    {
+        if let Some(result_bond) = result.bonds.iter_mut().find(|bond| {
+            (bond.from == source_bond.from && bond.to == source_bond.to)
+                || (bond.from == source_bond.to && bond.to == source_bond.from)
+        }) {
+            result_bond.stereo = if source_bond.stereo == 1 { 2 } else { 1 };
+        }
     }
 
-    for bond in &dto.bonds {
-        let Some(&a) = id_to_idx.get(&bond.from) else {
-            continue;
-        };
-        let Some(&b) = id_to_idx.get(&bond.to) else {
-            continue;
-        };
-
-        let order = match (bond.order, bond.stereo) {
-            (_, 1) => ChemBondOrder::Up,
-            (_, 2) => ChemBondOrder::Down,
-            (1, _) => ChemBondOrder::Single,
-            (2, _) => ChemBondOrder::Double,
-            (3, _) => ChemBondOrder::Triple,
-            (4, _) => ChemBondOrder::Aromatic,
-            _ => ChemBondOrder::Single,
-        };
-
-        let _ = builder.add_bond(a, b, order);
-    }
-
-    let mut mol = builder.build();
-
-    // Apply stereo from 2D coordinates if any stereo bonds
-    if dto.bonds.iter().any(|b| b.stereo != 0) {
-        let coords: Vec<(f64, f64)> = dto
-            .atoms
-            .iter()
-            .map(|a| (a.x, -a.y)) // Y-down → Y-up
-            .collect();
-        chematic::perception::apply_stereo_from_2d(&mut mol, &coords);
-    }
-
-    Ok(mol)
-}
-
-/// Convert chematic::core::Molecule to MoleculeDto with optional pre-existing coordinates.
-/// If no coords provided, uses compute_layout.
-fn chem_to_dto(mol: &chematic::core::Molecule, coords: Option<&[(f64, f64)]>) -> MoleculeDto {
-    use chematic::core::AtomIdx;
-    use chematic::depict::compute_layout;
-
-    // `display_label` is always populated (even as `Some("")` for a
-    // skeletal interior carbon) since chem_to_dto always has a real
-    // molecule to compute it from — `None` is reserved for DTOs that never
-    // went through this function (hand-built fixtures, older callers),
-    // which is exactly when a consumer should fall back to `element`.
-    let display_label = |idx: AtomIdx| Some(chematic::depict::atom_display_label(mol, idx));
-
-    let atoms_vec: Vec<_> = if let Some(c) = coords {
-        // Use provided coords (from CML/CDXML/MOL/SDF, chemistry Y-up convention)
-        // Negate Y to convert to screen space (Y-down)
-        mol.atoms()
-            .enumerate()
-            .map(|(i, (_, atom))| {
-                let (px, py) = c.get(i).copied().unwrap_or((0.0, 0.0));
-                AtomDto {
-                    id: i as u32,
-                    element: atom.element.symbol().to_string(),
-                    x: px,
-                    y: -py, // chemistry Y-up → screen Y-down
-                    charge: atom.charge,
-                    atom_map: atom.atom_map.unwrap_or(0),
-                    hydrogen_count: Some(chematic::core::implicit_hcount(mol, AtomIdx(i as u32))),
-                    wildcard: atom.wildcard,
-                    display_label: display_label(AtomIdx(i as u32)),
-                    isotope: atom.isotope,
-                }
-            })
-            .collect()
-    } else {
-        // Use compute_layout (returns screen Y-down, no negation)
-        let layout = compute_layout(mol);
-        mol.atoms()
-            .enumerate()
-            .map(|(i, (_, atom))| {
-                let pt = layout.get(AtomIdx(i as u32));
-                AtomDto {
-                    id: i as u32,
-                    element: atom.element.symbol().to_string(),
-                    x: pt.x,
-                    y: pt.y, // already screen Y-down
-                    charge: atom.charge,
-                    atom_map: atom.atom_map.unwrap_or(0),
-                    hydrogen_count: Some(chematic::core::implicit_hcount(mol, AtomIdx(i as u32))),
-                    wildcard: atom.wildcard,
-                    display_label: display_label(AtomIdx(i as u32)),
-                    isotope: atom.isotope,
-                }
-            })
-            .collect()
-    };
-
-    let bonds_vec: Vec<_> = mol
-        .bonds()
-        .enumerate()
-        .map(|(i, (_, bond))| {
-            let (order, stereo) = chem_bond_order(bond.order);
-            BondDto {
-                id: (atoms_vec.len() + i) as u32,
-                from: bond.atom1.0,
-                to: bond.atom2.0,
-                order,
-                stereo,
-            }
-        })
-        .collect();
-
-    MoleculeDto {
-        atoms: atoms_vec,
-        bonds: bonds_vec,
-    }
-}
-
-/// Convert MoleculeDto atom coordinates to a Vec of (f64, f64) in chemistry convention (Y-up).
-/// Used for MOL/CML/SDF export.
-fn dto_to_coords(mol: &MoleculeDto) -> Vec<(f64, f64)> {
-    mol.atoms.iter().map(|a| (a.x, -a.y)).collect()
-}
-
-/// Convert chematic::core::BondOrder to (order: u8, stereo: u8) pair.
-fn chem_bond_order(order: chematic::core::BondOrder) -> (u8, u8) {
-    use chematic::core::BondOrder;
-    match order {
-        BondOrder::Single => (1, 0),
-        BondOrder::Up => (1, 1),
-        BondOrder::Down => (1, 2),
-        BondOrder::Double => (2, 0),
-        BondOrder::Triple => (3, 0),
-        BondOrder::Quadruple => (4, 0),
-        BondOrder::Aromatic => (4, 0),
-        BondOrder::Zero => (0, 0),
-        BondOrder::Dative => (1, 0),
-        BondOrder::QueryAny => (1, 0),
-        BondOrder::QuerySingleOrDouble => (1, 0),
-        BondOrder::QuerySingleOrAromatic => (1, 0),
-        BondOrder::QueryDoubleOrAromatic => (2, 0),
-    }
+    serde_wasm_bindgen::to_value(&result)
+        .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1032,134 +812,6 @@ pub fn get_extended_properties(mol_json: &JsValue) -> Result<JsValue, JsValue> {
         .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
 }
 
-/// Encode a `BitVec2048` fingerprint as a 512-character hex string (2048 bits = 256 bytes).
-fn bitvec_to_hex(bv: &chematic::fp::BitVec2048) -> String {
-    let mut hex = String::with_capacity(512);
-    for byte_idx in 0..256 {
-        let mut byte = 0u8;
-        for bit_in_byte in 0..8 {
-            if bv.get(byte_idx * 8 + bit_in_byte) {
-                byte |= 1 << bit_in_byte;
-            }
-        }
-        hex.push_str(&format!("{byte:02x}"));
-    }
-    hex
-}
-
-/// Decode a fingerprint hex string produced by [`bitvec_to_hex`] back into its bits.
-/// Never panics: malformed input (wrong length, non-hex characters) is a normal,
-/// expected failure mode for a value that crossed the JS boundary, so it's reported
-/// as a structured `Err` rather than a Rust panic (which would surface as an opaque
-/// WASM trap instead of a catchable, descriptive JS exception).
-fn hex_to_bitvec(hex: &str) -> Result<chematic::fp::BitVec2048, String> {
-    if hex.len() != 512 {
-        return Err(format!(
-            "fingerprint hex must be 512 chars (2048 bits), got {}",
-            hex.len()
-        ));
-    }
-    let mut bv = chematic::fp::BitVec2048::new();
-    for byte_idx in 0..256 {
-        let byte = u8::from_str_radix(&hex[byte_idx * 2..byte_idx * 2 + 2], 16)
-            .map_err(|_| format!("fingerprint hex has invalid hex digits at byte {byte_idx}"))?;
-        for bit_in_byte in 0..8 {
-            if (byte >> bit_in_byte) & 1 == 1 {
-                bv.set(byte_idx * 8 + bit_in_byte);
-            }
-        }
-    }
-    Ok(bv)
-}
-
-/// Get ECFP4 fingerprint as a 512-char hex string encoding the real 2048-bit vector.
-#[wasm_bindgen]
-pub fn get_fingerprint(mol_json: &JsValue) -> Result<String, JsValue> {
-    use chematic::fp;
-
-    let dto: MoleculeDto = serde_wasm_bindgen::from_value(mol_json.clone())
-        .map_err(|e| JsValue::from_str(&format!("JSON decode failed: {e}")))?;
-
-    let chem_mol = dto_to_chem(&dto)?;
-
-    let fp_bits = fp::ecfp4(&chem_mol);
-    Ok(bitvec_to_hex(&fp_bits))
-}
-
-/// Fingerprint plus the parameters that produced it. `radius`/`bit_length`/`mode`
-/// are read from `chematic::fp::EcfpConfig::default()` (what [`chematic::fp::ecfp4`]
-/// actually calls internally) rather than assumed from the "ECFP4" name — the "4" in
-/// RDKit-style ECFP naming is the diameter (2×radius), so it's not directly the
-/// `radius` field, and asserting it without checking the source would be exactly the
-/// kind of plausible-but-unsourced value this DTO exists to avoid.
-#[derive(Debug, Clone, Serialize)]
-pub struct FingerprintDto {
-    pub hex: String,
-    /// Algorithm identifier: "ECFP4" (radius=2, matching RDKit's ECFP4 naming).
-    pub kind: String,
-    pub radius: u32,
-    pub bit_length: u32,
-    /// "bit": each position is a 0/1 presence flag ([`chematic::fp::BitVec2048`]),
-    /// not an occurrence count.
-    pub mode: String,
-}
-
-/// Pure core of [`get_fingerprint_with_metadata`], kept free of the wasm/JsValue
-/// boundary so it's directly unit-testable.
-fn fingerprint_with_metadata(chem_mol: &chematic::core::Molecule) -> FingerprintDto {
-    use chematic::fp;
-
-    let fp_bits = fp::ecfp4(chem_mol);
-    let config = fp::EcfpConfig::default();
-    FingerprintDto {
-        hex: bitvec_to_hex(&fp_bits),
-        kind: "ECFP4".to_string(),
-        radius: config.radius,
-        bit_length: config.nbits as u32,
-        mode: "bit".to_string(),
-    }
-}
-
-/// Get the ECFP4 fingerprint together with its real algorithm parameters, for
-/// callers that need to know what they're comparing rather than just a hex blob.
-/// [`get_fingerprint`] is kept separate and unchanged so existing callers
-/// (`tanimoto_similarity`/`dice_similarity`, which take hex strings) aren't affected.
-#[wasm_bindgen]
-pub fn get_fingerprint_with_metadata(mol_json: &JsValue) -> Result<JsValue, JsValue> {
-    let dto: MoleculeDto = serde_wasm_bindgen::from_value(mol_json.clone())
-        .map_err(|e| JsValue::from_str(&format!("JSON decode failed: {e}")))?;
-
-    let chem_mol = dto_to_chem(&dto)?;
-
-    serde_wasm_bindgen::to_value(&fingerprint_with_metadata(&chem_mol))
-        .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
-}
-
-/// Pure core of [`tanimoto_similarity`]/[`dice_similarity`]'s shared hex decoding,
-/// kept free of the wasm/JsValue boundary so it's directly unit-testable: JsValue
-/// FFI stubs (e.g. `JsValue::from_str`) panic when called outside a real wasm32/JS
-/// host, so error paths that construct one can't be exercised by native `cargo test`.
-fn decode_fingerprint_pair(
-    fp_a_hex: &str,
-    fp_b_hex: &str,
-) -> Result<(chematic::fp::BitVec2048, chematic::fp::BitVec2048), String> {
-    Ok((hex_to_bitvec(fp_a_hex)?, hex_to_bitvec(fp_b_hex)?))
-}
-
-/// Calculate Tanimoto similarity between two ECFP4 fingerprints (hex format from `get_fingerprint`).
-#[wasm_bindgen]
-pub fn tanimoto_similarity(fp_a_hex: &str, fp_b_hex: &str) -> Result<f64, JsValue> {
-    let (a, b) = decode_fingerprint_pair(fp_a_hex, fp_b_hex).map_err(|e| JsValue::from_str(&e))?;
-    Ok(a.tanimoto(&b))
-}
-
-/// Calculate Dice similarity between two ECFP4 fingerprints (hex format from `get_fingerprint`).
-#[wasm_bindgen]
-pub fn dice_similarity(fp_a_hex: &str, fp_b_hex: &str) -> Result<f64, JsValue> {
-    let (a, b) = decode_fingerprint_pair(fp_a_hex, fp_b_hex).map_err(|e| JsValue::from_str(&e))?;
-    Ok(a.dice(&b))
-}
-
 /// Identify functional groups in a molecule.
 #[wasm_bindgen]
 pub fn identify_functional_groups_wasm(mol_json: &JsValue) -> Result<JsValue, JsValue> {
@@ -1234,13 +886,13 @@ impl From<chematic::rxn::TransformError> for ReactionError {
 /// reorder atoms, so indexing into the reactant's coordinate array by product atom
 /// index would silently misplace atoms (new atoms piling up at the origin, or
 /// existing atoms inheriting a stranger's position) rather than erroring.
-fn execute_reaction(
-    chem_mol: &chematic::core::Molecule,
+fn execute_reaction_many(
+    chem_molecules: &[&chematic::core::Molecule],
     smirks: &str,
 ) -> Result<Vec<MoleculeDto>, ReactionError> {
     use chematic::rxn;
 
-    let product_sets = rxn::run_reactants(smirks, &[chem_mol])?;
+    let product_sets = rxn::run_reactants(smirks, chem_molecules)?;
 
     // product_sets is Vec<Vec<Molecule>>; empty means the SMIRKS pattern found no
     // match on this molecule — surface it as zero products, not a fabricated one.
@@ -1251,6 +903,13 @@ fn execute_reaction(
         }
     }
     Ok(all_products)
+}
+
+fn execute_reaction(
+    chem_mol: &chematic::core::Molecule,
+    smirks: &str,
+) -> Result<Vec<MoleculeDto>, ReactionError> {
+    execute_reaction_many(&[chem_mol], smirks)
 }
 
 /// Tagged reaction outcome sent to JS — every domain-level result (success, no
@@ -1296,6 +955,27 @@ pub fn run_reactants(mol_json: &JsValue, smirks: &str) -> Result<JsValue, JsValu
 
     let outcome: ReactionOutcome = execute_reaction(&chem_mol, smirks).into();
 
+    serde_wasm_bindgen::to_value(&outcome)
+        .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
+}
+
+/// Execute a SMIRKS template against an explicit bounded list of reactants.
+/// Keeping this separate from `run_reactants` preserves the stable single-
+/// molecule API while allowing hosts to use upstream multi-reactant matching.
+#[wasm_bindgen]
+pub fn run_reactants_multi(mols_json: &JsValue, smirks: &str) -> Result<JsValue, JsValue> {
+    const MAX_REACTANTS: usize = 8;
+    let dtos: Vec<MoleculeDto> = serde_wasm_bindgen::from_value(mols_json.clone())
+        .map_err(|e| JsValue::from_str(&format!("JSON decode failed: {e}")))?;
+    if dtos.is_empty() || dtos.len() > MAX_REACTANTS {
+        return Err(JsValue::from_str("Reactant list must contain between 1 and 8 molecules"));
+    }
+    let chem_molecules: Vec<chematic::core::Molecule> = dtos
+        .iter()
+        .map(dto_to_chem)
+        .collect::<Result<_, _>>()?;
+    let references: Vec<&chematic::core::Molecule> = chem_molecules.iter().collect();
+    let outcome: ReactionOutcome = execute_reaction_many(&references, smirks).into();
     serde_wasm_bindgen::to_value(&outcome)
         .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
 }
@@ -1548,6 +1228,25 @@ mod correctness_tests {
 
     fn mol(smiles: &str) -> chematic::core::Molecule {
         chematic::smiles::parse(smiles).expect("test SMILES must parse")
+    }
+
+    #[test]
+    fn parse_any_cdxml_keeps_disconnected_fragments() {
+        let cdxml = r#"<CDXML>
+<fragment>
+<n id="1" p="0 0" Element="6"/>
+</fragment>
+<fragment>
+<n id="2" p="20 0" Element="8"/>
+<n id="3" p="30 0" Element="1"/>
+<b B="2" E="3" Order="1"/>
+</fragment>
+</CDXML>"#;
+        let parsed = parse_any_impl(cdxml).expect("CDXML fragments must parse");
+        assert_eq!(parsed.atoms.len(), 3);
+        assert_eq!(parsed.bonds.len(), 1);
+        assert_eq!((parsed.bonds[0].from, parsed.bonds[0].to), (1, 2));
+        assert_eq!(parsed.atoms.iter().map(|atom| atom.element.as_str()).collect::<Vec<_>>(), vec!["C", "O", "H"]);
     }
 
     // ── Fingerprint hex round-trip and real bit-vector similarity ──
@@ -1916,6 +1615,20 @@ mod correctness_tests {
             matches!(result, Err(ReactionError::UnsupportedChemistry(_))),
             "a reactant-count mismatch must be distinguished from an invalid-SMIRKS parse error: {result:?}"
         );
+    }
+
+    #[test]
+    fn multi_reactant_reaction_uses_each_explicit_input_without_concatenation() {
+        let carbon = mol("C");
+        let nitrogen = mol("N");
+        let reactants = [&carbon, &nitrogen];
+        let products = execute_reaction_many(&reactants, "[C:1].[N:2]>>[C:1][N:2]")
+            .expect("a two-reactant SMIRKS should accept two explicit molecules");
+        assert!(!products.is_empty(), "expected a real coupled product");
+        assert_eq!(products[0].atoms.len(), 2);
+        assert_eq!(products[0].bonds.len(), 1);
+        assert!(products[0].atoms.iter().any(|atom| atom.element.contains('C')));
+        assert!(products[0].atoms.iter().any(|atom| atom.element.contains('N')));
     }
 
     #[test]

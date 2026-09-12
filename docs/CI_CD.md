@@ -23,9 +23,11 @@ chematic-draw uses **GitHub Actions** for continuous integration and deployment.
 Push to main/PR
     ↓
 Test Workflow (Ubuntu)
+    ├─ Workflow/configuration invariants
     ├─ Lint & Type Check
     ├─ Unit Tests (+ coverage)
     ├─ E2E Tests
+    ├─ Packaged Electron Smoke Tests
     └─ Performance Benchmarks
     ↓
 Build Workflow (on tag push)
@@ -67,15 +69,17 @@ on:
 
 | Job | Time | Purpose |
 |-----|------|---------|
+| **CI Configuration** | <1 min | actionlint + version/workflow invariants |
 | **Lint & Type Check** | 2-3 min | ESLint + TypeScript validation |
 | **Unit Tests** | 5-8 min | Jest unit tests + coverage |
 | **E2E Tests** | 8-12 min | Playwright browser tests |
+| **Electron Smoke Test** | 8-12 min | Packaged Linux app, preload, IPC, menus, dialogs |
 | **Performance Benchmarks** | 5-10 min | Performance regressions |
 | **Summary** | <1 min | Overall pass/fail |
 
 **Steps:**
-1. Checkout code
-2. Setup Node 24
+1. Lint workflow YAML with actionlint and check repository invariants
+2. Checkout code and setup Node 24
 3. Setup Rust + WASM target
 4. Build WASM module
 5. Install dependencies
@@ -83,7 +87,7 @@ on:
 
 Note: "Lint & Type Check" runs both `npm run lint` (ESLint —
 typescript-eslint + react-hooks recommended configs) and `npm run
-typecheck` (real `tsc --noEmit`). In the v1.0.10 checkout, lint completes with
+typecheck` (real `tsc --noEmit`). In the current v1.0.10 checkout, lint completes with
 zero errors and no warnings; rerun it after dependency or source changes.
 
 **Coverage:**
@@ -118,8 +122,9 @@ on:
 
 Every artifact set also gets a `SHA256SUMS-<OS>.txt` checksum file
 (generated in a dedicated step, uploaded alongside the binaries), and the
-build job includes a "Check version consistency" step comparing
-`electron/package.json`, `crates/chem-wasm/Cargo.toml`, and the git tag.
+build job runs the shared `check:ci-config` gate. It compares the application,
+lockfile, WASM, and public package versions with each other and, for a tag
+build, with the git tag. It also guards workflow and Electron-smoke invariants.
 
 **Steps per platform:**
 1. Checkout code
@@ -161,7 +166,8 @@ on:
 
 **Jobs** (real job ids in `nightly.yml`):
 - **build**: full build with all tests
-- **security-audit**: `npm audit`, `cargo audit` (via `taiki-e/install-action@v2`)
+- **security-audit**: blocking production `npm audit`, visible non-blocking
+  development audit, and blocking `cargo audit` (via `taiki-e/install-action@v2`)
 - **dependency-check**: `npm outdated`, `cargo outdated` (informational, non-blocking)
 - **sbom-and-license**: SPDX SBOM (`anchore/sbom-action@v0`) plus Rust (`cargo-license`) and npm (`license-checker`) license reports, uploaded as a workflow artifact
 
@@ -169,6 +175,12 @@ on:
 - Detect issues that don't appear on PR
 - Monitor dependency security
 - Track emerging problems
+
+Electron Forge, Electron, and test/build tools are development dependencies.
+Their transitive audit findings remain visible in the nightly log, but do not
+fail the deployable-runtime gate or trigger npm's suggested breaking downgrade.
+Any production dependency advisory at moderate severity or above still fails
+the workflow.
 
 ---
 
@@ -190,14 +202,14 @@ on:
    ```
 
 2. Node/Rust versions are hardcoded in the workflow files (Node `'24'` via
-   `actions/setup-node@v4`'s `node-version`, Rust via
+   `actions/setup-node@v7`'s `node-version`, Rust via
    `dtolnay/rust-toolchain@stable`) — not read from repo Variables.
 
 ### Caching
 
 **Node.js dependencies:**
 ```yaml
-- uses: actions/setup-node@v4
+- uses: actions/setup-node@v7
   with:
     cache: 'npm'
 ```
@@ -232,9 +244,9 @@ Jobs run in parallel, reducing total pipeline time:
 cd electron && npm version 1.0.10
 cd ..
 
-# Also update crates/chem-wasm/Cargo.toml's version to match — the build's
-# "Check version consistency" step fails the build if these two (and the
-# git tag) disagree.
+# Also update crates/chem-wasm/Cargo.toml's version to match. The shared
+# `check:ci-config` gate fails if app, lockfile, WASM, public packages, or tag
+# versions drift.
 
 # Commit and tag
 git commit -am "release: v1.0.10"
@@ -292,6 +304,23 @@ These appear as "Pre-release" in GitHub.
 
 ## Monitoring
 
+### Local pre-push gate
+
+From `electron/`, run the same broad checks used by CI before pushing a
+candidate:
+
+```bash
+npm run verify:ci
+```
+
+This runs actionlint, repository invariant checks, Rust tests, browser and
+Node WASM builds, TypeScript, ESLint, Jest and coverage, the production npm
+audit, renderer E2E, Electron packaging, packaged-app smoke tests, and
+`git diff --check`. On Linux it runs Electron smoke under `xvfb-run`.
+
+For a faster source-only loop, use `npm run verify:candidate`; it omits the
+WASM rebuild, E2E, packaging, and packaged-app smoke stages.
+
 ### GitHub Actions Dashboard
 
 **View at:** https://github.com/kent-tokyo/chematic-draw/actions
@@ -340,7 +369,7 @@ Coverage reports appear as:
 
 **Node.js:**
 ```yaml
-- uses: actions/setup-node@v4
+- uses: actions/setup-node@v7
   with:
     node-version: '24'
     cache: 'npm'
@@ -389,7 +418,7 @@ strategy:
 **Solution:**
 ```yaml
 - name: Install wasm-pack
-  run: cargo install wasm-pack --locked
+  run: cargo install wasm-pack --version 0.13.1 --locked
 - name: Build WASM
   working-directory: electron
   run: npm run build:wasm  # or build:wasm:release / build:wasm:test
@@ -484,7 +513,7 @@ steps:
 ## Security Best Practices
 
 1. **Use trusted actions**
-   - Prefer official actions (actions/checkout@v4)
+   - Prefer official actions (currently `actions/checkout@v7`)
    - Pin to commit hash: `actions/checkout@abc123...`
 
 2. **Minimal secrets**

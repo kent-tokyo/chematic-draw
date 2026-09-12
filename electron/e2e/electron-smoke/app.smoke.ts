@@ -6,6 +6,20 @@ import { packagedAppPath } from './packaged-app';
 
 const PACKAGED_APP_PATH = packagedAppPath();
 
+async function addCarbonAtBlankCanvasPoint(window: import('@playwright/test').Page) {
+  const canvas = window.getByTestId('molecule-canvas');
+  const box = await canvas.boundingBox();
+  if (!box || box.width < 40 || box.height < 40) {
+    throw new Error('Molecule canvas is not large enough for a blank-point smoke interaction.');
+  }
+  await window.locator('button[title="C [C]"]').click();
+  // Keep the interaction away from the centered starter molecule and from
+  // the canvas edge. A fixed (50, 50) point is layout-dependent in a
+  // packaged BrowserWindow and made these tests time out on CI.
+  await canvas.click({ position: { x: box.width - 24, y: box.height - 24 } });
+  return canvas;
+}
+
 /**
  * Launches the real, packaged Electron app via Playwright's dedicated
  * _electron API — unlike the renderer-e2e suite (a plain Chromium page
@@ -280,9 +294,7 @@ test.describe('Electron Smoke', () => {
     });
     await expect(window.getByTestId('molecule-canvas')).toHaveAttribute('aria-label', /6 atoms, 6 bonds/);
 
-    const canvas = window.getByTestId('molecule-canvas');
-    await window.locator('button[title="C [C]"]').click();
-    await canvas.click({ position: { x: 50, y: 50 } });
+    const canvas = await addCarbonAtBlankCanvasPoint(window);
     await expect(canvas).toHaveAttribute('aria-label', /7 atoms, 6 bonds/);
 
     await electronApp.evaluate(({ BrowserWindow }) => {
@@ -307,9 +319,7 @@ test.describe('Electron Smoke', () => {
       timeout: 15000,
     });
 
-    const canvas = window.getByTestId('molecule-canvas');
-    await window.locator('button[title="C [C]"]').click();
-    await canvas.click({ position: { x: 50, y: 50 } });
+    const canvas = await addCarbonAtBlankCanvasPoint(window);
     await expect(canvas).toHaveAttribute('aria-label', /7 atoms, 6 bonds/);
 
     await electronApp.evaluate(({ BrowserWindow }) => {
@@ -401,7 +411,12 @@ test.describe('Electron Smoke', () => {
     });
 
     await electronApp.evaluate(({ clipboard }) => clipboard.writeText('CCO'));
-    const result = await window.evaluate(() => (window as any).electronAPI.pasteFromClipboard());
+    const result = await window.evaluate(() => {
+      const api = (window as unknown as {
+        electronAPI: { pasteFromClipboard: () => Promise<unknown> };
+      }).electronAPI;
+      return api.pasteFromClipboard();
+    });
 
     expect(result).toEqual({ success: true, content: 'CCO' });
 
