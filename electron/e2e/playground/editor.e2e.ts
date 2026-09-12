@@ -77,4 +77,16 @@ test('built Playground provides the drawing workspace and browser document actio
   expect(reactionPath).not.toBeNull();
   await reactionFile.setInputFiles({ name: 'browser-roundtrip-reopened.json', mimeType: 'application/json', buffer: await readFile(reactionPath!) });
   await expect(page.getByTestId('sidebar-panel-reactions')).toContainText('Browser roundtrip');
+  const pngDownloadPromise = page.waitForEvent('download');
+  await page.getByTestId('browser-export-png').click();
+  expect((await pngDownloadPromise).suggestedFilename()).toBe('chematic-structure.png');
+  page.on('dialog', (dialog) => void dialog.accept());
+  await page.evaluate(() => {
+    const host = document.querySelector<HTMLElement>('[aria-label="Browser document actions"]');
+    if (!host) throw new Error('Browser document host not found');
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(new File(['C'], 'dropped.smi', { type: 'text/plain' }));
+    host.dispatchEvent(new DragEvent('drop', { bubbles: true, dataTransfer }));
+  });
+  await expect(page.locator('[aria-live="polite"][role="status"]')).toContainText(/Opened dropped.smi|dropped.smi を開きました/);
 });
