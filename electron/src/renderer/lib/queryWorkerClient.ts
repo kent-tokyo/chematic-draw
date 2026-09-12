@@ -8,6 +8,15 @@ const QUERY_WORKER_TIMEOUT_MS = 15_000;
 /** Worker-first query execution. The query document is cloned by postMessage,
  * so callers cannot accidentally share mutable editor state with WASM. */
 export function runQueryInWorker(query: QueryDocument, molecule: MoleculeDto, signal?: AbortSignal): Promise<QueryWorkerResult> {
+  return runQueryTask({ query, molecule }, signal);
+}
+
+/** Run raw SMARTS in the same worker boundary as structured query documents. */
+export function runSmartsSearchInWorker(pattern: string, molecule: MoleculeDto, signal?: AbortSignal): Promise<QueryWorkerResult> {
+  return runQueryTask({ pattern, molecule }, signal);
+}
+
+function runQueryTask(task: { query?: QueryDocument; pattern?: string; molecule: MoleculeDto }, signal?: AbortSignal): Promise<QueryWorkerResult> {
   return new Promise((resolve, reject) => {
     // Resolve against the document URL so this module remains consumable by
     // Jest/CommonJS as well as Vite's browser bundle (import.meta is not
@@ -46,7 +55,7 @@ export function runQueryInWorker(query: QueryDocument, molecule: MoleculeDto, si
     }
     if (settled) return;
     try {
-      worker.postMessage({ id, query, molecule });
+      worker.postMessage({ id, ...task });
     } catch (error) {
       fail(error instanceof Error ? error : new Error(String(error)));
     }

@@ -33,6 +33,8 @@ interface MoleculeStore {
   selectAtom: (id: number, additive: boolean) => void;
   selectBond: (id: number, additive: boolean) => void;
   selectAll: () => void;
+  selectRegion: (rect: { left: number; top: number; right: number; bottom: number }, canvasState: { offset: { x: number; y: number }; zoom: number }, additive: boolean) => void;
+  translateSelectedAtoms: (dx: number, dy: number) => void;
   deselectAll: () => void;
   getSelectedAtoms: () => AtomDto[];
   getSelectedBonds: () => BondDto[];
@@ -242,6 +244,35 @@ export const useMoleculeStore = create<MoleculeStore>((set, get) => ({
         ...state.molecule,
         atoms: state.molecule.atoms.map((a) => ({ ...a, selected: true })),
         bonds: state.molecule.bonds.map((b) => ({ ...b, selected: true })),
+      },
+    }));
+  },
+
+  selectRegion: (rect, canvasState, additive) => {
+    set((state) => {
+      const selectedAtomIds = new Set(additive ? state.molecule.atoms.filter((atom) => atom.selected).map((atom) => atom.id) : []);
+      const inside = (x: number, y: number) => {
+        const screenX = x * canvasState.zoom + canvasState.offset.x;
+        const screenY = y * canvasState.zoom + canvasState.offset.y;
+        return screenX >= rect.left && screenX <= rect.right && screenY >= rect.top && screenY <= rect.bottom;
+      };
+      for (const atom of state.molecule.atoms) if (inside(atom.x, atom.y)) selectedAtomIds.add(atom.id);
+      const selectedBondIds = new Set(state.molecule.bonds.filter((bond) => selectedAtomIds.has(bond.from) && selectedAtomIds.has(bond.to)).map((bond) => bond.id));
+      return {
+        molecule: {
+          ...state.molecule,
+          atoms: state.molecule.atoms.map((atom) => ({ ...atom, selected: selectedAtomIds.has(atom.id) })),
+          bonds: state.molecule.bonds.map((bond) => ({ ...bond, selected: selectedBondIds.has(bond.id) })),
+        },
+      };
+    });
+  },
+
+  translateSelectedAtoms: (dx, dy) => {
+    set((state) => ({
+      molecule: {
+        ...state.molecule,
+        atoms: state.molecule.atoms.map((atom) => atom.selected ? { ...atom, x: atom.x + dx, y: atom.y + dy } : atom),
       },
     }));
   },

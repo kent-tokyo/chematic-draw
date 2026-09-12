@@ -7,6 +7,14 @@ on:
       - 'playground/**'
       - 'electron/src/playground.tsx'
       - 'electron/src/index.css'
+      - 'electron/src/renderer.tsx'
+      - 'electron/src/renderer/**'
+      - 'electron/src/engineMetadata.ts'
+      - 'electron/e2e/playground/**'
+      - 'electron/e2e/renderer/**'
+      - 'electron/playwright.playground.config.ts'
+      - 'electron/scripts/serve-playground.mjs'
+      - 'packages/**'
       - 'electron/src/renderer/wasm/**'
       - 'crates/**'
       - 'Cargo.toml'
@@ -42,9 +50,13 @@ jobs:
       - run: cargo install wasm-pack --version 0.13.1 --locked
       - run: npm ci
         working-directory: electron
+      - run: npx playwright install --with-deps chromium
+        working-directory: electron
       - run: npm run build:wasm:release
         working-directory: electron
-      - run: npx vite build --config vite.renderer.config.mjs --mode playground
+      - run: npm run build:playground
+        working-directory: electron
+      - run: npm run test:e2e:playground
         working-directory: electron
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

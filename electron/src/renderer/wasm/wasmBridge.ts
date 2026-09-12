@@ -196,13 +196,40 @@ export function detectLayoutCrossings(mol: MoleculeDto): number {
   return wasmModule.detect_layout_crossings(mol);
 }
 
-/**
- * Invert stereocenter (R ↔ S) at the specified atom.
- * @param mol molecule DTO
- * @param atomId the atom.id of the stereocenter to invert
- */
+/** Reattach renderer identity after an upstream operation normalizes IDs. */
+export function preserveMoleculeIdentity(sourceMolecule: MoleculeDto, result: MoleculeDto): MoleculeDto {
+  // chem-wasm's chemistry conversion uses dense AtomIdx values and computes
+  // fresh depiction coordinates. Reattach the renderer document identity and
+  // canvas coordinates so an editor action cannot silently move or deselect
+  // the user's structure.
+  const sourceAtoms = sourceMolecule.atoms;
+  const atomIdAtIndex = (index: number): number => sourceAtoms[index]?.id ?? result.atoms[index]?.id ?? index;
+  const sourceBondByEndpoints = new Map(sourceMolecule.bonds.map((bond) => [
+    [Math.min(bond.from, bond.to), Math.max(bond.from, bond.to)].join(':'), bond,
+  ]));
+  return {
+    atoms: result.atoms.map((atom, index) => {
+      const source = sourceAtoms[index];
+      return {
+        ...atom,
+        id: source?.id ?? atom.id,
+        x: source?.x ?? atom.x,
+        y: source?.y ?? atom.y,
+        selected: source?.selected,
+      };
+    }),
+    bonds: result.bonds.map((bond) => {
+      const from = atomIdAtIndex(bond.from);
+      const to = atomIdAtIndex(bond.to);
+      const source = sourceBondByEndpoints.get([Math.min(from, to), Math.max(from, to)].join(':'));
+      return { ...bond, id: source?.id ?? bond.id, from, to, selected: source?.selected };
+    }),
+  };
+}
+
 export function invertStereocenter(mol: MoleculeDto, atomId: number): MoleculeDto {
-  return wasmModule.invert_stereocenter(mol, atomId) as MoleculeDto;
+  const result = wasmModule.invert_stereocenter(mol, atomId) as MoleculeDto;
+  return preserveMoleculeIdentity(mol, result);
 }
 
 /**
@@ -328,6 +355,17 @@ export function runReactants(mol: MoleculeDto, smirks: string): ReactionRunResul
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('Reaction execution failed:', err);
+    return { status: 'error', message };
+  }
+}
+
+/** Execute a SMIRKS template against up to eight explicit reactant molecules. */
+export function runReactantsMulti(molecules: MoleculeDto[], smirks: string): ReactionRunResult {
+  try {
+    return wasmModule.run_reactants_multi(molecules, smirks) as ReactionRunResult;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('Multi-reactant execution failed:', err);
     return { status: 'error', message };
   }
 }

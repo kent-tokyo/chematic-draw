@@ -52,6 +52,39 @@ function calculateAtomSimilarity(atom1: AtomDto, atom2: AtomDto, mol1: MoleculeD
 }
 
 /**
+ * An authored atom-map number is stronger evidence than the fallback
+ * element/connectivity heuristic. If only one side has an explicit map, do
+ * not silently replace it with a guessed match; the reaction diagnostics
+ * already report incomplete authored mapping separately.
+ */
+export function mappingSimilarity(atom1: AtomDto, atom2: AtomDto, mol1: MoleculeDto, mol2: MoleculeDto): number {
+  const map1 = atom1.atom_map > 0 ? atom1.atom_map : null;
+  const map2 = atom2.atom_map > 0 ? atom2.atom_map : null;
+  if (map1 !== null || map2 !== null) return map1 !== null && map1 === map2 ? 1 : 0;
+  return calculateAtomSimilarity(atom1, atom2, mol1, mol2);
+}
+
+/** Find one unused next-step atom, preserving valid atom ID 0. */
+export function findCrossStepAtomId(
+  atom: AtomDto,
+  nextReactants: MoleculeDto[],
+  product: MoleculeDto,
+  usedNextAtoms = new Set<string>(),
+): number | null {
+  for (const [reactantIndex, reactant] of nextReactants.entries()) {
+    for (const nextAtom of reactant.atoms) {
+      const nextAtomKey = `${reactantIndex}:${nextAtom.id}`;
+      if (usedNextAtoms.has(nextAtomKey)) continue;
+      if (mappingSimilarity(atom, nextAtom, product, reactant) > ATOM_MATCH_THRESHOLD) {
+        usedNextAtoms.add(nextAtomKey);
+        return nextAtom.id;
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * Map atoms across consecutive reaction steps
  */
 export function mapAtomsAcrossSteps(scheme: ReactionSchemeContext): AtomMapping {
@@ -67,6 +100,7 @@ export function mapAtomsAcrossSteps(scheme: ReactionSchemeContext): AtomMapping 
 
   // Process each step
   for (let stepIdx = 0; stepIdx < scheme.steps.length; stepIdx++) {
+    const usedNextAtoms = new Set<string>();
     const step = scheme.steps[stepIdx];
 
     // Process products of current step
@@ -83,18 +117,9 @@ export function mapAtomsAcrossSteps(scheme: ReactionSchemeContext): AtomMapping 
             const nextStep = scheme.steps[stepIdx + 1];
             let matchedId: number | null = null;
 
-            for (const reactant of nextStep.reactants) {
-              for (const nextAtom of reactant.atoms) {
-                const similarity = calculateAtomSimilarity(atom, nextAtom, product, reactant);
-                if (similarity > ATOM_MATCH_THRESHOLD) {
-                  matchedId = nextAtom.id;
-                  break;
-                }
-              }
-              if (matchedId) break;
-            }
+            matchedId = findCrossStepAtomId(atom, nextStep.reactants, product, usedNextAtoms);
 
-            if (matchedId) {
+            if (matchedId !== null) {
               // Assign existing persistent ID if next atom already has one
               const nextKey = `${stepIdx + 1}:${matchedId}`;
               persistentId = atomToPersistentId.get(nextKey) || nextPersistentId++;

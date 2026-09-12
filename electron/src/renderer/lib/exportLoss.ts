@@ -12,6 +12,7 @@ const extensionToFormat: Record<string, MoleculeExportFormat> = {
   cml: 'cml',
   cdxml: 'cdxml',
 };
+const CDXML_ELEMENTS = new Set(['H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na', 'Mg', 'Al', 'Si', 'P', 'S', 'Cl', 'Ar', 'K', 'Ca', 'Fe', 'Cu', 'Zn', 'Br', 'Ag', 'I']);
 
 export function formatForFilePath(filePath: string): MoleculeExportFormat {
   const extension = filePath.split(/[\\/.]/).pop()?.toLowerCase() ?? '';
@@ -29,6 +30,17 @@ export function exportLosses(molecule: MoleculeDto, format: MoleculeExportFormat
       code: 'wildcard',
       message: 'Wildcard atoms will be written as ordinary carbon in CDXML.',
     });
+  }
+
+  if (format === 'cdxml') {
+    const unsupportedElements = [...new Set(molecule.atoms.filter((atom) => !atom.wildcard && !CDXML_ELEMENTS.has(atom.element)).map((atom) => atom.element))];
+    if (unsupportedElements.length > 0) {
+      losses.push({ code: 'unsupported-format', message: `CDXML cannot write element${unsupportedElements.length === 1 ? '' : 's'}: ${unsupportedElements.join(', ')}.` });
+    }
+    const unsupportedBondOrders = [...new Set(molecule.bonds.filter((bond) => ![1, 2, 3, 4].includes(bond.order)).map((bond) => bond.order))];
+    if (unsupportedBondOrders.length > 0) {
+      losses.push({ code: 'unsupported-format', message: `CDXML cannot write bond order${unsupportedBondOrders.length === 1 ? '' : 's'}: ${unsupportedBondOrders.join(', ')}.` });
+    }
   }
 
   if (wildcardCount > 0 && molFormats.includes(format) && format !== 'cdxml') {

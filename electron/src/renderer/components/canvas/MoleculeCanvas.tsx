@@ -123,9 +123,14 @@ export function MoleculeCanvas() {
   }, [displayMolecule, atomCount]);
 
   const canvasLabel =
-    atomCount === 0
+    scheme?.viewMode === 'scheme' && scheme.steps.length > 0
+      ? `Reaction scheme canvas: ${scheme.steps.length} step${scheme.steps.length === 1 ? '' : 's'}`
+      : atomCount === 0
       ? 'Molecular structure canvas, empty'
       : `Molecular structure: ${visibleFormulaSummary}${atomCount} atom${atomCount === 1 ? '' : 's'}, ${bondCount} bond${bondCount === 1 ? '' : 's'}`;
+  const schemeCanvasDescription = scheme?.viewMode === 'scheme' && scheme.steps.length > 0
+    ? scheme.steps.map((step, index) => `Step ${index + 1}: ${step.reactants.length} reactant${step.reactants.length === 1 ? '' : 's'}, ${step.products.length} product${step.products.length === 1 ? '' : 's'}`).join('; ')
+    : '';
 
   // Handle canvas resize. A ResizeObserver on the canvas's own parent (not
   // window's 'resize' event) catches every layout-driven size change, not
@@ -246,9 +251,9 @@ export function MoleculeCanvas() {
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    const { zoom } = useCanvasStore.getState();
-    const { setZoom } = useCanvasStore.getState();
-    setZoom(zoom * delta);
+    const { zoom, zoomAt } = useCanvasStore.getState();
+    const rect = e.currentTarget.getBoundingClientRect();
+    zoomAt(zoom * delta, e.clientX - rect.left, e.clientY - rect.top);
   };
 
   const getCursor = () => {
@@ -327,6 +332,7 @@ export function MoleculeCanvas() {
         data-testid="molecule-canvas"
         role="img"
         aria-label={canvasLabel}
+        aria-describedby={schemeCanvasDescription ? 'reaction-scheme-canvas-description' : undefined}
         tabIndex={0}
         onFocus={interactionHandlers.onFocus}
         onKeyDown={interactionHandlers.onKeyDown}
@@ -350,15 +356,39 @@ export function MoleculeCanvas() {
         onDragOver={handleDragOver}
         onDrop={handleDrop}
       />
+      {schemeCanvasDescription && (
+        <div
+          id="reaction-scheme-canvas-description"
+          style={{ position: 'absolute', width: '1px', height: '1px', padding: 0, margin: '-1px', overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: 0 }}
+        >
+          {schemeCanvasDescription}
+        </div>
+      )}
+      {interactionHandlers.selectionRect && (
+        <div
+          data-testid="selection-rectangle"
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            left: interactionHandlers.selectionRect.left,
+            top: interactionHandlers.selectionRect.top,
+            width: interactionHandlers.selectionRect.right - interactionHandlers.selectionRect.left,
+            height: interactionHandlers.selectionRect.bottom - interactionHandlers.selectionRect.top,
+            border: '1px solid #4d8dff',
+            backgroundColor: 'rgba(77, 141, 255, 0.16)',
+            pointerEvents: 'none',
+          }}
+        />
+      )}
       {showQuickStart && atomCount > 0 && (
         <div
           data-testid="quick-start-guide"
           role="note"
-          style={{ position: 'absolute', top: '16px', left: '16px', maxWidth: '260px', padding: '12px 14px', backgroundColor: theme === 'dark' ? '#2f3a47' : '#ffffff', color: theme === 'dark' ? '#d8deea' : '#1d2430', border: `1px solid ${theme === 'dark' ? '#52657a' : '#c9d3e0'}`, borderRadius: '6px', boxShadow: '0 4px 16px rgba(0,0,0,0.2)', fontSize: '11px' }}
+          style={{ position: 'absolute', top: '16px', left: '16px', maxWidth: '260px', padding: '12px 14px', backgroundColor: theme === 'dark' ? '#2f3a47' : '#ffffff', color: theme === 'dark' ? '#d8deea' : '#1d2430', border: `1px solid ${theme === 'dark' ? '#52657a' : '#c9d3e0'}`, borderRadius: '6px', boxShadow: '0 4px 16px rgba(0,0,0,0.2)', fontSize: '11px', pointerEvents: 'none' }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '6px' }}>
             <strong>Start here</strong>
-            <button onClick={() => setShowQuickStart(false)} aria-label="Dismiss quick start guide" title="Dismiss" style={{ border: 'none', background: 'transparent', color: 'inherit', cursor: 'pointer', fontSize: '16px', lineHeight: 1 }}>×</button>
+            <button onClick={() => setShowQuickStart(false)} aria-label="Dismiss quick start guide" title="Dismiss" style={{ border: 'none', background: 'transparent', color: 'inherit', cursor: 'pointer', fontSize: '16px', lineHeight: 1, pointerEvents: 'auto' }}>×</button>
           </div>
           <div>{language === 'ja' ? '原子ツールを選び、キャンバスをクリックして描画します。' : 'Choose an atom tool, then click the canvas to draw.'}</div>
           <div style={{ marginTop: '4px', opacity: 0.8 }}>{language === 'ja' ? <>テンプレートから構造を選ぶか、<strong>?</strong>でショートカットを確認できます。</> : <>Use Templates for ready-made structures, or press <strong>?</strong> for shortcuts.</>}</div>

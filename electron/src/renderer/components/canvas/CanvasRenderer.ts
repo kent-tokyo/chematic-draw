@@ -499,7 +499,7 @@ export class CanvasRenderer {
 
     // Draw step arrows first (behind boxes)
     for (const arrow of layout.stepArrows) {
-      this.drawStepConnectorArrow(arrow, colors.bond);
+      this.drawStepConnectorArrow(arrow, colors.bond, scheme.steps[arrow.fromIndex]?.arrowType ?? 'single');
     }
 
     // Draw step boxes
@@ -569,6 +569,13 @@ export class CanvasRenderer {
       yPos += TEXT_LINE_HEIGHT;
     }
 
+    // Keep the compact formula summary for keyboard/pixel-stable scanning,
+    // but also show the actual structures in scheme view. A formula alone is
+    // insufficient to distinguish constitutional or stereochemical changes
+    // between steps, which made the overview materially less useful than the
+    // molecule editor and publication SVG.
+    this.drawMiniMoleculeRow(step.reactants, box.x + 155, box.y + 34, box.width - 165, 44, theme);
+
     yPos += 4;
 
     // Draw arrows count
@@ -590,33 +597,89 @@ export class CanvasRenderer {
       this.ctx.fillText(`• ${formula}`, xStart + 8, yPos);
       yPos += TEXT_LINE_HEIGHT;
     }
+    this.drawMiniMoleculeRow(step.products, box.x + 155, box.y + 138, box.width - 165, 44, theme);
+  }
+
+  /** Draw a bounded, non-interactive structure preview inside a scheme box. */
+  private drawMiniMoleculeRow(
+    molecules: MoleculeDto[],
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    theme: string,
+  ) {
+    if (molecules.length === 0 || width <= 0 || height <= 0) return;
+    const slotWidth = width / molecules.length;
+    for (const [index, molecule] of molecules.entries()) {
+      if (molecule.atoms.length === 0) continue;
+      const xs = molecule.atoms.map((atom) => atom.x);
+      const ys = molecule.atoms.map((atom) => atom.y);
+      const minX = Math.min(...xs);
+      const maxX = Math.max(...xs);
+      const minY = Math.min(...ys);
+      const maxY = Math.max(...ys);
+      const spanX = Math.max(maxX - minX, 1);
+      const spanY = Math.max(maxY - minY, 1);
+      const scale = Math.min((slotWidth - 12) / spanX, (height - 12) / spanY, 1);
+      const offset = {
+        x: x + index * slotWidth + (slotWidth - spanX * scale) / 2 - minX * scale,
+        y: y + (height - spanY * scale) / 2 + maxY * scale,
+      };
+      this.ctx.save();
+      this.ctx.beginPath();
+      this.ctx.rect(x + index * slotWidth, y, slotWidth, height);
+      this.ctx.clip();
+      this.drawMolecule(molecule, { offset, zoom: scale }, {
+        theme: theme as 'dark' | 'light',
+        selectedAtomIds: [],
+        selectedBondIds: [],
+        bondDragFrom: null,
+        bondDragPos: null,
+      });
+      this.ctx.restore();
+    }
   }
 
   /**
    * Draw connector arrow between two steps
    */
-  private drawStepConnectorArrow(arrow: StepArrow, color: string) {
+  private drawStepConnectorArrow(arrow: StepArrow, color: string, arrowType: NonNullable<MechanismStep['arrowType']> = 'single') {
     this.ctx.strokeStyle = color;
     this.ctx.lineWidth = STEP_ARROW_WIDTH;
     this.ctx.lineCap = 'round';
-
-    // Draw line
-    this.ctx.beginPath();
-    this.ctx.moveTo(arrow.x1, arrow.y1);
-    this.ctx.lineTo(arrow.x2, arrow.y2);
-    this.ctx.stroke();
-
-    // Draw arrowhead
-    const headlen = 12;
-    const angle = Math.atan2(arrow.y2 - arrow.y1, arrow.x2 - arrow.x1);
-
-    this.ctx.fillStyle = color;
-    this.ctx.beginPath();
-    this.ctx.moveTo(arrow.x2, arrow.y2);
-    this.ctx.lineTo(arrow.x2 - headlen * Math.cos(angle - Math.PI / 6), arrow.y2 - headlen * Math.sin(angle - Math.PI / 6));
-    this.ctx.lineTo(arrow.x2 - headlen * Math.cos(angle + Math.PI / 6), arrow.y2 - headlen * Math.sin(angle + Math.PI / 6));
-    this.ctx.closePath();
-    this.ctx.fill();
+    const dx = arrow.x2 - arrow.x1;
+    const dy = arrow.y2 - arrow.y1;
+    const length = Math.hypot(dx, dy) || 1;
+    const nx = -dy / length * 4;
+    const ny = dx / length * 4;
+    const draw = (x1: number, y1: number, x2: number, y2: number, head: boolean) => {
+      this.ctx.beginPath();
+      this.ctx.moveTo(x1, y1);
+      this.ctx.lineTo(x2, y2);
+      this.ctx.stroke();
+      if (!head) return;
+      const headlen = 12;
+      const angle = Math.atan2(y2 - y1, x2 - x1);
+      this.ctx.fillStyle = color;
+      this.ctx.beginPath();
+      this.ctx.moveTo(x2, y2);
+      this.ctx.lineTo(x2 - headlen * Math.cos(angle - Math.PI / 6), y2 - headlen * Math.sin(angle - Math.PI / 6));
+      this.ctx.lineTo(x2 - headlen * Math.cos(angle + Math.PI / 6), y2 - headlen * Math.sin(angle + Math.PI / 6));
+      this.ctx.closePath();
+      this.ctx.fill();
+    };
+    if (arrowType === 'equilibrium') {
+      draw(arrow.x1 + nx, arrow.y1 + ny, arrow.x2 + nx, arrow.y2 + ny, true);
+      draw(arrow.x2 - nx, arrow.y2 - ny, arrow.x1 - nx, arrow.y1 - ny, true);
+    } else if (arrowType === 'double') {
+      draw(arrow.x1 + nx, arrow.y1 + ny, arrow.x2 + nx, arrow.y2 + ny, true);
+      draw(arrow.x1 - nx, arrow.y1 - ny, arrow.x2 - nx, arrow.y2 - ny, false);
+    } else if (arrowType === 'retro') {
+      draw(arrow.x2, arrow.y2, arrow.x1, arrow.y1, true);
+    } else {
+      draw(arrow.x1, arrow.y1, arrow.x2, arrow.y2, true);
+    }
   }
 
   /**

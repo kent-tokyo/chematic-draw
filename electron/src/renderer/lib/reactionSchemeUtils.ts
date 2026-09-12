@@ -9,6 +9,149 @@ import type { ValidationResult } from '../../../../packages/chematic-contract/sr
 
 type ReactionDiagnostics = ContractReactionDiagnostics;
 
+export interface ReactionCoefficientSuggestion {
+  reactants: number[];
+  products: number[];
+}
+
+const MAX_COEFFICIENT_SEARCH_COMPONENTS = 16;
+const MAX_COEFFICIENT_SEARCH_VALUE = 12;
+
+type Rational = { numerator: number; denominator: number };
+
+function integerGcd(left: number, right: number): number {
+  let a = Math.abs(left);
+  let b = Math.abs(right);
+  while (b !== 0) {
+    [a, b] = [b, a % b];
+  }
+  return a || 1;
+}
+
+function rational(numerator: number, denominator = 1): Rational {
+  if (denominator === 0) throw new Error('Cannot construct a rational with a zero denominator.');
+  const sign = denominator < 0 ? -1 : 1;
+  const divisor = integerGcd(numerator, denominator);
+  return { numerator: sign * numerator / divisor, denominator: sign * denominator / divisor };
+}
+
+function rationalAdd(left: Rational, right: Rational): Rational {
+  return rational(left.numerator * right.denominator + right.numerator * left.denominator, left.denominator * right.denominator);
+}
+
+function rationalMultiply(left: Rational, right: Rational): Rational {
+  return rational(left.numerator * right.numerator, left.denominator * right.denominator);
+}
+
+function rationalNegate(value: Rational): Rational {
+  return rational(-value.numerator, value.denominator);
+}
+
+function rationalDivide(left: Rational, right: Rational): Rational {
+  return rational(left.numerator * right.denominator, left.denominator * right.numerator);
+}
+
+function rationalIsZero(value: Rational): boolean {
+  return value.numerator === 0;
+}
+
+function rationalMatrixNullspace(matrix: number[][]): Rational[][] {
+  if (matrix.length === 0 || matrix[0]?.length === 0) return [];
+  const rows = matrix.map((row) => row.map((value) => rational(value)));
+  const columnCount = rows[0].length;
+  const pivotColumns: number[] = [];
+  let pivotRow = 0;
+  for (let column = 0; column < columnCount && pivotRow < rows.length; column += 1) {
+    const sourceRow = rows.findIndex((row, index) => index >= pivotRow && !rationalIsZero(row[column]));
+    if (sourceRow < 0) continue;
+    [rows[pivotRow], rows[sourceRow]] = [rows[sourceRow], rows[pivotRow]];
+    const pivot = rows[pivotRow][column];
+    rows[pivotRow] = rows[pivotRow].map((value) => rationalDivide(value, pivot));
+    for (let row = 0; row < rows.length; row += 1) {
+      if (row === pivotRow || rationalIsZero(rows[row][column])) continue;
+      const factor = rows[row][column];
+      rows[row] = rows[row].map((value, index) => rationalAdd(value, rationalNegate(rationalMultiply(factor, rows[pivotRow][index]))));
+    }
+    pivotColumns.push(column);
+    pivotRow += 1;
+  }
+  const pivotSet = new Set(pivotColumns);
+  const freeColumns = Array.from({ length: columnCount }, (_, column) => column).filter((column) => !pivotSet.has(column));
+  return freeColumns.map((freeColumn) => {
+    const vector = Array.from({ length: columnCount }, () => rational(0));
+    vector[freeColumn] = rational(1);
+    pivotColumns.forEach((pivotColumn, row) => {
+      vector[pivotColumn] = rationalNegate(rows[row][freeColumn]);
+    });
+    return vector;
+  });
+}
+
+function positiveIntegerSolution(matrix: number[][]): number[] | null {
+  const basis = rationalMatrixNullspace(matrix);
+  if (basis.length === 0 || basis.length > 3) return null;
+  const candidate = Array.from({ length: matrix[0].length }, () => rational(0));
+  const basisValues = Array.from({ length: basis.length }, () => 0);
+  let solution: number[] | null = null;
+  const chooseBasisValues = (index: number) => {
+    if (solution) return;
+    if (index === basis.length) {
+      for (let column = 0; column < candidate.length; column += 1) candidate[column] = rational(0);
+      basis.forEach((vector, vectorIndex) => vector.forEach((coefficient, column) => {
+        candidate[column] = rationalAdd(candidate[column], rationalMultiply(coefficient, rational(basisValues[vectorIndex])));
+      }));
+      let commonDenominator = 1;
+      for (const value of candidate) commonDenominator = Math.abs(commonDenominator * value.denominator) / integerGcd(commonDenominator, value.denominator);
+      const integerValues = candidate.map((value) => value.numerator * (commonDenominator / value.denominator));
+      const divisor = integerValues.reduce((current, value) => integerGcd(current, value), 0);
+      const normalized = integerValues.map((value) => value / (divisor || 1));
+      if (normalized.every((value) => Number.isSafeInteger(value) && value > 0 && value <= 1_000_000)) solution = normalized;
+      return;
+    }
+    for (let value = 1; value <= MAX_COEFFICIENT_SEARCH_VALUE; value += 1) {
+      basisValues[index] = value;
+      chooseBasisValues(index + 1);
+      if (solution) return;
+    }
+  };
+  chooseBasisValues(0);
+  return solution;
+}
+
+function moleculeComposition(molecule: MoleculeDto): Map<string, number> {
+  const composition = new Map<string, number>();
+  let formalCharge = 0;
+  for (const atom of molecule.atoms) {
+    const key = atom.isotope === undefined ? atom.element : `${atom.isotope}${atom.element}`;
+    composition.set(key, (composition.get(key) ?? 0) + 1);
+    if (atom.hydrogen_count !== undefined) composition.set('H', (composition.get('H') ?? 0) + atom.hydrogen_count);
+    formalCharge += atom.charge;
+  }
+  // Treat charge as another conserved inventory so suggestions never make an
+  // ionic reaction appear balanced by element counts alone.
+  composition.set('__formal_charge__', formalCharge);
+  return composition;
+}
+
+/**
+ * Suggest small positive integer stoichiometric coefficients from authored
+ * molecule inventories. This is deliberately a bounded helper: it never
+ * changes molecules, guesses a product, or claims mechanistic correctness.
+ * Null means the authored components do not have a solution in the bounded
+ * search space (or the reaction is too large for an interactive suggestion).
+ */
+export function suggestReactionCoefficients(step: MechanismStep): ReactionCoefficientSuggestion | null {
+  const molecules = [...step.reactants, ...step.products];
+  if (step.reactants.length === 0 || step.products.length === 0 || molecules.length > MAX_COEFFICIENT_SEARCH_COMPONENTS) return null;
+  const compositions = molecules.map(moleculeComposition);
+  const elements = [...new Set(compositions.flatMap((composition) => [...composition.keys()]))];
+  if (elements.length === 0) return null;
+  const vectors = compositions.map((composition, index) => elements.map((element) => (index < step.reactants.length ? 1 : -1) * (composition.get(element) ?? 0)));
+  const solution = positiveIntegerSolution(vectors[0]?.map((_, row) => vectors.map((vector) => vector[row])) ?? []);
+  if (!solution) return null;
+  return { reactants: solution.slice(0, step.reactants.length), products: solution.slice(step.reactants.length) };
+}
+
 function atomBalanceForStep(step: MechanismStep): { balanced: boolean; differences: string[]; chargeDifference: number } {
   const coefficientsFor = (coefficients: number[] | undefined, moleculeCount: number) => {
     if (coefficients === undefined) return { values: Array.from({ length: moleculeCount }, () => 1), valid: true };

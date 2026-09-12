@@ -1,4 +1,4 @@
-import type { Molecule } from '@chematic/contract';
+import { validateMolecule, type Molecule } from '@chematic/contract';
 import { applyMoleculeEdit, type MoleculeEdit } from './editor';
 import { renderMoleculeSvg, serializeMolecule } from './index';
 
@@ -7,10 +7,12 @@ const HTMLElementBase: typeof HTMLElement = typeof HTMLElement === 'undefined' ?
 export interface MoleculeChangeDetail {
   molecule: Molecule;
   edit: MoleculeEdit | null;
+  edits?: MoleculeEdit[];
   direction: 'edit' | 'undo' | 'redo';
 }
 
 export const DEFAULT_EDITOR_HISTORY_LIMIT = 100;
+export const MAX_EDITOR_EDIT_BATCH = 256;
 
 /**
  * An explicitly opt-in, framework-free editor surface. The host owns the
@@ -27,6 +29,12 @@ export class SchematicMoleculeEditorElement extends HTMLElementBase {
   private ownsKeyboardTabIndex = false;
 
   get molecule(): Molecule { return JSON.parse(serializeMolecule(this.current)) as Molecule; }
+
+  /** Return a detached JSON payload suitable for host persistence or transport. */
+  serialize(): string { this.ensureActive(); return serializeMolecule(this.current); }
+
+  /** Re-run the public contract validation before a host commits an export. */
+  validate(): string[] { this.ensureActive(); return validateMolecule(this.current); }
 
   set molecule(value: Molecule) {
     this.ensureActive();
@@ -59,25 +67,38 @@ export class SchematicMoleculeEditorElement extends HTMLElementBase {
       this.readAttributeValue();
       this.render();
     }
-    if (name === 'keyboard' && this.isConnected) this.syncKeyboardSemantics();
+    if ((name === 'keyboard' || name === 'readonly') && this.isConnected) this.syncKeyboardSemantics();
   }
 
   /** Apply one validated edit and notify the host of the new molecule. */
   applyEdit(edit: MoleculeEdit): Molecule {
+    return this.applyEdits([edit]);
+  }
+
+  /**
+   * Apply a bounded edit batch atomically. Every edit is validated against the
+   * result of the previous one, but history and the host event are committed
+   * only after the whole batch succeeds.
+   */
+  applyEdits(edits: MoleculeEdit[]): Molecule {
     this.ensureActive();
-    if (this.hasAttribute('readonly')) throw new Error('schematic-molecule-editor is read-only');
     try {
-      const next = applyMoleculeEdit(this.current, edit);
+      if (this.hasAttribute('readonly')) throw new Error('schematic-molecule-editor is read-only');
+      if (!Array.isArray(edits) || edits.length === 0) throw new Error('Molecule edit batch must contain at least one edit');
+      if (edits.length > MAX_EDITOR_EDIT_BATCH) throw new RangeError(`Molecule edit batch must contain at most ${MAX_EDITOR_EDIT_BATCH} edits`);
+      const next = edits.reduce((current, edit) => applyMoleculeEdit(current, edit), this.current);
       this.current = next;
       this.history = [...this.history.slice(0, this.historyIndex + 1), next].slice(-DEFAULT_EDITOR_HISTORY_LIMIT);
       this.historyIndex = this.history.length - 1;
       this.render();
       this.dispatchEvent(new CustomEvent<MoleculeChangeDetail>('molecule-change', {
-        detail: { molecule: this.molecule, edit, direction: 'edit' },
+        detail: { molecule: this.molecule, edit: edits.length === 1 ? edits[0] : null, edits: [...edits], direction: 'edit' },
+        bubbles: true,
+        composed: true,
       }));
       return this.molecule;
     } catch (error) {
-      this.dispatchEvent(new CustomEvent('schematic-error', { detail: error }));
+      this.dispatchEvent(new CustomEvent('schematic-error', { detail: error, bubbles: true, composed: true }));
       throw error;
     }
   }
@@ -130,6 +151,8 @@ export class SchematicMoleculeEditorElement extends HTMLElementBase {
     this.render();
     this.dispatchEvent(new CustomEvent<MoleculeChangeDetail>('molecule-change', {
       detail: { molecule: this.molecule, edit: null, direction },
+      bubbles: true,
+      composed: true,
     }));
     return this.molecule;
   }
@@ -149,6 +172,7 @@ export class SchematicMoleculeEditorElement extends HTMLElementBase {
 
   private syncKeyboardSemantics(): void {
     const enabled = this.getAttribute('keyboard') === 'edit';
+    this.setAttribute('aria-readonly', this.hasAttribute('readonly') ? 'true' : 'false');
     if (enabled) {
       if (!this.hasAttribute('tabindex')) {
         this.setAttribute('tabindex', '0');

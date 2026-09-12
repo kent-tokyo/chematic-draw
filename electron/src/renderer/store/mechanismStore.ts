@@ -8,6 +8,7 @@ interface MechanismStoreState extends MechanismState {
   setPendingSourceAtomId: (atomId: number | null) => void;
   setPendingSinkAtomId: (atomId: number | null) => void;
   addArrow: (arrow: MechanismArrow) => void;
+  setArrows: (arrows: MechanismArrow[]) => void;
   removeArrow: (arrowId: string) => void;
   updateArrow: (arrowId: string, updates: Partial<MechanismArrow>) => void;
   setSelectedArrow: (arrowId: string | null) => void;
@@ -70,6 +71,9 @@ export const useMechanismStore = create<MechanismStoreState>((set, get) => ({
 
   addArrow: (arrow) =>
     set((s) => ({ arrows: [...s.arrows, arrow] })),
+
+  setArrows: (arrows) =>
+    set({ arrows: [...arrows], selectedArrowId: null }),
 
   removeArrow: (arrowId) =>
     set((s) => ({ arrows: s.arrows.filter((a) => a.id !== arrowId) })),

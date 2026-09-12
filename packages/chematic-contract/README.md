@@ -11,7 +11,7 @@ fixture covers UI state, geometry state, query documents, session bundles, and
 batch summaries without importing Electron or Zustand.
 
 The contract is the source of truth for query document types, including typed
-Markush and polymer metadata. The renderer provides immutable editing,
-allowed-substituent selection, and deterministic two-attachment repeat-unit
-expansion; unsupported upstream semantics are rejected rather than silently
-approximated.
+SMARTS constraints, Markush, polymer, and nucleic-acid metadata. The renderer
+provides immutable editing, allowed-substituent selection, deterministic
+two-attachment repeat-unit expansion, and typed residue editing; unsupported
+upstream semantics are rejected rather than silently approximated.

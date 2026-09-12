@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { Icon, IconName } from '../common/Icon';
 import { InspectorPanel } from './InspectorPanel';
@@ -25,6 +25,7 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
   const theme = useUIStore((s) => s.theme);
   const language = useUIStore((s) => s.language);
   const batchResults = useUIStore((s) => s.batchResults);
+  const [panelQuery, setPanelQuery] = useState('');
 
   if (!sidebarOpen) return null;
 
@@ -51,11 +52,17 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
     { id: 'research', shortLabel: language === 'ja' ? '識別子' : 'Research', accessibleLabel: language === 'ja' ? '研究用識別子' : 'Research identifiers', icon: 'research' },
     { id: 'chat', shortLabel: language === 'ja' ? '相談' : 'Chat', accessibleLabel: language === 'ja' ? 'アシスタントチャット' : 'Assistant chat', icon: 'chat' },
   ];
+  const normalizedQuery = panelQuery.trim().toLocaleLowerCase();
+  const matchesTab = (tab: SidebarTab) => !normalizedQuery
+    || `${tab.shortLabel} ${tab.accessibleLabel}`.toLocaleLowerCase().includes(normalizedQuery);
   const tabGroups = [
     { label: language === 'ja' ? '編集' : language === 'zh' ? '编辑' : 'Edit', ids: ['inspector', 'templates', 'reactions'] },
     { label: language === 'ja' ? '解析' : language === 'zh' ? '分析' : 'Analyze', ids: ['batch-results', 'stereoisomers', 'lipinski', 'properties', 'mechanism', '3d', 'nmr'] },
     { label: language === 'ja' ? '連携' : language === 'zh' ? '连接' : 'Connect', ids: ['database', 'research', 'chat'] },
   ];
+  const visibleGroups = tabGroups
+    .map((group) => ({ ...group, ids: group.ids.filter((id) => matchesTab(tabs.find((tab) => tab.id === id)!)) }))
+    .filter((group) => group.ids.length > 0);
 
   const bgColor = theme === 'dark' ? '#21252c' : '#f3f5f8';
   const borderColor = theme === 'dark' ? '#3a3a3a' : '#e0e0e0';
@@ -90,6 +97,29 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
       }}
     >
       {/* Tab Bar */}
+      <div style={{ background: bgColor, borderBottom: `1px solid ${borderColor}` }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 10px 7px', color: textColor, fontSize: '11px' }}>
+          <Icon name="search" size={16} color={textColor} />
+          <span className="sr-only">{language === 'ja' ? 'パネルを検索' : language === 'zh' ? '搜索面板' : 'Search panels'}</span>
+          <input
+            type="search"
+            data-testid="sidebar-panel-search"
+            value={panelQuery}
+            onChange={(event) => {
+              const nextQuery = event.target.value;
+              setPanelQuery(nextQuery);
+              const nextNormalized = nextQuery.trim().toLocaleLowerCase();
+              if (nextNormalized) {
+                const firstMatch = tabs.find((tab) => `${tab.shortLabel} ${tab.accessibleLabel}`.toLocaleLowerCase().includes(nextNormalized));
+                if (firstMatch) setActiveSidebarPanel(firstMatch.id as Parameters<typeof setActiveSidebarPanel>[0]);
+              }
+            }}
+            placeholder={language === 'ja' ? '機能を検索… (Cmd/Ctrl+K)' : language === 'zh' ? '搜索功能… (Cmd/Ctrl+K)' : 'Find a panel… (Cmd/Ctrl+K)'}
+            aria-label={language === 'ja' ? 'サイドバーパネルを検索' : language === 'zh' ? '搜索侧栏面板' : 'Search sidebar panels'}
+            style={{ flex: 1, minWidth: 0, height: '28px', padding: '4px 8px', border: `1px solid ${borderColor}`, borderRadius: '5px', background: theme === 'dark' ? '#181b20' : '#fff', color: textColor }}
+          />
+        </label>
+      </div>
       <div
         className="sidebar-tablist"
         role="tablist"
@@ -103,7 +133,7 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
           gap: '2px',
         }}
       >
-        {tabGroups.map((group) => (
+        {visibleGroups.map((group) => (
           <div
             key={group.label}
             role="group"
@@ -153,6 +183,11 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
             })}
           </div>
         ))}
+        {visibleGroups.length === 0 && (
+          <div role="status" style={{ padding: '8px 6px', color: textColor, opacity: 0.7, fontSize: '11px' }}>
+            {language === 'ja' ? '一致する機能がありません' : language === 'zh' ? '没有匹配的功能' : 'No matching panels'}
+          </div>
+        )}
         <button
           onClick={() => setSidebarOpen(false)}
           aria-label={language === 'ja' ? 'サイドバーを閉じる' : 'Close sidebar'}

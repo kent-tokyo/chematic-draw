@@ -4,7 +4,7 @@ import { useMoleculeStore } from '../../store/moleculeStore';
 import { executeReaction, SMIRKS_TEMPLATES } from '../../lib/reactions';
 import { useReactionSchemeStore } from '../../store/reactionSchemeStore';
 import { MechanismStep, MoleculeDto, ReactionCondition } from '../../store/types';
-import { exportSchemeAsJSON, importSchemeFromJSON, exportSchemeAsSVG, exportSchemeAsCSV, SchemeSvgPreset } from '../../lib/schemeExport';
+import { exportSchemeAsJSON, importSchemeFromJSON, exportSchemeAsSVG, exportSchemeAsCSV, SchemeFontScale, SchemePageSize, SchemeSvgPreset } from '../../lib/schemeExport';
 import { exportRxnViaDocumentAdapter, importRxnViaDocumentAdapter, rxnSchemeV2000Losses, rxnV2000Losses } from '../../lib/rxnExport';
 import { assertPublicationLayout } from '../../lib/layoutMetrics';
 import { runAnalysisInWorker } from '../../lib/analysisWorkerClient';
@@ -12,21 +12,29 @@ import * as wasmBridge from '../../wasm/wasmBridge';
 import { exportLossMessage, exportLosses } from '../../lib/exportLoss';
 import { parseComponentIds } from '../../lib/reactionComponentEditor';
 import { assertReactionDocument } from '../../lib/reactionDocumentGate';
+import { suggestReactionCoefficients } from '../../lib/reactionSchemeUtils';
 import { ReactionExportSection } from './ReactionExportSection';
+import { ReactionExecutor } from './ReactionExecutor';
+
+type ReactionWorkflowStage = 'components' | 'mapping' | 'validation' | 'mechanism' | 'review' | 'export';
 
 export function ReactionPanel() {
   const theme = useUIStore((s) => s.theme);
   const language = useUIStore((s) => s.language);
   const [expandedStepId, setExpandedStepId] = useState<string | null>(null);
   const [smirlksInput, setSmirlksInput] = useState<string>('');
+  const [multiReactantSmiles, setMultiReactantSmiles] = useState<string>('');
   const [selectedTemplate, setSelectedTemplate] = useState<string>('carboxylic_acid_to_amide');
   const [reactionError, setReactionError] = useState<string>('');
   const [status, setStatus] = useState<string>('');
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [svgPreset, setSvgPreset] = useState<SchemeSvgPreset>('journal');
+  const [fontScale, setFontScale] = useState<SchemeFontScale>('standard');
+  const [pageSize, setPageSize] = useState<SchemePageSize>('auto');
   const [agentDrafts, setAgentDrafts] = useState<Record<string, string>>({});
   const [coefficientDrafts, setCoefficientDrafts] = useState<Record<string, string>>({});
   const [componentIdDrafts, setComponentIdDrafts] = useState<Record<string, string>>({});
+  const [selectedWorkflowStage, setSelectedWorkflowStage] = useState<ReactionWorkflowStage | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const schemeLayout = useReactionSchemeStore((s) => s.schemeLayout);
   const isJapanese = language === 'ja';
@@ -34,8 +42,17 @@ export function ReactionPanel() {
   // Single source of truth for the reaction scheme (steps, conditions, arrows,
   // atom mapping, green metrics). Previously this panel also read/wrote a second,
   // disconnected scheme in moleculeStore — see internal_docs/ROADMAP.md v0.3 notes.
-  const scheme = useReactionSchemeStore((s) => s.scheme);
+  const storedScheme = useReactionSchemeStore((s) => s.scheme);
+  const scheme = storedScheme ?? {
+    id: 'pending-reaction-scheme',
+    title: '',
+    description: '',
+    steps: [],
+    currentStepIndex: 0,
+    viewMode: 'step' as const,
+  };
   const createScheme = useReactionSchemeStore((s) => s.createScheme);
+  const loadScheme = useReactionSchemeStore((s) => s.loadScheme);
   const updateSchemeInfo = useReactionSchemeStore((s) => s.updateSchemeInfo);
   const addStepToScheme = useReactionSchemeStore((s) => s.addStep);
   const removeStepFromScheme = useReactionSchemeStore((s) => s.removeStep);
@@ -59,10 +76,10 @@ export function ReactionPanel() {
   // edit, matching the previous always-present UX (addStep/removeStep already
   // recalculate atom mappings, classification, and green metrics themselves).
   useEffect(() => {
-    if (!scheme) {
+    if (!storedScheme) {
       createScheme('', '');
     }
-  }, [scheme, createScheme]);
+  }, [storedScheme, createScheme]);
 
   const bgColor = theme === 'dark' ? '#2f3a47' : '#ffffff';
   const borderColor = theme === 'dark' ? '#3a4a57' : '#e0e0e0';
@@ -70,6 +87,48 @@ export function ReactionPanel() {
   const labelColor = theme === 'dark' ? '#a0a8b8' : '#555555';
   const inputBg = theme === 'dark' ? '#1e2530' : '#f9f9f9';
   const accentColor = '#4d8dff';
+
+  const currentStep = scheme.steps[scheme.currentStepIndex];
+  const workflowStages: Array<{ id: ReactionWorkflowStage; label: string; complete: boolean }> = [
+    {
+      id: 'components',
+      label: isJapanese ? '構成要素' : 'Components',
+      complete: scheme.steps.length > 0 && scheme.steps.every((step) => step.reactants.length > 0 && step.products.length > 0),
+    },
+    {
+      id: 'mapping',
+      label: isJapanese ? 'マッピング' : 'Mapping',
+      complete: Boolean(atomMappings && atomMappings.totalMappedAtoms > 0),
+    },
+    {
+      id: 'validation',
+      label: isJapanese ? '検証' : 'Validation',
+      complete: reactionDiagnostics?.status === 'verified',
+    },
+    {
+      id: 'mechanism',
+      label: isJapanese ? '機構・条件' : 'Mechanism / conditions',
+      complete: scheme.steps.length > 0 && scheme.steps.some((step) => step.arrows.length > 0 || Object.values(step.conditions ?? {}).some(Boolean)),
+    },
+    {
+      id: 'review',
+      label: isJapanese ? 'レビュー' : 'Review',
+      complete: Boolean(scheme.title.trim() || scheme.description.trim()),
+    },
+    {
+      id: 'export',
+      label: isJapanese ? '出力' : 'Export',
+      complete: false,
+    },
+  ];
+
+  const activeWorkflowStage = selectedWorkflowStage ?? workflowStages.find((stage) => !stage.complete)?.id ?? 'export';
+  const focusWorkflowStage = (stage: ReactionWorkflowStage) => {
+    setSelectedWorkflowStage(stage);
+    if (stage === 'components' && currentStep) setExpandedStepId(currentStep.id);
+    const target = document.querySelector<HTMLElement>(`[data-workflow-stage="${stage}"]`);
+    target?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  };
 
   const handleAddStep = () => {
     const newStep: MechanismStep = {
@@ -116,6 +175,18 @@ export function ReactionPanel() {
       delete next[`${stepId}:${role}`];
       return next;
     });
+  };
+
+  const suggestCoefficients = (step: MechanismStep) => {
+    const suggestion = suggestReactionCoefficients(step);
+    if (!suggestion) {
+      setStatus(isJapanese
+        ? 'この反応部品では、限定探索範囲内の係数を提案できません。分子式と部品数を確認してください。'
+        : 'No coefficient suggestion was found in the bounded search space. Check the component formulas and count.');
+      return;
+    }
+    updateStep(step.id, { reactantCoefficients: suggestion.reactants, productCoefficients: suggestion.products });
+    setStatus(isJapanese ? `係数を提案しました（反応物 ${suggestion.reactants.join(', ')} ／生成物 ${suggestion.products.join(', ')}）。` : `Suggested coefficients (reactants ${suggestion.reactants.join(', ')}, products ${suggestion.products.join(', ')}).`);
   };
 
   const handleAddAgent = async (stepId: string) => {
@@ -207,6 +278,44 @@ export function ReactionPanel() {
     setSmirlksInput('');
   };
 
+  const handleRunMultiReactantReaction = async () => {
+    const reactantSmiles = multiReactantSmiles.split(/\r?\n/).map((value) => value.trim()).filter(Boolean);
+    if (reactantSmiles.length < 2 || reactantSmiles.length > 8) {
+      setReactionError(isJapanese ? '反応物SMILESを2〜8行で指定してください。' : 'Enter between 2 and 8 reactant SMILES lines.');
+      return;
+    }
+    const smirks = smirlksInput || SMIRKS_TEMPLATES[selectedTemplate as keyof typeof SMIRKS_TEMPLATES];
+    if (!smirks) {
+      setReactionError(isJapanese ? 'SMIRKSパターンが指定されていません' : 'No SMIRKS pattern provided');
+      return;
+    }
+    try {
+      const reactants = await Promise.all(reactantSmiles.map(async (smiles) => await runAnalysisInWorker('parse', undefined, undefined, undefined, smiles) as MoleculeDto));
+      const result = wasmBridge.runReactantsMulti(reactants, smirks);
+      if (result.status === 'no_match') {
+        setReactionError(isJapanese ? '複数反応物にSMIRKSパターンが一致しませんでした。' : 'SMIRKS pattern did not match the reactant set.');
+        return;
+      }
+      if (result.status !== 'applied') {
+        setReactionError(`${isJapanese ? '複数反応物の実行に失敗しました' : 'Multi-reactant execution failed'}: ${result.status === 'error' ? result.message : result.message}`);
+        return;
+      }
+      addStepToScheme({
+        id: `reaction-multi-${Date.now()}`,
+        reactants,
+        products: result.products,
+        arrows: [],
+        mechanismType: 'sn2',
+        conditions: {},
+        arrowType: 'single',
+      });
+      setReactionError('');
+      setStatus(isJapanese ? `複数反応物から${result.products.length}件の生成物を追加しました。` : `Added ${result.products.length} product(s) from ${reactants.length} reactants.`);
+    } catch (error) {
+      setReactionError(`${isJapanese ? '反応物SMILESが不正です' : 'Invalid reactant SMILES'}: ${(error as Error).message}`);
+    }
+  };
+
   const isDark = theme === 'dark';
 
   // Scheme is created by the effect above on first mount; nothing to render
@@ -252,12 +361,39 @@ export function ReactionPanel() {
         schemeLayout,
         useReactionSchemeStore.getState().atomMappings,
         useReactionSchemeStore.getState().greenMetrics,
-        { preset: svgPreset }
+        { preset: svgPreset, pageSize, fontScale }
       );
       downloadFile(svg, `${scheme.title || 'scheme'}_diagram.svg`, 'image/svg+xml');
       setStatus(isJapanese ? 'SVGとして出力しました' : 'Exported as SVG');
     } catch (error) {
       setStatus(isJapanese ? `SVG出力を停止しました: ${(error as Error).message}` : `SVG export blocked: ${(error as Error).message}`);
+    }
+  };
+
+  const handleExportPDF = async () => {
+    const api = (window as typeof window & { electronAPI?: { fileSaveDialog: (defaultPath: string) => Promise<{ canceled: boolean; filePath?: string }>; exportPdf: (filePath: string, svg: string) => Promise<{ success: boolean; error?: string }> } }).electronAPI;
+    if (!api) {
+      setStatus(isJapanese ? 'PDF出力はElectronアプリで利用できます' : 'PDF export is available in the Electron app');
+      return;
+    }
+    const result = await api.fileSaveDialog(`${scheme.title || 'scheme'}_publication.pdf`);
+    if (result.canceled || !result.filePath) return;
+    try {
+      if (!schemeLayout) throw new Error('Reaction layout is not ready');
+      assertPublicationLayout(schemeLayout);
+      const svg = exportSchemeAsSVG(
+        scheme,
+        schemeLayout,
+        useReactionSchemeStore.getState().atomMappings,
+        useReactionSchemeStore.getState().greenMetrics,
+        { preset: svgPreset, pageSize, fontScale }
+      );
+      const writeResult = await api.exportPdf(result.filePath, svg);
+      setStatus(writeResult.success
+        ? (isJapanese ? '出版用PDFとして出力しました' : 'Exported publication PDF')
+        : `${isJapanese ? 'PDF出力に失敗しました' : 'PDF export failed'}: ${writeResult.error ?? 'Unknown error'}`);
+    } catch (error) {
+      setStatus(`${isJapanese ? 'PDF出力を停止しました' : 'PDF export blocked'}: ${(error as Error).message}`);
     }
   };
 
@@ -321,9 +457,7 @@ export function ReactionPanel() {
         })()
         : importSchemeFromJSON(text);
       if (importedScheme) {
-        useReactionSchemeStore.getState().createScheme(importedScheme.title, importedScheme.description);
-        const state = useReactionSchemeStore.getState();
-        importedScheme.steps.forEach((step) => state.addStep(step));
+        loadScheme(importedScheme);
         setStatus(`${isJapanese ? 'スキームを読み込みました' : 'Imported scheme'}: ${importedScheme.title}`);
       } else {
         setStatus(isJapanese ? 'JSONの読み込みに失敗しました' : 'Failed to import JSON');
@@ -338,6 +472,7 @@ export function ReactionPanel() {
     <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
       {/* Title */}
       <input
+        data-testid="reaction-title"
         type="text"
         placeholder={isJapanese ? '反応タイトル…' : 'Reaction title...'}
         value={scheme.title || ''}
@@ -370,28 +505,78 @@ export function ReactionPanel() {
         }}
       />
 
-      <ReactionExportSection
-        isJapanese={isJapanese}
-        isDark={isDark}
-        textColor={textColor}
-        labelColor={labelColor}
-        borderColor={borderColor}
-        accentColor={accentColor}
-        showExportMenu={showExportMenu}
-        setShowExportMenu={setShowExportMenu}
-        svgPreset={svgPreset}
-        setSvgPreset={setSvgPreset}
-        onExportJSON={handleExportJSON}
-        onExportSVG={handleExportSVG}
-        onExportRXN={handleExportRXN}
-        onExportCSV={handleExportCSV}
-        onImport={handleImportJSON}
-        fileInputRef={fileInputRef}
-      />
+      <nav
+        aria-label={isJapanese ? '反応ワークフロー' : 'Reaction workflow'}
+        data-testid="reaction-workflow"
+        style={{
+          padding: '8px',
+          backgroundColor: isDark ? '#202b38' : '#f7f9fc',
+          border: `1px solid ${borderColor}`,
+          borderRadius: '6px',
+        }}
+      >
+        <div style={{ fontSize: '10px', color: labelColor, marginBottom: '6px' }}>
+          {isJapanese ? '反応の進め方' : 'Reaction workflow'}
+        </div>
+        <ol style={{ display: 'flex', gap: '3px', listStyle: 'none', padding: 0, margin: 0, overflowX: 'auto' }}>
+          {workflowStages.map((stage, index) => {
+            const isActive = stage.id === activeWorkflowStage;
+            return (
+              <li key={stage.id} style={{ display: 'flex', alignItems: 'center', flex: '0 0 auto' }}>
+                <button
+                  type="button"
+                  aria-current={isActive ? 'step' : undefined}
+                  aria-label={`${index + 1}. ${stage.label}${stage.complete ? (isJapanese ? '（完了）' : ' (complete)') : ''}`}
+                  onClick={() => focusWorkflowStage(stage.id)}
+                  style={{
+                    padding: '4px 6px',
+                    border: `1px solid ${isActive ? accentColor : borderColor}`,
+                    borderRadius: '4px',
+                    backgroundColor: isActive ? accentColor : stage.complete ? (isDark ? '#254936' : '#e8f5e9') : inputBg,
+                    color: isActive ? 'white' : textColor,
+                    fontSize: '9px',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {stage.complete ? '✓ ' : `${index + 1}. `}{stage.label}
+                </button>
+                {index < workflowStages.length - 1 && <span aria-hidden="true" style={{ color: labelColor, padding: '0 1px', fontSize: '9px' }}>›</span>}
+              </li>
+            );
+          })}
+        </ol>
+      </nav>
+
+      <div data-workflow-stage="export">
+        <ReactionExportSection
+          isJapanese={isJapanese}
+          isDark={isDark}
+          textColor={textColor}
+          labelColor={labelColor}
+          borderColor={borderColor}
+          accentColor={accentColor}
+          showExportMenu={showExportMenu}
+          setShowExportMenu={setShowExportMenu}
+          svgPreset={svgPreset}
+          setSvgPreset={setSvgPreset}
+          fontScale={fontScale}
+          setFontScale={setFontScale}
+          pageSize={pageSize}
+          setPageSize={setPageSize}
+          onExportJSON={handleExportJSON}
+          onExportSVG={handleExportSVG}
+          onExportPDF={() => void handleExportPDF()}
+          onExportRXN={handleExportRXN}
+          onExportCSV={handleExportCSV}
+          onImport={handleImportJSON}
+          fileInputRef={fileInputRef}
+        />
+      </div>
 
       {/* Multi-Step Scheme Navigation */}
       {scheme.steps.length > 0 && (
-        <div style={{
+        <div data-workflow-stage="mechanism" style={{
           padding: '12px',
           backgroundColor: theme === 'dark' ? '#1e2a3a' : '#f5f9ff',
           border: `1px solid ${theme === 'dark' ? '#2a4a7a' : '#90caf9'}`,
@@ -488,7 +673,7 @@ export function ReactionPanel() {
 
       {/* Reaction Structure Summary — step/arrow counts, not a mechanism classification */}
       {reactionClassification && scheme && scheme.steps.length > 0 && (
-        <div style={{
+        <div data-workflow-stage="review" style={{
           padding: '12px',
           backgroundColor: isDark ? '#1a3a4a' : '#e3f2fd',
           border: `1px solid ${isDark ? '#2a5a7a' : '#90caf9'}`,
@@ -511,6 +696,7 @@ export function ReactionPanel() {
         <div
           role="status"
           aria-label="Reaction verification"
+          data-workflow-stage="validation"
           style={{
             padding: '12px',
             backgroundColor: reactionDiagnostics.status === 'verified'
@@ -564,7 +750,8 @@ export function ReactionPanel() {
 
       {/* Atom Mapping Legend */}
       {atomMappings && atomMappings.totalMappedAtoms > 0 && (
-        <div style={{
+        <div data-workflow-stage="mapping">
+          <div style={{
           padding: '12px',
           backgroundColor: isDark ? '#1e2a3a' : '#f9f9f9',
           border: `1px solid ${borderColor}`,
@@ -633,6 +820,7 @@ export function ReactionPanel() {
             ))}
           </div>
         </div>
+        </div>
       )}
 
       {/* Green Chemistry Metrics */}
@@ -661,7 +849,7 @@ export function ReactionPanel() {
       )}
 
       {/* Steps List */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '400px', overflow: 'auto' }}>
+      <div data-workflow-stage="components" style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '400px', overflow: 'auto' }}>
         {scheme.steps.length === 0 ? (
           <div style={{ fontSize: '11px', color: labelColor, textAlign: 'center', padding: '16px' }}>
             {isJapanese ? 'ステップがありません。追加して始めてください。' : 'No steps. Add one to start.'}
@@ -741,7 +929,11 @@ export function ReactionPanel() {
                   {/* Temperature */}
                   <div style={{ marginBottom: '8px' }}>
                     <label style={{ fontSize: '10px', color: labelColor, display: 'block' }}>{isJapanese ? '係数（反応物,製品）' : 'Coefficients (reactants, products)'}</label>
+                    <button type="button" onClick={() => suggestCoefficients(step)} style={{ width: '100%', padding: '4px', marginTop: '3px', border: `1px solid ${accentColor}`, borderRadius: '3px', background: 'transparent', color: accentColor, fontSize: '9px', cursor: 'pointer' }}>
+                      {isJapanese ? '係数を提案' : 'Suggest coefficients'}
+                    </button>
                     <input
+                      data-testid={`reaction-step-${idx + 1}-temperature`}
                       type="text"
                       aria-label={isJapanese ? `ステップ${idx + 1}の反応物係数` : `Step ${idx + 1} reactant coefficients`}
                       placeholder="1, 0.5"
@@ -766,6 +958,7 @@ export function ReactionPanel() {
                     <label style={{ fontSize: '10px', color: labelColor, display: 'block' }}>{isJapanese ? '反応剤（SMILES）' : 'Agents (SMILES)'}</label>
                     <div style={{ display: 'flex', gap: '4px', marginTop: '2px' }}>
                       <input
+                        data-testid={`reaction-step-${idx + 1}-agent`}
                         type="text"
                         aria-label={isJapanese ? `ステップ${idx + 1}の反応剤SMILES` : `Step ${idx + 1} agent SMILES`}
                         placeholder="O, CC(=O)O"
@@ -773,7 +966,7 @@ export function ReactionPanel() {
                         onChange={(event) => setAgentDrafts((drafts) => ({ ...drafts, [step.id]: event.target.value }))}
                         style={{ flex: 1, padding: '4px', border: `1px solid ${borderColor}`, borderRadius: '3px', backgroundColor: theme === 'dark' ? '#0e1530' : '#ffffff', color: textColor, fontSize: '10px' }}
                       />
-                      <button onClick={() => void handleAddAgent(step.id)} style={{ padding: '4px 6px', fontSize: '9px' }}>{isJapanese ? '追加' : 'Add'}</button>
+                      <button data-testid={`reaction-step-${idx + 1}-add-agent`} onClick={() => void handleAddAgent(step.id)} style={{ padding: '4px 6px', fontSize: '9px' }}>{isJapanese ? '追加' : 'Add'}</button>
                     </div>
                     {(step.agents?.length ?? 0) > 0 && <div style={{ marginTop: '3px', fontSize: '9px', color: labelColor }}>{isJapanese ? `登録済み: ${step.agents?.length}件` : `Added: ${step.agents?.length} agent(s)`}</div>}
                   </div>
@@ -937,94 +1130,29 @@ export function ReactionPanel() {
         )}
       </div>
 
-      {/* Reaction Executor */}
-      <div style={{ padding: '12px', backgroundColor: bgColor, borderRadius: '4px', border: `1px solid ${borderColor}`, marginBottom: '12px' }}>
-        <div style={{ fontSize: '11px', fontWeight: 'bold', color: textColor, marginBottom: '8px' }}>
-          {isJapanese ? '反応を実行' : 'Execute Reaction'}
-        </div>
-
-        <div style={{ marginBottom: '8px' }}>
-          <label style={{ fontSize: '10px', color: labelColor, display: 'block', marginBottom: '4px' }}>
-            {isJapanese ? 'テンプレート' : 'Template'}
-          </label>
-          <select
-            aria-label={isJapanese ? '反応テンプレート' : 'Reaction template'}
-            value={selectedTemplate}
-            onChange={(e) => setSelectedTemplate(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '4px',
-              border: `1px solid ${borderColor}`,
-              borderRadius: '3px',
-              backgroundColor: theme === 'dark' ? '#0e1530' : '#ffffff',
-              color: textColor,
-              fontSize: '10px',
-              boxSizing: 'border-box',
-            }}
-          >
-            <option value="carboxylic_acid_to_amide">{isJapanese ? 'カルボン酸 → アミド' : 'Carboxylic acid → Amide'}</option>
-            <option value="ester_to_acid">{isJapanese ? 'エステル → 酸' : 'Ester → Acid'}</option>
-            <option value="ester_to_alcohol">{isJapanese ? 'エステル → アルコール' : 'Ester → Alcohol'}</option>
-            <option value="alcohol_to_aldehyde">{isJapanese ? 'アルコール → アルデヒド' : 'Alcohol → Aldehyde'}</option>
-            <option value="aldehyde_to_carboxylic_acid">{isJapanese ? 'アルデヒド → カルボン酸' : 'Aldehyde → Carboxylic acid'}</option>
-            <option value="ketone_to_alcohol">{isJapanese ? 'ケトン → アルコール' : 'Ketone → Alcohol'}</option>
-            <option value="custom">{isJapanese ? 'カスタムSMIRKS' : 'Custom SMIRKS'}</option>
-          </select>
-        </div>
-
-        {selectedTemplate === 'custom' && (
-          <div style={{ marginBottom: '8px' }}>
-            <label style={{ fontSize: '10px', color: labelColor, display: 'block', marginBottom: '4px' }}>
-              {isJapanese ? 'SMIRKSパターン' : 'SMIRKS Pattern'}
-            </label>
-            <textarea
-              placeholder={isJapanese ? '例：[C:1](=[O])[OH]>>[C:1](=[O])[NH2]' : 'e.g., [C:1](=[O])[OH]>>[C:1](=[O])[NH2]'}
-              value={smirlksInput}
-              onChange={(e) => setSmirlksInput(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '4px',
-                border: `1px solid ${borderColor}`,
-                borderRadius: '3px',
-                backgroundColor: theme === 'dark' ? '#0e1530' : '#ffffff',
-                color: textColor,
-                fontSize: '9px',
-                fontFamily: 'monospace',
-                minHeight: '50px',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
-        )}
-
-        <button
-          onClick={handleRunReaction}
-          style={{
-            width: '100%',
-            padding: '6px',
-            backgroundColor: '#4d8dff',
-            color: 'white',
-            border: 'none',
-            borderRadius: '3px',
-            cursor: 'pointer',
-            fontSize: '10px',
-            fontWeight: 'bold',
-            marginBottom: reactionError ? '6px' : '0',
-          }}
-        >
-          {isJapanese ? '反応を実行' : 'Execute Reaction'}
-        </button>
-
-        {reactionError && (
-          <div style={{ fontSize: '9px', color: '#f26d6d', padding: '4px', backgroundColor: 'rgba(242, 109, 109, 0.1)', borderRadius: '3px' }}>
-            {reactionError}
-          </div>
-        )}
-      </div>
+      <ReactionExecutor
+        isJapanese={isJapanese}
+        theme={theme}
+        borderColor={borderColor}
+        bgColor={bgColor}
+        textColor={textColor}
+        labelColor={labelColor}
+        accentColor={accentColor}
+        selectedTemplate={selectedTemplate}
+        onTemplateChange={setSelectedTemplate}
+        smirksInput={smirlksInput}
+        onSmirksChange={setSmirlksInput}
+        multiReactantSmiles={multiReactantSmiles}
+        onMultiReactantChange={setMultiReactantSmiles}
+        onRunReaction={handleRunReaction}
+        onRunMultiReactantReaction={() => void handleRunMultiReactantReaction()}
+        reactionError={reactionError}
+      />
 
       {/* Add Step Button */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <button
+          data-testid="reaction-add-step"
           onClick={handleAddStep}
           style={{
             padding: '8px',

@@ -12,6 +12,11 @@ import { useReactionSchemeStore } from '../store/reactionSchemeStore';
 const DRAG_THRESHOLD = 4;
 const BOND_LENGTH = 60;
 
+/** Atom id 0 is valid for imported molecules, so do not use truthiness here. */
+export function hasBondDragSource(atomId: number | undefined): atomId is number {
+  return atomId !== undefined;
+}
+
 const ELEMENT_NAMES: Record<string, string> = {
   C: 'Carbon',
   N: 'Nitrogen',
@@ -26,17 +31,21 @@ export interface CanvasInteractionHandlers {
   onMouseUp: (e: React.MouseEvent<HTMLCanvasElement>) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLCanvasElement>) => void;
   onFocus: () => void;
+  selectionRect: { left: number; top: number; right: number; bottom: number } | null;
 }
 
 export function useCanvasInteraction(): CanvasInteractionHandlers {
   const dragStateRef = useRef<{
-    type: 'none' | 'atom-drag' | 'bond-drag' | 'pan';
+    type: 'none' | 'atom-drag' | 'bond-drag' | 'pan' | 'selection';
     startX: number;
     startY: number;
     atomId?: number;
+    atomDragOffsets?: Array<{ id: number; dx: number; dy: number }>;
     bondFrom?: number;
     pushedUndo?: boolean;
+    additive?: boolean;
   }>({ type: 'none', startX: 0, startY: 0 });
+  const [selectionRect, setSelectionRect] = useState<{ left: number; top: number; right: number; bottom: number } | null>(null);
 
   const molecule = useMoleculeStore((s) => s.molecule);
   const activeTool = useCanvasStore((s) => s.activeTool);
@@ -62,6 +71,8 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
   const removeBond = useMoleculeStore((s) => s.removeBond);
   const removeAtom = useMoleculeStore((s) => s.removeAtom);
   const selectAtom = useMoleculeStore((s) => s.selectAtom);
+  const selectRegion = useMoleculeStore((s) => s.selectRegion);
+  const translateSelectedAtoms = useMoleculeStore((s) => s.translateSelectedAtoms);
   const deselectAll = useMoleculeStore((s) => s.deselectAll);
   const pushUndo = useMoleculeStore((s) => s.pushUndo);
   const setSelectedAtomIdForInspector = useUIStore((s) => s.setSelectedAtomIdForInspector);
@@ -80,6 +91,7 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
         startX: screenX,
         startY: screenY,
       };
+      setSelectionRect(null);
 
       // Handle scheme view clicks - click on step to select and switch to edit
       if (scheme?.viewMode === 'scheme' && schemeLayout) {
@@ -143,7 +155,21 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
       if (activeTool === Tool.Select) {
         const atomId = hitTestAtom(molecule, screenX, screenY, canvasState);
         if (atomId !== null) {
-          dragStateRef.current = { type: 'atom-drag', startX: screenX, startY: screenY, atomId };
+          // Context-menu right-clicks must not collapse an existing
+          // multi-selection into the atom under the pointer. The dedicated
+          // context-menu handler records the target and updates the Inspector;
+          // selection mutation belongs to the primary-button path only.
+          if (e.button === 2) return;
+          const worldPos = screenToWorld(screenX, screenY);
+          const selectedAtoms = molecule.atoms.filter((atom) => atom.selected);
+          const dragAtoms = selectedAtoms.some((atom) => atom.id === atomId) ? selectedAtoms : molecule.atoms.filter((atom) => atom.id === atomId);
+          dragStateRef.current = {
+            type: 'atom-drag',
+            startX: screenX,
+            startY: screenY,
+            atomId,
+            atomDragOffsets: dragAtoms.map((atom) => ({ id: atom.id, dx: atom.x - worldPos.x, dy: atom.y - worldPos.y })),
+          };
           selectAtom(atomId, e.shiftKey || e.ctrlKey);
           // Tracks "most recently clicked," not "currently selected" — a
           // Shift/Ctrl-click that toggles this atom back off still leaves
@@ -153,6 +179,9 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
           // render alongside this atom's fields.
           setSelectedAtomIdForInspector(atomId);
           setSelectedBondIdForInspector(null);
+        } else if (e.shiftKey && hitTestBond(molecule, screenX, screenY, canvasState) === null) {
+          dragStateRef.current = { type: 'selection', startX: screenX, startY: screenY, additive: e.shiftKey };
+          setSelectionRect({ left: screenX, top: screenY, right: screenX, bottom: screenY });
         } else {
           deselectAll();
         }
@@ -241,7 +270,7 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
         pan(dx, dy);
         dragStateRef.current.startX = screenX;
         dragStateRef.current.startY = screenY;
-      } else if (dragStateRef.current.type === 'atom-drag' && dragStateRef.current.atomId) {
+      } else if (dragStateRef.current.type === 'atom-drag' && dragStateRef.current.atomId !== undefined) {
         // atom-drag is set eagerly at mousedown (see below), so a plain
         // click-select with no real movement must not move the atom or
         // push an undo checkpoint at all — gate on the same DRAG_THRESHOLD
@@ -258,10 +287,18 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
             dragStateRef.current.pushedUndo = true;
           }
           const worldPos = screenToWorld(screenX, screenY);
-          updateAtom(dragStateRef.current.atomId, { x: worldPos.x, y: worldPos.y });
+          const offsets = dragStateRef.current.atomDragOffsets ?? [{ id: dragStateRef.current.atomId, dx: 0, dy: 0 }];
+          for (const atom of offsets) updateAtom(atom.id, { x: worldPos.x + atom.dx, y: worldPos.y + atom.dy });
         }
       } else if (dragStateRef.current.type === 'bond-drag') {
         setBondDrag(dragStateRef.current.bondFrom, { x: screenX, y: screenY });
+      } else if (dragStateRef.current.type === 'selection') {
+        setSelectionRect({
+          left: Math.min(dragStateRef.current.startX, screenX),
+          top: Math.min(dragStateRef.current.startY, screenY),
+          right: Math.max(dragStateRef.current.startX, screenX),
+          bottom: Math.max(dragStateRef.current.startY, screenY),
+        });
       }
     },
     [molecule, activeTool, setHoverAtom, setHoverBond, pan, updateAtom, pushUndo, setBondDrag, activeSidebarPanel, mechanismArrows, scheme, schemeLayout, setHoveredStepIndex]
@@ -275,7 +312,7 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
       const screenY = e.clientY - rect.top;
       const canvasState = { offset, zoom };
 
-      if (dragStateRef.current.type === 'bond-drag' && dragStateRef.current.bondFrom) {
+      if (dragStateRef.current.type === 'bond-drag' && hasBondDragSource(dragStateRef.current.bondFrom)) {
         const targetAtomId = hitTestAtom(molecule, screenX, screenY, canvasState);
         if (targetAtomId !== null && targetAtomId !== dragStateRef.current.bondFrom) {
           // Add bond
@@ -286,9 +323,21 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
         setBondDrag(null);
       }
 
+      if (dragStateRef.current.type === 'selection') {
+        const left = Math.min(dragStateRef.current.startX, screenX);
+        const right = Math.max(dragStateRef.current.startX, screenX);
+        const top = Math.min(dragStateRef.current.startY, screenY);
+        const bottom = Math.max(dragStateRef.current.startY, screenY);
+        if (right - left >= DRAG_THRESHOLD || bottom - top >= DRAG_THRESHOLD) {
+          selectRegion({ left, top, right, bottom }, { offset, zoom }, dragStateRef.current.additive === true);
+          setStatus('Selected objects in region.');
+        }
+        setSelectionRect(null);
+      }
+
       dragStateRef.current = { type: 'none', startX: 0, startY: 0 };
     },
-    [molecule, activeTool, addBond, setBondDrag]
+    [molecule, activeTool, addBond, setBondDrag, selectRegion, setStatus]
   );
 
   // Keyboard-driven editing (accessibility Phase B2): a mouse click has no
@@ -388,6 +437,18 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
         return;
       }
 
+      if (e.altKey && isArrow && molecule.atoms.some((atom) => atom.selected)) {
+        e.preventDefault();
+        e.stopPropagation();
+        const distance = e.shiftKey ? 10 : 1;
+        const dx = e.key === 'ArrowRight' ? distance : e.key === 'ArrowLeft' ? -distance : 0;
+        const dy = e.key === 'ArrowDown' ? distance : e.key === 'ArrowUp' ? -distance : 0;
+        pushUndo();
+        translateSelectedAtoms(dx, dy);
+        setStatus(`Moved selected atoms ${distance} unit${distance === 1 ? '' : 's'}.`);
+        return;
+      }
+
       // Enter: start bond mode from the currently focused atom.
       if (e.key === 'Enter' && selectedId !== null) {
         const others = sortedAtomIds.filter((id) => id !== selectedId);
@@ -446,7 +507,7 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
         }
       }
     },
-    [molecule, sortedAtomIds, bondFromAtomId, candidateAtomId, selectAtom, setSelectedAtomIdForInspector, setSelectedBondIdForInspector, addAtom, addBond, pushUndo, setStatus, describeAtom]
+    [molecule, sortedAtomIds, bondFromAtomId, candidateAtomId, translateSelectedAtoms, selectAtom, setSelectedAtomIdForInspector, setSelectedBondIdForInspector, addAtom, addBond, pushUndo, setStatus, describeAtom]
   );
 
   return {
@@ -455,6 +516,7 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
     onMouseUp,
     onKeyDown,
     onFocus,
+    selectionRect,
   };
 }
 

@@ -7,7 +7,7 @@ export type ToolName = 'select' | 'atom_c' | 'atom_n' | 'atom_o' | 'atom_s' | 'a
 export interface CanvasState { offset: { x: number; y: number }; zoom: number; activeTool: ToolName; hoverAtomId: number | null; hoverBondId: number | null; selectedAtomIds: Set<number>; selectedBondIds: Set<number>; }
 export type AppLanguage = 'en' | 'ja' | 'zh';
 export interface UIState { theme: 'dark' | 'light'; language: AppLanguage; sidebarOpen: boolean; sidebarWidth: number; focusMode: boolean; }
-export type UIAction = 'copy' | 'paste' | 'cleanLayout' | 'export' | 'undo' | 'redo' | 'zoomIn' | 'zoomOut' | 'zoomReset' | 'focusMode' | 'showShortcuts' | 'selectAll' | 'delete';
+export type UIAction = 'copy' | 'cut' | 'paste' | 'duplicate' | 'cleanLayout' | 'export' | 'undo' | 'redo' | 'zoomIn' | 'zoomOut' | 'zoomReset' | 'focusMode' | 'showShortcuts' | 'selectAll' | 'delete';
 export type SidebarPanel = 'inspector' | 'templates' | 'chat' | 'research' | 'reactions' | 'batch-results' | 'stereoisomers' | 'lipinski' | 'properties' | 'mechanism' | 'database' | '3d' | 'nmr';
 export interface ContextMenuState { visible: boolean; x: number; y: number; atomId?: number; bondId?: number; }
 export type ModalType = 'shortcuts' | 'export' | 'undo' | 'batch' | 'settings';
@@ -64,9 +64,9 @@ export const CAPABILITY_MANIFEST: readonly CapabilityDescriptor[] = [
   { id: 'polymer', support: 'partial', summary: 'Typed repeat-unit data and bounded expansion', dependency: 'local' },
   { id: 'nucleic-acid', support: 'partial', summary: 'Basic structure editing without full biomolecule semantics', dependency: 'local' },
   { id: 'rich-rxn', support: 'partial', summary: 'JSON v2 preserves rich schemes; RXN V2000 is loss-aware', dependency: 'local' },
-  { id: 'cdxml-presentation', support: 'partial', summary: 'Supported multi-page subset with explicit loss boundary', dependency: 'chematic' },
+  { id: 'cdxml-presentation', support: 'partial', summary: 'Supported multi-page subset with validated basic graphic children and explicit loss boundary', dependency: 'chematic' },
   { id: 'publication-layout', support: 'partial', summary: 'Deterministic metrics and export gates; human visual gate remains', dependency: 'local' },
-  { id: 'embedding', support: 'partial', summary: 'Electron-free contract package, consumer fixtures, and read-only Web Component surface', dependency: 'local' },
+  { id: 'embedding', support: 'partial', summary: 'Electron-free contract package, read-only viewer, opt-in validated editor, and atomic single/batch Worker edit surface', dependency: 'local' },
   { id: 'chemspider', support: 'external', summary: 'Provider boundary reserved; authenticated API integration unavailable', dependency: 'chemspider-api' },
   { id: 'nmr', support: 'partial', summary: 'Loss-aware experimental 1D spectrum contract; assignment and prediction remain external', dependency: 'local' },
   { id: '3d', support: 'partial', summary: 'Deterministic coordinate generation and XYZ export snapshot boundary', dependency: 'local' },
@@ -159,16 +159,27 @@ export interface BatchResultSummary { operation: string; processed: number; fail
 export interface StereoisomerResult { stereoisomers: Molecule[]; count: number; description: string; }
 export interface LipinskiViolation { rule: string; value: number; limit: number; violated: boolean; }
 export interface PropertyPrediction { property: string; predictedValue: number | string; source: string; }
-export interface DatabaseResult { molId: string; name: string; source: 'pubchem' | 'chemspider' | 'zinc'; similarity: number; properties: Record<string, string | number>; }
+export interface DatabaseResult { molId: string; name: string; source: 'pubchem' | 'chemspider' | 'zinc'; similarity: number; smiles?: string; properties: Record<string, string | number>; }
 export interface SessionBundle { schema: 'chematic-draw/session-bundle'; schema_version: 2; app: { name: 'chematic-draw'; engine: 'chematic 1.0.12' }; source: { file_path: string | null }; document: { schema_version: 1; molecule: Molecule }; provenance: { operation: 'export-session-bundle'; structure_hash: string }; }
 export type ReactionDocumentIssueCode = 'duplicate-step-id' | 'component-id' | 'coefficient' | 'continuity' | 'map-scope' | 'provenance';
 export interface ReactionDocumentIssue { code: ReactionDocumentIssueCode; path: string; message: string; }
 export interface RxnDocument { reactants: Molecule[]; products: Molecule[]; agents?: Molecule[]; reactantCoefficients?: number[]; productCoefficients?: number[]; }
 export type RxnV2000LossCode = 'agents' | 'coefficients' | 'multi-step';
 export interface RxnV2000Loss { code: RxnV2000LossCode; message: string; }
-export interface CdxmlText { id: string; x: number; y: number; value: string; }
+export interface CdxmlTextRun { value: string; attributes?: Record<string, string>; }
+export interface CdxmlText { id: string; x: number; y: number; value: string; runs?: CdxmlTextRun[]; attributes?: Record<string, string>; }
+export interface CdxmlTitle { value: string; runs?: CdxmlTextRun[]; attributes?: Record<string, string>; }
+/** A simple self-closing CDXML graphic whose raw attributes can be retained. */
+export interface CdxmlTransform { a: number; b: number; c: number; d: number; tx: number; ty: number; }
+/** A validated direct child of a CDXML graphic (for example a line or ellipse). */
+export interface CdxmlGraphicChild { name: string; attributes?: Record<string, string>; content?: string; }
+export interface CdxmlGraphic { id: string; transform?: CdxmlTransform; attributes?: Record<string, string>; children?: CdxmlGraphicChild[]; }
+/** An opaque page-level object (currently used for lossless CDXML groups). */
+export interface CdxmlRawObject { id: string; tag: string; rawXml: string; }
+export type CdxmlContentOrderKind = 'title' | 'text' | 'graphic' | 'arrow' | 'fragment' | 'object';
+export interface CdxmlContentOrderEntry { kind: CdxmlContentOrderKind; id: string; }
 export interface CdxmlArrow { id: string; x1: number; y1: number; x2: number; y2: number; label?: string; }
-export interface CdxmlPage { id: string; molecule: Molecule; title?: string; width?: number; height?: number; text?: CdxmlText[]; arrows?: CdxmlArrow[]; attributes?: Record<string, string>; }
+export interface CdxmlPage { id: string; molecule: Molecule; title?: string; titleRuns?: CdxmlTextRun[]; width?: number; height?: number; transform?: CdxmlTransform; text?: CdxmlText[]; graphics?: CdxmlGraphic[]; arrows?: CdxmlArrow[]; objects?: CdxmlRawObject[]; contentOrder?: CdxmlContentOrderEntry[]; attributes?: Record<string, string>; }
 export interface CdxmlDocument { pages: CdxmlPage[]; }
 export type CdxmlLossCode = 'invalid-page' | 'wildcard-atom' | 'unsupported-element' | 'unsupported-bond';
 export interface CdxmlLoss { code: CdxmlLossCode; path: string; message: string; }

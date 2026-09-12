@@ -32,6 +32,7 @@ interface ReactionSchemeStore {
 
   // Scheme CRUD
   createScheme(title: string, description?: string): void;
+  loadScheme(scheme: ReactionSchemeContext): void;
   updateSchemeInfo(updates: { title?: string; description?: string }): void;
   clearScheme(): void;
 
@@ -153,6 +154,22 @@ export const useReactionSchemeStore = create<ReactionSchemeStore>((set, get) => 
         greenMetrics: null,
         reactionDiagnostics: null,
       };
+    });
+  },
+
+  loadScheme: (scheme: ReactionSchemeContext) => {
+    // Import a validated document as one atomic state transition. Replaying
+    // addStep() would reset currentStepIndex/viewMode and briefly expose a
+    // partially imported scheme to subscribers.
+    set({
+      scheme,
+      schemeLayout: calculateSchemeLayout(scheme),
+      selectedStepIndex: null,
+      hoveredStepIndex: null,
+      atomMappings: mapAtomsAcrossSteps(scheme),
+      reactionClassification: classifyReaction(scheme),
+      greenMetrics: calculateGreenChemistryMetrics(scheme),
+      reactionDiagnostics: diagnoseReactionScheme(scheme),
     });
   },
 

@@ -2,6 +2,8 @@ import { ReactionSchemeContext, MoleculeDto, AtomMapping, ReactionClassification
 import { SchemeLayout } from './schemeLayout';
 import { diagnoseReactionScheme, ReactionDiagnostics } from './reactionSchemeUtils';
 import { validateMoleculeDocument } from './documentCommands';
+import { ENGINE_ID } from '../../engineMetadata';
+import { assertPublicationLayout } from './layoutMetrics';
 
 export const REACTION_DOCUMENT_SCHEMA = 'chematic-draw/reaction-document';
 export const REACTION_DOCUMENT_VERSION = 2;
@@ -73,7 +75,7 @@ export function exportSchemeAsJSON(
     provenance: {
       source_format: 'reaction-document-json',
       operation: 'export-reaction-document',
-      engine: 'chematic 1.0.12',
+      engine: ENGINE_ID as 'chematic 1.0.12',
       result_hash: documentHash(hashPayload),
     },
   };
@@ -100,7 +102,7 @@ export function importSchemeFromJSON(jsonString: string): ReactionSchemeContext 
       if (
         data.provenance.source_format !== 'reaction-document-json' ||
         data.provenance.operation !== 'export-reaction-document' ||
-        data.provenance.engine !== 'chematic 1.0.12' ||
+        data.provenance.engine !== ENGINE_ID ||
         typeof data.provenance.result_hash !== 'string'
       ) return null;
       const hashPayload = {
@@ -187,7 +189,14 @@ export function importSchemeFromJSON(jsonString: string): ReactionSchemeContext 
 
 /** SVG visual presets; screen is retained as the compatibility default. */
 export type SchemeSvgPreset = 'screen' | 'journal';
-export interface SchemeSvgOptions { preset?: SchemeSvgPreset; }
+export type SchemePageSize = 'auto' | 'a4' | 'letter';
+export type SchemeFontScale = 'compact' | 'standard' | 'large';
+export interface SchemeSvgOptions { preset?: SchemeSvgPreset; pageSize?: SchemePageSize; margin?: number; fontScale?: SchemeFontScale; }
+
+const PUBLICATION_PAGE_SIZES: Record<Exclude<SchemePageSize, 'auto'>, { width: number; height: number }> = {
+  a4: { width: 794, height: 1123 },
+  letter: { width: 816, height: 1056 },
+};
 
 function escapeXmlText(value: string): string {
   return value.replace(/[&<>"']/g, (character) => ({
@@ -197,6 +206,101 @@ function escapeXmlText(value: string): string {
     '"': '&quot;',
     "'": '&apos;',
   }[character] ?? character));
+}
+
+function renderMoleculeSvg(molecule: MoleculeDto, x: number, y: number, width: number, height: number, ink: string): string {
+  if (!molecule.atoms.length) return '';
+  const xs = molecule.atoms.map((atom) => atom.x);
+  const ys = molecule.atoms.map((atom) => atom.y);
+  const minX = Math.min(...xs); const maxX = Math.max(...xs);
+  const minY = Math.min(...ys); const maxY = Math.max(...ys);
+  const spanX = Math.max(maxX - minX, 1); const spanY = Math.max(maxY - minY, 1);
+  const scale = Math.min((width - 20) / spanX, (height - 20) / spanY, 22);
+  const offsetX = x + (width - spanX * scale) / 2;
+  const offsetY = y + (height - spanY * scale) / 2;
+  const position = (atom: MoleculeDto['atoms'][number]) => ({
+    x: offsetX + (atom.x - minX) * scale,
+    y: offsetY + (maxY - atom.y) * scale,
+  });
+  const byId = new Map(molecule.atoms.map((atom) => [atom.id, atom]));
+  let svg = '<g class="molecule" aria-label="Molecule">';
+  for (const bond of molecule.bonds) {
+    const from = byId.get(bond.from); const to = byId.get(bond.to);
+    if (!from || !to) continue;
+    const a = position(from); const b = position(to);
+    const dx = b.x - a.x; const dy = b.y - a.y; const length = Math.hypot(dx, dy) || 1;
+    const nx = -dy / length * 2; const ny = dx / length * 2;
+    if (bond.order === 1 && bond.stereo === 1) {
+      const px = (dy / length) * 4; const py = -(dx / length) * 4;
+      svg += `<polygon points="${a.x.toFixed(2)},${a.y.toFixed(2)} ${(b.x + px).toFixed(2)},${(b.y + py).toFixed(2)} ${(b.x - px).toFixed(2)},${(b.y - py).toFixed(2)}" fill="${ink}" class="stereo-wedge"/>`;
+      continue;
+    }
+    const lines = Math.min(Math.max(Math.round(bond.order), 1), 3);
+    for (let line = 0; line < lines; line++) {
+      const offset = (line - (lines - 1) / 2) * 3;
+      const dash = bond.order === 1 && bond.stereo === 2 ? ' stroke-dasharray="3,3"' : '';
+      svg += `<line x1="${(a.x + nx * offset).toFixed(2)}" y1="${(a.y + ny * offset).toFixed(2)}" x2="${(b.x + nx * offset).toFixed(2)}" y2="${(b.y + ny * offset).toFixed(2)}" stroke="${ink}" stroke-width="1.2"${dash}/>`;
+    }
+  }
+  for (const atom of molecule.atoms) {
+    const point = position(atom);
+    const label = escapeXmlText(atom.display_label ?? atom.element ?? '?');
+    if (label) svg += `<text x="${point.x.toFixed(2)}" y="${point.y.toFixed(2)}" text-anchor="middle" dominant-baseline="middle" class="atom-label" fill="${ink}">${label}</text>`;
+    if (atom.isotope !== undefined) svg += `<text x="${(point.x - 7).toFixed(2)}" y="${(point.y - 7).toFixed(2)}" class="atom-annotation" fill="${ink}">${atom.isotope}</text>`;
+    if (atom.charge !== 0) svg += `<text x="${(point.x + 7).toFixed(2)}" y="${(point.y - 7).toFixed(2)}" class="atom-annotation" fill="${ink}">${atom.charge > 0 ? '+' : ''}${atom.charge}</text>`;
+  }
+  return `${svg}</g>`;
+}
+
+function renderMoleculeRow(molecules: MoleculeDto[], x: number, y: number, width: number, height: number, ink: string): string {
+  if (!molecules.length) return '';
+  const itemWidth = Math.max(45, width / molecules.length);
+  return molecules.map((molecule, index) => renderMoleculeSvg(molecule, x + index * itemWidth, y, itemWidth, height, ink)).join('');
+}
+
+function componentSummary(molecules: MoleculeDto[], coefficients: number[] | undefined): string {
+  if (!molecules.length) return 'none';
+  return molecules.map((_, index) => {
+    const coefficient = coefficients?.[index];
+    return coefficient === undefined || coefficient === 1 ? '1' : String(coefficient);
+  }).join(', ');
+}
+
+function conditionSummary(step: ReactionSchemeContext['steps'][number]): string {
+  return Object.entries(step.conditions ?? {})
+    .filter(([, value]) => value !== undefined && value !== '')
+    .map(([key, value]) => `${key}: ${value}`)
+    .join(' · ');
+}
+
+type SchemeArrowType = NonNullable<ReactionSchemeContext['steps'][number]['arrowType']>;
+
+function svgDirectedArrow(x1: number, y1: number, x2: number, y2: number, className: string): string {
+  const angle = Math.atan2(y2 - y1, x2 - x1);
+  const headLength = 8;
+  const wing = Math.PI / 6;
+  const points = [
+    [x2, y2],
+    [x2 - headLength * Math.cos(angle - wing), y2 - headLength * Math.sin(angle - wing)],
+    [x2 - headLength * Math.cos(angle + wing), y2 - headLength * Math.sin(angle + wing)],
+  ].map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(' ');
+  return `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" class="${className}"/><polygon points="${points}" class="arrow-head"/>`;
+}
+
+function svgStepArrow(arrow: SchemeLayout['stepArrows'][number], arrowType: SchemeArrowType = 'single'): string {
+  const dx = arrow.x2 - arrow.x1;
+  const dy = arrow.y2 - arrow.y1;
+  const length = Math.hypot(dx, dy) || 1;
+  const nx = -dy / length * 4;
+  const ny = dx / length * 4;
+  if (arrowType === 'equilibrium') {
+    return `${svgDirectedArrow(arrow.x1 + nx, arrow.y1 + ny, arrow.x2 + nx, arrow.y2 + ny, 'arrow-line')}${svgDirectedArrow(arrow.x2 - nx, arrow.y2 - ny, arrow.x1 - nx, arrow.y1 - ny, 'arrow-line')}`;
+  }
+  if (arrowType === 'double') {
+    return `${svgDirectedArrow(arrow.x1 + nx, arrow.y1 + ny, arrow.x2 + nx, arrow.y2 + ny, 'arrow-line')}<line x1="${(arrow.x1 - nx).toFixed(2)}" y1="${(arrow.y1 - ny).toFixed(2)}" x2="${(arrow.x2 - nx).toFixed(2)}" y2="${(arrow.y2 - ny).toFixed(2)}" class="arrow-line"/>`;
+  }
+  if (arrowType === 'retro') return svgDirectedArrow(arrow.x2, arrow.y2, arrow.x1, arrow.y1, 'arrow-line');
+  return svgDirectedArrow(arrow.x1, arrow.y1, arrow.x2, arrow.y2, 'arrow-line');
 }
 
 /**
@@ -209,11 +313,21 @@ export function exportSchemeAsSVG(
   greenMetrics: GreenChemistryMetrics | null,
   options: SchemeSvgOptions = {}
 ): string {
+  assertPublicationLayout(schemeLayout);
+  const fontScale = options.fontScale === 'compact' ? 0.85 : options.fontScale === 'large' ? 1.2 : 1;
+  const font = (size: number): string => `${(size * fontScale).toFixed(2)}px`;
   const style = options.preset === 'journal'
     ? { fontFamily: 'Arial, Helvetica, sans-serif', boxFill: '#ffffff', ink: '#111111', muted: '#333333', accent: '#111111', strokeWidth: '1.4' }
     : { fontFamily: 'Arial, Helvetica, sans-serif', boxFill: '#f9f9f9', ink: '#333333', muted: '#666666', accent: '#666666', strokeWidth: '2' };
-  const width = schemeLayout.canvasWidth + 40;
-  const height = schemeLayout.canvasHeight + 200;
+  const contentWidth = schemeLayout.canvasWidth + 40;
+  const contentHeight = schemeLayout.canvasHeight + 200;
+  const page = options.pageSize && options.pageSize !== 'auto' ? PUBLICATION_PAGE_SIZES[options.pageSize] : undefined;
+  const width = page?.width ?? contentWidth;
+  const height = page?.height ?? contentHeight;
+  const margin = page ? Math.max(0, Math.min(options.margin ?? 48, Math.min(width, height) / 3)) : 0;
+  const scale = page ? Math.min(1, (width - margin * 2) / contentWidth, (height - margin * 2) / contentHeight) : 1;
+  const offsetX = page ? Math.max(margin, (width - contentWidth * scale) / 2) : 0;
+  const offsetY = page ? Math.max(margin, (height - contentHeight * scale) / 2) : 0;
   const title = escapeXmlText(scheme.title || 'Reaction Scheme');
 
   let svg = `<?xml version="1.0" encoding="UTF-8"?>
@@ -221,13 +335,14 @@ export function exportSchemeAsSVG(
   <defs>
     <style>
       .step-box { fill: ${style.boxFill}; stroke: ${style.ink}; stroke-width: ${style.strokeWidth}; }
-      .step-title { font-size: 14px; font-weight: bold; fill: ${style.ink}; }
-      .step-text { font-size: 10px; fill: ${style.muted}; }
+      .step-title { font-size: ${font(14)}; font-weight: bold; fill: ${style.ink}; }
+      .step-text { font-size: ${font(10)}; fill: ${style.muted}; }
       .arrow-line { stroke: ${style.accent}; stroke-width: ${style.strokeWidth}; fill: none; }
       .arrow-head { fill: ${style.accent}; }
-      .atom-label { font-size: 10px; font-weight: bold; }
-      .legend-label { font-size: 11px; fill: ${style.ink}; }
-      .metric-text { font-size: 11px; fill: ${style.ink}; }
+      .atom-label { font-size: ${font(10)}; font-weight: bold; }
+      .atom-annotation { font-size: ${font(8)}; }
+      .legend-label { font-size: ${font(11)}; fill: ${style.ink}; }
+      .metric-text { font-size: ${font(11)}; fill: ${style.ink}; }
       text { font-family: ${style.fontFamily}; }
     </style>
   </defs>
@@ -235,8 +350,10 @@ export function exportSchemeAsSVG(
   <!-- Background -->
   <rect width="${width}" height="${height}" fill="#ffffff"/>
 
+  <g transform="translate(${offsetX.toFixed(2)} ${offsetY.toFixed(2)}) scale(${scale.toFixed(6)})">
+
   <!-- Title -->
-  <text x="20" y="25" class="legend-label" style="font-size: 16px; font-weight: bold;">
+  <text x="20" y="25" class="legend-label" style="font-size: ${font(16)}; font-weight: bold;">
     ${title}
   </text>
 
@@ -254,18 +371,22 @@ export function exportSchemeAsSVG(
     <rect x="${box.x}" y="${box.y}" width="${box.width}" height="${box.height}" class="step-box"/>
     <text x="${box.x + 10}" y="${box.y + 20}" class="step-title">Step ${box.stepIndex + 1}</text>
 
-    <text x="${box.x + 10}" y="${box.y + 45}" class="step-text">Reactants: ${step.reactants.length}</text>
+    <text x="${box.x + 10}" y="${box.y + 45}" class="step-text">Reactants: ${step.reactants.length} [${componentSummary(step.reactants, step.reactantCoefficients)}]</text>
     <text x="${box.x + 10}" y="${box.y + 65}" class="step-text">Arrows: ${step.arrows.length}</text>
-    <text x="${box.x + 10}" y="${box.y + 85}" class="step-text">Products: ${step.products.length}</text>
+    <text x="${box.x + 10}" y="${box.y + 85}" class="step-text">Products: ${step.products.length} [${componentSummary(step.products, step.productCoefficients)}]</text>
+    <text x="${box.x + 155}" y="${box.y + 45}" class="step-text">Agents: ${step.agents?.length ?? 0}</text>
+    ${conditionSummary(step) ? `<text x="${box.x + 155}" y="${box.y + 65}" class="step-text">${escapeXmlText(conditionSummary(step))}</text>` : ''}
+    ${renderMoleculeRow(step.reactants, box.x + 10, box.y + 92, box.width - 20, 48, style.ink)}
+    ${renderMoleculeRow(step.products, box.x + 10, box.y + 148, box.width - 20, 48, style.ink)}
 `;
   }
 
   // Draw arrows between steps
   for (const arrow of schemeLayout.stepArrows) {
+    const arrowType = scheme.steps[arrow.fromIndex]?.arrowType ?? 'single';
     svg += `
     <!-- Arrow ${arrow.fromIndex} -> ${arrow.toIndex} -->
-    <line x1="${arrow.x1}" y1="${arrow.y1}" x2="${arrow.x2}" y2="${arrow.y2}" class="arrow-line"/>
-    <polygon points="${arrow.x2},${arrow.y2} ${arrow.x2 - 8},${arrow.y2 - 4} ${arrow.x2 - 8},${arrow.y2 + 4}" class="arrow-head"/>
+    ${svgStepArrow(arrow, arrowType)}
 `;
   }
 
@@ -273,7 +394,7 @@ export function exportSchemeAsSVG(
   </g>
 
   <!-- Color Legend -->
-  <g transform="translate(20, ${height - 140})">
+  <g transform="translate(20, ${contentHeight - 140})">
     <text x="0" y="0" class="legend-label" style="font-weight: bold;">Atom Mapping Legend:</text>
 
     <rect x="0" y="10" width="12" height="12" fill="#51cf66"/>
@@ -290,7 +411,7 @@ export function exportSchemeAsSVG(
   </g>
 
   <!-- Metrics Panel -->
-  <g transform="translate(${width - 220}, ${height - 140})">
+  <g transform="translate(${contentWidth - 220}, ${contentHeight - 140})">
     <text x="0" y="0" class="legend-label" style="font-weight: bold;">Green Chemistry Metrics:</text>
 `;
 
@@ -305,9 +426,10 @@ export function exportSchemeAsSVG(
   </g>
 
   <!-- Footer -->
-  <text x="20" y="${height - 10}" class="legend-label" style="font-size: 9px;">
+  <text x="20" y="${contentHeight - 10}" class="legend-label" style="font-size: ${font(9)};">
     chematic-draw | deterministic SVG export
   </text>
+  </g>
 </svg>`;
 
   return svg;

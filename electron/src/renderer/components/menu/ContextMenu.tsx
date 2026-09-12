@@ -4,9 +4,11 @@ import { useMoleculeStore } from '../../store/moleculeStore';
 import { ElementPicker } from '../inspector/ElementPicker';
 import * as wasmBridge from '../../wasm/wasmBridge';
 import { BOND_STEREO } from '../../../../../packages/chematic-contract/src/index';
+import { alignSelectedAtoms, rotateSelectedAtoms } from '../../lib/selectionTransforms';
 
 export function ContextMenu() {
   const theme = useUIStore((s) => s.theme);
+  const language = useUIStore((s) => s.language);
   const contextMenu = useUIStore((s) => s.contextMenu);
   const hideContextMenu = useUIStore((s) => s.hideContextMenu);
   const molecule = useMoleculeStore((s) => s.molecule);
@@ -20,6 +22,7 @@ export function ContextMenu() {
   // right-click.
   const selectedAtom = molecule.atoms.find((a) => a.id === contextMenu?.atomId) ?? null;
   const selectedBond = molecule.bonds.find((b) => b.id === contextMenu?.bondId) ?? null;
+  const selectedAtoms = molecule.atoms.filter((atom) => atom.selected);
   const removeAtom = useMoleculeStore((s) => s.removeAtom);
   const removeBond = useMoleculeStore((s) => s.removeBond);
   const updateAtom = useMoleculeStore((s) => s.updateAtom);
@@ -27,6 +30,11 @@ export function ContextMenu() {
   const setMolecule = useMoleculeStore((s) => s.setMolecule);
   const pushUndo = useMoleculeStore((s) => s.pushUndo);
   const [showElementPicker, setShowElementPicker] = useState(false);
+  const labels = language === 'ja'
+    ? { setElement: '元素を設定…', hideElement: '元素ピッカーを閉じる', chargePlus: '電荷 +1', chargeMinus: '電荷 -1', deleteAtom: '原子を削除', alignHorizontal: '水平に整列', alignVertical: '垂直に整列', rotateClockwise: '90°回転', singleBond: '単結合', doubleBond: '二重結合', tripleBond: '三重結合', aromaticBond: '芳香族結合', wedgeUp: '実線くさび', dashDown: '破線くさび', deleteBond: '結合を削除', cleanLayout: '配置を整理', standardize: '構造を標準化' }
+    : language === 'zh'
+      ? { setElement: '设置元素…', hideElement: '关闭元素选择器', chargePlus: '电荷 +1', chargeMinus: '电荷 -1', deleteAtom: '删除原子', alignHorizontal: '水平对齐', alignVertical: '垂直对齐', rotateClockwise: '顺时针旋转90°', singleBond: '单键', doubleBond: '双键', tripleBond: '三键', aromaticBond: '芳香键', wedgeUp: '实楔键', dashDown: '虚楔键', deleteBond: '删除键', cleanLayout: '整理布局', standardize: '标准化结构' }
+      : { setElement: 'Set Element…', hideElement: 'Hide Element Picker', chargePlus: 'Charge +1', chargeMinus: 'Charge -1', deleteAtom: 'Delete Atom', alignHorizontal: 'Align Horizontally', alignVertical: 'Align Vertically', rotateClockwise: 'Rotate 90°', singleBond: 'Single Bond', doubleBond: 'Double Bond', tripleBond: 'Triple Bond', aromaticBond: 'Aromatic Bond', wedgeUp: 'Wedge Up', dashDown: 'Dash Down', deleteBond: 'Delete Bond', cleanLayout: 'Clean Layout', standardize: 'Standardize' };
 
   // Close context menu on escape
   useEffect(() => {
@@ -65,29 +73,35 @@ export function ContextMenu() {
   if (selectedAtom) {
     menuItems.push(
       {
-        label: showElementPicker ? 'Hide Element Picker' : 'Set Element…',
+        label: showElementPicker ? labels.hideElement : labels.setElement,
         action: () => {
           setShowElementPicker((visible) => !visible);
           return true;
         },
       },
       {
-        label: 'Charge +1',
+        label: labels.chargePlus,
         action: () => {
           pushUndo();
           updateAtom(selectedAtom.id, { charge: selectedAtom.charge + 1 });
         },
       },
       {
-        label: 'Charge -1',
+        label: labels.chargeMinus,
         action: () => {
           pushUndo();
           updateAtom(selectedAtom.id, { charge: selectedAtom.charge - 1 });
         },
       },
       { label: '', action: () => {} }, // separator
+      ...(selectedAtoms.length > 1 ? [
+        { label: labels.alignHorizontal, action: () => { pushUndo(); setMolecule(alignSelectedAtoms(molecule, 'horizontal')); hideContextMenu(); } },
+        { label: labels.alignVertical, action: () => { pushUndo(); setMolecule(alignSelectedAtoms(molecule, 'vertical')); hideContextMenu(); } },
+        { label: labels.rotateClockwise, action: () => { pushUndo(); setMolecule(rotateSelectedAtoms(molecule)); hideContextMenu(); } },
+        { label: '', action: () => {} },
+      ] : []),
       {
-        label: 'Delete Atom',
+        label: labels.deleteAtom,
         action: () => {
           pushUndo();
           removeAtom(selectedAtom.id);
@@ -97,16 +111,16 @@ export function ContextMenu() {
     );
   } else if (selectedBond) {
     menuItems.push(
-      { label: 'Single Bond', action: () => { pushUndo(); updateBond(selectedBond.id, { order: 1 }); } },
-      { label: 'Double Bond', action: () => { pushUndo(); updateBond(selectedBond.id, { order: 2 }); } },
-      { label: 'Triple Bond', action: () => { pushUndo(); updateBond(selectedBond.id, { order: 3 }); } },
-      { label: 'Aromatic Bond', action: () => { pushUndo(); updateBond(selectedBond.id, { order: 4 }); } },
+      { label: labels.singleBond, action: () => { pushUndo(); updateBond(selectedBond.id, { order: 1 }); } },
+      { label: labels.doubleBond, action: () => { pushUndo(); updateBond(selectedBond.id, { order: 2 }); } },
+      { label: labels.tripleBond, action: () => { pushUndo(); updateBond(selectedBond.id, { order: 3 }); } },
+      { label: labels.aromaticBond, action: () => { pushUndo(); updateBond(selectedBond.id, { order: 4 }); } },
       { label: '', action: () => {} }, // separator
-      { label: 'Wedge Up', action: () => { pushUndo(); updateBond(selectedBond.id, { stereo: BOND_STEREO.WedgeUp }); } },
-      { label: 'Dash Down', action: () => { pushUndo(); updateBond(selectedBond.id, { stereo: BOND_STEREO.WedgeDown }); } },
+      { label: labels.wedgeUp, action: () => { pushUndo(); updateBond(selectedBond.id, { stereo: BOND_STEREO.WedgeUp }); } },
+      { label: labels.dashDown, action: () => { pushUndo(); updateBond(selectedBond.id, { stereo: BOND_STEREO.WedgeDown }); } },
       { label: '', action: () => {} }, // separator
       {
-        label: 'Delete Bond',
+        label: labels.deleteBond,
         action: () => {
           pushUndo();
           removeBond(selectedBond.id);
@@ -116,8 +130,8 @@ export function ContextMenu() {
     );
   } else {
     menuItems.push(
-      { label: 'Clean Layout', action: () => { pushUndo(); setMolecule(wasmBridge.cleanLayout(molecule)); } },
-      { label: 'Standardize', action: () => { pushUndo(); setMolecule(wasmBridge.standardizeMolecule(molecule)); } }
+      { label: labels.cleanLayout, action: () => { pushUndo(); setMolecule(wasmBridge.cleanLayout(molecule)); } },
+      { label: labels.standardize, action: () => { pushUndo(); setMolecule(wasmBridge.standardizeMolecule(molecule)); } }
     );
   }
 
@@ -139,6 +153,8 @@ export function ContextMenu() {
   return (
     <div
       id="context-menu"
+      role="menu"
+      aria-label={language === 'ja' ? 'コンテキストメニュー' : language === 'zh' ? '上下文菜单' : 'Context menu'}
       style={{
         position: 'fixed',
         left: `${x}px`,

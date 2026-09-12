@@ -1,5 +1,6 @@
 import { MoleculeDto } from '../store/types';
 import { validateMoleculeDocument } from './documentCommands';
+import { APP_NAME, ENGINE_ID } from '../../engineMetadata';
 import type { SessionBundle as ContractSessionBundle } from '../../../../packages/chematic-contract/src/index';
 export type { SessionBundle } from '../../../../packages/chematic-contract/src/index';
 
@@ -44,10 +45,17 @@ function structureHash(molecule: MoleculeDto): string {
 }
 
 export function createSessionBundle(molecule: MoleculeDto, filePath: string | null): SessionBundle {
+  const moleculeErrors = validateMoleculeDocument(molecule);
+  if (moleculeErrors.length > 0) {
+    throw new Error(`Cannot create session bundle from an invalid molecule: ${moleculeErrors.join('; ')}`);
+  }
+  if (filePath !== null && (typeof filePath !== 'string' || filePath.length > MAX_SESSION_SOURCE_PATH_LENGTH)) {
+    throw new Error('Cannot create session bundle with an invalid source path.');
+  }
   return {
     schema: SESSION_BUNDLE_SCHEMA,
     schema_version: SESSION_BUNDLE_VERSION,
-    app: { name: 'chematic-draw', engine: 'chematic 1.0.12' },
+    app: { name: APP_NAME, engine: ENGINE_ID },
     source: { file_path: filePath },
     document: { schema_version: DOCUMENT_SCHEMA_VERSION, molecule },
     provenance: { operation: 'export-session-bundle', structure_hash: structureHash(molecule) },
@@ -61,7 +69,7 @@ function isMolecule(value: unknown): value is MoleculeDto {
 }
 
 function hasValidBundleMetadata(bundle: VersionedInputBundle): boolean {
-  if (!bundle.app || typeof bundle.app !== 'object' || bundle.app.name !== 'chematic-draw' || bundle.app.engine !== 'chematic 1.0.12') return false;
+  if (!bundle.app || typeof bundle.app !== 'object' || bundle.app.name !== APP_NAME || bundle.app.engine !== ENGINE_ID) return false;
   if (!bundle.document || bundle.document.schema_version !== DOCUMENT_SCHEMA_VERSION) return false;
   if (!bundle.source || typeof bundle.source !== 'object') return false;
   const filePath = bundle.source.file_path;
@@ -102,7 +110,11 @@ function migrateV1Bundle(bundle: VersionedInputBundle): SessionBundle | null {
   return {
     schema: SESSION_BUNDLE_SCHEMA,
     schema_version: SESSION_BUNDLE_VERSION,
-    app: bundle.app ?? { name: 'chematic-draw', engine: 'chematic 1.0.12' },
+    // v1 stored the producer metadata at the top level and may have been
+    // written by an older chematic engine. The v2 envelope describes the
+    // current reader, so normalize metadata rather than carrying stale
+    // values into v2 validation.
+    app: { name: APP_NAME, engine: ENGINE_ID },
     source: bundle.source ?? { file_path: null },
     document: { schema_version: DOCUMENT_SCHEMA_VERSION, molecule },
     provenance: bundle.provenance ?? { operation: 'export-session-bundle', structure_hash: structureHash(molecule) },

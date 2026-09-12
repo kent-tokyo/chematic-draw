@@ -142,6 +142,7 @@ async function searchPubChem(inchiKey: string, signal?: AbortSignal): Promise<Da
 
   try {
     const response = await fetch(url, { signal });
+    if (response.status === 404) return [];
     if (!response.ok) {
       throw new Error(`PubChem API error: ${response.statusText}`);
     }
@@ -159,8 +160,9 @@ async function searchPubChem(inchiKey: string, signal?: AbortSignal): Promise<Da
       return [];
     }
 
-    // Fetch compound details for name and properties
-    const detailUrl = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/JSON`;
+    // Fetch the canonical structure alongside display properties so a user
+    // can safely import the verified provider result into the editor.
+    const detailUrl = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/property/IUPACName,CanonicalSMILES,MolecularFormula,MolecularWeight/JSON`;
     const detailResponse = await fetch(detailUrl, { signal });
 
     if (!detailResponse.ok) {
@@ -173,26 +175,15 @@ async function searchPubChem(inchiKey: string, signal?: AbortSignal): Promise<Da
       }];
     }
 
-    const detailData = await detailResponse.json();
-    const detailCompound = detailData.PC_Compounds?.[0];
-
+    const detailData = await detailResponse.json() as { PropertyTable?: { Properties?: Array<Record<string, string | number>> } };
+    const detail = detailData.PropertyTable?.Properties?.[0] ?? {};
     const properties: Record<string, string | number> = {};
-
-    // Extract molecular properties if available
-    if (detailCompound?.props) {
-      for (const prop of detailCompound.props) {
-        if (prop.urn?.label && prop.value) {
-          const value = prop.value.sval ?? prop.value.ival ?? prop.value.fval;
-          if (typeof value === 'string' || typeof value === 'number') {
-            properties[prop.urn.label] = value;
-          }
-        }
-      }
+    for (const [key, label] of [['MolecularFormula', 'Molecular formula'], ['MolecularWeight', 'Molecular weight']] as const) {
+      const value = detail[key];
+      if (typeof value === 'string' || typeof value === 'number') properties[label] = value;
     }
-
-    const iupacValue = properties['IUPAC Name'];
-    const iupacName = typeof iupacValue === 'string' && iupacValue.length > 0
-      ? iupacValue
+    const iupacName = typeof detail.IUPACName === 'string' && detail.IUPACName.length > 0
+      ? detail.IUPACName
       : `Compound ${cid}`;
 
     return [
@@ -201,11 +192,13 @@ async function searchPubChem(inchiKey: string, signal?: AbortSignal): Promise<Da
         name: iupacName,
         source: 'pubchem',
         similarity: 1.0,
+        ...(typeof detail.CanonicalSMILES === 'string' ? { smiles: detail.CanonicalSMILES } : {}),
         properties,
       },
     ];
   } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') throw error;
     console.error('PubChem API error:', error);
-    return [];
+    throw error instanceof Error ? error : new Error(String(error));
   }
 }

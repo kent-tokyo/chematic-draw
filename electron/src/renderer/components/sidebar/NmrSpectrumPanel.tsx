@@ -23,6 +23,7 @@ export function NmrSpectrumPanel() {
   const maxShift = Math.max(10, ...shifts, 0);
   const minShift = Math.min(0, ...shifts);
   const range = maxShift - minShift || 1;
+  const visiblePeaks = spectrum?.peaks.slice(0, 100) ?? [];
   const bars = useMemo(() => spectrum?.peaks.map((peak) => ({
     ...peak,
     x: ((maxShift - peak.shiftPpm) / range) * 100,
@@ -90,6 +91,19 @@ export function NmrSpectrumPanel() {
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
   };
 
+  const updatePeakAnnotation = (peakId: string, field: 'assignment' | 'note', value: string) => {
+    if (!spectrum) return;
+    const next: NmrSpectrum = {
+      ...spectrum,
+      peaks: spectrum.peaks.map((peak) => peak.id === peakId
+        ? { ...peak, [field]: value.trim() ? value : undefined }
+        : peak),
+    };
+    setSpectrum(next);
+    setRaw(serializeNmrSpectrum(next));
+    setErrors([]);
+  };
+
   return (
     <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
       <div style={{ fontSize: '13px', fontWeight: 'bold', color: textColor }}>{isJapanese ? 'NMRスペクトル' : 'NMR spectrum'}</div>
@@ -126,6 +140,23 @@ export function NmrSpectrumPanel() {
           </svg>
           <div style={{ color: labelColor, fontSize: 9, display: 'flex', justifyContent: 'space-between' }}><span>{maxShift.toFixed(2)} ppm</span><span>{minShift.toFixed(2)} ppm</span></div>
         </div>
+      )}
+      {spectrum && spectrum.peaks.length > 0 && (
+        <section aria-label={isJapanese ? 'NMRピーク帰属' : 'NMR peak assignments'} style={{ border: `1px solid ${borderColor}`, borderRadius: 4, padding: 8 }}>
+          <div style={{ color: textColor, fontSize: 11, fontWeight: 'bold', marginBottom: 6 }}>{isJapanese ? 'ピーク帰属（手動）' : 'Peak assignments (manual)'}</div>
+          <div style={{ color: labelColor, fontSize: 9, marginBottom: 6 }}>
+            {isJapanese ? '帰属とメモは実験データに保存されます。' : 'Assignments and notes are saved with the experimental data.'}
+            {spectrum.peaks.length > visiblePeaks.length ? ` ${isJapanese ? `先頭${visiblePeaks.length}件を表示中（全${spectrum.peaks.length}件）` : `Showing the first ${visiblePeaks.length} of ${spectrum.peaks.length} peaks.`}` : ''}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '64px minmax(90px, 1fr) minmax(90px, 1fr)', gap: 4, color: labelColor, fontSize: 9, alignItems: 'center' }}>
+            <span>{isJapanese ? 'ppm' : 'ppm'}</span><span>{isJapanese ? '帰属' : 'Assignment'}</span><span>{isJapanese ? 'メモ' : 'Note'}</span>
+            {visiblePeaks.map((peak) => <React.Fragment key={peak.id}>
+              <span>{peak.shiftPpm}</span>
+              <input aria-label={`${peak.id} ${isJapanese ? '帰属' : 'assignment'}`} value={peak.assignment ?? ''} onChange={(event) => updatePeakAnnotation(peak.id, 'assignment', event.target.value)} maxLength={2048} />
+              <input aria-label={`${peak.id} ${isJapanese ? 'メモ' : 'note'}`} value={peak.note ?? ''} onChange={(event) => updatePeakAnnotation(peak.id, 'note', event.target.value)} maxLength={2048} />
+            </React.Fragment>)}
+          </div>
+        </section>
       )}
     </div>
   );

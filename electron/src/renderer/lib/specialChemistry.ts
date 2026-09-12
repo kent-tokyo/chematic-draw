@@ -1,5 +1,6 @@
 import type { NucleicAcidDefinition, QueryDocument, MarkushDefinition, PolymerDefinition } from './queryDocument';
 import { validateQueryDocument } from './queryDocument';
+import type { MoleculeDto } from '../store/types';
 
 export type MarkushSelection = { definitionId: string; substituentSmarts: string };
 
@@ -26,6 +27,37 @@ export function selectMarkushSubstituent(document: QueryDocument, definitionId: 
   if (!definition) throw new Error(`Unknown Markush definition: ${definitionId}`);
   if (!definition.allowedSubstituentSmarts.includes(substituentSmarts)) throw new Error(`Substituent is not allowed by Markush definition: ${substituentSmarts}`);
   return { definitionId, substituentSmarts };
+}
+
+/**
+ * Checks the explicit contract required by the upstream semantic expander.
+ * Markush alternatives are currently SMILES fragments, not arbitrary SMARTS:
+ * every source attachment must have exactly one single-bonded `[*]` marker.
+ * Keeping this check here makes the editor error actionable before crossing
+ * the WASM boundary, while leaving the query document lossless.
+ */
+export function validateMarkushExpansion(
+  document: QueryDocument,
+  definitionId: string,
+  substituentSmiles: string,
+  molecule: MoleculeDto,
+): void {
+  assertValid(document);
+  const definition = (document.markush ?? []).find((candidate) => candidate.id === definitionId);
+  if (!definition) throw new Error(`Unknown Markush definition: ${definitionId}`);
+  if (!definition.allowedSubstituentSmarts.includes(substituentSmiles)) throw new Error(`Substituent is not allowed by Markush definition: ${substituentSmiles}`);
+
+  const moleculeAtomIds = new Set(molecule.atoms.map((atom) => atom.id));
+  const missing = definition.attachmentAtomIds.filter((id) => !moleculeAtomIds.has(id));
+  if (missing.length > 0) throw new Error(`Markush ${definitionId} references atom IDs missing from the current molecule: ${missing.join(', ')}`);
+
+  const wildcardCount = (substituentSmiles.match(/\*/g) ?? []).length;
+  if (wildcardCount !== definition.attachmentAtomIds.length) {
+    throw new Error(`Markush ${definitionId} needs ${definition.attachmentAtomIds.length} [*] attachment marker${definition.attachmentAtomIds.length === 1 ? '' : 's'}; the selected SMILES has ${wildcardCount}`);
+  }
+  if (substituentSmiles.trim().length < 4) {
+    throw new Error(`Markush ${definitionId} requires a non-empty SMILES fragment with [*] and a substituent atom`);
+  }
 }
 
 /** Immutable editor operation for polymer metadata. */

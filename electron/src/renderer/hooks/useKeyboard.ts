@@ -22,6 +22,7 @@ export function useKeyboard() {
   const getSelectedAtoms = useMoleculeStore((s) => s.getSelectedAtoms);
   const getSelectedBonds = useMoleculeStore((s) => s.getSelectedBonds);
   const setFocusMode = useUIStore((s) => s.setFocusMode);
+  const setSidebarOpen = useUIStore((s) => s.setSidebarOpen);
   const focusMode = useUIStore((s) => s.focusMode);
   const showModal = useUIStore((s) => s.showModal);
   const molecule = useMoleculeStore((s) => s.molecule);
@@ -34,6 +35,36 @@ export function useKeyboard() {
       // Allow native editing behavior in all editable controls.
       const isInput = isEditableTarget(e.target);
       const shortcut = (action: keyof typeof shortcutBindings) => matchesShortcut(e, shortcutBindings[action]);
+
+      // Cmd/Ctrl+K is a discoverability shortcut, not a chemistry mutation:
+      // open the sidebar and put the feature search under the user's cursor.
+      if (!isInput && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSidebarOpen(true);
+        window.setTimeout(() => document.querySelector<HTMLInputElement>('[data-testid="sidebar-panel-search"]')?.focus(), 0);
+        return;
+      }
+
+      if (shortcut('cut')) {
+        if (!isInput) {
+          e.preventDefault();
+          const selectedAtoms = getSelectedAtoms();
+          const selectedBonds = getSelectedBonds();
+          if (selectedAtoms.length === 0 && selectedBonds.length === 0) {
+            setStatus('Nothing selected to cut');
+            return;
+          }
+          clipboard.copyMoleculeSmiles(molecule)
+            .then(() => {
+              pushUndo();
+              selectedAtoms.forEach((atom) => removeAtom(atom.id));
+              selectedBonds.forEach((bond) => removeBond(bond.id));
+              setStatus('Cut selected structure');
+            })
+            .catch(() => setStatus('Cut failed: clipboard unavailable'));
+        }
+        return;
+      }
 
       // Copy (Ctrl+C / Cmd+C)
       if (shortcut('copy')) {
@@ -58,6 +89,21 @@ export function useKeyboard() {
               setStatus('Pasted structure');
             })
             .catch(() => setStatus('Paste failed: invalid format'));
+        }
+        return;
+      }
+
+      if (shortcut('duplicate')) {
+        if (!isInput) {
+          e.preventDefault();
+          const duplicated = clipboard.duplicateMoleculeSelection(molecule);
+          if (!duplicated) {
+            setStatus('Nothing selected to duplicate');
+            return;
+          }
+          pushUndo();
+          setMolecule(duplicated);
+          setStatus('Duplicated selected structure');
         }
         return;
       }
@@ -204,6 +250,7 @@ export function useKeyboard() {
     getSelectedAtoms,
     getSelectedBonds,
     setFocusMode,
+    setSidebarOpen,
     focusMode,
     showModal,
     molecule,

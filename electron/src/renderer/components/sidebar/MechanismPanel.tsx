@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
 import { useMechanismStore } from '../../store/mechanismStore';
@@ -7,6 +7,8 @@ import { ArrowTypeDialog } from '../modals/ArrowTypeDialog';
 import { useElectronSuggestions } from '../../hooks/useElectronSuggestions';
 import { ArrowSuggestion } from '../../store/types';
 import { MechanismArrow } from '../../store/types';
+
+const EMPTY_MECHANISM_ARROWS: MechanismArrow[] = [];
 
 export function MechanismPanel() {
   const theme = useUIStore((s) => s.theme);
@@ -22,11 +24,20 @@ export function MechanismPanel() {
   const suggestionsVisible = useMechanismStore((s) => s.suggestionsVisible);
 
   const scheme = useReactionSchemeStore((s) => s.scheme);
+  const currentStepArrows = useReactionSchemeStore((s) => s.scheme?.steps[s.scheme.currentStepIndex]?.arrows ?? EMPTY_MECHANISM_ARROWS);
   const updateCurrentStepArrows = useReactionSchemeStore((s) => s.updateCurrentStepArrows);
   const viewMode = useReactionSchemeStore((s) => s.scheme?.viewMode);
   const setViewMode = useReactionSchemeStore((s) => s.setViewMode);
 
   useElectronSuggestions();
+
+  // The interactive arrow store is a projection of the selected reaction
+  // step. Keep it synchronized when navigation, import, or external step
+  // edits change the authored arrows; otherwise old arrows remain visible and
+  // edits can disappear from reaction-document JSON export.
+  useEffect(() => {
+    useMechanismStore.getState().setArrows(scheme ? currentStepArrows : []);
+  }, [currentStepArrows, scheme]);
 
   const [selectedArrowId, setSelectedArrowIdLocal] = useState<string | null>(null);
   const showArrowTypeDialog = pendingSourceAtomId !== null && pendingSinkAtomId !== null;
@@ -52,16 +63,19 @@ export function MechanismPanel() {
 
   const handleRemoveArrow = (arrowId: string) => {
     useMechanismStore.getState().removeArrow(arrowId);
+    if (scheme) updateCurrentStepArrows(currentStepArrows.filter((arrow) => arrow.id !== arrowId));
     setStatus(isJapanese ? '矢印を削除しました' : 'Arrow removed');
   };
 
   const handleChangeArrowType = (arrowId: string, type: 'forward' | 'retro' | 'resonance') => {
     useMechanismStore.getState().updateArrow(arrowId, { type });
+    if (scheme) updateCurrentStepArrows(currentStepArrows.map((arrow) => arrow.id === arrowId ? { ...arrow, type } : arrow));
     setStatus(isJapanese ? `矢印の種類を${type}に変更しました` : `Arrow type changed to ${type}`);
   };
 
   const handleLabelChange = (arrowId: string, newLabel: string) => {
     useMechanismStore.getState().updateArrow(arrowId, { label: newLabel });
+    if (scheme) updateCurrentStepArrows(currentStepArrows.map((arrow) => arrow.id === arrowId ? { ...arrow, label: newLabel } : arrow));
   };
 
   const handleCreateFromSuggestion = (suggestion: ArrowSuggestion) => {

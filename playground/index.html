@@ -3,14 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Try Chematic Draw in your browser: edit chemical structures, inspect molecules, and export SMILES or SVG." />
+    <meta name="description" content="Try the Chematic Draw chemical structure editor in your browser: draw, inspect, and analyze molecules locally." />
     <meta name="keywords" content="chemical structure editor, molecule editor, SMILES editor, chemistry drawing" />
     <meta property="og:title" content="Chematic Draw Playground" />
-    <meta property="og:description" content="Edit and export chemical structures directly in your browser." />
+    <meta property="og:description" content="Draw and inspect chemical structures directly in your browser with the same editor workspace as Chematic Draw." />
     <title>Chematic Draw Playground</title>
+    <script>window.__CHEMATIC_PLAYGROUND__ = true;</script>
   </head>
   <body>
-    <div id="playground-root"></div>
+    <div id="root"></div>
     <script type="module" src="./src/main.tsx"></script>
   </body>
 </html>

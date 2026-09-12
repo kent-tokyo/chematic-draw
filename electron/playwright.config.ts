@@ -45,6 +45,7 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         baseURL: 'http://localhost:5173',
+        permissions: ['clipboard-read', 'clipboard-write'],
         trace: 'on-first-retry',
         screenshot: 'only-on-failure',
       },

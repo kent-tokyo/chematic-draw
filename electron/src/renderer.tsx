@@ -17,14 +17,18 @@ import * as wasmBridge from './renderer/wasm/wasmBridge';
 import { svgToPngBase64 } from './renderer/lib/svgToPng';
 import * as clipboard from './renderer/lib/clipboard';
 import { exportLossMessage, exportLosses, formatForFilePath, MoleculeExportFormat } from './renderer/lib/exportLoss';
-import { parseSessionBundle, serializeSessionBundle } from './renderer/lib/sessionBundle';
 import { exportCdxml } from './renderer/lib/cdxmlExport';
-import { canPreserveCdxml, captureRichCdxmlSession, RichCdxmlSession, serializeCdxmlForPath } from './renderer/lib/cdxmlWorkflow';
+import { canPreserveCdxml, captureRichCdxmlSession, cdxmlSessionLossWarnings, RichCdxmlSession, serializeCdxmlForPath } from './renderer/lib/cdxmlWorkflow';
 import { runAnalysisInWorker } from './renderer/lib/analysisWorkerClient';
 import { useAppInitialization } from './renderer/hooks/useAppInitialization';
+import { ENGINE_ID } from './engineMetadata';
+import { alignSelectedAtoms, rotateSelectedAtoms } from './renderer/lib/selectionTransforms';
+import { BrowserDocumentToolbar } from './renderer/components/BrowserDocumentToolbar';
 
 async function parseMoleculeDocument(content: string, filePath: string): Promise<MoleculeDto> {
-  if (filePath.toLowerCase().endsWith('.json')) return parseSessionBundle(content).document.molecule;
+  if (filePath.toLowerCase().endsWith('.json')) {
+    return await runAnalysisInWorker('parse-session', undefined, undefined, undefined, content) as MoleculeDto;
+  }
   return await runAnalysisInWorker('parse', undefined, undefined, undefined, content) as MoleculeDto;
 }
 
@@ -43,11 +47,19 @@ async function serializeMoleculeForPath(molecule: MoleculeDto, filePath: string)
   }
 }
 
-function confirmLossAwareExport(molecule: MoleculeDto, filePath: string): boolean {
+function confirmLossAwareExport(molecule: MoleculeDto, filePath: string, extraWarnings: string[] = []): boolean {
   const format: MoleculeExportFormat = formatForFilePath(filePath);
   const losses = exportLosses(molecule, format);
   if (losses.some((loss) => loss.code === 'unsupported-format')) return false;
-  return losses.length === 0 || window.confirm(exportLossMessage(filePath, losses));
+  if (extraWarnings.length === 0) return losses.length === 0 || window.confirm(exportLossMessage(filePath, losses));
+  const warningText = [
+    `Exporting to ${filePath} may lose document information:`,
+    ...losses.map((loss) => `• ${loss.message}`),
+    ...extraWarnings.map((warning) => `• ${warning}`),
+    '',
+    'Continue anyway?',
+  ].join('\n');
+  return window.confirm(warningText);
 }
 
 function App() {
@@ -63,6 +75,7 @@ function App() {
   const activeTool = useCanvasStore((s) => s.activeTool);
   const setTool = useCanvasStore((s) => s.setTool);
   const setZoom = useCanvasStore((s) => s.setZoom);
+  const fitView = useCanvasStore((s) => s.fitView);
   const zoom = useCanvasStore((s) => s.zoom);
   const molecule = useMoleculeStore((s) => s.molecule);
   const setMolecule = useMoleculeStore((s) => s.setMolecule);
@@ -70,6 +83,8 @@ function App() {
   const selectAll = useMoleculeStore((s) => s.selectAll);
   const undo = useMoleculeStore((s) => s.undo);
   const redo = useMoleculeStore((s) => s.redo);
+  const undoCount = useMoleculeStore((s) => s.undoStack.length);
+  const redoCount = useMoleculeStore((s) => s.redoStack.length);
   const pushUndo = useMoleculeStore((s) => s.pushUndo);
   const statusMessage = useUIStore((s) => s.statusMessage);
   const setStatus = useUIStore((s) => s.setStatus);
@@ -82,6 +97,7 @@ function App() {
   const addBatchResult = useUIStore((s) => s.addBatchResult);
   const shortcutBindings = useUIStore((s) => s.shortcutBindings);
   const tr = (english: string, japanese: string, chinese: string) => language === 'ja' ? japanese : language === 'zh' ? chinese : english;
+  const isBrowserHost = typeof window !== 'undefined' && Boolean((window as any).__CHEMATIC_PLAYGROUND__) && !(window as any).electronAPI;
 
   // Autosave: debounced crash-recovery snapshot, written to a file main.js
   // clears on every clean quit. Its mere presence at next launch is what
@@ -169,8 +185,8 @@ function App() {
         if (filePath) {
           const format = formatForFilePath(filePath);
           const preserveRichCdxml = canPreserveCdxml(molecule, filePath, richCdxmlSession);
-          if (!preserveRichCdxml && !confirmLossAwareExport(molecule, filePath)) {
-            if (exportLosses(molecule, format).length > 0) announce('Save cancelled', '保存をキャンセルしました');
+          if (!preserveRichCdxml && !confirmLossAwareExport(molecule, filePath, format === 'cdxml' ? cdxmlSessionLossWarnings(richCdxmlSession) : [])) {
+            announce('Save cancelled', '保存をキャンセルしました');
             return;
           }
           const content = format === 'cdxml'
@@ -192,7 +208,7 @@ function App() {
         const result = await api.fileSaveDialog('untitled.mol');
         if (!result.canceled && result.filePath) {
           const preserveRichCdxml = canPreserveCdxml(molecule, result.filePath, richCdxmlSession);
-          if (!preserveRichCdxml && !confirmLossAwareExport(molecule, result.filePath)) {
+          if (!preserveRichCdxml && !confirmLossAwareExport(molecule, result.filePath, formatForFilePath(result.filePath) === 'cdxml' ? cdxmlSessionLossWarnings(richCdxmlSession) : [])) {
             announce('Save cancelled', '保存をキャンセルしました');
             return;
           }
@@ -300,7 +316,7 @@ function App() {
       api.onMenuExportJson?.(async () => {
         const result = await api.fileSaveDialog('untitled.schematic.json');
         if (!result.canceled && result.filePath) {
-          const content = serializeSessionBundle(molecule, filePath);
+          const content = await runAnalysisInWorker('serialize-session', molecule, undefined, undefined, filePath) as string;
           const writeResult = await api.fileWrite(result.filePath, content);
           if (writeResult.success) setStatus(`Exported session bundle: ${result.filePath}`);
           else setStatus(`Export failed: ${writeResult.error}`);
@@ -354,6 +370,26 @@ function App() {
           setStatus(changed
             ? `Redid last edit. ${summary}.`
             : 'Nothing to redo.');
+        }
+      });
+
+      api.onMenuCut?.(async () => {
+        if ((document.activeElement as HTMLElement | null)?.tagName === 'INPUT') return;
+        const current = useMoleculeStore.getState().molecule;
+        const selectedAtoms = current.atoms.filter((atom) => atom.selected);
+        const selectedBonds = current.bonds.filter((bond) => bond.selected);
+        if (selectedAtoms.length === 0 && selectedBonds.length === 0) {
+          announce('Nothing selected to cut', '切り取る構造が選択されていません');
+          return;
+        }
+        try {
+          await clipboard.copyMoleculeSmiles(current);
+          pushUndo();
+          selectedAtoms.forEach((atom) => useMoleculeStore.getState().removeAtom(atom.id));
+          selectedBonds.forEach((bond) => useMoleculeStore.getState().removeBond(bond.id));
+          announce('Cut selected structure', '選択した構造を切り取りました');
+        } catch {
+          announce('Cut failed', '切り取りに失敗しました');
         }
       });
 
@@ -455,7 +491,7 @@ function App() {
       });
 
       const provenance = {
-        engine: 'chematic 1.0.12' as const,
+        engine: ENGINE_ID as 'chematic 1.0.12',
         inputFormat: config.inputFormat,
         outputFormat: config.outputFormat,
         filterOptions: config.operation === 'filter' ? {
@@ -509,7 +545,7 @@ function App() {
       setStatus(`Batch processing failed: ${(err as Error).message}`);
       console.error('Batch error:', err);
       addBatchResult(config.operation, 0, 1, 0, 'fnv1a-32:00000000', [(err as Error).message], {
-        engine: 'chematic 1.0.12',
+        engine: ENGINE_ID as 'chematic 1.0.12',
         inputFormat: config.inputFormat,
         outputFormat: config.outputFormat,
       }, {
@@ -553,19 +589,34 @@ function App() {
   };
 
   const toolButtons: Array<{ tool: Tool; label: string; key: string; ariaLabel: string }> = [
-    { tool: Tool.Select, label: 'Select', key: 'ESC', ariaLabel: 'Select tool' },
-    { tool: Tool.Atom_C, label: 'C', key: 'C', ariaLabel: 'Carbon atom' },
-    { tool: Tool.Atom_N, label: 'N', key: 'N', ariaLabel: 'Nitrogen atom' },
-    { tool: Tool.Atom_O, label: 'O', key: 'O', ariaLabel: 'Oxygen atom' },
-    { tool: Tool.Atom_S, label: 'S', key: 'S', ariaLabel: 'Sulfur atom' },
-    { tool: Tool.Atom_P, label: 'P', key: 'P', ariaLabel: 'Phosphorus atom' },
-    { tool: Tool.Bond_Single, label: '─', key: '1', ariaLabel: 'Single bond' },
-    { tool: Tool.Bond_Double, label: '═', key: '2', ariaLabel: 'Double bond' },
-    { tool: Tool.Bond_Triple, label: '≡', key: '3', ariaLabel: 'Triple bond' },
-    { tool: Tool.Bond_Aromatic, label: '◯', key: '4', ariaLabel: 'Aromatic bond' },
-    { tool: Tool.Eraser, label: '✕', key: 'DEL', ariaLabel: 'Eraser' },
+    { tool: Tool.Select, label: tr('Select', '選択', '选择'), key: 'ESC', ariaLabel: tr('Select tool', '選択ツール', '选择工具') },
+    { tool: Tool.Atom_C, label: 'C', key: 'C', ariaLabel: tr('Carbon atom', '炭素原子', '碳原子') },
+    { tool: Tool.Atom_N, label: 'N', key: 'N', ariaLabel: tr('Nitrogen atom', '窒素原子', '氮原子') },
+    { tool: Tool.Atom_O, label: 'O', key: 'O', ariaLabel: tr('Oxygen atom', '酸素原子', '氧原子') },
+    { tool: Tool.Atom_S, label: 'S', key: 'S', ariaLabel: tr('Sulfur atom', '硫黄原子', '硫原子') },
+    { tool: Tool.Atom_P, label: 'P', key: 'P', ariaLabel: tr('Phosphorus atom', 'リン原子', '磷原子') },
+    { tool: Tool.Bond_Single, label: '─', key: '1', ariaLabel: tr('Single bond', '単結合', '单键') },
+    { tool: Tool.Bond_Double, label: '═', key: '2', ariaLabel: tr('Double bond', '二重結合', '双键') },
+    { tool: Tool.Bond_Triple, label: '≡', key: '3', ariaLabel: tr('Triple bond', '三重結合', '三键') },
+    { tool: Tool.Bond_Aromatic, label: '◯', key: '4', ariaLabel: tr('Aromatic bond', '芳香族結合', '芳香键') },
+    { tool: Tool.Eraser, label: '✕', key: 'DEL', ariaLabel: tr('Eraser', '消しゴム', '橡皮擦') },
   ];
   const primaryModifier = typeof navigator !== 'undefined' && navigator.platform.toUpperCase().includes('MAC') ? 'Cmd' : 'Ctrl';
+  const selectedAtomCount = molecule.atoms.filter((atom) => atom.selected).length;
+  const transformSelection = (transform: (value: MoleculeDto) => MoleculeDto, english: string, japanese: string) => {
+    if (selectedAtomCount < 2) return;
+    pushUndo();
+    setMolecule(transform(molecule));
+    announce(english, japanese);
+  };
+
+  const handleBrowserMoleculeLoaded = (loaded: MoleculeDto, sourceName?: string) => {
+    pushUndo();
+    setMolecule(loaded);
+    setFilePath(sourceName ?? null);
+    setRichCdxmlSession(null);
+    useCanvasStore.getState().requestCenterOnLoad();
+  };
 
   return (
     <div
@@ -629,6 +680,15 @@ function App() {
           <span className="app-brand-mark" aria-hidden="true">⌬</span>
           <span>Chematic Draw</span>
         </div>
+        {isBrowserHost && (
+          <BrowserDocumentToolbar
+            molecule={molecule}
+            language={language}
+            onMoleculeLoaded={handleBrowserMoleculeLoaded}
+            onNew={() => { clear(); setFilePath(null); setRichCdxmlSession(null); }}
+            onStatus={setStatus}
+          />
+        )}
         {!sidebarOpen && (
           <button
             data-testid="show-sidebar"
@@ -645,7 +705,7 @@ function App() {
           <button
             key={btn.tool}
             onClick={() => setTool(btn.tool)}
-            title={`${btn.label} [${btn.key}]`}
+            title={`${language === 'en' ? btn.label : btn.ariaLabel} [${btn.key}]`}
             aria-label={btn.ariaLabel}
             aria-pressed={activeTool === btn.tool}
             style={{
@@ -668,7 +728,7 @@ function App() {
           <button
             key={btn.tool}
             onClick={() => setTool(btn.tool)}
-            title={`${btn.label} [${btn.key}]`}
+            title={`${language === 'en' ? btn.label : btn.ariaLabel} [${btn.key}]`}
             aria-label={btn.ariaLabel}
             aria-pressed={activeTool === btn.tool}
             style={{
@@ -686,7 +746,69 @@ function App() {
           </button>
         ))}
 
+        <span aria-hidden="true" style={{ width: '1px', height: '22px', backgroundColor: theme === 'dark' ? '#555' : '#ccc', margin: '0 4px' }} />
+        <span className="toolbar-section-label" style={{ fontSize: '10px', opacity: 0.6, marginRight: '2px' }}>{tr('History', '履歴', '历史')}</span>
+        <button
+          type="button"
+          data-testid="undo-button"
+          onClick={() => { if (undo()) announce('Undid last edit', '直前の編集を元に戻しました'); }}
+          disabled={undoCount === 0}
+          aria-label={tr('Undo last edit', '直前の編集を元に戻す', '撤销上一步编辑')}
+          title={`${tr('Undo last edit', '直前の編集を元に戻す', '撤销上一步编辑')} [${primaryModifier}+Z]`}
+          style={{ padding: '6px 9px', backgroundColor: 'transparent', color: 'inherit', border: '1px solid currentColor', borderRadius: '4px', cursor: undoCount === 0 ? 'default' : 'pointer', fontSize: '14px', opacity: undoCount === 0 ? 0.4 : 1 }}
+        >↶</button>
+        <button
+          type="button"
+          data-testid="redo-button"
+          onClick={() => { if (redo()) announce('Redid last edit', '編集をやり直しました'); }}
+          disabled={redoCount === 0}
+          aria-label={tr('Redo last edit', '直前の編集をやり直す', '重做上一步编辑')}
+          title={`${tr('Redo last edit', '直前の編集をやり直す', '重做上一步编辑')} [${primaryModifier}+Shift+Z]`}
+          style={{ padding: '6px 9px', backgroundColor: 'transparent', color: 'inherit', border: '1px solid currentColor', borderRadius: '4px', cursor: redoCount === 0 ? 'default' : 'pointer', fontSize: '14px', opacity: redoCount === 0 ? 0.4 : 1 }}
+        >↷</button>
+
+        <span aria-hidden="true" style={{ width: '1px', height: '22px', backgroundColor: theme === 'dark' ? '#555' : '#ccc', margin: '0 4px' }} />
+        <span className="toolbar-section-label" style={{ fontSize: '10px', opacity: 0.6, marginRight: '2px' }}>{tr('Arrange', '配置', '排列')}</span>
+        <button
+          type="button"
+          data-testid="align-horizontal-button"
+          onClick={() => transformSelection((value) => alignSelectedAtoms(value, 'horizontal'), 'Aligned selection horizontally', '選択範囲を横方向に整列しました')}
+          disabled={selectedAtomCount < 2}
+          aria-label={tr('Align selected atoms horizontally', '選択した原子を横方向に整列', '水平对齐选中的原子')}
+          title={tr('Align selected atoms horizontally', '選択した原子を横方向に整列', '水平对齐选中的原子')}
+          style={{ padding: '6px 8px', backgroundColor: 'transparent', color: 'inherit', border: '1px solid currentColor', borderRadius: '4px', cursor: selectedAtomCount < 2 ? 'default' : 'pointer', fontSize: '12px', opacity: selectedAtomCount < 2 ? 0.4 : 1 }}
+        >↔</button>
+        <button
+          type="button"
+          data-testid="align-vertical-button"
+          onClick={() => transformSelection((value) => alignSelectedAtoms(value, 'vertical'), 'Aligned selection vertically', '選択範囲を縦方向に整列しました')}
+          disabled={selectedAtomCount < 2}
+          aria-label={tr('Align selected atoms vertically', '選択した原子を縦方向に整列', '垂直对齐选中的原子')}
+          title={tr('Align selected atoms vertically', '選択した原子を縦方向に整列', '垂直对齐选中的原子')}
+          style={{ padding: '6px 8px', backgroundColor: 'transparent', color: 'inherit', border: '1px solid currentColor', borderRadius: '4px', cursor: selectedAtomCount < 2 ? 'default' : 'pointer', fontSize: '12px', opacity: selectedAtomCount < 2 ? 0.4 : 1 }}
+        >↕</button>
+        <button
+          type="button"
+          data-testid="rotate-selection-button"
+          onClick={() => transformSelection((value) => rotateSelectedAtoms(value), 'Rotated selection 90 degrees', '選択範囲を90度回転しました')}
+          disabled={selectedAtomCount < 2}
+          aria-label={tr('Rotate selected atoms 90 degrees', '選択した原子を90度回転', '将选中的原子旋转90度')}
+          title={tr('Rotate selected atoms 90 degrees', '選択した原子を90度回転', '将选中的原子旋转90度')}
+          style={{ padding: '6px 8px', backgroundColor: 'transparent', color: 'inherit', border: '1px solid currentColor', borderRadius: '4px', cursor: selectedAtomCount < 2 ? 'default' : 'pointer', fontSize: '12px', opacity: selectedAtomCount < 2 ? 0.4 : 1 }}
+        >⟳</button>
+
         <div style={{ flex: 1 }} />
+
+        <button
+          data-testid="fit-view"
+          onClick={() => fitView(molecule)}
+          aria-label={tr('Fit structure to canvas', '構造をキャンバスに収める', '将结构适配到画布')}
+          title={tr('Fit structure to canvas', '構造をキャンバスに収める', '将结构适配到画布')}
+          disabled={molecule.atoms.length === 0}
+          style={{ padding: '6px 10px', backgroundColor: 'transparent', color: 'inherit', border: '1px solid currentColor', borderRadius: '4px', cursor: molecule.atoms.length === 0 ? 'default' : 'pointer', fontSize: '12px', opacity: molecule.atoms.length === 0 ? 0.45 : 1 }}
+        >
+          {tr('Fit', '全体表示', '适配')}
+        </button>
 
         <button
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}

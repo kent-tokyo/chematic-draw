@@ -10,6 +10,8 @@ export function DatabaseSearchPanel() {
   const theme = useUIStore((s) => s.theme);
   const language = useUIStore((s) => s.language);
   const molecule = useMoleculeStore((s) => s.molecule);
+  const setMolecule = useMoleculeStore((s) => s.setMolecule);
+  const pushUndo = useMoleculeStore((s) => s.pushUndo);
   const setStatus = useUIStore((s) => s.setStatus);
 
   const [results, setResults] = useState<DatabaseResult[]>([]);
@@ -17,6 +19,7 @@ export function DatabaseSearchPanel() {
   const [source, setSource] = useState<'pubchem' | 'chemspider'>('pubchem');
   const [comparisonSmiles, setComparisonSmiles] = useState('');
   const [mcsResult, setMcsResult] = useState<wasmBridge.McsResultDto | null>(null);
+  const [similarityResult, setSimilarityResult] = useState<number | null>(null);
   const [mcsError, setMcsError] = useState('');
   const searchRunRef = useRef(0);
   const searchControllerRef = useRef<AbortController | null>(null);
@@ -44,7 +47,7 @@ export function DatabaseSearchPanel() {
     searchControllerRef.current = controller;
     try {
       setLoading(true);
-      setStatus(language === 'ja' ? `${source}で類似構造を検索中…` : `Searching ${source} for similar structures...`);
+      setStatus(language === 'ja' ? `${source}で完全一致構造を検索中…` : `Searching ${source} for an exact structure match...`);
 
       const searchResults = await searchDatabase(molecule, source, controller.signal);
       if (!mountedRef.current || searchRun !== searchRunRef.current) return;
@@ -53,7 +56,7 @@ export function DatabaseSearchPanel() {
       if (moleculeAtStart !== useMoleculeStore.getState().molecule) return;
       setResults(searchResults);
 
-      setStatus(language === 'ja' ? `類似化合物が${searchResults.length}件見つかりました` : `Found ${searchResults.length} similar compound(s)`);
+      setStatus(language === 'ja' ? `完全一致する化合物が${searchResults.length}件見つかりました` : `Found ${searchResults.length} exact compound match(es)`);
     } catch (err) {
       if (!mountedRef.current || searchRun !== searchRunRef.current) return;
       if (err instanceof DOMException && err.name === 'AbortError') return;
@@ -71,18 +74,37 @@ export function DatabaseSearchPanel() {
     return '#f44336';
   };
 
+  const handleImportResult = async (result: DatabaseResult) => {
+    if (!result.smiles) return;
+    try {
+      const imported = await runAnalysisInWorker('parse', undefined, undefined, undefined, result.smiles) as MoleculeDto;
+      pushUndo();
+      setMolecule(imported);
+      setStatus(language === 'ja' ? `${result.name}の構造を読み込みました` : `Loaded the structure for ${result.name}`);
+    } catch (error) {
+      setStatus(language === 'ja' ? `構造の読み込みに失敗しました: ${error instanceof Error ? error.message : String(error)}` : `Could not load the provider structure: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
   const handleMcsSearch = async () => {
     const controller = new AbortController();
     mcsControllerRef.current?.abort();
     mcsControllerRef.current = controller;
     setMcsResult(null);
+    setSimilarityResult(null);
     setMcsError('');
     if (!comparisonSmiles.trim()) return;
 
     try {
       const comparisonMolecule = await runAnalysisInWorker('parse', undefined, controller.signal, undefined, comparisonSmiles.trim()) as MoleculeDto;
-      const result = await runAnalysisInWorker('mcs', molecule, controller.signal, comparisonMolecule) as wasmBridge.McsResultDto;
-      if (!controller.signal.aborted && molecule === useMoleculeStore.getState().molecule) setMcsResult(result);
+      const [result, similarity] = await Promise.all([
+        runAnalysisInWorker('mcs', molecule, controller.signal, comparisonMolecule) as Promise<wasmBridge.McsResultDto>,
+        runAnalysisInWorker('similarity', molecule, controller.signal, comparisonMolecule) as Promise<number>,
+      ]);
+      if (!controller.signal.aborted && molecule === useMoleculeStore.getState().molecule) {
+        setMcsResult(result);
+        setSimilarityResult(similarity);
+      }
     } catch (err) {
       if (controller.signal.aborted) return;
       setMcsError(err instanceof Error ? err.message : String(err));
@@ -197,6 +219,9 @@ export function DatabaseSearchPanel() {
 
                 {/* Link */}
                 <div style={{ marginTop: '4px' }}>
+                  {result.smiles && <button type="button" onClick={() => void handleImportResult(result)} style={{ marginRight: 8, padding: '3px 6px', border: `1px solid ${borderColor}`, borderRadius: 3, backgroundColor: 'transparent', color: accentColor, cursor: 'pointer', fontSize: 9 }}>
+                    {language === 'ja' ? '構造を読み込む' : 'Load structure'}
+                  </button>}
                   <a
                     href={`https://${result.source === 'pubchem' ? 'pubchem.ncbi.nlm.nih.gov/compound' : 'www.chemspider.com/Chemical-Structure'}/${result.molId}`}
                     target="_blank"
@@ -226,7 +251,7 @@ export function DatabaseSearchPanel() {
 
       {/* Info */}
       <div style={{ fontSize: '9px', color: labelColor, lineHeight: '1.4' }}>
-        Search PubChem or ChemSpider for compounds with similar structures. Results show similarity score (0-100%).
+          {language === 'ja' ? 'PubChemまたはChemSpiderで完全一致する化合物を検索します。類似度は構造一致度として表示されます。' : 'Search PubChem or ChemSpider for exact structure matches. The similarity value reflects the identity match.'}
       </div>
 
       {/* Offline MCS comparison */}
@@ -286,6 +311,7 @@ export function DatabaseSearchPanel() {
           >
             <div style={{ fontWeight: 'bold', marginBottom: '3px' }}>{language === 'ja' ? 'MCS結果' : 'MCS result'}</div>
             <div>Similarity: {(mcsResult.similarity * 100).toFixed(1)}%</div>
+            {similarityResult !== null && <div>Tanimoto (ECFP4): {(similarityResult * 100).toFixed(1)}%</div>}
             <div>Common atoms: {mcsResult.common_atoms.length}</div>
             <div>Common bonds: {mcsResult.common_bonds.length}</div>
             <div style={{ color: labelColor }}>Search budget: {mcsResult.search_budget_ms} ms</div>
