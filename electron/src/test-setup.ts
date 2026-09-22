@@ -67,6 +67,7 @@ jest.mock(
     dice_similarity: jest.fn(),
     find_mcs: jest.fn(),
     run_reactants: jest.fn(),
+    run_reactants_multi: jest.fn(),
   }),
   { virtual: true }
 );

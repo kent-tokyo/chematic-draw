@@ -36,6 +36,41 @@ For reactions, keep the reaction-document JSON v2 file when agents,
 stoichiometric coefficients, or multiple authored steps matter. RXN V2000 is
 available for the supported one-step boundary only.
 
+### Familiar workspace and command map
+
+Choose **Settings → Workspace → ChemDraw familiar** to use the migration
+layout. **Reset Workspace** restores this profile, the left Main Tools palette,
+the right Inspector, and the default panel width. The Compact profile keeps the
+same command ownership with smaller controls.
+
+| Familiar location | Chematic Draw location | Available behavior |
+|---|---|---|
+| Main Tools palette | Left vertical palette | Select, single/double/triple/aromatic bonds, six-membered carbon ring, C/N/O/S/P atoms, eraser |
+| General toolbar | Top toolbar | Undo/redo, alignment, rotation, fit, theme, workspace settings, shortcut help; browser document actions appear here in Playground |
+| Object menu | Native desktop menu | Horizontal/vertical alignment and 90-degree rotation for the current selection |
+| Structure menu | Native desktop menu | Clean Up Structure, stereoisomers, Lipinski checks, property prediction, and reaction mechanism |
+| Search menu | Native desktop menu | Database search plus identifiers and maximum-common-substructure tools |
+| Window menu | Native desktop menu | Inspector, Templates, Reactions, Mechanism, 3D, NMR, and Batch Results panels |
+| Properties/context tools | Right Inspector | Selecting or right-clicking an atom or bond reopens Inspector with its live editable values |
+
+Frequently reused drawing keys intentionally stay close to the familiar
+single-key workflow:
+
+| Key | Action |
+|---|---|
+| `Esc` | Select tool |
+| `1`, `2`, `3`, `4` | Single, double, triple, or aromatic bond tool |
+| `6` | Insert a six-membered carbon ring |
+| `C`, `N`, `O`, `S`, `P` | Element tool |
+| `Delete` / `Backspace` | Delete the selection; the eraser is also available in Main Tools |
+| `Cmd/Ctrl+Z`, `Cmd/Ctrl+Shift+Z` | Undo and redo |
+| `Cmd/Ctrl+K` | Find a panel or feature |
+
+The application does not display inactive Text, Curves, Colors, or Add-ins
+lookalikes. Text, bracket, advanced arrow, and presentation behavior remains
+limited by the supported molecule, reaction, and CDXML contracts documented in
+[Format Interoperability](INTEROP.md).
+
 ## From ChemDoodle or ChemSketch
 
 Use SMILES for a structure-only transfer and MOL V3000/SDF when coordinates or

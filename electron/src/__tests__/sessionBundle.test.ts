@@ -15,6 +15,7 @@ describe('session bundle', () => {
     expect(first).toEqual(createSessionBundle(molecule, '/tmp/example.mol'));
     expect(first.schema).toBe(SESSION_BUNDLE_SCHEMA);
     expect(first.schema_version).toBe(SESSION_BUNDLE_VERSION);
+    expect(first.app.engine).toBe('chematic 1.0.19');
     expect(first.provenance.structure_hash).toMatch(/^fnv1a-32:[0-9a-f]{8}$/);
   });
 
@@ -27,6 +28,11 @@ describe('session bundle', () => {
   it('rejects malformed or unrelated JSON', () => {
     expect(() => parseSessionBundle('{"hello":"world"}')).toThrow('Unsupported');
     expect(() => parseSessionBundle('{not json')).toThrow('valid JSON');
+  });
+
+  it('rejects invalid input at the session export boundary', () => {
+    expect(() => createSessionBundle({ atoms: [], bonds: [{ id: 1, from: 1, to: 2, order: 1, stereo: 0 }] }, null)).toThrow(/invalid molecule/);
+    expect(() => createSessionBundle(molecule, 'x'.repeat(MAX_SESSION_SOURCE_PATH_LENGTH + 1))).toThrow(/source path/);
   });
 
   it('rejects an oversized bundle before JSON parsing', () => {
@@ -51,6 +57,19 @@ describe('session bundle', () => {
     expect(migrated.schema_version).toBe(SESSION_BUNDLE_VERSION);
     expect(migrated.document.molecule).toEqual(molecule);
     expect(migrated.source.file_path).toBe('/tmp/legacy.mol');
+  });
+
+  it('normalizes legacy engine metadata during v1 migration', () => {
+    const legacy = { schema: SESSION_BUNDLE_SCHEMA, schema_version: 1, app: { name: 'chematic-draw', engine: 'chematic 0.20.1' }, molecule };
+    const migrated = parseSessionBundle(JSON.stringify(legacy));
+    expect(migrated.app).toEqual({ name: 'chematic-draw', engine: 'chematic 1.0.19' });
+  });
+
+  it('opens a v2 bundle from the previous engine and normalizes its metadata', () => {
+    const legacy = JSON.parse(serializeSessionBundle(molecule, null));
+    legacy.app.engine = 'chematic 1.0.12';
+    const migrated = parseSessionBundle(JSON.stringify(legacy));
+    expect(migrated.app).toEqual({ name: 'chematic-draw', engine: 'chematic 1.0.19' });
   });
 
   it('rejects a tampered molecule rather than trusting the stored hash', () => {

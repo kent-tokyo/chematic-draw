@@ -8,6 +8,7 @@ import { hitTestAtom, hitTestBond, calculateBondedAtomPosition } from '../lib/ge
 import { calculateArrowPath, distanceToCurve } from '../lib/arrowGeometry';
 import { getStepBoxAtPosition } from '../lib/schemeLayout';
 import { useReactionSchemeStore } from '../store/reactionSchemeStore';
+import { insertCarbonRing } from '../lib/ringTemplate';
 
 const DRAG_THRESHOLD = 4;
 const BOND_LENGTH = 60;
@@ -66,17 +67,26 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
   const setHoveredStepIndex = useReactionSchemeStore((s) => s.setHoveredStepIndex);
 
   const addAtom = useMoleculeStore((s) => s.addAtom);
+  const setMolecule = useMoleculeStore((s) => s.setMolecule);
   const updateAtom = useMoleculeStore((s) => s.updateAtom);
   const addBond = useMoleculeStore((s) => s.addBond);
   const removeBond = useMoleculeStore((s) => s.removeBond);
   const removeAtom = useMoleculeStore((s) => s.removeAtom);
   const selectAtom = useMoleculeStore((s) => s.selectAtom);
+  const selectBond = useMoleculeStore((s) => s.selectBond);
   const selectRegion = useMoleculeStore((s) => s.selectRegion);
   const translateSelectedAtoms = useMoleculeStore((s) => s.translateSelectedAtoms);
   const deselectAll = useMoleculeStore((s) => s.deselectAll);
   const pushUndo = useMoleculeStore((s) => s.pushUndo);
   const setSelectedAtomIdForInspector = useUIStore((s) => s.setSelectedAtomIdForInspector);
   const setSelectedBondIdForInspector = useUIStore((s) => s.setSelectedBondIdForInspector);
+  const setActiveSidebarPanel = useUIStore((s) => s.setActiveSidebarPanel);
+  const setSidebarOpen = useUIStore((s) => s.setSidebarOpen);
+
+  const showInspector = useCallback(() => {
+    setSidebarOpen(true);
+    setActiveSidebarPanel('inspector');
+  }, [setActiveSidebarPanel, setSidebarOpen]);
 
   const onMouseDown = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -154,6 +164,7 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
       // Handle tool-specific logic
       if (activeTool === Tool.Select) {
         const atomId = hitTestAtom(molecule, screenX, screenY, canvasState);
+        const bondId = atomId === null ? hitTestBond(molecule, screenX, screenY, canvasState) : null;
         if (atomId !== null) {
           // Context-menu right-clicks must not collapse an existing
           // multi-selection into the atom under the pointer. The dedicated
@@ -179,11 +190,20 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
           // render alongside this atom's fields.
           setSelectedAtomIdForInspector(atomId);
           setSelectedBondIdForInspector(null);
-        } else if (e.shiftKey && hitTestBond(molecule, screenX, screenY, canvasState) === null) {
+          showInspector();
+        } else if (bondId !== null) {
+          selectBond(bondId, e.shiftKey || e.ctrlKey);
+          setSelectedBondIdForInspector(bondId);
+          setSelectedAtomIdForInspector(null);
+          showInspector();
+        } else if (e.shiftKey) {
           dragStateRef.current = { type: 'selection', startX: screenX, startY: screenY, additive: e.shiftKey };
           setSelectionRect({ left: screenX, top: screenY, right: screenX, bottom: screenY });
         } else {
           deselectAll();
+          setSelectedAtomIdForInspector(null);
+          setSelectedBondIdForInspector(null);
+          showInspector();
         }
       } else if (activeTool === Tool.Eraser) {
         const atomId = hitTestAtom(molecule, screenX, screenY, canvasState);
@@ -206,6 +226,11 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
           dragStateRef.current = { type: 'bond-drag', startX: screenX, startY: screenY, bondFrom: atomId };
           pushUndo();
         }
+      } else if (activeTool === Tool.Ring_6) {
+        const worldPos = screenToWorld(screenX, screenY);
+        pushUndo();
+        setMolecule(insertCarbonRing(molecule, worldPos.x, worldPos.y));
+        setStatus('Inserted six-membered ring.');
       } else if (activeTool.startsWith('atom_')) {
         const element = activeTool === Tool.Atom_C ? 'C' : activeTool.split('_')[1].toUpperCase();
         const atomId = hitTestAtom(molecule, screenX, screenY, canvasState);
@@ -221,7 +246,7 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
         }
       }
     },
-    [molecule, activeTool, activeSidebarPanel, arrowSelectionMode, pendingSourceAtomId, mechanismArrows, selectAtom, deselectAll, removeAtom, removeBond, updateAtom, addAtom, pushUndo, setStatus, scheme, schemeLayout, setSelectedStepIndex, goToStep, setViewMode, setSelectedAtomIdForInspector, setSelectedBondIdForInspector]
+    [molecule, activeTool, activeSidebarPanel, arrowSelectionMode, pendingSourceAtomId, mechanismArrows, selectAtom, selectBond, deselectAll, removeAtom, removeBond, updateAtom, addAtom, setMolecule, pushUndo, setStatus, scheme, schemeLayout, setSelectedStepIndex, goToStep, setViewMode, setSelectedAtomIdForInspector, setSelectedBondIdForInspector, showInspector]
   );
 
   const onMouseMove = useCallback(

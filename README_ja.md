@@ -18,7 +18,7 @@ Windows・macOS・Linuxで動作する、オープンソースのオフライン
 アカウントや必須のクラウドサービスなしで、実験レポート用の分子、講義資料用の
 反応式、SMILESの確認、反応機構の下書き、化学ファイル形式の変換に使えます。
 
-インストールせずに試す場合は、[Chematic Draw Playground](electron/playground.html)
+インストールせずに試す場合は、[Chematic Draw Playground](https://kent-tokyo.github.io/chematic-draw/playground/)
 を開いてください。デスクトップ版は[リリース一覧](https://github.com/kent-tokyo/chematic-draw/releases)
 から入手できます。
 
@@ -27,17 +27,25 @@ Windows・macOS・Linuxで動作する、オープンソースのオフライン
 - マウスとキーボードで操作できるキャンバス型2D分子エディタ
 - テンプレート、インスペクター、Undo/Redo、自動保存、クラッシュリカバリ
 - 物性表示、Lipinski判定、立体異性体列挙、SMARTS検索
+- ECFP4フィンガープリント、metadata付き類似度（Tanimoto/Dice）、MCS検索
 - 回転・ズーム・XYZ出力に対応した3Dビューア
 - 検証済み実験ピークデータを表示する、損失境界付きNMRスペクトルパネル
 - 反応スキームと反応機構矢印、反応検証診断
+- 2〜8個の反応物に対応した複数反応物SMIRKS実行
+- SMARTS制約、Markush、ポリマー、核酸メタデータに対応した型付きクエリ文書
 - アイテム別結果・フィルター・進捗・キャンセルに対応したバッチ処理
-- SMILES、MOL V2000/V3000、SDF、CMLの読み書き、対応サブセットのCDXML読み書き
+- SMILES、MOL V2000/V3000、SDF、CML、対応サブセットのCDXML読み書き
+- CDXMLのページ・group保持と、安全な場合の元ファイルpatch出力
 - SVG、PNG、PDFへの描画出力
 - 生成したInChIKeyによるPubChem検索（ネットワーク接続が必要）
 - 日英中UI、ダークモード
 
 分子編集、SMILES解析、物性計算、SMARTS検索、主要な出力はローカルで動作します。
 PubChem検索だけはネットワーク接続が必要です。
+
+リポジトリには、検証済み分子をHTMLへ埋め込むElectron非依存の
+`@chematic/web`パッケージも含まれています。読み取り専用表示、ホスト制御の
+エディタ、Worker経由の描画・シリアライズ・要約・限定的なimmutable編集を提供します。
 
 ## よくある用途
 
@@ -69,7 +77,11 @@ npm start
 
 [`chematic`](https://crates.io/crates/chematic) Rustケモインフォマティクス
 ライブラリをWebAssembly経由で利用しています。化学処理層にC/C++ FFIは
-ありません（Electron/Chromium本体のネイティブ依存関係は別です）。
+ありません（Electron/Chromium本体のネイティブ依存関係は別です）。現在の開発系列では
+`chematic-draw` 1.0.11では`chematic` v1.0.19を使用しています。
+Rust/WASMブリッジの公開APIは`crates/chem-wasm/src/lib.rs`に置き、分子変換、
+フィンガープリント、RXN/CDXML adapterは機能別moduleに分離しています。現在の検証結果は
+[`CHANGELOG.md`](CHANGELOG.md)を参照してください。
 
 ## コントリビューション・セキュリティ・ライセンス
 

@@ -20,6 +20,7 @@ export enum Tool {
   Bond_Double = 'bond_double',
   Bond_Triple = 'bond_triple',
   Bond_Aromatic = 'bond_aromatic',
+  Ring_6 = 'ring_6',
   Eraser = 'eraser',
 }
 

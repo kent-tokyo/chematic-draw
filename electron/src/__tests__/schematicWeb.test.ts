@@ -1,4 +1,4 @@
-import { SchematicMoleculeElement, defineSchematicMoleculeElement, renderMoleculeSvg, serializeMolecule } from '../../../packages/chematic-web/src/index';
+import { SchematicMoleculeElement, defineSchematicMoleculeElement, renderMoleculeSvg, serializeMolecule, summarizeEmbeddedMolecule, validateEmbeddedMolecule } from '../../../packages/chematic-web/src/index';
 import { handleMoleculeWorkerRequest } from '../../../packages/chematic-web/src/worker';
 import { installMoleculeWorker } from '../../../packages/chematic-web/src/worker-entry';
 import { createMoleculeWorkerClient } from '../../../packages/chematic-web/src/workerClient';
@@ -32,6 +32,18 @@ describe('chematic-molecule Web Component', () => {
     expect(element.molecule.atoms).toEqual([]);
   });
 
+  it('bubbles viewer errors so an embed host can observe invalid attributes', () => {
+    const host = document.createElement('div');
+    const element = document.createElement('chematic-molecule') as SchematicMoleculeElement;
+    const error = jest.fn();
+    host.addEventListener('schematic-error', error);
+    host.append(element);
+    document.body.append(host);
+    element.setAttribute('value', '{bad');
+    expect(error).toHaveBeenCalledTimes(1);
+    expect((error.mock.calls[0][0] as CustomEvent).composed).toBe(true);
+  });
+
   it('provides deterministic dependency-free serialization and SVG rendering', () => {
     const molecule = { atoms: [{ id: 1, element: 'C', x: 0, y: 0, charge: 0, atom_map: 0 }], bonds: [] };
     expect(serializeMolecule(molecule)).toBe(JSON.stringify(molecule));
@@ -40,6 +52,16 @@ describe('chematic-molecule Web Component', () => {
 
   it('rejects dangling bond endpoints before rendering', () => {
     expect(() => serializeMolecule({ atoms: [{ id: 1, element: 'C', x: 0, y: 0, charge: 0, atom_map: 0 }], bonds: [{ id: 1, from: 1, to: 9, order: 1, stereo: 0 }] })).toThrow(/endpoints/);
+  });
+
+  it('exposes the same validation and serialization gate to embedded hosts', () => {
+    const molecule = { atoms: [{ id: 1, element: 'C', x: 0, y: 0, charge: 0, atom_map: 0 }], bonds: [] };
+    const element = document.createElement('chematic-molecule') as SchematicMoleculeElement;
+    element.molecule = molecule;
+    document.body.append(element);
+    expect(element.serialize()).toBe(JSON.stringify(molecule));
+    expect(element.validate()).toEqual([]);
+    expect(validateEmbeddedMolecule(molecule)).toEqual([]);
   });
 
   it('rejects oversized molecules before rendering', () => {
@@ -53,6 +75,64 @@ describe('chematic-molecule Web Component', () => {
     expect(handleMoleculeWorkerRequest({ type: 'validate', molecule })).toEqual({ ok: true, type: 'validate', value: '[]' });
     expect(handleMoleculeWorkerRequest({ type: 'render', molecule })).toMatchObject({ ok: true, type: 'render' });
     expect(handleMoleculeWorkerRequest({ type: 'render', molecule: { ...molecule, bonds: [{ id: 1, from: 1, to: 9, order: 1, stereo: 0 }] } })).toEqual({ ok: false, error: 'Invalid bond endpoints: 1' });
+  });
+
+  it('returns deterministic dependency-free molecule summaries through the Worker boundary', () => {
+    const molecule = {
+      atoms: [
+        { id: 1, element: 'C', x: 0, y: 0, charge: 1, atom_map: 0, hydrogen_count: 3 },
+        { id: 2, element: 'O', x: 1, y: 0, charge: 0, atom_map: 0, hydrogen_count: 1 },
+      ],
+      bonds: [{ id: 1, from: 1, to: 2, order: 1, stereo: 0 }],
+    };
+    const expected = { formula: 'CH4O', atomCount: 2, heavyAtomCount: 2, bondCount: 1, formalCharge: 1, connectedComponentCount: 1, approximateMolecularWeight: 32.042 };
+    expect(summarizeEmbeddedMolecule(molecule)).toEqual(expected);
+    expect(handleMoleculeWorkerRequest({ type: 'summarize', molecule })).toEqual({ ok: true, type: 'summarize', value: JSON.stringify(expected) });
+    expect(handleMoleculeWorkerRequest({ type: 'summarize', molecule: { ...molecule, bonds: [] } })).toEqual({ ok: true, type: 'summarize', value: JSON.stringify({ ...expected, bondCount: 0, connectedComponentCount: 2 }) });
+    expect(handleMoleculeWorkerRequest({ type: 'summarize', molecule: { ...molecule, atoms: [{ ...molecule.atoms[0], element: 'Xe' }, molecule.atoms[1]] } })).toEqual({ ok: true, type: 'summarize', value: JSON.stringify({ ...expected, formula: 'H4OXe', approximateMolecularWeight: null }) });
+  });
+
+  it('applies validated immutable edits through the Worker boundary', () => {
+    const molecule = { atoms: [{ id: 1, element: 'C', x: 0, y: 0, charge: 0, atom_map: 0 }], bonds: [] };
+    expect(handleMoleculeWorkerRequest({
+      type: 'edit',
+      molecule,
+      edit: { type: 'update-atom', atomId: 1, updates: { element: 'N', charge: 1 } },
+    })).toEqual({
+      ok: true,
+      type: 'edit',
+      value: JSON.stringify({ atoms: [{ id: 1, element: 'N', x: 0, y: 0, charge: 1, atom_map: 0 }], bonds: [] }),
+    });
+    expect(molecule.atoms[0]).toMatchObject({ element: 'C', charge: 0 });
+    expect(handleMoleculeWorkerRequest({
+      type: 'edit',
+      molecule,
+      edit: { type: 'update-atom', atomId: 9, updates: { element: 'N' } },
+    })).toEqual({ ok: false, error: 'Atom id does not exist: 9' });
+  });
+
+  it('applies a bounded edit batch atomically through the Worker boundary', () => {
+    const molecule = { atoms: [{ id: 1, element: 'C', x: 0, y: 0, charge: 0, atom_map: 0 }], bonds: [] };
+    expect(handleMoleculeWorkerRequest({
+      type: 'edit-batch', molecule,
+      edits: [
+        { type: 'update-atom', atomId: 1, updates: { element: 'N' } },
+        { type: 'update-atom', atomId: 1, updates: { charge: 1 } },
+      ],
+    })).toEqual({
+      ok: true,
+      type: 'edit-batch',
+      value: JSON.stringify({ atoms: [{ id: 1, element: 'N', x: 0, y: 0, charge: 1, atom_map: 0 }], bonds: [] }),
+    });
+    expect(molecule.atoms[0]).toMatchObject({ element: 'C', charge: 0 });
+    expect(handleMoleculeWorkerRequest({
+      type: 'edit-batch', molecule,
+      edits: [
+        { type: 'update-atom', atomId: 1, updates: { element: 'N' } },
+        { type: 'update-atom', atomId: 9, updates: { charge: 1 } },
+      ],
+    })).toEqual({ ok: false, error: 'Atom id does not exist: 9' });
+    expect(handleMoleculeWorkerRequest({ type: 'edit-batch', molecule, edits: Array.from({ length: 257 }, () => ({ type: 'update-atom', atomId: 1, updates: {} })) })).toEqual({ ok: false, error: 'Molecule edit batch must contain at most 256 edits' });
   });
 
   it('publishes explicit Web Component and Worker entrypoints without false tree-shaking metadata', () => {
@@ -83,6 +163,16 @@ describe('chematic-molecule Web Component', () => {
     expect(() => applyMoleculeEdit(molecule, { type: 'remove-bond', bondId: 9 })).toThrow(/does not exist/);
   });
 
+  it('supports chemistry-aware atom and bond updates through the embedding contract', () => {
+    const molecule = { atoms: [{ id: 1, element: 'C', x: 0, y: 0, charge: 0, atom_map: 0 }, { id: 2, element: 'O', x: 1, y: 0, charge: 0, atom_map: 0 }], bonds: [{ id: 1, from: 1, to: 2, order: 1, stereo: 0 }] };
+    const atomEdited = applyMoleculeEdit(molecule, { type: 'update-atom', atomId: 1, updates: { element: 'N', charge: 1 } });
+    expect(atomEdited.atoms[0]).toMatchObject({ element: 'N', charge: 1 });
+    const bondEdited = applyMoleculeEdit(atomEdited, { type: 'update-bond', bondId: 1, updates: { order: 2, stereo: 1 } });
+    expect(bondEdited.bonds[0]).toMatchObject({ order: 2, stereo: 1 });
+    expect(molecule.atoms[0].element).toBe('C');
+    expect(() => applyMoleculeEdit(molecule, { type: 'update-atom', atomId: 9, updates: { element: 'N' } })).toThrow(/does not exist/);
+  });
+
   it('keeps editing explicitly opt-in and emits validated molecule changes', () => {
     const element = document.createElement('chematic-molecule-editor') as SchematicMoleculeEditorElement;
     element.molecule = { atoms: [], bonds: [] };
@@ -96,17 +186,55 @@ describe('chematic-molecule Web Component', () => {
     expect((change.mock.calls[0][0] as CustomEvent).detail.direction).toBe('edit');
     expect(element.canUndo).toBe(true);
     expect(element.canRedo).toBe(false);
+    expect(element.serialize()).toBe(JSON.stringify(next));
+    expect(element.validate()).toEqual([]);
+    expect(element).toHaveAttribute('aria-readonly', 'false');
     expect(element.undo()?.atoms).toEqual([]);
     expect(element.canRedo).toBe(true);
     expect((change.mock.calls[1][0] as CustomEvent).detail.direction).toBe('undo');
     expect(element.redo()?.atoms).toHaveLength(1);
     expect((change.mock.calls[2][0] as CustomEvent).detail.direction).toBe('redo');
     element.setAttribute('readonly', '');
+    expect(element).toHaveAttribute('aria-readonly', 'true');
     expect(() => element.applyEdit({ type: 'remove-atom', atomId: 1 })).toThrow(/read-only/);
     element.removeAttribute('readonly');
     element.dispose();
     expect(element.innerHTML).toBe('');
     expect(() => element.applyEdit({ type: 'remove-atom', atomId: 1 })).toThrow(/disposed/);
+  });
+
+  it('applies editor batches atomically as one history entry and event', () => {
+    const element = document.createElement('chematic-molecule-editor') as SchematicMoleculeEditorElement;
+    element.molecule = { atoms: [], bonds: [] };
+    const change = jest.fn();
+    element.addEventListener('molecule-change', change);
+    document.body.append(element);
+    const next = element.applyEdits([
+      { type: 'add-atom', atom: { id: 1, element: 'C', x: 0, y: 0, charge: 0, atom_map: 0 } },
+      { type: 'add-atom', atom: { id: 2, element: 'O', x: 1, y: 0, charge: 0, atom_map: 0 } },
+      { type: 'add-bond', bond: { id: 1, from: 1, to: 2, order: 1, stereo: 0 } },
+    ]);
+    expect(next.bonds).toHaveLength(1);
+    expect(change).toHaveBeenCalledTimes(1);
+    expect((change.mock.calls[0][0] as CustomEvent).detail.edit).toBeNull();
+    expect((change.mock.calls[0][0] as CustomEvent).detail.edits).toHaveLength(3);
+    expect(element.undo()?.atoms).toEqual([]);
+    expect(element.canRedo).toBe(true);
+  });
+
+  it('leaves editor state and history unchanged when a batch fails', () => {
+    const element = document.createElement('chematic-molecule-editor') as SchematicMoleculeEditorElement;
+    element.molecule = { atoms: [], bonds: [] };
+    const errors = jest.fn();
+    element.addEventListener('schematic-error', errors);
+    document.body.append(element);
+    expect(() => element.applyEdits([
+      { type: 'add-atom', atom: { id: 1, element: 'C', x: 0, y: 0, charge: 0, atom_map: 0 } },
+      { type: 'add-bond', bond: { id: 1, from: 1, to: 9, order: 1, stereo: 0 } },
+    ])).toThrow(/rejected/);
+    expect(element.molecule).toEqual({ atoms: [], bonds: [] });
+    expect(element.canUndo).toBe(false);
+    expect(errors).toHaveBeenCalledTimes(1);
   });
 
   it('keeps pointer drawing opt-in and translates valid gestures into edits', () => {
@@ -160,6 +288,24 @@ describe('chematic-molecule Web Component', () => {
     expect(() => element.applyEdit({ type: 'remove-atom', atomId: 9 })).toThrow(/does not exist/);
     expect(error).toHaveBeenCalledTimes(1);
     expect(element.molecule.atoms).toEqual([]);
+  });
+
+  it('reports read-only edits through the documented error event and bubbles changes', () => {
+    const host = document.createElement('div');
+    const element = document.createElement('chematic-molecule-editor') as SchematicMoleculeEditorElement;
+    const error = jest.fn();
+    const change = jest.fn();
+    host.addEventListener('schematic-error', error);
+    host.addEventListener('molecule-change', change);
+    element.molecule = { atoms: [], bonds: [] };
+    host.append(element);
+    document.body.append(host);
+    element.setAttribute('readonly', '');
+    expect(() => element.applyEdit({ type: 'add-atom', atom: { id: 1, element: 'C', x: 0, y: 0, charge: 0, atom_map: 0 } })).toThrow(/read-only/);
+    expect(error).toHaveBeenCalledTimes(1);
+    element.removeAttribute('readonly');
+    element.applyEdit({ type: 'add-atom', atom: { id: 1, element: 'C', x: 0, y: 0, charge: 0, atom_map: 0 } });
+    expect(change).toHaveBeenCalledTimes(1);
   });
 
   it('provides abort, timeout, error, and disposal lifecycle for Worker clients', async () => {

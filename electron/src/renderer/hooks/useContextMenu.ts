@@ -17,6 +17,13 @@ export function useContextMenu() {
   const showContextMenu = useUIStore((s) => s.showContextMenu);
   const setSelectedAtomIdForInspector = useUIStore((s) => s.setSelectedAtomIdForInspector);
   const setSelectedBondIdForInspector = useUIStore((s) => s.setSelectedBondIdForInspector);
+  const setActiveSidebarPanel = useUIStore((s) => s.setActiveSidebarPanel);
+  const setSidebarOpen = useUIStore((s) => s.setSidebarOpen);
+
+  const showInspector = useCallback(() => {
+    setSidebarOpen(true);
+    setActiveSidebarPanel('inspector');
+  }, [setActiveSidebarPanel, setSidebarOpen]);
 
   const handleContextMenu = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -35,6 +42,7 @@ export function useContextMenu() {
         // sections' fields stacked on top of each other.
         setSelectedAtomIdForInspector(atomId);
         setSelectedBondIdForInspector(null);
+        showInspector();
         showContextMenu(e.clientX - rect.left, e.clientY - rect.top, atomId);
         return;
       }
@@ -46,6 +54,7 @@ export function useContextMenu() {
         if (bond) {
           setSelectedBondIdForInspector(bond.id);
           setSelectedAtomIdForInspector(null);
+          showInspector();
           showContextMenu(e.clientX - rect.left, e.clientY - rect.top, undefined, bondId);
         }
         return;
@@ -54,7 +63,7 @@ export function useContextMenu() {
       // Canvas context menu
       showContextMenu(e.clientX - rect.left, e.clientY - rect.top);
     },
-    [molecule, canvasState, showContextMenu, setSelectedAtomIdForInspector, setSelectedBondIdForInspector]
+    [molecule, canvasState, showContextMenu, setSelectedAtomIdForInspector, setSelectedBondIdForInspector, showInspector]
   );
 
   return { handleContextMenu };

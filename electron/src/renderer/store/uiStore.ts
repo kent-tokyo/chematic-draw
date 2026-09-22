@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { UIState } from './types';
 import { DEFAULT_SHORTCUT_BINDINGS, ShortcutBindings } from '../lib/shortcuts';
-export type { AppLanguage, ContextMenuState, ModalType, SidebarPanel } from '../../../../packages/chematic-contract/src/index';
-import type { AppLanguage, ContextMenuState, ModalType, SidebarPanel } from '../../../../packages/chematic-contract/src/index';
+export type { AppLanguage, ContextMenuState, ModalType, SidebarPanel, WorkspaceProfile } from '../../../../packages/chematic-contract/src/index';
+import type { AppLanguage, ContextMenuState, ModalType, SidebarPanel, WorkspaceProfile } from '../../../../packages/chematic-contract/src/index';
 export type { BatchItemSummary, BatchProvenance, BatchResultSummary } from '../../../../packages/chematic-contract/src/index';
 import type { BatchItemSummary, BatchProvenance, BatchResultSummary } from '../../../../packages/chematic-contract/src/index';
 
@@ -39,6 +39,9 @@ interface UIStoreState extends UIState {
   setLanguage: (lang: AppLanguage) => void;
   setSidebarOpen: (open: boolean) => void;
   setSidebarWidth: (width: number) => void;
+  setMainToolsOpen: (open: boolean) => void;
+  setWorkspaceProfile: (profile: WorkspaceProfile) => void;
+  resetWorkspace: () => void;
   setActiveSidebarPanel: (panel: 'inspector' | 'templates' | 'chat' | 'research' | 'reactions' | 'batch-results' | 'stereoisomers' | 'lipinski' | 'properties' | 'mechanism' | 'database' | '3d' | 'nmr') => void;
   setSelectedAtomIdForInspector: (id: number | null) => void;
   setSelectedBondIdForInspector: (id: number | null) => void;
@@ -68,7 +71,9 @@ export const useUIStore = create<UIStoreState>((set) => ({
   theme: 'dark',
   language: 'en',
   sidebarOpen: true,
-  sidebarWidth: 260,
+  sidebarWidth: 300,
+  mainToolsOpen: true,
+  workspaceProfile: 'chemdraw',
   focusMode: false,
   statusMessage: '',
   statusExpiry: 0,
@@ -88,6 +93,23 @@ export const useUIStore = create<UIStoreState>((set) => ({
   setLanguage: (lang) => set({ language: lang }),
 
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
+
+  setMainToolsOpen: (open) => set({ mainToolsOpen: open }),
+
+  setWorkspaceProfile: (workspaceProfile) => set((state) => ({
+    workspaceProfile,
+    sidebarWidth: workspaceProfile === 'compact' ? Math.min(state.sidebarWidth, 240) : Math.max(state.sidebarWidth, 300),
+    mainToolsOpen: true,
+  })),
+
+  resetWorkspace: () => set({
+    workspaceProfile: 'chemdraw',
+    mainToolsOpen: true,
+    sidebarOpen: true,
+    sidebarWidth: 300,
+    activeSidebarPanel: 'inspector',
+    focusMode: false,
+  }),
 
   setSidebarWidth: (width) => {
     const clamped = Math.max(180, Math.min(480, width));

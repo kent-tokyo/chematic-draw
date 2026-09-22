@@ -104,6 +104,64 @@ test.describe('Electron Smoke', () => {
     await electronApp.close();
   });
 
+  test('ChemDraw-oriented menus expose only wired command destinations', async () => {
+    const electronApp = await electron.launch({ args: [PACKAGED_APP_PATH] });
+    const window = await electronApp.firstWindow();
+    await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
+
+    const menuState = await electronApp.evaluate(({ Menu }) => {
+      const menu = Menu.getApplicationMenu();
+      const labels = (name: string) => menu?.items.find((item) => item.label === name)?.submenu?.items
+        .filter((item) => item.type !== 'separator').map((item) => item.label) ?? [];
+      return {
+        topLevel: menu?.items.map((item) => item.label) ?? [],
+        object: labels('Object'),
+        structure: labels('Structure'),
+        search: labels('Search'),
+        window: labels('Window'),
+      };
+    });
+    expect(menuState.topLevel).toEqual(['File', 'Edit', 'View', 'Object', 'Structure', 'Search', 'Window', 'Help']);
+    expect(menuState.object).toEqual(['Align Horizontally', 'Align Vertically', 'Rotate 90° Clockwise']);
+    expect(menuState.structure).toContain('Clean Up Structure');
+    expect(menuState.search).toEqual(['Database Search...', 'Identifiers and MCS...']);
+    expect(menuState.window).toContain('Templates');
+
+    await electronApp.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0].webContents.send('menu:show-panel', 'templates');
+    });
+    await expect(window.getByTestId('sidebar-tab-templates')).toHaveAttribute('aria-selected', 'true');
+
+    await electronApp.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0].webContents.send('menu:search-research');
+    });
+    await expect(window.getByTestId('sidebar-tab-research')).toHaveAttribute('aria-selected', 'true');
+
+    await electronApp.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0].webContents.send('menu:toggle-main-tools');
+    });
+    await expect(window.getByTestId('main-tools-palette')).toHaveCount(0);
+    await electronApp.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0].webContents.send('menu:reset-workspace');
+    });
+    await expect(window.getByTestId('main-tools-palette')).toBeVisible();
+    await expect(window.getByTestId('app-root')).toHaveAttribute('data-workspace-profile', 'chemdraw');
+
+    await electronApp.evaluate(({ BrowserWindow }) => {
+      const target = BrowserWindow.getAllWindows()[0].webContents;
+      target.send('menu:select-all');
+      target.send('menu:object-align-horizontal');
+    });
+    await expect(window.locator('[aria-live="polite"][role="status"]')).toContainText('Aligned selection horizontal');
+
+    await electronApp.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0].webContents.send('menu:structure-clean');
+    });
+    await expect(window.locator('[aria-live="polite"][role="status"]')).toContainText('Cleaned structure layout');
+
+    await electronApp.close();
+  });
+
   test('file export IPC rejects invalid paths and oversized payloads', async () => {
     const electronApp = await electron.launch({
       args: [PACKAGED_APP_PATH],
@@ -362,7 +420,7 @@ test.describe('Electron Smoke', () => {
     await window.getByTestId('sidebar-tab-batch-results').click();
     await expect(window.getByText('Last Operation: properties')).toBeVisible();
     await expect(window.getByLabel('Batch result hash')).toContainText('fnv1a-32:');
-    await expect(window.getByLabel('Batch provenance')).toContainText('Engine: chematic 1.0.12');
+    await expect(window.getByLabel('Batch provenance')).toContainText('Engine: chematic 1.0.19');
     await expect(window.getByLabel('Batch properties for item 1')).toContainText('Formula: C6H6');
     await expect(window.getByLabel('Batch properties for item 1')).toContainText('MW: 78.11');
     await expect(window.getByLabel('Batch structure comparison for item 1')).toContainText('6 atoms / 6 bonds → 6 atoms / 6 bonds');
@@ -537,7 +595,7 @@ test.describe('Electron Smoke', () => {
         recentLabels: recent?.submenu?.items.map((i) => i.label) ?? [],
       };
     });
-    expect(menuState.topLevel).toEqual(['File', 'Edit', 'View', 'Tools', 'Help']);
+    expect(menuState.topLevel).toEqual(['File', 'Edit', 'View', 'Object', 'Structure', 'Search', 'Window', 'Help']);
     expect(menuState.recentLabels[0]).toBe(`1. ${path.basename(openedPath)}`);
 
     await electronApp.close();
@@ -557,7 +615,8 @@ test.describe('Electron Smoke', () => {
     // chain has no .catch()), but it never reaches Menu.setApplicationMenu()
     // either, so it silently falls back to Electron's own default menu
     // template — wrong top-level labels, and every custom File/Edit/View/
-    // Tools/Help item (Export, Recent Files, Batch Process, the Tools
+    // Object/Structure/Search/Window/Help item (Export, Recent Files,
+    // Batch Process, the analysis
     // panels, Keyboard Shortcuts) missing, not just Recent Files.
     const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chematic-corrupt-settings-test-'));
     fs.writeFileSync(
@@ -577,7 +636,7 @@ test.describe('Electron Smoke', () => {
     const topLevel = await electronApp.evaluate(
       ({ Menu }) => Menu.getApplicationMenu()?.items.map((i) => i.label) ?? []
     );
-    expect(topLevel).toEqual(['File', 'Edit', 'View', 'Tools', 'Help']);
+    expect(topLevel).toEqual(['File', 'Edit', 'View', 'Object', 'Structure', 'Search', 'Window', 'Help']);
 
     await electronApp.close();
     fs.rmSync(userDataDir, { recursive: true, force: true });
@@ -595,7 +654,7 @@ test.describe('Electron Smoke', () => {
     const topLevel = await electronApp.evaluate(
       ({ Menu }) => Menu.getApplicationMenu()?.items.map((i) => i.label) ?? []
     );
-    expect(topLevel).toEqual(['File', 'Edit', 'View', 'Tools', 'Help']);
+    expect(topLevel).toEqual(['File', 'Edit', 'View', 'Object', 'Structure', 'Search', 'Window', 'Help']);
 
     await electronApp.close();
     fs.rmSync(userDataDir, { recursive: true, force: true });
@@ -644,6 +703,49 @@ test.describe('Electron Smoke', () => {
     });
 
     await expect(secondWindow.getByTestId('sidebar')).not.toBeVisible({ timeout: 5000 });
+
+    await secondApp.close();
+    fs.rmSync(userDataDir, { recursive: true, force: true });
+  });
+
+  test('workspace profile and Main Tools visibility persist and Reset Workspace restores both', async () => {
+    const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chematic-workspace-test-'));
+    const settingsPath = path.join(userDataDir, 'settings.json');
+    const launch = () => electron.launch({ args: [`--user-data-dir=${userDataDir}`, PACKAGED_APP_PATH] });
+
+    const firstApp = await launch();
+    const firstWindow = await firstApp.firstWindow();
+    await expect(firstWindow.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
+    await firstWindow.getByTestId('settings-button').click();
+    await firstWindow.getByTestId('workspace-profile').selectOption('compact');
+    await expect(firstWindow.getByTestId('app-root')).toHaveAttribute('data-workspace-profile', 'compact');
+    await firstApp.evaluate(({ BrowserWindow }) => {
+      const target = BrowserWindow.getAllWindows()[0].webContents;
+      target.send('menu:toggle-main-tools');
+      target.send('menu:show-panel', 'templates');
+    });
+    await expect(firstWindow.getByTestId('main-tools-palette')).toHaveCount(0);
+
+    await expect.poll(() => {
+      if (!fs.existsSync(settingsPath)) return null;
+      const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+      return { profile: settings.workspaceProfile, tools: settings.mainToolsOpen, panel: settings.activeSidebarPanel };
+    }).toEqual({ profile: 'compact', tools: false, panel: 'templates' });
+    await firstApp.close();
+
+    const secondApp = await launch();
+    const secondWindow = await secondApp.firstWindow();
+    await expect(secondWindow.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
+    await expect(secondWindow.getByTestId('app-root')).toHaveAttribute('data-workspace-profile', 'compact');
+    await expect(secondWindow.getByTestId('main-tools-palette')).toHaveCount(0);
+    await expect(secondWindow.getByTestId('sidebar-tab-templates')).toHaveAttribute('aria-selected', 'true');
+
+    await secondApp.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0].webContents.send('menu:reset-workspace');
+    });
+    await expect(secondWindow.getByTestId('app-root')).toHaveAttribute('data-workspace-profile', 'chemdraw');
+    await expect(secondWindow.getByTestId('main-tools-palette')).toBeVisible();
+    await expect(secondWindow.getByTestId('sidebar-tab-inspector')).toHaveAttribute('aria-selected', 'true');
 
     await secondApp.close();
     fs.rmSync(userDataDir, { recursive: true, force: true });

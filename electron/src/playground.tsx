@@ -31,7 +31,7 @@ function download(name: string, content: string, type: string) {
   }, 1000);
 }
 
-function Playground() {
+export function Playground() {
   const [language, setLanguage] = useState<AppLanguage>(() => {
     const saved = window.localStorage.getItem('chematic-playground-language');
     if (saved === 'en' || saved === 'ja' || saved === 'zh') return saved;
@@ -107,4 +107,5 @@ function Playground() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById('playground-root')!).render(<Playground />);
+const playgroundRoot = document.getElementById('playground-root');
+if (playgroundRoot) ReactDOM.createRoot(playgroundRoot).render(<Playground />);

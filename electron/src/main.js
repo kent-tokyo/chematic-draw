@@ -8,6 +8,7 @@ import { registerFileIpcHandlers } from './lib/ipcFileHandlers';
 import { registerClipboardAutosaveIpcHandlers } from './lib/ipcClipboardAutosave';
 import { svgPageSizeInches } from './lib/svgPageSize';
 import { isSafeSvgForPdf } from './lib/pdfExportContract';
+import { ENGINE_ID } from './engineMetadata';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -35,6 +36,12 @@ const settingsStore = createSettingsStore(app.getPath('userData'));
 // consumed exactly once by the 'autosave:get-pending-recovery' IPC handler.
 let pendingRecovery = null;
 let autosaveWriteQueue = Promise.resolve();
+// Renderer settings effects for theme, language, sidebar, and shortcuts all
+// debounce to the same interval. Serialize read-modify-write operations so
+// concurrent IPC calls cannot load the same old JSON and overwrite each
+// other's keys (the sidebar-close smoke test exposed this as a lost
+// `sidebarWidth: 0`).
+let settingsWriteQueue = Promise.resolve();
 let quittingAfterAutosaveFlush = false;
 
 const isSafeMolecule = (molecule) => {
@@ -199,7 +206,7 @@ const createMenu = (recentFiles = settingsStore.load().recentFiles) => {
   // the IPC handler's try/catch. It's now also reachable, unguarded, from
   // app.whenReady()'s startup call: a throw here means Electron falls back
   // to its own default menu template (wrong labels, missing every custom
-  // File/Edit/View/Tools/Help item) instead of ours, not just a broken
+  // File/Edit/View/Object/Structure/Search/Window/Help item) instead of ours, not just a broken
   // Recent Files submenu.
   const recentFilesSubmenu = buildRecentFilesSubmenu({
     recentFiles,
@@ -288,6 +295,11 @@ const createMenu = (recentFiles = settingsStore.load().recentFiles) => {
         },
         { type: 'separator' },
         {
+          label: 'Batch Process...',
+          click: () => mainWindow.webContents.send('menu:batch-process'),
+        },
+        { type: 'separator' },
+        {
           label: 'Recent Files',
           submenu: recentFilesSubmenu,
         },
@@ -335,10 +347,13 @@ const createMenu = (recentFiles = settingsStore.load().recentFiles) => {
           click: () => mainWindow.webContents.send('menu:undo-timeline'),
         },
         { type: 'separator' },
-        // role: 'cut' left as-is — no app-level Cut feature exists for it
-        // to shadow (useKeyboard.ts has no Ctrl+X handler), unlike Copy/
-        // Paste below.
-        { role: 'cut', accelerator: isMac ? 'Cmd+X' : 'Ctrl+X' },
+        // A role-based cut invokes Chromium's DOM editing command, which is
+        // a no-op for the canvas. Route it to the app's selection-aware cut
+        // handler, just like Copy and Paste below.
+        {
+          label: 'Cut',
+          click: () => mainWindow.webContents.send('menu:cut'),
+        },
         // Same fix as Undo/Redo above, same reason: role: 'copy'/'paste'
         // invoke webContents.copy()/paste() (real Chromium execCommands),
         // confirmed empirically to be complete no-ops when the canvas
@@ -364,11 +379,6 @@ const createMenu = (recentFiles = settingsStore.load().recentFiles) => {
           label: 'Select All',
           accelerator: isMac ? 'Cmd+A' : 'Ctrl+A',
           click: () => mainWindow.webContents.send('menu:select-all'),
-        },
-        { type: 'separator' },
-        {
-          label: 'Batch Process...',
-          click: () => mainWindow.webContents.send('menu:batch-process'),
         },
       ],
     },
@@ -399,39 +409,93 @@ const createMenu = (recentFiles = settingsStore.load().recentFiles) => {
           click: () => mainWindow.webContents.send('menu:toggle-sidebar'),
         },
         {
+          label: 'Show/Hide Main Tools',
+          click: () => mainWindow.webContents.send('menu:toggle-main-tools'),
+        },
+        {
           label: 'Toggle Theme',
           accelerator: isMac ? 'Cmd+Shift+L' : 'Ctrl+Shift+L',
           click: () => mainWindow.webContents.send('menu:toggle-theme'),
+        },
+        {
+          label: 'Reset Workspace',
+          click: () => mainWindow.webContents.send('menu:reset-workspace'),
         },
         { type: 'separator' },
         { role: 'toggleDevTools', accelerator: isMac ? 'Cmd+Alt+I' : 'Ctrl+Shift+I' },
       ],
     },
 
-    // Tools menu (Phases 6-10)
+    // ChemDraw-familiar command geography. Every visible item routes to a
+    // renderer action with observable state; unsupported lookalike menus are
+    // intentionally omitted instead of shipping dead destinations.
     {
-      label: 'Tools',
+      label: 'Object',
       submenu: [
         {
-          label: 'Stereoisomers (Phase 6)',
+          label: 'Align Horizontally',
+          click: () => mainWindow.webContents.send('menu:object-align-horizontal'),
+        },
+        {
+          label: 'Align Vertically',
+          click: () => mainWindow.webContents.send('menu:object-align-vertical'),
+        },
+        {
+          label: 'Rotate 90° Clockwise',
+          click: () => mainWindow.webContents.send('menu:object-rotate'),
+        },
+      ],
+    },
+    {
+      label: 'Structure',
+      submenu: [
+        {
+          label: 'Clean Up Structure',
+          click: () => mainWindow.webContents.send('menu:structure-clean'),
+        },
+        { type: 'separator' },
+        {
+          label: 'Stereoisomers',
           click: () => mainWindow.webContents.send('menu:tool-stereoisomers'),
         },
         {
-          label: 'Lipinski Rules (Phase 7)',
+          label: 'Lipinski Rules',
           click: () => mainWindow.webContents.send('menu:tool-lipinski'),
         },
         {
-          label: 'Property Prediction (Phase 8)',
+          label: 'Property Prediction',
           click: () => mainWindow.webContents.send('menu:tool-properties'),
         },
         {
-          label: 'Reaction Mechanism (Phase 9)',
+          label: 'Reaction Mechanism',
           click: () => mainWindow.webContents.send('menu:tool-mechanism'),
         },
+      ],
+    },
+    {
+      label: 'Search',
+      submenu: [
         {
-          label: 'Database Search (Phase 10)',
+          label: 'Database Search...',
           click: () => mainWindow.webContents.send('menu:tool-database'),
         },
+        {
+          label: 'Identifiers and MCS...',
+          click: () => mainWindow.webContents.send('menu:search-research'),
+        },
+      ],
+    },
+    {
+      label: 'Window',
+      submenu: [
+        { label: 'Inspector', click: () => mainWindow.webContents.send('menu:show-panel', 'inspector') },
+        { label: 'Templates', click: () => mainWindow.webContents.send('menu:show-panel', 'templates') },
+        { label: 'Reactions', click: () => mainWindow.webContents.send('menu:show-panel', 'reactions') },
+        { label: 'Mechanism', click: () => mainWindow.webContents.send('menu:show-panel', 'mechanism') },
+        { type: 'separator' },
+        { label: '3D Viewer', click: () => mainWindow.webContents.send('menu:show-panel', '3d') },
+        { label: 'NMR Spectrum', click: () => mainWindow.webContents.send('menu:show-panel', 'nmr') },
+        { label: 'Batch Results', click: () => mainWindow.webContents.send('menu:show-panel', 'batch-results') },
       ],
     },
 
@@ -457,7 +521,7 @@ const createMenu = (recentFiles = settingsStore.load().recentFiles) => {
               // manually-updated pattern already used for it elsewhere
               // (e.g. docs/API.md).
               message: `chematic-draw v${app.getVersion()}`,
-              detail: 'Open-source chemical structure editor\nPowered by chematic 0.20.1',
+              detail: `Open-source chemical structure editor\nPowered by ${ENGINE_ID}`,
             });
           },
         },
@@ -471,18 +535,22 @@ const createMenu = (recentFiles = settingsStore.load().recentFiles) => {
 
 // IPC Handlers for Settings Persistence
 ipcMain.handle('settings:save', async (event, key, value) => {
-  try {
-    if (!isTrustedRendererEvent(event)) throw new Error('Settings request came from an untrusted renderer.');
-    if (!settingsStore.isSafeKey(key) || !settingsStore.isSafeValue(key, value)) {
-      throw new Error('Settings request rejected an invalid key or oversized value.');
+  const write = settingsWriteQueue.then(() => {
+    try {
+      if (!isTrustedRendererEvent(event)) throw new Error('Settings request came from an untrusted renderer.');
+      if (!settingsStore.isSafeKey(key) || !settingsStore.isSafeValue(key, value)) {
+        throw new Error('Settings request rejected an invalid key or oversized value.');
+      }
+      const settings = settingsStore.load();
+      settings[key] = value;
+      settingsStore.save(settings);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
     }
-    const settings = settingsStore.load();
-    settings[key] = value;
-    settingsStore.save(settings);
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
+  });
+  settingsWriteQueue = write.then(() => undefined, () => undefined);
+  return write;
 });
 
 ipcMain.handle('settings:load', async (event, key) => {

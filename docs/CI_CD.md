@@ -87,7 +87,7 @@ on:
 
 Note: "Lint & Type Check" runs both `npm run lint` (ESLint —
 typescript-eslint + react-hooks recommended configs) and `npm run
-typecheck` (real `tsc --noEmit`). In the current v1.0.10 checkout, lint completes with
+typecheck` (real `tsc --noEmit`). In the current v1.0.11 checkout, lint completes with
 zero errors and no warnings; rerun it after dependency or source changes.
 
 **Coverage:**
@@ -102,17 +102,22 @@ zero errors and no warnings; rerun it after dependency or source changes.
 
 ### 2. Build Workflow (`.github/workflows/build.yml`)
 
-Runs on **tag push** (`v*`) or manual dispatch.
+Runs on pushes to **`main`**, tag pushes (`v*`), or manual dispatch.
 
 **Triggers:**
 ```yaml
 on:
   push:
     tags: ['v*']
+    branches: [main]
   workflow_dispatch:
 ```
 
-**Jobs:** one `build` job with an OS matrix (`ubuntu-latest`/`macos-latest`/`windows-latest`), plus a `release` job.
+**Jobs:** a tag-aware release-candidate gate, one `build` job with an OS matrix
+(`ubuntu-latest`/`macos-latest`/`windows-latest`), and a `release` job. Tagged
+builds cannot start until unit, coverage, renderer E2E, built Playground E2E,
+packaged Electron smoke, runtime audit, workflow lint, and repository invariant
+checks pass on the exact tagged commit.
 
 | OS | Artifacts (real Electron Forge makers — see `electron/forge.config.js`) |
 |----|---------|
@@ -241,16 +246,17 @@ Jobs run in parallel, reducing total pipeline time:
 # Update the application version in electron/package.json. Keep
 # crates/chem-wasm/Cargo.toml and packages/chematic-contract/package.json in
 # sync when the public contract changes.
-cd electron && npm version 1.0.10
+cd electron && npm version 1.0.11
 cd ..
 
 # Also update crates/chem-wasm/Cargo.toml's version to match. The shared
 # `check:ci-config` gate fails if app, lockfile, WASM, public packages, or tag
-# versions drift.
+# versions drift. The release workflow also runs the full candidate gate before
+# any tagged build can publish artifacts.
 
 # Commit and tag
-git commit -am "release: v1.0.10"
-git tag v1.0.10
+git commit -am "release: v1.0.11"
+git tag v1.0.11
 git push origin main --tags
 ```
 

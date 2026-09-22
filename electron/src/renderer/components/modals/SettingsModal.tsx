@@ -13,6 +13,9 @@ export function SettingsModal() {
   const language = useUIStore((s) => s.language);
   const theme = useUIStore((s) => s.theme);
   const setLanguage = useUIStore((s) => s.setLanguage);
+  const workspaceProfile = useUIStore((s) => s.workspaceProfile);
+  const setWorkspaceProfile = useUIStore((s) => s.setWorkspaceProfile);
+  const resetWorkspace = useUIStore((s) => s.resetWorkspace);
   const hideModal = useUIStore((s) => s.hideModal);
   const t = copy[language];
 
@@ -23,7 +26,7 @@ export function SettingsModal() {
       onClose={() => hideModal('settings')}
       isDark={theme === 'dark'}
       width={440}
-      height={250}
+      height={370}
       actions={[{ label: t.close, onClick: () => hideModal('settings'), variant: 'primary' }]}
     >
       <div style={{ display: 'grid', gap: '10px' }}>
@@ -39,6 +42,33 @@ export function SettingsModal() {
           {(Object.keys(t.options) as AppLanguage[]).map((option) => <option key={option} value={option}>{t.options[option]}</option>)}
         </select>
         <p style={{ margin: '4px 0 0', fontSize: '12px', opacity: 0.7 }}>{t.hint}</p>
+        <label htmlFor="workspace-profile" style={{ marginTop: '10px', fontWeight: 600, fontSize: '13px' }}>
+          {language === 'ja' ? 'ワークスペース' : language === 'zh' ? '工作区' : 'Workspace'}
+        </label>
+        <select
+          id="workspace-profile"
+          data-testid="workspace-profile"
+          aria-label={language === 'ja' ? 'ワークスペースプロファイル' : 'Workspace profile'}
+          value={workspaceProfile}
+          onChange={(event) => setWorkspaceProfile(event.target.value as 'chemdraw' | 'compact')}
+          style={{ padding: '8px', borderRadius: '4px', fontSize: '13px' }}
+        >
+          <option value="chemdraw">ChemDraw familiar</option>
+          <option value="compact">Compact</option>
+        </select>
+        <p style={{ margin: 0, fontSize: '12px', opacity: 0.7 }}>
+          {language === 'ja'
+            ? 'ChemDraw familiar は左ツール、中央キャンバス、右プロパティの配置です。'
+            : 'ChemDraw familiar keeps drawing tools left, the canvas centered, and properties right.'}
+        </p>
+        <button
+          type="button"
+          data-testid="reset-workspace"
+          onClick={resetWorkspace}
+          style={{ justifySelf: 'start', padding: '7px 10px' }}
+        >
+          {language === 'ja' ? 'ワークスペースを初期配置に戻す' : language === 'zh' ? '重置工作区' : 'Reset Workspace'}
+        </button>
       </div>
     </Modal>
   );

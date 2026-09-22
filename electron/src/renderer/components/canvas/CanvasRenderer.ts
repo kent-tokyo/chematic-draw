@@ -101,20 +101,23 @@ export class CanvasRenderer {
     this.ctx.strokeStyle = colors.grid;
     this.ctx.lineWidth = 0.5;
 
-    const startX = Math.floor(-state.offset.x / gridSize) * gridSize;
-    const startY = Math.floor(-state.offset.y / gridSize) * gridSize;
+    // offset is already a screen-space translation. Reduce it to one grid
+    // period and draw in screen coordinates; applying the full offset again
+    // shortened the grid to only part of the canvas after Fit/center-on-load.
+    const startX = ((state.offset.x % gridSize) + gridSize) % gridSize;
+    const startY = ((state.offset.y % gridSize) + gridSize) % gridSize;
 
     for (let x = startX; x < this.width; x += gridSize) {
       this.ctx.beginPath();
-      this.ctx.moveTo(x + state.offset.x, -state.offset.y);
-      this.ctx.lineTo(x + state.offset.x, this.height - state.offset.y);
+      this.ctx.moveTo(x, 0);
+      this.ctx.lineTo(x, this.height);
       this.ctx.stroke();
     }
 
     for (let y = startY; y < this.height; y += gridSize) {
       this.ctx.beginPath();
-      this.ctx.moveTo(-state.offset.x, y + state.offset.y);
-      this.ctx.lineTo(this.width - state.offset.x, y + state.offset.y);
+      this.ctx.moveTo(0, y);
+      this.ctx.lineTo(this.width, y);
       this.ctx.stroke();
     }
   }

@@ -16,6 +16,7 @@ test.describe('Offline MCS search', () => {
     await expect(result).toBeVisible();
     await expect(result).toContainText('MCS result');
     await expect(result).toContainText('Similarity:');
+    await expect(result).toContainText('Tanimoto (ECFP4):');
     await expect(result).toContainText('Common atoms:');
     await expect(result).toContainText('Search budget: 5000 ms');
   });

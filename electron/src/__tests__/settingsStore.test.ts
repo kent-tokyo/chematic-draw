@@ -16,6 +16,12 @@ describe('settings store', () => {
     expect(store.isSafeKey('__proto__')).toBe(false);
     expect(store.isSafeValue('theme', 'dark')).toBe(true);
     expect(store.isSafeValue('theme', 'neon')).toBe(false);
+    expect(store.isSafeValue('workspaceProfile', 'chemdraw')).toBe(true);
+    expect(store.isSafeValue('workspaceProfile', 'classic')).toBe(false);
+    expect(store.isSafeValue('mainToolsOpen', true)).toBe(true);
+    expect(store.isSafeValue('mainToolsOpen', 'true')).toBe(false);
+    expect(store.isSafeValue('activeSidebarPanel', 'reactions')).toBe(true);
+    expect(store.isSafeValue('activeSidebarPanel', 'unknown')).toBe(false);
     store.save({ theme: 'dark', recentFiles: ['/tmp/example.mol'] });
     expect(store.load()).toEqual({ theme: 'dark', recentFiles: ['/tmp/example.mol'] });
     expect(readFileSync(path.join(directory, 'settings.json'), 'utf8')).toContain('"theme": "dark"');

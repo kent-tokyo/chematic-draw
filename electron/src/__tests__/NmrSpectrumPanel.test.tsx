@@ -27,6 +27,18 @@ describe('NmrSpectrumPanel', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
+  it('supports manual peak assignment and keeps it in the JSON document', () => {
+    render(<NmrSpectrumPanel />);
+    const input = screen.getByRole('textbox', { name: 'NMR spectrum JSON' });
+    fireEvent.change(input, { target: { value: JSON.stringify({ schema: 'chematic-draw/nmr-spectrum', schema_version: 1, nucleus: '1H', peaks: [{ id: 'h1', shiftPpm: 7.26 }], provenance: { kind: 'manual-entry' } }) } });
+    fireEvent.click(screen.getByRole('button', { name: 'Validate and display' }));
+
+    const assignment = screen.getByRole('textbox', { name: 'h1 assignment' });
+    fireEvent.change(assignment, { target: { value: 'H-1 aromatic' } });
+    expect(screen.getByRole('img', { name: '1H spectrum plot' })).toBeInTheDocument();
+    expect((screen.getByRole('textbox', { name: 'NMR spectrum JSON' }) as HTMLTextAreaElement).value).toContain('H-1 aromatic');
+  });
+
   it('uses a connected download anchor for the validated JSON export', () => {
     const createObjectURL = jest.fn(() => 'blob: nmr');
     const revokeObjectURL = jest.fn();

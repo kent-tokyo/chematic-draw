@@ -3,10 +3,11 @@ export interface MoleculeAtom { id: number; element: string; x: number; y: numbe
 export const BOND_STEREO = { None: 0, WedgeUp: 1, WedgeDown: 2 } as const;
 export interface MoleculeBond { id: number; from: number; to: number; order: number; stereo: number; selected?: boolean; }
 export interface Molecule { atoms: MoleculeAtom[]; bonds: MoleculeBond[]; }
-export type ToolName = 'select' | 'atom_c' | 'atom_n' | 'atom_o' | 'atom_s' | 'atom_p' | 'bond_single' | 'bond_double' | 'bond_triple' | 'bond_aromatic' | 'eraser';
+export type ToolName = 'select' | 'atom_c' | 'atom_n' | 'atom_o' | 'atom_s' | 'atom_p' | 'bond_single' | 'bond_double' | 'bond_triple' | 'bond_aromatic' | 'ring_6' | 'eraser';
 export interface CanvasState { offset: { x: number; y: number }; zoom: number; activeTool: ToolName; hoverAtomId: number | null; hoverBondId: number | null; selectedAtomIds: Set<number>; selectedBondIds: Set<number>; }
 export type AppLanguage = 'en' | 'ja' | 'zh';
-export interface UIState { theme: 'dark' | 'light'; language: AppLanguage; sidebarOpen: boolean; sidebarWidth: number; focusMode: boolean; }
+export type WorkspaceProfile = 'chemdraw' | 'compact';
+export interface UIState { theme: 'dark' | 'light'; language: AppLanguage; sidebarOpen: boolean; sidebarWidth: number; mainToolsOpen: boolean; workspaceProfile: WorkspaceProfile; focusMode: boolean; }
 export type UIAction = 'copy' | 'cut' | 'paste' | 'duplicate' | 'cleanLayout' | 'export' | 'undo' | 'redo' | 'zoomIn' | 'zoomOut' | 'zoomReset' | 'focusMode' | 'showShortcuts' | 'selectAll' | 'delete';
 export type SidebarPanel = 'inspector' | 'templates' | 'chat' | 'research' | 'reactions' | 'batch-results' | 'stereoisomers' | 'lipinski' | 'properties' | 'mechanism' | 'database' | '3d' | 'nmr';
 export interface ContextMenuState { visible: boolean; x: number; y: number; atomId?: number; bondId?: number; }
@@ -154,13 +155,13 @@ export interface BatchProcessResult {
   errors: string[]; items: BatchItemResult[]; cancelled: boolean;
 }
 export interface BatchItemSummary { index: number; status: Exclude<BatchItemStatus, 'pending' | 'running'>; warnings: string[]; error?: string; inputAtomCount?: number; inputBondCount?: number; outputAtomCount?: number; outputBondCount?: number; properties?: Pick<Properties, 'formula' | 'molecular_weight' | 'logp' | 'tpsa'>; }
-export interface BatchProvenance { engine: 'chematic 1.0.12'; inputFormat?: string; outputFormat?: string; filterOptions?: BatchTask['filterOptions']; smartsPattern?: string; }
+export interface BatchProvenance { engine: 'chematic 1.0.19'; inputFormat?: string; outputFormat?: string; filterOptions?: BatchTask['filterOptions']; smartsPattern?: string; }
 export interface BatchResultSummary { operation: string; processed: number; failed: number; skipped: number; resultHash: string; errors: string[]; timestamp: number; provenance: BatchProvenance; cancelled?: boolean; items: BatchItemSummary[]; retry?: { task: BatchTask; molecules: Molecule[] }; }
 export interface StereoisomerResult { stereoisomers: Molecule[]; count: number; description: string; }
 export interface LipinskiViolation { rule: string; value: number; limit: number; violated: boolean; }
 export interface PropertyPrediction { property: string; predictedValue: number | string; source: string; }
 export interface DatabaseResult { molId: string; name: string; source: 'pubchem' | 'chemspider' | 'zinc'; similarity: number; smiles?: string; properties: Record<string, string | number>; }
-export interface SessionBundle { schema: 'chematic-draw/session-bundle'; schema_version: 2; app: { name: 'chematic-draw'; engine: 'chematic 1.0.12' }; source: { file_path: string | null }; document: { schema_version: 1; molecule: Molecule }; provenance: { operation: 'export-session-bundle'; structure_hash: string }; }
+export interface SessionBundle { schema: 'chematic-draw/session-bundle'; schema_version: 2; app: { name: 'chematic-draw'; engine: 'chematic 1.0.19' }; source: { file_path: string | null }; document: { schema_version: 1; molecule: Molecule }; provenance: { operation: 'export-session-bundle'; structure_hash: string }; }
 export type ReactionDocumentIssueCode = 'duplicate-step-id' | 'component-id' | 'coefficient' | 'continuity' | 'map-scope' | 'provenance';
 export interface ReactionDocumentIssue { code: ReactionDocumentIssueCode; path: string; message: string; }
 export interface RxnDocument { reactants: Molecule[]; products: Molecule[]; agents?: Molecule[]; reactantCoefficients?: number[]; productCoefficients?: number[]; }

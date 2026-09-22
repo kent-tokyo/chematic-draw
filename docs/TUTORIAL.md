@@ -249,6 +249,12 @@ Once two or more steps exist, the panel shows live **atom mapping**,
 **reaction classification** (single-step/multi-step), and **green
 chemistry metrics** (atom economy, E-factor).
 
+For a multi-reactant transform, enter two to eight reactant SMILES values in
+the **Multiple reactants** field, one per line, choose a compatible template or
+enter a custom SMIRKS, and click **Run multi-reactant SMIRKS**. Each input is
+parsed locally before the explicit reactant list is sent to the chemistry
+engine.
+
 For a single-step scheme, open **Export Scheme** and choose **RXN V2000
 (single step)** to exchange the authored reactants and products with MDL RXN
 tools. Use **JSON (full data)** for multi-step schemes, agents, or complete

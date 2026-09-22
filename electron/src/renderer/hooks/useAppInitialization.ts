@@ -1,5 +1,5 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
-import { useUIStore } from '../store/uiStore';
+import { useUIStore, type SidebarPanel } from '../store/uiStore';
 import { useMoleculeStore } from '../store/moleculeStore';
 import { useCanvasStore } from '../store/canvasStore';
 import type { MoleculeDto } from '../store/types';
@@ -47,6 +47,18 @@ export function useAppInitialization({ setFilePath }: UseAppInitializationOption
               useUIStore.setState({ sidebarOpen: true });
             }
           }
+          const savedMainToolsOpen = await api.loadSettings('mainToolsOpen');
+          if (savedMainToolsOpen.success && typeof savedMainToolsOpen.value === 'boolean') {
+            useUIStore.getState().setMainToolsOpen(savedMainToolsOpen.value);
+          }
+          const savedWorkspaceProfile = await api.loadSettings('workspaceProfile');
+          if (savedWorkspaceProfile.success && (savedWorkspaceProfile.value === 'chemdraw' || savedWorkspaceProfile.value === 'compact')) {
+            useUIStore.setState({ workspaceProfile: savedWorkspaceProfile.value });
+          }
+          const savedActivePanel = await api.loadSettings('activeSidebarPanel');
+          if (savedActivePanel.success && typeof savedActivePanel.value === 'string') {
+            useUIStore.getState().setActiveSidebarPanel(savedActivePanel.value as SidebarPanel);
+          }
           const savedShortcuts = await api.loadSettings('shortcutBindings');
           if (savedShortcuts.success && savedShortcuts.value && typeof savedShortcuts.value === 'object') {
             const candidate = { ...DEFAULT_SHORTCUT_BINDINGS, ...(savedShortcuts.value as Partial<ShortcutBindings>) };
@@ -58,6 +70,22 @@ export function useAppInitialization({ setFilePath }: UseAppInitializationOption
           setSettingsHydrated(true);
         }
       } else {
+        try {
+          const savedProfile = window.localStorage.getItem('chematic-draw/workspace-profile-v1');
+          if (savedProfile === 'chemdraw' || savedProfile === 'compact') {
+            useUIStore.setState({ workspaceProfile: savedProfile });
+          }
+          const savedMainTools = window.localStorage.getItem('chematic-draw/main-tools-open-v1');
+          if (savedMainTools === 'true' || savedMainTools === 'false') {
+            useUIStore.getState().setMainToolsOpen(savedMainTools === 'true');
+          }
+          const savedPanel = window.localStorage.getItem('chematic-draw/active-sidebar-panel-v1');
+          const allowedPanels = new Set(['inspector', 'templates', 'chat', 'research', 'reactions', 'batch-results', 'stereoisomers', 'lipinski', 'properties', 'mechanism', 'database', '3d', 'nmr']);
+          if (savedPanel && allowedPanels.has(savedPanel)) useUIStore.getState().setActiveSidebarPanel(savedPanel as SidebarPanel);
+        } catch {
+          // Storage can be unavailable in private/embedded browser contexts;
+          // the validated in-memory defaults remain usable.
+        }
         setSettingsHydrated(true);
       }
     };

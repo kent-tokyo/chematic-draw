@@ -1,7 +1,7 @@
 # Format Interoperability
 
 What chematic-draw can actually read and write today, verified against the
-real WASM bridge (`crates/chem-wasm/src/lib.rs`) rather than assumed from
+real WASM bridge (`crates/chem-wasm/src/lib.rs` and its focused adapter modules) rather than assumed from
 format names. "Round-trip" below means: parse format X, then write format X
 again, and get back an equivalent molecule — not necessarily byte-identical
 text (coordinates, atom ordering, and formatting are not guaranteed to
@@ -14,7 +14,7 @@ survive unchanged; the *chemical structure* is).
 | MOL V3000 | ✅ | ✅ | ✅ | Needed for >999 atoms/bonds (V2000's fixed-width count fields overflow). |
 | SDF | ✅ | ✅ | ✅ | Multi-record files: only the first record is read by `parseMolecule`/`parseAny`. |
 | CML | ✅ | ✅ | ✅ | |
-| CDXML | ✅ (supported subset) | ✅ (supported subset; multi-page parser/writer) | ✅ (single-fragment corpus) | Parser/writer round-trips page IDs/dimensions, titles, text, arrows, fragment IDs, elements, coordinates, bonds, charge, isotope, labels, and stereo hints; advanced upstream presentation attributes remain outside the matrix. |
+| CDXML | ✅ (supported subset) | ✅ (supported subset; multi-page parser/writer) | ✅ (single-fragment corpus) | Parser/writer round-trips page IDs/dimensions, titles, text, font/layout attributes, arrows, simple graphics and validated basic/path-like graphic children, child order, page/graphic transform matrices, fragment IDs, elements, coordinates, bonds, charge, isotope, labels, and stereo hints. Presentation-only pages and opaque presentation groups are accepted; chemistry fragments inside groups are flattened. Advanced upstream presentation attributes remain outside the matrix. |
 | RXN (reaction file) | ✅ (V2000, one step) | ✅ (V2000, one step) | ✅ | V2000 is a lossy interchange; agents, stoichiometric coefficients, and multi-step schemes are preserved by reaction-document JSON v2 instead. |
 | InChI | ❌ | ✅ (`molToInchi`, one-way) | N/A | InChI is intentionally one-directional here: `molToInchi` produces an InChI string from a molecule, and `inchiToInchiKey` hashes an InChI string to its InChIKey — there is no `inchiToMol`. This matches upstream chemistry-informatics convention (InChI is an identifier/hash format, not meant to be a lossless structure-interchange format), so this is not treated as a gap to close, just a direction that doesn't exist. |
 | XYZ | ✅ (`parseXyz`, coordinates only) | ❌ | N/A | Import only, for 3D viewer input. No bond/connectivity information in the format itself. |
@@ -27,10 +27,12 @@ survive unchanged; the *chemical structure* is).
 
 The editor now has a versioned query document model for editable element lists,
 wildcards, charge/isotope, aromaticity, valence, hydrogen, ring, and query-bond
-orders. A deterministic SMARTS writer covers connected linear queries. Markush,
-R-group, polymer, and opaque SMARTS constructs are retained as typed opaque
-records and rejected by concrete-molecule export; they are not silently
-converted to carbon or wildcard atoms. The renderer provides query JSON
+orders. A deterministic SMARTS writer covers connected linear queries. Markush
+and R-group definitions are retained as typed query data and can be selected
+and expanded through the semantic WASM contract with source mappings; polymer
+and opaque SMARTS constructs remain typed data and are rejected by
+concrete-molecule export. They are not silently converted to carbon or
+wildcard atoms. The renderer provides query JSON
 editing and delegates SMARTS validation/search to the pinned WASM engine.
 Query documents are also transferred to a dedicated browser worker, which
 initializes the same WASM binary and performs SMARTS matching off the renderer

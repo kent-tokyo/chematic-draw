@@ -41,4 +41,35 @@ test.describe('Mechanism arrows stay visible after a reaction scheme exists', ()
     await expect(page.getByText('Arrows (1)')).toBeVisible();
     await expect(page.getByText('No arrows yet')).not.toBeVisible();
   });
+
+  test('keeps authored arrows isolated and persistent when navigating reaction steps', async ({ page }) => {
+    const canvas = page.getByTestId('molecule-canvas');
+    const canvasBox = await canvas.boundingBox();
+    if (!canvasBox) throw new Error('canvas not visible');
+
+    await page.locator('button[title="C [C]"]').click();
+    await canvas.click({ position: { x: canvasBox.width * 0.3, y: canvasBox.height * 0.5 } });
+    await canvas.click({ position: { x: canvasBox.width * 0.7, y: canvasBox.height * 0.5 } });
+    await page.locator('button[title="Select [ESC]"]').click();
+    await page.getByRole('button', { name: 'Dismiss quick start guide' }).click();
+
+    await page.getByTestId('sidebar-tab-reactions').click();
+    await page.getByRole('button', { name: '+ Add Reaction Step' }).click();
+    await page.getByTestId('sidebar-tab-mechanism').click();
+    await page.getByRole('button', { name: '+ Add Arrow' }).click();
+    await canvas.click({ position: { x: canvasBox.width * 0.3, y: canvasBox.height * 0.5 } });
+    await canvas.click({ position: { x: canvasBox.width * 0.7, y: canvasBox.height * 0.5 } });
+    await page.getByRole('button', { name: /forward/i }).first().click();
+    await expect(page.getByText('Arrows (1)')).toBeVisible();
+
+    await page.getByTestId('sidebar-tab-reactions').click();
+    await page.getByRole('button', { name: '+ Add Reaction Step' }).click();
+    await page.getByRole('button', { name: 'Next →' }).click();
+    await page.getByTestId('sidebar-tab-mechanism').click();
+    await expect(page.getByText('Arrows (0)')).toBeVisible();
+    await page.getByTestId('sidebar-tab-reactions').click();
+    await page.getByRole('button', { name: '← Prev' }).click();
+    await page.getByTestId('sidebar-tab-mechanism').click();
+    await expect(page.getByText('Arrows (1)')).toBeVisible();
+  });
 });

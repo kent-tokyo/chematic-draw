@@ -22,7 +22,7 @@ people who are evaluating or migrating a chemical structure editor.
 | Search intent | Canonical page | Required answer |
 |---|---|---|
 | Find an open-source chemical structure editor | `README.md` | What it is, platforms, screenshot, install path |
-| Try editing a molecule in the browser | `electron/playground.html` | Interactive SMILES editor, 2D preview, and SVG/SMILES export |
+| Try editing a molecule in the browser | [Chematic Draw Playground](https://kent-tokyo.github.io/chematic-draw/playground/) | Interactive SMILES editor, 2D preview, and SVG/SMILES export |
 | Install or try the desktop editor | `docs/QUICK_START.md` | Release artifacts, checksums, unsigned-build warning |
 | Move from another editor | `docs/MIGRATION.md` | Format-first migration steps and loss boundaries |
 | Compare chemical structure editors | `docs/COMPARISON.md` | Workflow comparison without unsupported score claims |
@@ -47,7 +47,7 @@ Description: Open-source offline-first chemical structure editor for Windows, ma
 ## Metadata for the browser playground
 
 The repository now contains a browser-only playground entrypoint. When it is
-deployed under the project website, use `/playground` as its canonical URL and
+deployed under GitHub Pages, use `https://kent-tokyo.github.io/chematic-draw/playground/` as its canonical URL and
 keep its page title and description focused on browser-based molecule editing.
 
 ```text

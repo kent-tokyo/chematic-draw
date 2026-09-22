@@ -75,6 +75,53 @@ test.describe('Molecule Drawing', () => {
     await expect(page.getByTestId('toolbar-summary')).toHaveText(/100%$/);
   });
 
+  test('Fit keeps the loaded structure inside the canvas', async ({ page }) => {
+    const summary = page.getByTestId('toolbar-summary');
+    await expect(summary).toContainText('100%');
+    await page.getByTestId('fit-view').click();
+    // The sample benzene is smaller than the fit margin, so the command must
+    // visibly change the zoom rather than merely re-center at 100%.
+    await expect(summary).not.toContainText('100%');
+    await expect(page.getByTestId('molecule-canvas')).toBeVisible();
+  });
+
+  test('toolbar Undo and Redo expose the real molecule history', async ({ page }) => {
+    const canvas = page.getByTestId('molecule-canvas');
+    const undo = page.getByTestId('undo-button');
+    const redo = page.getByTestId('redo-button');
+    await expect(undo).toBeDisabled();
+    await expect(redo).toBeDisabled();
+
+    await canvas.focus();
+    await page.keyboard.press('Control+A');
+    await page.keyboard.press('Delete');
+    await expect(canvas).toHaveAttribute('aria-label', 'Molecular structure canvas, empty');
+    await expect(undo).toBeEnabled();
+    await undo.click();
+    await expect(canvas).toHaveAttribute('aria-label', /atoms?, \d+ bonds?/);
+    await expect(redo).toBeEnabled();
+    await redo.click();
+    await expect(canvas).toHaveAttribute('aria-label', 'Molecular structure canvas, empty');
+  });
+
+  test('arrangement controls are disabled without selection and operate on a selection', async ({ page }) => {
+    const canvas = page.getByTestId('molecule-canvas');
+    const alignHorizontal = page.getByTestId('align-horizontal-button');
+    const alignVertical = page.getByTestId('align-vertical-button');
+    const rotate = page.getByTestId('rotate-selection-button');
+    await expect(alignHorizontal).toBeDisabled();
+    await expect(alignVertical).toBeDisabled();
+    await expect(rotate).toBeDisabled();
+
+    await canvas.focus();
+    await page.keyboard.press('Control+A');
+    await expect(alignHorizontal).toBeEnabled();
+    await expect(alignVertical).toBeEnabled();
+    await expect(rotate).toBeEnabled();
+    await rotate.click();
+    await expect(page.getByTestId('undo-button')).toBeEnabled();
+  });
+
   test('shows a next-action guide only while the canvas is empty', async ({ page }) => {
     const canvas = page.getByTestId('molecule-canvas');
     await canvas.focus();
@@ -152,6 +199,116 @@ test.describe('Molecule Drawing', () => {
 
     await canvas.click({ position: posB });
     await expect(page.getByText('O ▼')).toBeVisible();
+  });
+
+  test('Shift-drag selects a region and delete removes the selected atoms', async ({ page }) => {
+    const canvas = page.getByTestId('molecule-canvas');
+    const canvasBox = await canvas.boundingBox();
+    if (!canvasBox) throw new Error('canvas not visible');
+    const first = { x: canvasBox.width * 0.25, y: canvasBox.height * 0.35 };
+    const second = { x: canvasBox.width * 0.4, y: canvasBox.height * 0.35 };
+    const outside = { x: canvasBox.width * 0.75, y: canvasBox.height * 0.7 };
+
+    await page.keyboard.press('Control+A');
+    await page.keyboard.press('Delete');
+    await page.locator('button[title="C [C]"]').click();
+    await canvas.click({ position: first });
+    await canvas.click({ position: second });
+    await canvas.click({ position: outside });
+    await page.locator('button[title="Select [ESC]"]').click();
+
+    // The modifier turns an empty-canvas drag into a marquee selection while
+    // keeping the existing drag-to-pan gesture unchanged.
+    await page.keyboard.down('Shift');
+    await canvas.hover({ position: { x: canvasBox.width * 0.15, y: canvasBox.height * 0.2 } });
+    await page.mouse.down();
+    await canvas.hover({ position: { x: canvasBox.width * 0.5, y: canvasBox.height * 0.5 } });
+    await expect(page.getByTestId('selection-rectangle')).toBeVisible();
+    await page.mouse.up();
+    await page.keyboard.up('Shift');
+    await expect(page.getByTestId('selection-rectangle')).toHaveCount(0);
+
+    await canvas.focus();
+    await page.keyboard.press('Delete');
+    await expect(canvas).toHaveAttribute('aria-label', /1 atom, 0 bonds/);
+  });
+
+  test('dragging a selected atom moves the whole selected group', async ({ page }) => {
+    const canvas = page.getByTestId('molecule-canvas');
+    const canvasBox = await canvas.boundingBox();
+    if (!canvasBox) throw new Error('canvas not visible');
+    const first = { x: canvasBox.width * 0.25, y: canvasBox.height * 0.35 };
+    const second = { x: canvasBox.width * 0.4, y: canvasBox.height * 0.35 };
+    const outside = { x: canvasBox.width * 0.75, y: canvasBox.height * 0.7 };
+    const delta = { x: 80, y: 50 };
+    const movedSecond = { x: second.x + delta.x, y: second.y + delta.y };
+
+    await page.keyboard.press('Control+A');
+    await page.keyboard.press('Delete');
+    await page.locator('button[title="N [N]"]').click();
+    await canvas.click({ position: first });
+    await page.locator('button[title="O [O]"]').click();
+    await canvas.click({ position: second });
+    await page.locator('button[title="C [C]"]').click();
+    await canvas.click({ position: outside });
+    await page.locator('button[title="Select [ESC]"]').click();
+
+    await page.keyboard.down('Shift');
+    await canvas.hover({ position: { x: canvasBox.width * 0.15, y: canvasBox.height * 0.2 } });
+    await page.mouse.down();
+    await canvas.hover({ position: { x: canvasBox.width * 0.5, y: canvasBox.height * 0.5 } });
+    await page.mouse.up();
+    await page.keyboard.up('Shift');
+
+    await page.mouse.move(canvasBox.x + first.x, canvasBox.y + first.y);
+    await page.mouse.down();
+    await page.mouse.move(canvasBox.x + first.x + delta.x, canvasBox.y + first.y + delta.y);
+    await page.mouse.up();
+
+    // The second selected atom should have moved by the same delta. The
+    // Inspector derives from the actual hit-tested atom at the new position,
+    // proving this is a group move rather than a visual selection-only state.
+    await canvas.click({ position: movedSecond, button: 'right' });
+    await page.getByTestId('sidebar-tab-inspector').click();
+    await expect(page.getByText('O ▼')).toBeVisible();
+  });
+
+  test('Cmd/Ctrl+D duplicates the selected structure in place with an offset', async ({ page }) => {
+    const canvas = page.getByTestId('molecule-canvas');
+    const canvasBox = await canvas.boundingBox();
+    if (!canvasBox) throw new Error('canvas not visible');
+    await page.keyboard.press('Control+A');
+    await page.keyboard.press('Delete');
+    await page.locator('button[title="C [C]"]').click();
+    await canvas.click({ position: { x: canvasBox.width * 0.5, y: canvasBox.height * 0.5 } });
+    await page.locator('button[title="Select [ESC]"]').click();
+    await canvas.click({ position: { x: canvasBox.width * 0.5, y: canvasBox.height * 0.5 } });
+
+    await page.keyboard.press('Control+d');
+
+    await expect(canvas).toHaveAttribute('aria-label', /2 atoms, 0 bonds/);
+    await expect(page.getByRole('status')).toContainText('Duplicated selected structure');
+  });
+
+  test('Alt+Arrow nudges the selected atom without changing selection focus', async ({ page }) => {
+    const canvas = page.getByTestId('molecule-canvas');
+    const canvasBox = await canvas.boundingBox();
+    if (!canvasBox) throw new Error('canvas not visible');
+    const position = { x: canvasBox.width * 0.5, y: canvasBox.height * 0.5 };
+    await page.keyboard.press('Control+A');
+    await page.keyboard.press('Delete');
+    await page.locator('button[title="N [N]"]').click();
+    await canvas.click({ position });
+    await page.locator('button[title="Select [ESC]"]').click();
+    await canvas.click({ position });
+    await canvas.focus();
+
+    await page.keyboard.press('Alt+ArrowRight');
+
+    await expect(page.getByRole('status')).toContainText('Moved selected atoms 1 unit');
+    await canvas.click({ position: { x: position.x + 1, y: position.y }, button: 'right' });
+    await page.getByTestId('sidebar-tab-inspector').click();
+    await expect(page.getByText('N ▼')).toBeVisible();
   });
 
   test('should display all sidebar tabs', async ({ page }) => {

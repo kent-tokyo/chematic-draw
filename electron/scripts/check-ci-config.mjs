@@ -67,6 +67,28 @@ requireCondition(
   'Nightly must report the full development audit without failing on known build-tool advisories.',
 );
 
+const buildWorkflow = read('.github/workflows/build.yml');
+requireCondition(
+  /release-gate:\s*[\s\S]*?name:\s*Release Candidate Gate/.test(buildWorkflow),
+  'Build workflow must define a release candidate gate.',
+);
+requireCondition(
+  /build:\s*\n\s+name:\s*Build\s*\n\s+needs:\s*release-gate/.test(buildWorkflow),
+  'Cross-platform builds must depend on the release candidate gate.',
+);
+for (const command of [
+  'npm run verify:candidate',
+  'npm run audit:runtime',
+  'npm run test:e2e',
+  'npm run test:e2e:playground',
+  'npm run test:e2e:electron',
+]) {
+  requireCondition(
+    buildWorkflow.includes(command),
+    `Release candidate gate must run ${command}.`,
+  );
+}
+
 const electronConfig = read('electron/playwright.electron.config.ts');
 requireCondition(/fullyParallel:\s*false/.test(electronConfig), 'Electron smoke tests must not run fully parallel.');
 requireCondition(/workers:\s*1/.test(electronConfig), 'Electron smoke tests must use one worker.');

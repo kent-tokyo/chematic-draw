@@ -31,6 +31,9 @@ test.describe('Japanese UI accessibility contracts', () => {
     await expect(page.getByRole('toolbar', { name: '描画ツール' })).toBeVisible();
     await expect(page.getByTestId('shortcuts-help')).toHaveAccessibleName('キーボードショートカットを表示');
     await expect(page.getByTestId('toolbar-summary')).toHaveAccessibleName('構造の概要');
+    await expect(page.locator('button[title="炭素原子 [C]"]')).toHaveAccessibleName('炭素原子');
+    await expect(page.locator('button[title="単結合 [1]"]')).toHaveAccessibleName('単結合');
+    await expect(page.locator('button[title="消しゴム [DEL]"]')).toHaveAccessibleName('消しゴム');
     await expect(page.getByRole('group', { name: '描画ステータスとショートカット' })).toBeVisible();
     await expect(page.getByRole('group', { name: '編集' })).toBeVisible();
     await expect(page.getByRole('group', { name: '解析' })).toBeVisible();
@@ -76,7 +79,11 @@ test.describe('Japanese UI accessibility contracts', () => {
     await expect(page.getByRole('log', { name: '分子相談のメッセージ' })).toBeVisible();
     await page.getByPlaceholder('構造について質問…').fill('この分子について教えて');
     await page.getByRole('button', { name: 'メッセージを送信', exact: true }).click();
-    await expect(page.getByRole('log', { name: '分子相談のメッセージ' })).toContainText('AIチャット連携は今後対応予定です…');
+    await expect(page.getByRole('log', { name: '分子相談のメッセージ' })).toContainText('質問例: 分子式、分子量、LogP、環の数、SMILES、原子数、結合数');
+
+    await page.getByTestId('sidebar-tab-stereoisomers').click();
+    await expect(page.getByRole('button', { name: '立体異性体を列挙', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'CIP記述子を割り当て', exact: true })).toBeVisible();
 
     await page.getByTestId('sidebar-tab-3d').click();
     await expect(page.getByRole('button', { name: '3D 生成', exact: true })).toBeVisible();

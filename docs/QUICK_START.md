@@ -9,7 +9,7 @@ Get chematic-draw up and running in 5 minutes.
 Packaged installers (`.deb`/`.rpm` for Linux, `.zip` for macOS, a Squirrel
 `.exe` installer for Windows) are published on the
 [GitHub Releases page](https://github.com/kent-tokyo/chematic-draw/releases)
-for tagged versions. The current stable release is `v1.0.10`; builds are
+for tagged versions. The current stable release is `v1.0.11`; builds are
 unsigned (no code
 signing/notarization is configured), so macOS/Windows will show an
 unidentified-developer warning on first launch.
@@ -103,7 +103,9 @@ Two separate tabs cover this, not one:
    template (carboxylic acid → amide, ester → acid, etc.) against the
    loaded molecule to generate a step automatically. Multi-step schemes
    show live atom-mapping, reaction integrity diagnostics, a step/single-step classification, and green
-   chemistry metrics (atom economy, E-factor) once a step exists.
+   chemistry metrics (atom economy, E-factor) once a step exists. The same
+   panel can run a SMIRKS against two to eight newline-separated reactant
+   SMILES values.
 2. **"Mech" tab** — draw electron-pushing arrows: click "+ Add Arrow", then
    click a source atom and a sink atom on the canvas, and pick the arrow
    type (forward/retro/resonance).

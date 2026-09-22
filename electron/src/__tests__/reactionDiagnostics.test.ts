@@ -1,4 +1,4 @@
-import { diagnoseReactionScheme } from '../renderer/lib/reactionSchemeUtils';
+import { diagnoseReactionScheme, suggestReactionCoefficients } from '../renderer/lib/reactionSchemeUtils';
 import { ReactionSchemeContext } from '../renderer/store/types';
 
 const scheme = (reactantElement: string, productElement: string, reactantMap = 1, productMap = 1): ReactionSchemeContext => ({
@@ -11,6 +11,59 @@ const scheme = (reactantElement: string, productElement: string, reactantMap = 1
 });
 
 describe('reaction diagnostics', () => {
+  it('suggests normalized integer coefficients without changing authored molecules', () => {
+    const atom = (id: number, element: string) => ({ id, element, x: id, y: 0, charge: 0, atom_map: 0 });
+    const step = {
+      id: 'water',
+      reactants: [
+        { atoms: [atom(1, 'H'), atom(2, 'H')], bonds: [] },
+        { atoms: [atom(3, 'O'), atom(4, 'O')], bonds: [] },
+      ],
+      products: [{ atoms: [atom(5, 'H'), atom(6, 'H'), atom(7, 'O')], bonds: [] }],
+      arrows: [], mechanismType: 'sn2' as const,
+    };
+    expect(suggestReactionCoefficients(step)).toEqual({ reactants: [2, 1], products: [2] });
+  });
+
+  it('balances a seven-component combustion and synthesis step without factorial enumeration', () => {
+    const atom = (id: number, element: string) => ({ id, element, x: id, y: 0, charge: 0, atom_map: 0 });
+    const molecule = (id: number, elements: string[]) => ({ atoms: elements.map((element, offset) => atom(id * 10 + offset, element)), bonds: [] });
+    const step = {
+      id: 'seven-components',
+      reactants: [molecule(1, ['C']), molecule(2, ['H', 'H']), molecule(3, ['O', 'O']), molecule(4, ['N', 'N'])],
+      products: [molecule(5, ['C', 'H', 'H', 'H', 'H']), molecule(6, ['H', 'H', 'O']), molecule(7, ['N', 'H', 'H', 'H'])],
+      arrows: [], mechanismType: 'sn2' as const,
+    };
+    const suggestion = suggestReactionCoefficients(step);
+    expect(suggestion).not.toBeNull();
+    if (suggestion) {
+      expect(suggestion.reactants).toHaveLength(4);
+      expect(suggestion.products).toHaveLength(3);
+      expect([...suggestion.reactants, ...suggestion.products].every((coefficient) => Number.isInteger(coefficient) && coefficient > 0)).toBe(true);
+      const totals = (coefficients: number[], molecules: { atoms: { element: string }[] }[]) => molecules.reduce((counts, molecule, index) => {
+        molecule.atoms.forEach((atom) => counts.set(atom.element, (counts.get(atom.element) ?? 0) + coefficients[index]));
+        return counts;
+      }, new Map<string, number>());
+      expect(totals(suggestion.reactants, step.reactants)).toEqual(totals(suggestion.products, step.products));
+    }
+  });
+
+  it('does not suggest coefficients for an elementally impossible reaction', () => {
+    const impossible = scheme('C', 'N').steps[0];
+    expect(suggestReactionCoefficients(impossible)).toBeNull();
+  });
+
+  it('keeps formal charge in the coefficient search', () => {
+    const atom = (id: number, element: string, charge: number) => ({ id, element, x: id, y: 0, charge, atom_map: 0 });
+    const charged = {
+      id: 'charge',
+      reactants: [{ atoms: [atom(1, 'Na', 1)], bonds: [] }],
+      products: [{ atoms: [atom(3, 'Na', 0)], bonds: [] }],
+      arrows: [], mechanismType: 'sn2' as const,
+    };
+    expect(suggestReactionCoefficients(charged)).toBeNull();
+  });
+
   it('checks a stoichiometrically balanced corpus fixture without inferring products', () => {
     const atom = (id: number, element: string) => ({ id, element, x: id, y: 0, charge: 0, atom_map: 0 });
     const molecule = (atoms: ReturnType<typeof atom>[], bonds: { id: number; from: number; to: number; order: number; stereo: number }[] = []) => ({ atoms, bonds });

@@ -76,6 +76,18 @@ test.describe('Atom context menu', () => {
     await expect(page.getByRole('button', { name: 'Charge +1' })).toHaveCount(0);
   });
 
+  test('atom map number is editable in the Inspector', async ({ page }) => {
+    const canvas = page.getByTestId('molecule-canvas');
+    const box = await canvas.boundingBox();
+    if (!box) throw new Error('canvas not visible');
+    await canvas.click({ position: { x: box.width / 2, y: box.height / 2 } });
+    const mapInput = page.getByTestId('atom-map-number');
+    await expect(mapInput).toBeVisible();
+    await mapInput.fill('42');
+    await expect(mapInput).toHaveValue('42');
+    await expect(page.getByText('0 means unspecified')).toBeVisible();
+  });
+
   test('right-clicking a different atom updates the Inspector to it, even while another atom stays selected', async ({ page }) => {
     // Regression test: InspectorPanel used to fall back to whichever atom
     // was marked `selected` (the mouse/keyboard multi-select flag) whenever
@@ -174,10 +186,60 @@ test.describe('Atom context menu', () => {
 
     // The context-menu mutation updates molecule state. Inspector must derive
     // the selected bond from that state instead of retaining the old object.
-    await expect(page.locator('select')).toHaveValue('2');
+    await expect(page.getByLabel('Bond order')).toHaveValue('2');
 
     await canvas.click({ position: bondMid, button: 'right' });
     await page.getByRole('button', { name: 'Dash Down', exact: true }).click();
     await expect(page.getByRole('button', { name: '⌞ Dash', exact: true })).toHaveCSS('background-color', 'rgb(77, 141, 255)');
+  });
+
+  test('aligns a multi-atom selection from the context menu', async ({ page }) => {
+    const canvas = page.getByTestId('molecule-canvas');
+    const canvasBox = await canvas.boundingBox();
+    if (!canvasBox) throw new Error('canvas not visible');
+    const first = { x: canvasBox.width * 0.3, y: canvasBox.height * 0.3 };
+    const second = { x: canvasBox.width * 0.5, y: canvasBox.height * 0.5 };
+    const averageY = (first.y + second.y) / 2;
+
+    await page.keyboard.press('Control+A');
+    await page.keyboard.press('Delete');
+    await page.locator('button[title="N [N]"]').click();
+    await canvas.click({ position: first });
+    await page.locator('button[title="O [O]"]').click();
+    await canvas.click({ position: second });
+    await page.locator('button[title="Select [ESC]"]').click();
+
+    await page.keyboard.down('Shift');
+    await canvas.hover({ position: { x: canvasBox.width * 0.2, y: canvasBox.height * 0.2 } });
+    await page.mouse.down();
+    await canvas.hover({ position: { x: canvasBox.width * 0.6, y: canvasBox.height * 0.6 } });
+    await page.mouse.up();
+    await page.keyboard.up('Shift');
+
+    await canvas.click({ position: first, button: 'right' });
+    await expect(page.getByRole('button', { name: 'Align Horizontally', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Align Horizontally', exact: true }).click();
+
+    await canvas.click({ position: { x: second.x, y: averageY }, button: 'right' });
+    await page.getByTestId('sidebar-tab-inspector').click();
+    await expect(page.getByText('O ▼')).toBeVisible();
+  });
+
+  test('context menu follows Japanese language and exposes menu semantics', async ({ page }) => {
+    const canvas = page.getByTestId('molecule-canvas');
+    const canvasBox = await canvas.boundingBox();
+    if (!canvasBox) throw new Error('canvas not visible');
+    const atomPos = { x: canvasBox.width * 0.5, y: canvasBox.height * 0.5 };
+
+    await page.locator('button[title="C [C]"]').click();
+    await canvas.click({ position: atomPos });
+    await page.locator('button[title="Select [ESC]"]').click();
+    await page.getByTestId('language-toggle').click();
+    await canvas.click({ position: atomPos, button: 'right' });
+
+    const menu = page.getByRole('menu', { name: 'コンテキストメニュー' });
+    await expect(menu).toBeVisible();
+    await expect(menu.getByRole('button', { name: '電荷 +1' })).toBeVisible();
+    await expect(menu.getByRole('button', { name: '原子を削除' })).toBeVisible();
   });
 });

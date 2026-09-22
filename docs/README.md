@@ -25,9 +25,11 @@ authoritative when a version or capability changes.
 
 ## Current release
 
-The current tagged release is `v1.0.10` (2026-09-10). The application version
+The current tagged release is `v1.0.11` (2026-09-22). The application version
 is defined in `electron/package.json` and `crates/chem-wasm/Cargo.toml`; CI
 checks that they stay in sync.
+This release pins the upstream `chematic` engine at v1.0.19. See the root
+[`CHANGELOG.md`](../CHANGELOG.md) for the release contents and validation.
 
 ## Important boundaries
 
@@ -36,9 +38,13 @@ checks that they stay in sync.
   internet access. ChemSpider is present in the selector but not implemented.
 - The DB panel includes an offline MCS comparison using the current molecule and
   a second SMILES input; the search is bounded and reports its result budget.
+- The Reactions panel accepts two to eight newline-separated reactant SMILES
+  values for multi-reactant SMIRKS execution.
 - Stereoisomer enumeration is heuristic and is not a complete CIP assignment.
-- CDXML supports a bounded reader/writer subset; RXN V2000, XYZ, and PDB are import/export
-  capabilities limited as described in [INTEROP](INTEROP.md).
+- CDXML supports a bounded reader/writer subset, including presentation-only
+  pages and presentation-only groups; chemistry fragments inside groups are
+  flattened into the editable molecule. RXN V2000, XYZ, and PDB are
+  import/export capabilities limited as described in [INTEROP](INTEROP.md).
 
 ## Which document to read
 

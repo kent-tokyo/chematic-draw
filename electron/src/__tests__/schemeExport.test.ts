@@ -34,7 +34,7 @@ describe('versioned reaction document JSON', () => {
     expect(exported.provenance).toMatchObject({
       source_format: 'reaction-document-json',
       operation: 'export-reaction-document',
-      engine: 'chematic 1.0.12',
+      engine: 'chematic 1.0.19',
     });
     expect(exported.provenance.result_hash).toMatch(/^fnv1a-32:[0-9a-f]{8}$/);
     expect(exported.scheme).toEqual(scheme);
@@ -45,6 +45,12 @@ describe('versioned reaction document JSON', () => {
   it('imports the current schema and preserves authored data', () => {
     const imported = importSchemeFromJSON(exportSchemeAsJSON(scheme, null, null, null));
     expect(imported).toEqual(scheme);
+  });
+
+  it('imports a current-schema document written by the previous supported engine', () => {
+    const exported = JSON.parse(exportSchemeAsJSON(scheme, null, null, null));
+    exported.provenance.engine = 'chematic 1.0.12';
+    expect(importSchemeFromJSON(JSON.stringify(exported))).toEqual(scheme);
   });
 
   it('round-trips v2 agents and stoichiometric coefficients', () => {

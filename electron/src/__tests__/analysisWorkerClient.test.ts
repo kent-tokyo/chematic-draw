@@ -48,6 +48,23 @@ describe('analysis worker client', () => {
     await expect(promise).resolves.toEqual({ atoms: [], bonds: [] });
   });
 
+  it('routes session parsing and serialization through the worker boundary', async () => {
+    const worker = { terminate: jest.fn(), postMessage: jest.fn(), onmessage: null, onerror: null };
+    (globalThis as unknown as { Worker: typeof Worker }).Worker = jest.fn(() => worker) as unknown as typeof Worker;
+    const molecule = { atoms: [], bonds: [] };
+    const parsePromise = runAnalysisInWorker('parse-session', undefined, undefined, undefined, '{"schema":"chematic-draw/session-bundle"}');
+    expect(worker.postMessage.mock.calls[0][0]).toMatchObject({ operation: 'parse-session', text: '{"schema":"chematic-draw/session-bundle"}' });
+    const parseTask = worker.postMessage.mock.calls[0][0] as { id: string };
+    worker.onmessage!({ data: { id: parseTask.id, value: molecule } } as MessageEvent);
+    await expect(parsePromise).resolves.toEqual(molecule);
+
+    const serializePromise = runAnalysisInWorker('serialize-session', molecule, undefined, undefined, '/tmp/example.json');
+    expect(worker.postMessage.mock.calls[1][0]).toMatchObject({ operation: 'serialize-session', molecule, text: '/tmp/example.json' });
+    const serializeTask = worker.postMessage.mock.calls[1][0] as { id: string };
+    worker.onmessage!({ data: { id: serializeTask.id, value: '{"schema_version":2}' } } as MessageEvent);
+    await expect(serializePromise).resolves.toBe('{"schema_version":2}');
+  });
+
   it('terminates the worker when posting a request fails synchronously', async () => {
     const worker = { terminate: jest.fn(), postMessage: jest.fn(() => { throw new Error('post failed'); }), onmessage: null, onerror: null };
     (globalThis as unknown as { Worker: typeof Worker }).Worker = jest.fn(() => worker) as unknown as typeof Worker;

@@ -8,6 +8,19 @@ test('built Playground provides the drawing workspace and browser document actio
   await expect(page.getByTestId('browser-open')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Carbon atom' })).toBeVisible();
 
+  await page.getByTestId('settings-button').click();
+  await page.getByTestId('workspace-profile').selectOption('compact');
+  await page.getByRole('dialog', { name: 'Settings' }).getByText('Close', { exact: true }).click();
+  await page.getByTestId('sidebar-tab-templates').click();
+  await page.reload();
+  await expect(page.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
+  await expect(page.getByTestId('app-root')).toHaveAttribute('data-workspace-profile', 'compact');
+  await expect(page.getByTestId('sidebar-tab-templates')).toHaveAttribute('aria-selected', 'true');
+  await page.getByTestId('settings-button').click();
+  await page.getByTestId('reset-workspace').click();
+  await expect(page.getByTestId('app-root')).toHaveAttribute('data-workspace-profile', 'chemdraw');
+  await page.getByRole('dialog', { name: 'Settings' }).getByText('Close', { exact: true }).click();
+
   await page.getByRole('button', { name: 'Carbon atom' }).click();
   const canvas = page.getByTestId('molecule-canvas');
   const box = await canvas.boundingBox();

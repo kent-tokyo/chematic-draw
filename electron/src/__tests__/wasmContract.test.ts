@@ -63,6 +63,24 @@ const benzene = {
   ],
 };
 
+// Four explicit substituents keep the fixture independent of implicit-H
+// inference while exercising the bridge's 2D wedge/hash tetrahedral path.
+const wedgeChiralCenter = {
+  atoms: [
+    { id: 0, element: 'C', x: -2, y: -1, charge: 0, atom_map: 0 },
+    { id: 1, element: 'C', x: 0, y: 0, charge: 0, atom_map: 0 },
+    { id: 2, element: 'O', x: 2, y: 1, charge: 0, atom_map: 0 },
+    { id: 3, element: 'N', x: 0, y: 2, charge: 0, atom_map: 0 },
+    { id: 4, element: 'F', x: -1, y: 2, charge: 0, atom_map: 0 },
+  ],
+  bonds: [
+    { id: 0, from: 0, to: 1, order: 1, stereo: 1 },
+    { id: 1, from: 1, to: 2, order: 1, stereo: 0 },
+    { id: 2, from: 1, to: 3, order: 1, stereo: 0 },
+    { id: 3, from: 1, to: 4, order: 1, stereo: 0 },
+  ],
+};
+
 describe('WASM contract (real binary, not mocked)', () => {
   it('parses and writes real chemistry through the real boundary', () => {
     expect(wasm.to_canonical_smiles(benzene)).toBe('c1ccccc1');
@@ -290,13 +308,32 @@ describe('WASM contract (real binary, not mocked)', () => {
     expect(wasm.tanimoto_similarity(fp, fp)).toBe(1.0);
   });
 
+  it('exposes the v1.0.19 Ertl sulfur/phosphorus TPSA table through WASM', () => {
+    const phosphineSulfide = wasm.parse_any('P(=S)(C)(C)C');
+    expect(wasm.get_properties(phosphineSulfide).tpsa).toBeCloseTo(41.90, 10);
+  });
+
   it('assigns a verified E/Z descriptor and omits ambiguous stereo', () => {
     const transDifluoroethene = wasm.parse_any('F/C=C/F');
     expect(wasm.assign_cip(transDifluoroethene)).toEqual([{ atom_id: 1, code: 'E' }]);
     expect(wasm.assign_cip(wasm.parse_any('CCO'))).toEqual([]);
   });
 
-  it('exposes chematic v1.0.12 semantic validation, selection, and expansion', () => {
+  it('inverts a real stereo center and changes the verified E/Z descriptor', () => {
+    const transDifluoroethene = wasm.parse_any('F/C=C/F');
+    const inverted = wasm.invert_stereocenter(transDifluoroethene, 1);
+    expect(wasm.assign_cip(inverted)).toEqual([{ atom_id: 1, code: 'Z' }]);
+    expect(inverted.bonds.find((bond: any) => bond.id === 4)).toMatchObject({ stereo: 2 });
+  });
+
+  it('assigns and inverts a real R/S center represented by a wedge bond', () => {
+    expect(wasm.assign_cip(wedgeChiralCenter)).toEqual([{ atom_id: 1, code: 'R' }]);
+    const inverted = wasm.invert_stereocenter(wedgeChiralCenter, 1);
+    expect(wasm.assign_cip(inverted)).toEqual([{ atom_id: 1, code: 'S' }]);
+    expect(inverted.bonds.find((bond: any) => bond.from === 0 && bond.to === 1)).toMatchObject({ stereo: 2 });
+  });
+
+  it('exposes chematic v1.0.19 semantic validation, selection, and expansion', () => {
     const model = {
       schema: 'chematic.semantic.v1',
       atom_ids: ['a', 'b'],

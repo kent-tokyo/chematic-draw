@@ -212,6 +212,23 @@ describe('required regressions (item 9)', () => {
     }
   });
 
+  it('parse_any keeps every disconnected CDXML fragment and rebases IDs', () => {
+    const cdxml = `<CDXML>
+<fragment>
+<n id="1" p="0 0" Element="6"/>
+</fragment>
+<fragment>
+<n id="2" p="20 0" Element="8"/>
+<n id="3" p="30 0" Element="1"/>
+<b B="2" E="3" Order="1"/>
+</fragment>
+</CDXML>`;
+    const mol = wasm.parse_any(cdxml);
+    expect(mol.atoms).toHaveLength(3);
+    expect(mol.bonds).toEqual([{ id: 2, from: 1, to: 2, order: 1, stereo: 0 }]);
+    expect(new Set(mol.atoms.map((atom: { id: number }) => atom.id)).size).toBe(3);
+  });
+
   it('display_label (cosmetic) is never used as chemistry input — dto_to_chem ignores it entirely', () => {
     const mol = wasm.parse_any('c1ccccc1');
     const withGarbageLabels = {

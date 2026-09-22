@@ -1,5 +1,6 @@
 /** @jest-environment node */
 import { cdxmlDocumentLosses, exportCdxml, exportCdxmlDocument } from '../renderer/lib/cdxmlExport';
+import { parseCdxmlDocument } from '../renderer/lib/cdxmlDocumentParser';
 import type { MoleculeDto } from '../renderer/store/types';
 
 const molecule: MoleculeDto = {
@@ -50,6 +51,12 @@ describe('CDXML writer', () => {
     expect(xml).toContain('<b B="10" E="20" Order="2"/>');
   });
 
+  it('writes atom map numbers for reaction round-trips', () => {
+    const xml = exportCdxml({ ...molecule, atoms: molecule.atoms.map((atom, index) => ({ ...atom, atom_map: index === 0 ? 42 : 0 })) });
+    expect(xml).toContain('Map="42"');
+    expect(parseCdxmlDocument(xml).pages[0].molecule.atoms[0].atom_map).toBe(42);
+  });
+
   it('rejects elements outside the supported CDXML mapping', () => {
     expect(() => exportCdxml({ ...molecule, atoms: [{ ...molecule.atoms[0], element: 'Xx' }] }))
       .toThrow('CDXML does not support element: Xx');
@@ -63,8 +70,30 @@ describe('CDXML writer', () => {
     expect(losses.map((loss) => loss.code)).toEqual(['invalid-page', 'wildcard-atom', 'unsupported-element', 'unsupported-bond']);
   });
 
+  it('exports styled text runs and preserves their attributes on parse', () => {
+    const source = { pages: [{ id: 'p1', title: 'Styled', titleRuns: [{ value: 'Styled', attributes: { font: 'Arial', size: '12' } }], molecule: { atoms: [], bonds: [] }, text: [{ id: 'note', x: 1, y: 2, value: 'A & B', runs: [{ value: 'A ', attributes: { font: 'Arial' } }, { value: '& B', attributes: { face: 'Bold' } }] }] }] };
+    const parsed = parseCdxmlDocument(exportCdxmlDocument(source));
+    expect(parsed.pages[0].titleRuns).toEqual(source.pages[0].titleRuns);
+    expect(parsed.pages[0].text).toEqual(source.pages[0].text);
+  });
+
   it('rejects invalid or reserved custom page attribute names', () => {
     expect(() => exportCdxmlDocument({ pages: [{ id: 'p1', molecule, attributes: { 'bad name': 'x' } }] })).toThrow('invalid or reserved attribute name');
     expect(() => exportCdxmlDocument({ pages: [{ id: 'p1', molecule, attributes: { Width: 'override' } }] })).toThrow('invalid or reserved attribute name');
+  });
+
+  it('writes page and graphic transform matrices without duplicating Matrix attributes', () => {
+    const xml = exportCdxmlDocument({ pages: [{ id: 'p1', transform: { a: 1, b: 0, c: 0, d: 1, tx: 4, ty: 5 }, graphics: [{ id: 'g1', transform: { a: 0, b: -1, c: 1, d: 0, tx: 10, ty: 20 }, attributes: { GraphicType: 'Line' } }], molecule }] });
+    expect(xml).toContain('Matrix="1 0 0 1 4 5"');
+    expect(xml).toContain('Matrix="0 -1 1 0 10 20"');
+    expect(xml.match(/Matrix=/g)).toHaveLength(2);
+  });
+
+  it('writes validated graphic children without allowing nested graphic markup', () => {
+    const xml = exportCdxmlDocument({ pages: [{ id: 'p1', graphics: [{ id: 'g1', children: [{ name: 'line', attributes: { BoundingBox: '0 0 10 10' }, content: 'path data' }] }], molecule }] });
+    expect(xml).toContain('<line BoundingBox="0 0 10 10">path data</line>');
+    expect(exportCdxmlDocument({ pages: [{ id: 'p1', graphics: [{ id: 'g1', children: [{ name: 'line', attributes: { BoundingBox: '0 0 10 10' } }] }], molecule }] })).toContain('<line BoundingBox="0 0 10 10"/>');
+    expect(() => exportCdxmlDocument({ pages: [{ id: 'p1', graphics: [{ id: 'g1', children: [{ name: 'graphic' }] }], molecule }] })).toThrow(/invalid child tag/);
+    expect(() => exportCdxmlDocument({ pages: [{ id: 'p1', graphics: [{ id: 'g1', children: [{ name: 'line', content: '<nested/>' }] }], molecule }] })).toThrow(/invalid XML content/);
   });
 });

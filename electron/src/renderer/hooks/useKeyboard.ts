@@ -194,6 +194,7 @@ export function useKeyboard() {
         '2': Tool.Bond_Double,
         '3': Tool.Bond_Triple,
         '4': Tool.Bond_Aromatic,
+        '6': Tool.Ring_6,
       };
 
       const tool = toolMap[e.key];

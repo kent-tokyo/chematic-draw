@@ -1,9 +1,10 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-const ALLOWED_SETTINGS_KEYS = new Set(['theme', 'language', 'sidebarWidth', 'shortcutBindings']);
+const ALLOWED_SETTINGS_KEYS = new Set(['theme', 'language', 'sidebarWidth', 'mainToolsOpen', 'workspaceProfile', 'activeSidebarPanel', 'shortcutBindings']);
+const SIDEBAR_PANELS = new Set(['inspector', 'templates', 'chat', 'research', 'reactions', 'batch-results', 'stereoisomers', 'lipinski', 'properties', 'mechanism', 'database', '3d', 'nmr']);
 const SHORTCUT_SETTING_KEYS = new Set([
-  'copy', 'paste', 'cleanLayout', 'export', 'undo', 'redo', 'zoomIn', 'zoomOut',
+  'copy', 'cut', 'paste', 'duplicate', 'cleanLayout', 'export', 'undo', 'redo', 'zoomIn', 'zoomOut',
   'zoomReset', 'focusMode', 'showShortcuts', 'selectAll', 'delete',
 ]);
 const MAX_SETTINGS_VALUE_LENGTH = 100_000;
@@ -19,6 +20,9 @@ export function createSettingsStore(userDataPath: string) {
     if (key === 'language') return value === 'en' || value === 'ja' || value === 'zh';
     if (key === 'sidebarWidth') return typeof value === 'number' && Number.isFinite(value)
       && (value === 0 || (value >= 180 && value <= 480));
+    if (key === 'mainToolsOpen') return typeof value === 'boolean';
+    if (key === 'workspaceProfile') return value === 'chemdraw' || value === 'compact';
+    if (key === 'activeSidebarPanel') return typeof value === 'string' && SIDEBAR_PANELS.has(value);
     if (key !== 'shortcutBindings' || !value || typeof value !== 'object' || Array.isArray(value)) return false;
     if (Object.keys(value).some((shortcut) => !SHORTCUT_SETTING_KEYS.has(shortcut))) return false;
     try {

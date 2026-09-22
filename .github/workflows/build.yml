@@ -8,8 +8,93 @@ on:
   workflow_dispatch:
 
 jobs:
+  release-gate:
+    name: Release Candidate Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Lint GitHub Actions workflows
+        uses: docker://rhysd/actionlint:1.7.12
+        with:
+          args: -color
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: electron/package-lock.json
+
+      - name: Check workflow and version invariants
+        working-directory: electron
+        run: npm run check:ci-config
+
+      - name: Setup Rust for tagged release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache Rust for tagged release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: 'crates'
+
+      - name: Install wasm-pack for tagged release
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: cargo install wasm-pack --version 0.13.1 --locked
+
+      - name: Install JavaScript dependencies for tagged release
+        if: startsWith(github.ref, 'refs/tags/v')
+        working-directory: electron
+        run: npm ci
+
+      - name: Build browser and test WASM for tagged release
+        if: startsWith(github.ref, 'refs/tags/v')
+        working-directory: electron
+        run: |
+          npm run build:wasm
+          npm run build:wasm:test
+
+      - name: Install Playwright browser for tagged release
+        if: startsWith(github.ref, 'refs/tags/v')
+        working-directory: electron
+        run: npx playwright install --with-deps chromium
+
+      - name: Run candidate checks for tagged release
+        if: startsWith(github.ref, 'refs/tags/v')
+        working-directory: electron
+        run: npm run verify:candidate
+
+      - name: Audit runtime dependencies for tagged release
+        if: startsWith(github.ref, 'refs/tags/v')
+        working-directory: electron
+        run: npm run audit:runtime
+
+      - name: Run renderer and Playground E2E for tagged release
+        if: startsWith(github.ref, 'refs/tags/v')
+        working-directory: electron
+        run: |
+          npm run test:e2e
+          npm run build:playground
+          npm run test:e2e:playground
+
+      - name: Install Xvfb for tagged release
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      - name: Package and smoke-test tagged release
+        if: startsWith(github.ref, 'refs/tags/v')
+        working-directory: electron
+        run: |
+          npm run package
+          xvfb-run -a npm run test:e2e:electron
+
   build:
     name: Build
+    needs: release-gate
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

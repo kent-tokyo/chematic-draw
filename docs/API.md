@@ -86,11 +86,11 @@ unversioned documents use migration defaults.
 custom element for validated read-only SVG rendering. Its `/editor`, `/react`,
 and `/worker` entrypoints provide immutable atom/bond edits, a React-compatible
 props adapter, and DOM/Electron-free validation, serialization, and SVG
-rendering. These are local v1.0.10 package boundaries; they are not registry-
+rendering. These are local current-development package boundaries; they are not registry-
 published APIs. Parsing, chemistry analysis, and network access remain host
 responsibilities.
 
-### Local Extension API (v1.0.10)
+### Local Extension API (current development line)
 
 Local extensions use the renderer's validated command boundary. A command must
 declare `document:write`; its returned molecule is checked before it reaches
@@ -198,7 +198,7 @@ const smiles = wasmBridge.toCanonicalSmiles(mol);
 
 Per ROADMAP v0.2.1's scientific capability audit: every calculated property
 below lists the real algorithm and its source, sourced by reading
-chematic 1.0.12's own doc comments and implementation, not assumed from
+chematic 1.0.19's own doc comments and implementation, not assumed from
 the property name. "Domain" notes when a property is unreliable or undefined
 outside typical drug-like organic molecules.
 
@@ -492,6 +492,14 @@ distinguishable outcomes sourced from chematic-rxn's own `TransformError`
 enum — not fabricated categories. Only FFI-level failures (malformed input)
 throw; every reaction-domain outcome above is a normal return value.
 
+### runReactantsMulti(molecules: MoleculeDto[], smirks: string): ReactionRunResult
+
+Execute a SMIRKS pattern against an explicit list of two to eight reactant
+molecules. The renderer parses each newline-separated SMILES value through the
+analysis Worker before calling this boundary. Invalid input, no-match, and
+unsupported chemistry outcomes remain explicit; the operation does not infer
+missing reagents or perform authoritative stoichiometric balancing.
+
 **SMIRKS Format:**
 ```
 [reactants]>>[products]
@@ -588,7 +596,7 @@ try {
 
 ## Version Support
 
-- **chematic**: 1.0.12 (workspace Git tag `v1.0.12` in `Cargo.toml`)
+- **chematic**: 1.0.19 (workspace Git tag `v1.0.19` in `Cargo.toml`)
 - **wasm-bindgen**: 0.2.x
 - **Node.js**: 24+ (`electron/package.json`'s `engines.node`; matches CI)
 - **Browsers**: whatever Chromium ships in the pinned Electron version (see `electron/package.json`'s `electron` devDependency) — this app runs inside Electron, not an arbitrary browser

@@ -283,7 +283,7 @@ pass to eliminate it is a separate, larger decision) and downgrades
 `react-hooks/set-state-in-effect` to a warning (several panels correctly
 call `setState({status:'loading'})` synchronously at the top of an effect
 before an async WASM call, on purpose — see `ResearchPanel.tsx`/
-`Viewer3DPanel.tsx`). In the v1.0.10 checkout, `npm run lint` completes with
+`Viewer3DPanel.tsx`). In the current v1.0.11 checkout, `npm run lint` completes with
 zero errors and no warnings.
 
 ---
@@ -295,7 +295,11 @@ chematic-draw/
 ├── crates/
 │   └── chem-wasm/               # Rust WASM module (the electron app's only chemistry dependency)
 │       ├── Cargo.toml
-│       └── src/lib.rs
+│       └── src/
+│           ├── lib.rs            # public WASM API and shared DTOs
+│           ├── molecule_conversion.rs
+│           ├── fingerprint.rs
+│           └── document_adapters.rs
 ├── electron/
 │   ├── src/
 │   │   ├── main.js             # Electron main process

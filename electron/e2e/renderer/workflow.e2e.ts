@@ -82,6 +82,27 @@ test.describe('Complete Workflows', () => {
     }
   });
 
+  test('should find a panel by name without scanning the full tab bar', async ({ page }) => {
+    const search = page.getByRole('searchbox', { name: 'Search sidebar panels' });
+    await search.fill('NMR');
+    await expect(page.getByTestId('sidebar-tab-nmr')).toBeVisible();
+    await expect(page.getByTestId('sidebar-tab-properties')).toHaveCount(0);
+    await expect(page.getByTestId('sidebar-panel-nmr')).toBeVisible();
+    await search.fill('not-a-panel');
+    await expect(page.getByRole('status').filter({ hasText: 'No matching panels' })).toBeVisible();
+    await search.fill('');
+    await expect(page.getByTestId('sidebar-tab-properties')).toBeVisible();
+  });
+
+  test('Cmd/Ctrl+K opens the feature search and focuses it', async ({ page }) => {
+    await page.goto('/');
+    await waitForAppReady(page);
+    const search = page.getByTestId('sidebar-panel-search');
+    await expect(search).toBeVisible();
+    await page.keyboard.press(process.platform === 'darwin' ? 'Meta+K' : 'Control+K');
+    await expect(search).toBeFocused();
+  });
+
   test('should handle multiple operations sequentially', async ({ page }) => {
     // Load Inspector
     await page.getByTestId('sidebar-tab-inspector').click();

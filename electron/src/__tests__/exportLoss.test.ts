@@ -43,6 +43,17 @@ describe('export loss analysis', () => {
     ]);
   });
 
+  it('blocks CDXML writes that the writer cannot represent', () => {
+    const unsupported = { ...molecule, atoms: [{ ...molecule.atoms[0], wildcard: false, element: 'Xe' }], bonds: [] };
+    expect(exportLosses(unsupported, 'cdxml')).toEqual([
+      { code: 'unsupported-format', message: 'CDXML cannot write element: Xe.' },
+    ]);
+    expect(exportLosses({ ...molecule, bonds: [{ ...molecule.bonds[0], order: 5 }] }, 'cdxml')).toEqual([
+      expect.objectContaining({ code: 'wildcard' }),
+      { code: 'unsupported-format', message: 'CDXML cannot write bond order: 5.' },
+    ]);
+  });
+
   it('builds an actionable confirmation message', () => {
     const losses = exportLosses(molecule, 'mol-v2000');
     expect(exportLossMessage('sample.mol', losses)).toContain('Continue anyway?');

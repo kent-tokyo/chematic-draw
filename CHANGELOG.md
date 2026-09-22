@@ -5,8 +5,17 @@ for the full development history.
 
 ## [Unreleased]
 
+## [1.0.11] - 2026-09-22
+
 ### Added
 
+- Added a shared ChemDraw-oriented desktop and browser workspace with familiar
+  top commands, a left drawing palette, a right Inspector, and persistent
+  workspace profiles for migration-friendly layout choices.
+- Added a one-action six-membered ring tool, selection cut/duplicate/nudge
+  workflows, local structure assistance, and importable database results.
+- Added IndexedDB-backed Playground recovery plus browser-safe document import,
+  export, drag-and-drop, and the same primary editor surface as the desktop app.
 - Added explicit multi-reactant SMIRKS execution for two to eight reactant
   molecules, with validated Worker parsing and visible failure states.
 - Added typed query-document boundaries for SMARTS constraints, Markush,
@@ -21,10 +30,11 @@ for the full development history.
 ### Changed
 
 - Updated the Rust/WASM chemistry engine dependency to upstream `chematic`
-  v1.0.12.
+  v1.0.19, including its completed Ertl TPSA N/O/S/P environment-table update.
 - Hardened CI with a shared workflow/version invariant check, maintained
   GitHub Action majors, pinned `wasm-pack 0.13.1 --locked` installs, and a full
-  local `npm run verify:ci` gate.
+  local `npm run verify:ci` gate. Tagged builds now wait for an exact-commit
+  candidate gate before cross-platform artifacts can be published.
 - Split the nightly npm audit into a blocking production-dependency gate and
   a visible, non-blocking report for known Electron Forge build-tool findings;
   production dependencies currently audit cleanly.
@@ -43,11 +53,11 @@ for the full development history.
 ### Validation
 
 - TypeScript typecheck and ESLint pass locally.
-- Jest: 51 suites passed, 451 tests passed, 6 skipped.
-- Renderer E2E: 105 tests passed in the latest completed UI gate; the focused
-  reaction and Web Component tests pass after the latest refactoring.
-- Packaged Electron smoke: 26 tests passed, including the two Linux CI cases
-  that previously timed out while exercising Undo/Redo and batch undo.
+- Jest: 53 suites passed; 458 tests passed, 6 skipped.
+- Renderer E2E: 111 tests passed.
+- Built Playground E2E: 1 test passed.
+- Packaged Electron smoke: 28 tests passed, including menu, IPC, recovery,
+  clipboard, settings, and PDF coverage.
 - Rust `chem-wasm`: 30 tests passed locally.
 - Workflow lint and the production dependency audit pass; the production
   dependency audit reports zero vulnerabilities.
@@ -473,6 +483,7 @@ for the full development history.
 [1.0.7]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v1.0.7
 [1.0.9]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v1.0.9
 [1.0.10]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v1.0.10
+[1.0.11]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v1.0.11
 [1.0.8]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v1.0.8
 [0.9.3]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.9.3
 [0.9.1]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.9.1

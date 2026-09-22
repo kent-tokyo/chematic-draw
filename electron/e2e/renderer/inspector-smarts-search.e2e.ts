@@ -33,4 +33,18 @@ test.describe('Inspector SMARTS search input', () => {
     await expect(smartsInput).toHaveValue(pattern);
     await expect(smartsInput).toBeFocused();
   });
+
+  test('makes matching atoms actionable from the result', async ({ page }) => {
+    await page.getByText('Advanced query tools', { exact: true }).click();
+    const smartsInput = page.getByPlaceholder('e.g., [#6]1:[#6]:[#6]:[#6]:[#6]:[#6]:1');
+    await smartsInput.fill('[#6]');
+    await page.getByRole('button', { name: 'Search', exact: true }).click();
+    await expect(page.getByRole('status').filter({ hasText: /Found \d+ atoms matching/ })).toBeVisible();
+
+    await page.getByTestId('select-smarts-matches').click();
+    // Selection is not merely reported: the Inspector follows the first
+    // result, making the same atoms available to normal edit/copy/delete
+    // actions in the canvas.
+    await expect(page.getByText('C ▼')).toBeVisible();
+  });
 });

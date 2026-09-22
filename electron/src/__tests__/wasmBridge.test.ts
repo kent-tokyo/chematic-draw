@@ -91,6 +91,33 @@ describe('wasmBridge', () => {
     });
   });
 
+  describe('stereochemistry editing', () => {
+    it('keeps renderer IDs, coordinates, and selection when the WASM result is normalized', () => {
+      const input = {
+        atoms: [
+          { id: 10, element: 'C', x: 12, y: 24, charge: 0, atom_map: 0, selected: true },
+          { id: 20, element: 'F', x: 30, y: 24, charge: 0, atom_map: 0 },
+        ],
+        bonds: [{ id: 30, from: 10, to: 20, order: 1, stereo: 1, selected: true }],
+      };
+      const normalized = {
+        atoms: [
+          { id: 0, element: 'C', x: 0, y: 0, charge: 0, atom_map: 0 },
+          { id: 1, element: 'F', x: 40, y: 0, charge: 0, atom_map: 0 },
+        ],
+        bonds: [{ id: 2, from: 0, to: 1, order: 1, stereo: 2 }],
+      };
+
+      expect(wasmBridge.preserveMoleculeIdentity(input, normalized)).toEqual({
+        atoms: [
+          { id: 10, element: 'C', x: 12, y: 24, charge: 0, atom_map: 0, selected: true },
+          { id: 20, element: 'F', x: 30, y: 24, charge: 0, atom_map: 0, selected: undefined },
+        ],
+        bonds: [{ id: 30, from: 10, to: 20, order: 1, stereo: 2, selected: true }],
+      });
+    });
+  });
+
   describe('MCS Search', () => {
     it('should find maximum common substructure', () => {
       const mol1 = mockMolecule;
@@ -149,6 +176,20 @@ describe('wasmBridge', () => {
         expect(result.products).toHaveLength(1);
       }
       expect(wasmModule.run_reactants).toHaveBeenCalledWith(mockMolecule, smirks);
+    });
+
+    it('should pass explicit multi-reactant inputs through unchanged', () => {
+      const nitrogen = { atoms: [{ id: 2, element: 'N', x: 0, y: 0, charge: 0, atom_map: 0 }], bonds: [] };
+      const molecules = [mockMolecule, nitrogen];
+      (wasmModule.run_reactants_multi as jest.Mock).mockReturnValue({
+        status: 'applied',
+        products: [{ atoms: [{ id: 0, element: 'C', x: 0, y: 0, charge: 0, atom_map: 0 }, { id: 1, element: 'N', x: 1, y: 0, charge: 0, atom_map: 0 }], bonds: [{ id: 0, from: 0, to: 1, order: 1, stereo: 0 }] }],
+      });
+
+      const result = wasmBridge.runReactantsMulti(molecules, '[C:1].[N:2]>>[C:1][N:2]');
+
+      expect(result.status).toBe('applied');
+      expect(wasmModule.run_reactants_multi).toHaveBeenCalledWith(molecules, '[C:1].[N:2]>>[C:1][N:2]');
     });
 
     it('should report no_match, invalid_reaction, unsupported_chemistry, and error distinctly', () => {

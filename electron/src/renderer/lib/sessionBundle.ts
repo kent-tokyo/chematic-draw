@@ -1,6 +1,6 @@
 import { MoleculeDto } from '../store/types';
 import { validateMoleculeDocument } from './documentCommands';
-import { APP_NAME, ENGINE_ID } from '../../engineMetadata';
+import { APP_NAME, ENGINE_ID, isCompatibleEngineId } from '../../engineMetadata';
 import type { SessionBundle as ContractSessionBundle } from '../../../../packages/chematic-contract/src/index';
 export type { SessionBundle } from '../../../../packages/chematic-contract/src/index';
 
@@ -69,7 +69,7 @@ function isMolecule(value: unknown): value is MoleculeDto {
 }
 
 function hasValidBundleMetadata(bundle: VersionedInputBundle): boolean {
-  if (!bundle.app || typeof bundle.app !== 'object' || bundle.app.name !== APP_NAME || bundle.app.engine !== ENGINE_ID) return false;
+  if (!bundle.app || typeof bundle.app !== 'object' || bundle.app.name !== APP_NAME || !isCompatibleEngineId(bundle.app.engine)) return false;
   if (!bundle.document || bundle.document.schema_version !== DOCUMENT_SCHEMA_VERSION) return false;
   if (!bundle.source || typeof bundle.source !== 'object') return false;
   const filePath = bundle.source.file_path;
@@ -101,7 +101,13 @@ export function parseSessionBundle(text: string): SessionBundle {
   if (normalized.provenance?.structure_hash !== structureHash(normalized.document.molecule)) {
     throw new Error('Session bundle provenance hash does not match the molecule.');
   }
-  return normalized as SessionBundle;
+  return {
+    ...normalized,
+    // Keep files written by the previous engine readable, but expose the
+    // current producer metadata after validation so a subsequent save does
+    // not perpetuate the legacy engine identifier.
+    app: { name: APP_NAME, engine: ENGINE_ID },
+  } as SessionBundle;
 }
 
 function migrateV1Bundle(bundle: VersionedInputBundle): SessionBundle | null {

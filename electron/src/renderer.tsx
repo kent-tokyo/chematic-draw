@@ -12,7 +12,7 @@ import { BatchResultSummary, useUIStore } from './renderer/store/uiStore';
 import * as batchLib from './renderer/lib/batch';
 import { useMoleculeStore } from './renderer/store/moleculeStore';
 import { useCanvasStore } from './renderer/store/canvasStore';
-import { MoleculeDto, Tool } from './renderer/store/types';
+import { MoleculeDto } from './renderer/store/types';
 import * as wasmBridge from './renderer/wasm/wasmBridge';
 import { svgToPngBase64 } from './renderer/lib/svgToPng';
 import * as clipboard from './renderer/lib/clipboard';
@@ -24,6 +24,7 @@ import { useAppInitialization } from './renderer/hooks/useAppInitialization';
 import { ENGINE_ID } from './engineMetadata';
 import { alignSelectedAtoms, rotateSelectedAtoms } from './renderer/lib/selectionTransforms';
 import { BrowserDocumentToolbar } from './renderer/components/BrowserDocumentToolbar';
+import { GeneralToolbar, MainToolsPalette } from './renderer/components/WorkspaceChrome';
 
 async function parseMoleculeDocument(content: string, filePath: string): Promise<MoleculeDto> {
   if (filePath.toLowerCase().endsWith('.json')) {
@@ -71,7 +72,13 @@ export function App() {
   const language = useUIStore((s) => s.language);
   const setLanguage = useUIStore((s) => s.setLanguage);
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
+  const sidebarWidth = useUIStore((s) => s.sidebarWidth);
   const setSidebarOpen = useUIStore((s) => s.setSidebarOpen);
+  const mainToolsOpen = useUIStore((s) => s.mainToolsOpen);
+  const setMainToolsOpen = useUIStore((s) => s.setMainToolsOpen);
+  const workspaceProfile = useUIStore((s) => s.workspaceProfile);
+  const activeSidebarPanel = useUIStore((s) => s.activeSidebarPanel);
+  const resetWorkspace = useUIStore((s) => s.resetWorkspace);
   const activeTool = useCanvasStore((s) => s.activeTool);
   const setTool = useCanvasStore((s) => s.setTool);
   const setZoom = useCanvasStore((s) => s.setZoom);
@@ -96,8 +103,19 @@ export function App() {
   const showBatchDialog = useUIStore((s) => s.showBatchDialog);
   const addBatchResult = useUIStore((s) => s.addBatchResult);
   const shortcutBindings = useUIStore((s) => s.shortcutBindings);
-  const tr = (english: string, japanese: string, chinese: string) => language === 'ja' ? japanese : language === 'zh' ? chinese : english;
   const isBrowserHost = typeof window !== 'undefined' && Boolean((window as any).__CHEMATIC_PLAYGROUND__) && !(window as any).electronAPI;
+  const applySelectionTransform = useCallback((kind: 'horizontal' | 'vertical' | 'rotate') => {
+    const current = useMoleculeStore.getState().molecule;
+    if (current.atoms.filter((atom) => atom.selected).length < 2) {
+      setStatus(language === 'ja' ? '2個以上の原子を選択してください' : 'Select at least two atoms.');
+      return;
+    }
+    pushUndo();
+    setMolecule(kind === 'rotate' ? rotateSelectedAtoms(current) : alignSelectedAtoms(current, kind));
+    setStatus(language === 'ja'
+      ? kind === 'rotate' ? '選択範囲を90度回転しました' : `選択範囲を${kind === 'horizontal' ? '横' : '縦'}方向に整列しました`
+      : kind === 'rotate' ? 'Rotated selection 90 degrees.' : `Aligned selection ${kind}.`);
+  }, [language, pushUndo, setMolecule, setStatus]);
 
   // Autosave: debounced crash-recovery snapshot, written to a file main.js
   // clears on every clean quit. Its mere presence at next launch is what
@@ -141,7 +159,28 @@ export function App() {
       }, 500);
       return () => clearTimeout(timeout);
     }
-  }, [settingsHydrated, sidebarOpen]);
+  }, [settingsHydrated, sidebarOpen, sidebarWidth]);
+
+  useEffect(() => {
+    if (settingsHydrated && typeof window !== 'undefined' && (window as any).electronAPI) {
+      const timeout = setTimeout(() => {
+        const api = (window as any).electronAPI;
+        api.saveSettings('mainToolsOpen', mainToolsOpen);
+        api.saveSettings('workspaceProfile', workspaceProfile);
+        api.saveSettings('activeSidebarPanel', activeSidebarPanel);
+      }, 500);
+      return () => clearTimeout(timeout);
+    }
+    if (settingsHydrated && typeof window !== 'undefined' && isBrowserHost) {
+      try {
+        window.localStorage.setItem('chematic-draw/main-tools-open-v1', String(mainToolsOpen));
+        window.localStorage.setItem('chematic-draw/workspace-profile-v1', workspaceProfile);
+        window.localStorage.setItem('chematic-draw/active-sidebar-panel-v1', activeSidebarPanel);
+      } catch {
+        // Browser storage is optional; the current session remains usable.
+      }
+    }
+  }, [activeSidebarPanel, isBrowserHost, mainToolsOpen, settingsHydrated, workspaceProfile]);
 
   useEffect(() => {
     if (settingsHydrated && typeof window !== 'undefined' && (window as any).electronAPI) {
@@ -327,7 +366,12 @@ export function App() {
       api.onMenuZoomOut(() => setZoom(zoom / 1.2));
       api.onMenuZoomReset(() => setZoom(1));
       api.onMenuToggleSidebar(() => setSidebarOpen(!sidebarOpen));
+      api.onMenuToggleMainTools?.(() => setMainToolsOpen(!mainToolsOpen));
       api.onMenuToggleTheme(() => setTheme(theme === 'dark' ? 'light' : 'dark'));
+      api.onMenuResetWorkspace?.(() => {
+        resetWorkspace();
+        setStatus(language === 'ja' ? 'ワークスペースを初期配置に戻しました' : 'Reset workspace layout.');
+      });
       api.onMenuBatchProcess?.(() => showModal('batch'));
       api.onMenuUndoTimeline?.(() => showModal('undo'));
       api.onMenuShortcuts?.(() => showModal('shortcuts'));
@@ -420,6 +464,16 @@ export function App() {
         }
       });
 
+      api.onMenuObjectAlignHorizontal?.(() => applySelectionTransform('horizontal'));
+      api.onMenuObjectAlignVertical?.(() => applySelectionTransform('vertical'));
+      api.onMenuObjectRotate?.(() => applySelectionTransform('rotate'));
+      api.onMenuStructureClean?.(() => {
+        const current = useMoleculeStore.getState().molecule;
+        pushUndo();
+        setMolecule(wasmBridge.cleanLayout(current));
+        setStatus(language === 'ja' ? '構造を整形しました' : 'Cleaned structure layout.');
+      });
+
       // Phase 6-10 Tools menu handlers
       api.onMenuToolStereoisomers?.(() => {
         useUIStore.getState().setActiveSidebarPanel('stereoisomers');
@@ -441,12 +495,22 @@ export function App() {
         useUIStore.getState().setActiveSidebarPanel('database');
         setSidebarOpen(true);
       });
+      api.onMenuSearchResearch?.(() => {
+        useUIStore.getState().setActiveSidebarPanel('research');
+        setSidebarOpen(true);
+      });
+      api.onMenuShowPanel?.((panel: string) => {
+        const allowed = new Set(['inspector', 'templates', 'reactions', 'mechanism', '3d', 'nmr', 'batch-results']);
+        if (!allowed.has(panel)) return;
+        useUIStore.getState().setActiveSidebarPanel(panel as 'inspector' | 'templates' | 'reactions' | 'mechanism' | '3d' | 'nmr' | 'batch-results');
+        setSidebarOpen(true);
+      });
 
       return () => {
         // Cleanup: no need to unsubscribe from ipcRenderer in this version
       };
     }
-  }, [molecule, filePath, richCdxmlSession, theme, zoom, sidebarOpen, selectAll, undo, redo, pushUndo, clear, setMolecule, setSidebarOpen, setStatus, setTheme, setZoom, showModal, announce]);
+  }, [molecule, filePath, richCdxmlSession, theme, zoom, sidebarOpen, mainToolsOpen, language, selectAll, undo, redo, pushUndo, clear, setMolecule, setSidebarOpen, setMainToolsOpen, resetWorkspace, setStatus, setTheme, setZoom, showModal, announce, applySelectionTransform]);
 
   // Keyboard shortcuts for Phase 3-5
   useEffect(() => {
@@ -491,7 +555,7 @@ export function App() {
       });
 
       const provenance = {
-        engine: ENGINE_ID as 'chematic 1.0.12',
+        engine: ENGINE_ID,
         inputFormat: config.inputFormat,
         outputFormat: config.outputFormat,
         filterOptions: config.operation === 'filter' ? {
@@ -545,7 +609,7 @@ export function App() {
       setStatus(`Batch processing failed: ${(err as Error).message}`);
       console.error('Batch error:', err);
       addBatchResult(config.operation, 0, 1, 0, 'fnv1a-32:00000000', [(err as Error).message], {
-        engine: ENGINE_ID as 'chematic 1.0.12',
+        engine: ENGINE_ID,
         inputFormat: config.inputFormat,
         outputFormat: config.outputFormat,
       }, {
@@ -588,27 +652,8 @@ export function App() {
     }
   };
 
-  const toolButtons: Array<{ tool: Tool; label: string; key: string; ariaLabel: string }> = [
-    { tool: Tool.Select, label: tr('Select', '選択', '选择'), key: 'ESC', ariaLabel: tr('Select tool', '選択ツール', '选择工具') },
-    { tool: Tool.Atom_C, label: 'C', key: 'C', ariaLabel: tr('Carbon atom', '炭素原子', '碳原子') },
-    { tool: Tool.Atom_N, label: 'N', key: 'N', ariaLabel: tr('Nitrogen atom', '窒素原子', '氮原子') },
-    { tool: Tool.Atom_O, label: 'O', key: 'O', ariaLabel: tr('Oxygen atom', '酸素原子', '氧原子') },
-    { tool: Tool.Atom_S, label: 'S', key: 'S', ariaLabel: tr('Sulfur atom', '硫黄原子', '硫原子') },
-    { tool: Tool.Atom_P, label: 'P', key: 'P', ariaLabel: tr('Phosphorus atom', 'リン原子', '磷原子') },
-    { tool: Tool.Bond_Single, label: '─', key: '1', ariaLabel: tr('Single bond', '単結合', '单键') },
-    { tool: Tool.Bond_Double, label: '═', key: '2', ariaLabel: tr('Double bond', '二重結合', '双键') },
-    { tool: Tool.Bond_Triple, label: '≡', key: '3', ariaLabel: tr('Triple bond', '三重結合', '三键') },
-    { tool: Tool.Bond_Aromatic, label: '◯', key: '4', ariaLabel: tr('Aromatic bond', '芳香族結合', '芳香键') },
-    { tool: Tool.Eraser, label: '✕', key: 'DEL', ariaLabel: tr('Eraser', '消しゴム', '橡皮擦') },
-  ];
   const primaryModifier = typeof navigator !== 'undefined' && navigator.platform.toUpperCase().includes('MAC') ? 'Cmd' : 'Ctrl';
   const selectedAtomCount = molecule.atoms.filter((atom) => atom.selected).length;
-  const transformSelection = (transform: (value: MoleculeDto) => MoleculeDto, english: string, japanese: string) => {
-    if (selectedAtomCount < 2) return;
-    pushUndo();
-    setMolecule(transform(molecule));
-    announce(english, japanese);
-  };
 
   const handleBrowserMoleculeLoaded = (loaded: MoleculeDto, sourceName?: string) => {
     pushUndo();
@@ -623,7 +668,8 @@ export function App() {
       data-testid="app-root"
       data-ready={wasmLoaded && initialDocumentLoaded}
       data-wasm-status={wasmStatus}
-      className="app-root"
+      data-workspace-profile={workspaceProfile}
+      className={`app-root workspace-${workspaceProfile}`}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -661,26 +707,19 @@ export function App() {
       <UndoTimelineModal />
       <SettingsModal />
       {showBatchDialog && <BatchProcessDialog onProcess={handleBatchProcess} onCancel={() => hideModal('batch')} />}
-      {/* Top Bar */}
-      <div
-        className="app-toolbar"
-        role="toolbar"
-        aria-label={tr('Drawing tools', '描画ツール', '绘图工具')}
-        style={{
-          display: 'flex',
-          gap: '4px',
-          padding: '12px',
-          borderBottom: `1px solid ${theme === 'dark' ? '#3a3a3a' : '#e0e0e0'}`,
-          backgroundColor: theme === 'dark' ? '#252525' : '#f5f5f5',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-        }}
-      >
-        <div className="app-brand" aria-label="Chematic Draw">
-          <span className="app-brand-mark" aria-hidden="true">⌬</span>
-          <span>Chematic Draw</span>
-        </div>
-        {isBrowserHost && (
+      <GeneralToolbar
+        language={language}
+        theme={theme}
+        sidebarOpen={sidebarOpen}
+        mainToolsOpen={mainToolsOpen}
+        undoCount={undoCount}
+        redoCount={redoCount}
+        selectedAtomCount={selectedAtomCount}
+        atomCount={molecule.atoms.length}
+        bondCount={molecule.bonds.length}
+        zoom={zoom}
+        primaryModifier={primaryModifier}
+        documentActions={isBrowserHost ? (
           <BrowserDocumentToolbar
             molecule={molecule}
             language={language}
@@ -688,192 +727,20 @@ export function App() {
             onNew={() => { clear(); setFilePath(null); setRichCdxmlSession(null); }}
             onStatus={setStatus}
           />
-        )}
-        {!sidebarOpen && (
-          <button
-            data-testid="show-sidebar"
-            onClick={() => setSidebarOpen(true)}
-            aria-label={tr('Show sidebar', 'サイドバーを表示', '显示侧栏')}
-            title={tr('Show sidebar', 'サイドバーを表示', '显示侧栏')}
-            style={{ padding: '6px 10px', backgroundColor: 'transparent', color: 'inherit', border: '1px solid currentColor', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
-          >
-            {tr('Panel', 'パネル', '面板')}
-          </button>
-        )}
-        <span className="toolbar-section-label" style={{ fontSize: '10px', opacity: 0.6, marginRight: '2px' }}>{tr('Atoms', '原子', '原子')}</span>
-        {toolButtons.slice(0, 6).map((btn) => (
-          <button
-            key={btn.tool}
-            onClick={() => setTool(btn.tool)}
-            title={`${language === 'en' ? btn.label : btn.ariaLabel} [${btn.key}]`}
-            aria-label={btn.ariaLabel}
-            aria-pressed={activeTool === btn.tool}
-            style={{
-              padding: '6px 10px',
-              fontSize: '12px',
-              backgroundColor: activeTool === btn.tool ? '#4d8dff' : 'transparent',
-              color: 'inherit',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              minWidth: '32px',
-            }}
-          >
-            {btn.label}
-          </button>
-        ))}
-        <span aria-hidden="true" style={{ width: '1px', height: '22px', backgroundColor: theme === 'dark' ? '#555' : '#ccc', margin: '0 4px' }} />
-        <span className="toolbar-section-label" style={{ fontSize: '10px', opacity: 0.6, marginRight: '2px' }}>{tr('Bonds', '結合', '键')}</span>
-        {toolButtons.slice(6).map((btn) => (
-          <button
-            key={btn.tool}
-            onClick={() => setTool(btn.tool)}
-            title={`${language === 'en' ? btn.label : btn.ariaLabel} [${btn.key}]`}
-            aria-label={btn.ariaLabel}
-            aria-pressed={activeTool === btn.tool}
-            style={{
-              padding: '6px 10px',
-              fontSize: '12px',
-              backgroundColor: activeTool === btn.tool ? '#4d8dff' : 'transparent',
-              color: 'inherit',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              minWidth: '32px',
-            }}
-          >
-            {btn.label}
-          </button>
-        ))}
-
-        <span aria-hidden="true" style={{ width: '1px', height: '22px', backgroundColor: theme === 'dark' ? '#555' : '#ccc', margin: '0 4px' }} />
-        <span className="toolbar-section-label" style={{ fontSize: '10px', opacity: 0.6, marginRight: '2px' }}>{tr('History', '履歴', '历史')}</span>
-        <button
-          type="button"
-          data-testid="undo-button"
-          onClick={() => { if (undo()) announce('Undid last edit', '直前の編集を元に戻しました'); }}
-          disabled={undoCount === 0}
-          aria-label={tr('Undo last edit', '直前の編集を元に戻す', '撤销上一步编辑')}
-          title={`${tr('Undo last edit', '直前の編集を元に戻す', '撤销上一步编辑')} [${primaryModifier}+Z]`}
-          style={{ padding: '6px 9px', backgroundColor: 'transparent', color: 'inherit', border: '1px solid currentColor', borderRadius: '4px', cursor: undoCount === 0 ? 'default' : 'pointer', fontSize: '14px', opacity: undoCount === 0 ? 0.4 : 1 }}
-        >↶</button>
-        <button
-          type="button"
-          data-testid="redo-button"
-          onClick={() => { if (redo()) announce('Redid last edit', '編集をやり直しました'); }}
-          disabled={redoCount === 0}
-          aria-label={tr('Redo last edit', '直前の編集をやり直す', '重做上一步编辑')}
-          title={`${tr('Redo last edit', '直前の編集をやり直す', '重做上一步编辑')} [${primaryModifier}+Shift+Z]`}
-          style={{ padding: '6px 9px', backgroundColor: 'transparent', color: 'inherit', border: '1px solid currentColor', borderRadius: '4px', cursor: redoCount === 0 ? 'default' : 'pointer', fontSize: '14px', opacity: redoCount === 0 ? 0.4 : 1 }}
-        >↷</button>
-
-        <span aria-hidden="true" style={{ width: '1px', height: '22px', backgroundColor: theme === 'dark' ? '#555' : '#ccc', margin: '0 4px' }} />
-        <span className="toolbar-section-label" style={{ fontSize: '10px', opacity: 0.6, marginRight: '2px' }}>{tr('Arrange', '配置', '排列')}</span>
-        <button
-          type="button"
-          data-testid="align-horizontal-button"
-          onClick={() => transformSelection((value) => alignSelectedAtoms(value, 'horizontal'), 'Aligned selection horizontally', '選択範囲を横方向に整列しました')}
-          disabled={selectedAtomCount < 2}
-          aria-label={tr('Align selected atoms horizontally', '選択した原子を横方向に整列', '水平对齐选中的原子')}
-          title={tr('Align selected atoms horizontally', '選択した原子を横方向に整列', '水平对齐选中的原子')}
-          style={{ padding: '6px 8px', backgroundColor: 'transparent', color: 'inherit', border: '1px solid currentColor', borderRadius: '4px', cursor: selectedAtomCount < 2 ? 'default' : 'pointer', fontSize: '12px', opacity: selectedAtomCount < 2 ? 0.4 : 1 }}
-        >↔</button>
-        <button
-          type="button"
-          data-testid="align-vertical-button"
-          onClick={() => transformSelection((value) => alignSelectedAtoms(value, 'vertical'), 'Aligned selection vertically', '選択範囲を縦方向に整列しました')}
-          disabled={selectedAtomCount < 2}
-          aria-label={tr('Align selected atoms vertically', '選択した原子を縦方向に整列', '垂直对齐选中的原子')}
-          title={tr('Align selected atoms vertically', '選択した原子を縦方向に整列', '垂直对齐选中的原子')}
-          style={{ padding: '6px 8px', backgroundColor: 'transparent', color: 'inherit', border: '1px solid currentColor', borderRadius: '4px', cursor: selectedAtomCount < 2 ? 'default' : 'pointer', fontSize: '12px', opacity: selectedAtomCount < 2 ? 0.4 : 1 }}
-        >↕</button>
-        <button
-          type="button"
-          data-testid="rotate-selection-button"
-          onClick={() => transformSelection((value) => rotateSelectedAtoms(value), 'Rotated selection 90 degrees', '選択範囲を90度回転しました')}
-          disabled={selectedAtomCount < 2}
-          aria-label={tr('Rotate selected atoms 90 degrees', '選択した原子を90度回転', '将选中的原子旋转90度')}
-          title={tr('Rotate selected atoms 90 degrees', '選択した原子を90度回転', '将选中的原子旋转90度')}
-          style={{ padding: '6px 8px', backgroundColor: 'transparent', color: 'inherit', border: '1px solid currentColor', borderRadius: '4px', cursor: selectedAtomCount < 2 ? 'default' : 'pointer', fontSize: '12px', opacity: selectedAtomCount < 2 ? 0.4 : 1 }}
-        >⟳</button>
-
-        <div style={{ flex: 1 }} />
-
-        <button
-          data-testid="fit-view"
-          onClick={() => fitView(molecule)}
-          aria-label={tr('Fit structure to canvas', '構造をキャンバスに収める', '将结构适配到画布')}
-          title={tr('Fit structure to canvas', '構造をキャンバスに収める', '将结构适配到画布')}
-          disabled={molecule.atoms.length === 0}
-          style={{ padding: '6px 10px', backgroundColor: 'transparent', color: 'inherit', border: '1px solid currentColor', borderRadius: '4px', cursor: molecule.atoms.length === 0 ? 'default' : 'pointer', fontSize: '12px', opacity: molecule.atoms.length === 0 ? 0.45 : 1 }}
-        >
-          {tr('Fit', '全体表示', '适配')}
-        </button>
-
-        <button
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          aria-label={language === 'ja'
-            ? (theme === 'dark' ? 'ライトテーマに切り替える' : 'ダークテーマに切り替える')
-            : (theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme')}
-          style={{
-            padding: '6px 12px',
-            backgroundColor: 'transparent',
-            color: 'inherit',
-            border: `1px solid ${theme === 'dark' ? '#555555' : '#cccccc'}`,
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '16px',
-          }}
-          title={tr('Toggle theme', 'テーマを切り替える', '切换主题')}
-        >
-          {theme === 'dark' ? '☀️' : '🌙'}
-        </button>
-
-        <button
-          data-testid="settings-button"
-          onClick={() => showModal('settings')}
-          aria-label={language === 'ja' ? '環境設定を開く' : language === 'zh' ? '打开设置' : 'Open settings'}
-          title={language === 'ja' ? '環境設定' : language === 'zh' ? '设置' : 'Settings'}
-          style={{ padding: '6px 10px', backgroundColor: 'transparent', color: 'inherit', border: '1px solid currentColor', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
-        >
-          ⚙
-        </button>
-
-        <button
-          data-testid="language-toggle"
-          onClick={() => setLanguage(language === 'ja' ? 'en' : 'ja')}
-          aria-label={language === 'ja' ? '英語に切り替える' : language === 'zh' ? '切换到英语' : '日本語に切り替える'}
-          title={language === 'ja' ? '英語に切り替える' : language === 'zh' ? '切换到英语' : '日本語に切り替える'}
-          style={{ padding: '6px 8px', backgroundColor: 'transparent', color: 'inherit', border: '1px solid currentColor', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: '600' }}
-        >
-          {language === 'ja' || language === 'zh' ? 'EN' : '日本語'}
-        </button>
-
-        <button
-          data-testid="shortcuts-help"
-          onClick={() => showModal('shortcuts')}
-          aria-label={tr('Show keyboard shortcuts', 'キーボードショートカットを表示', '显示键盘快捷键')}
-          title={tr('Show keyboard shortcuts', 'キーボードショートカットを表示', '显示键盘快捷键')}
-          style={{ padding: '6px 10px', backgroundColor: 'transparent', color: 'inherit', border: '1px solid currentColor', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
-        >
-          ?
-        </button>
-
-        <div
-          data-testid="toolbar-summary"
-          aria-label={tr('Structure summary', '構造の概要', '结构摘要')}
-          style={{ fontSize: '12px', opacity: 0.7, marginLeft: '12px', whiteSpace: 'nowrap' }}
-        >
-          {molecule.atoms.length}a • {molecule.bonds.length}b • {(zoom * 100).toFixed(0)}%
-        </div>
-
-        {wasmStatus === 'loading' && (
-          <span role="status" style={{ color: '#ff6b6b', marginLeft: '12px', fontSize: '12px' }}>{language === 'ja' ? '⚠️ WASMを読み込み中…' : '⚠️ WASM Loading...'}</span>
-        )}
-        {wasmStatus === 'failed' && (
-          <span role="alert" style={{ color: '#ff6b6b', marginLeft: '12px', fontSize: '12px' }}>{language === 'ja' ? '✕ WASMの読み込みに失敗しました' : '✕ WASM failed to load'}</span>
-        )}
-      </div>
+        ) : undefined}
+        onUndo={() => { if (undo()) announce('Undid last edit', '直前の編集を元に戻しました'); }}
+        onRedo={() => { if (redo()) announce('Redid last edit', '編集をやり直しました'); }}
+        onAlignHorizontal={() => applySelectionTransform('horizontal')}
+        onAlignVertical={() => applySelectionTransform('vertical')}
+        onRotate={() => applySelectionTransform('rotate')}
+        onFit={() => fitView(molecule)}
+        onShowSidebar={() => setSidebarOpen(true)}
+        onShowMainTools={() => setMainToolsOpen(true)}
+        onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+        onOpenSettings={() => showModal('settings')}
+        onToggleLanguage={() => setLanguage(language === 'ja' ? 'en' : 'ja')}
+        onOpenShortcuts={() => showModal('shortcuts')}
+      />
 
       {/* Canvas Area with Sidebar — not mounted until WASM is actually ready,
           so no individual panel needs to guess whether it's safe to call
@@ -881,6 +748,7 @@ export function App() {
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {wasmStatus === 'ready' && (
           <>
+            {mainToolsOpen && <MainToolsPalette activeTool={activeTool} language={language} onSelectTool={setTool} />}
             <MoleculeCanvas />
             <Sidebar onRetryBatch={handleRetryBatch} />
           </>

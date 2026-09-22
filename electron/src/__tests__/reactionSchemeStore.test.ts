@@ -75,4 +75,18 @@ describe('reactionSchemeStore: single source of truth for reaction steps', () =>
     expect(step?.conditions?.temperature).toBe('reflux');
     expect(step?.mechanismType).toBe('sn2');
   });
+
+  it('loads an imported multi-step scheme atomically without resetting view state', () => {
+    const imported = {
+      id: 'imported', title: 'Imported', description: 'preserve me', currentStepIndex: 1, viewMode: 'scheme' as const,
+      steps: [makeStep('step-1'), makeStep('step-2')],
+    };
+    useReactionSchemeStore.getState().loadScheme(imported);
+    const state = useReactionSchemeStore.getState();
+    expect(state.scheme).toEqual(imported);
+    expect(state.scheme?.currentStepIndex).toBe(1);
+    expect(state.scheme?.viewMode).toBe('scheme');
+    expect(state.schemeLayout?.stepBoxes).toHaveLength(2);
+    expect(state.reactionClassification?.type).toBe('multi_step');
+  });
 });

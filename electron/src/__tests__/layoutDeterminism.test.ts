@@ -78,7 +78,7 @@ describe('golden SVG: rendered output matches the committed reference', () => {
   it.each(Object.entries(cases))('to_svg(%s) matches golden-svg/%s.svg', (name, smiles) => {
     const golden = fs.readFileSync(path.join(goldenDir, `${name}.svg`), 'utf-8');
     const actual = wasm.to_svg(wasm.parse_any(smiles));
-    expect(actual).toBe(golden);
+    expect(actual).toBe(golden.trimEnd());
   });
 });
 
