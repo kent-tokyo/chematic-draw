@@ -52,6 +52,10 @@ for (const path of workflowPaths) {
     `${path} must not use a GitHub Action with a retired Node runtime.`,
   );
   requireCondition(
+    !/actions\/download-artifact@v[1-4]\b/.test(workflow),
+    `${path} must use download-artifact v5 or later.`,
+  );
+  requireCondition(
     !/softprops\/action-gh-release@v[1-2]\b/.test(workflow),
     `${path} must use the maintained release-action major.`,
   );

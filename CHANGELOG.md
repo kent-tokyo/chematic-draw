@@ -3,6 +3,13 @@
 Notable changes to chematic-draw. Dates use ISO 8601 format. See the git log
 for the full development history.
 
+## [Unreleased]
+
+### Changed
+
+- Updated the release artifact download action to v5, removing its deprecated
+  Node 20 runtime warning from GitHub Actions.
+
 ## [1.0.12] - 2026-09-22
 
 ### Added
