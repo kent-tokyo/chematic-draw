@@ -170,7 +170,7 @@ jobs:
         working-directory: electron
         run: npx --yes license-checker --json > ../npm-licenses.json
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: sbom-and-licenses
           path: |

@@ -227,7 +227,7 @@ jobs:
       # ship an empty release asset.
       - name: Upload Linux artifacts
         if: runner.os == 'Linux'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: linux-binaries
           path: |
@@ -238,7 +238,7 @@ jobs:
 
       - name: Upload macOS artifacts
         if: runner.os == 'macOS'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: macos-binaries
           path: |
@@ -248,7 +248,7 @@ jobs:
 
       - name: Upload Windows artifacts
         if: runner.os == 'Windows'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: windows-binaries
           path: |
