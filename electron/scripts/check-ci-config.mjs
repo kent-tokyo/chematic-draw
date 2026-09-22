@@ -44,6 +44,10 @@ const workflowPaths = [
 for (const path of workflowPaths) {
   const workflow = read(path);
   requireCondition(
+    workflow.includes("FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'"),
+    `${path} must explicitly run JavaScript actions on Node 24.`,
+  );
+  requireCondition(
     !/cargo install wasm-pack(?! --version 0\.13\.1 --locked)/.test(workflow),
     `${path} must pin wasm-pack 0.13.1 and install it with --locked.`,
   );
@@ -52,8 +56,12 @@ for (const path of workflowPaths) {
     `${path} must not use a GitHub Action with a retired Node runtime.`,
   );
   requireCondition(
-    !/actions\/(?:download|upload)-artifact@v[1-4]\b/.test(workflow),
-    `${path} must use artifact transfer actions v5 or later.`,
+    !/actions\/upload-artifact@v[1-6]\b/.test(workflow),
+    `${path} must use actions/upload-artifact v7 or later (Node 24 runtime).`,
+  );
+  requireCondition(
+    !/actions\/download-artifact@v[1-7]\b/.test(workflow),
+    `${path} must use actions/download-artifact v8 or later (Node 24 runtime).`,
   );
   requireCondition(
     !/softprops\/action-gh-release@v[1-2]\b/.test(workflow),

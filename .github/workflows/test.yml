@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main, develop]
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 jobs:
   ci-config:
     name: CI Configuration
@@ -164,7 +167,7 @@ jobs:
         run: npm run test:e2e
 
       - name: Upload Playwright Report
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: playwright-report
@@ -257,7 +260,7 @@ jobs:
         run: npm run test:perf
 
       - name: Upload Performance Report
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: perf-report

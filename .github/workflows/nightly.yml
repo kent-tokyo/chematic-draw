@@ -5,6 +5,9 @@ on:
     - cron: '0 2 * * *'
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 jobs:
   build:
     name: Nightly Build
@@ -170,7 +173,7 @@ jobs:
         working-directory: electron
         run: npx --yes license-checker --json > ../npm-licenses.json
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: sbom-and-licenses
           path: |

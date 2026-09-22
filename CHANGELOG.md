@@ -7,8 +7,8 @@ for the full development history.
 
 ### Changed
 
-- Updated artifact upload and download actions to v5, removing their deprecated
-  Node 20 runtime warnings from GitHub Actions.
+- Updated artifact transfer and Pages actions to their Node 24-compatible
+  releases, removing deprecated Node 20 runtime warnings from GitHub Actions.
 
 ## [1.0.12] - 2026-09-22
 
