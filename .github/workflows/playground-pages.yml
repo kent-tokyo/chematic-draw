@@ -61,7 +61,8 @@ jobs:
         working-directory: electron
       - run: npm run test:e2e:playground
         working-directory: electron
-      - uses: actions/configure-pages@v5
+      # v5 still declares node20; this official main SHA declares node24.
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d
       - uses: actions/upload-pages-artifact@v5
         with:
           path: electron/site

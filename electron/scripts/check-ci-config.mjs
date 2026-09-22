@@ -67,6 +67,12 @@ for (const path of workflowPaths) {
     !/softprops\/action-gh-release@v[1-2]\b/.test(workflow),
     `${path} must use the maintained release-action major.`,
   );
+  if (path === '.github/workflows/playground-pages.yml') {
+    requireCondition(
+      workflow.includes('actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d'),
+      `${path} must pin the Node 24-compatible actions/configure-pages revision.`,
+    );
+  }
 }
 
 const nightly = read('.github/workflows/nightly.yml');
