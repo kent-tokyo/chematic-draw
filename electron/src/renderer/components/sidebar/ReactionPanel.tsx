@@ -10,13 +10,14 @@ import { assertPublicationLayout } from '../../lib/layoutMetrics';
 import { runAnalysisInWorker } from '../../lib/analysisWorkerClient';
 import * as wasmBridge from '../../wasm/wasmBridge';
 import { exportLossMessage, exportLosses } from '../../lib/exportLoss';
-import { parseComponentIds } from '../../lib/reactionComponentEditor';
+import { parseComponentIds, parseReactionCoefficients } from '../../lib/reactionComponentEditor';
 import { assertReactionDocument } from '../../lib/reactionDocumentGate';
 import { suggestReactionCoefficients } from '../../lib/reactionSchemeUtils';
 import { ReactionExportSection } from './ReactionExportSection';
 import { ReactionExecutor } from './ReactionExecutor';
-
-type ReactionWorkflowStage = 'components' | 'mapping' | 'validation' | 'mechanism' | 'review' | 'export';
+import { ReactionAnalysisPanels } from './ReactionAnalysisPanels';
+import { ReactionStepEditor } from './ReactionStepEditor';
+import { ReactionWorkflowNavigator, ReactionWorkflowStage, ReactionWorkflowStageState } from './ReactionWorkflowNavigator';
 
 export function ReactionPanel() {
   const theme = useUIStore((s) => s.theme);
@@ -89,7 +90,7 @@ export function ReactionPanel() {
   const accentColor = '#4d8dff';
 
   const currentStep = scheme.steps[scheme.currentStepIndex];
-  const workflowStages: Array<{ id: ReactionWorkflowStage; label: string; complete: boolean }> = [
+  const workflowStages: ReactionWorkflowStageState[] = [
     {
       id: 'components',
       label: isJapanese ? '構成要素' : 'Components',
@@ -167,8 +168,16 @@ export function ReactionPanel() {
   };
 
   const commitCoefficients = (stepId: string, role: 'reactant' | 'product', value: string) => {
-    const coefficients = value.split(',').map((item) => item.trim()).filter(Boolean).map(Number);
-    if (value.trim() && coefficients.some((coefficient) => !Number.isFinite(coefficient) || coefficient <= 0)) return;
+    const step = scheme.steps.find((candidate) => candidate.id === stepId);
+    if (!step) return;
+    const expectedCount = role === 'reactant' ? step.reactants.length : step.products.length;
+    const coefficients = parseReactionCoefficients(value, expectedCount);
+    if (coefficients === null) {
+      setStatus(isJapanese
+        ? `${role === 'reactant' ? '反応物' : '生成物'}の係数は${expectedCount}件の0より大きい有限数で指定してください`
+        : `${role} coefficients must contain exactly ${expectedCount} finite positive value(s).`);
+      return;
+    }
     updateStep(stepId, role === 'reactant' ? { reactantCoefficients: coefficients } : { productCoefficients: coefficients });
     setCoefficientDrafts((drafts) => {
       const next = { ...drafts };
@@ -505,48 +514,18 @@ export function ReactionPanel() {
         }}
       />
 
-      <nav
-        aria-label={isJapanese ? '反応ワークフロー' : 'Reaction workflow'}
-        data-testid="reaction-workflow"
-        style={{
-          padding: '8px',
-          backgroundColor: isDark ? '#202b38' : '#f7f9fc',
-          border: `1px solid ${borderColor}`,
-          borderRadius: '6px',
-        }}
-      >
-        <div style={{ fontSize: '10px', color: labelColor, marginBottom: '6px' }}>
-          {isJapanese ? '反応の進め方' : 'Reaction workflow'}
-        </div>
-        <ol style={{ display: 'flex', gap: '3px', listStyle: 'none', padding: 0, margin: 0, overflowX: 'auto' }}>
-          {workflowStages.map((stage, index) => {
-            const isActive = stage.id === activeWorkflowStage;
-            return (
-              <li key={stage.id} style={{ display: 'flex', alignItems: 'center', flex: '0 0 auto' }}>
-                <button
-                  type="button"
-                  aria-current={isActive ? 'step' : undefined}
-                  aria-label={`${index + 1}. ${stage.label}${stage.complete ? (isJapanese ? '（完了）' : ' (complete)') : ''}`}
-                  onClick={() => focusWorkflowStage(stage.id)}
-                  style={{
-                    padding: '4px 6px',
-                    border: `1px solid ${isActive ? accentColor : borderColor}`,
-                    borderRadius: '4px',
-                    backgroundColor: isActive ? accentColor : stage.complete ? (isDark ? '#254936' : '#e8f5e9') : inputBg,
-                    color: isActive ? 'white' : textColor,
-                    fontSize: '9px',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {stage.complete ? '✓ ' : `${index + 1}. `}{stage.label}
-                </button>
-                {index < workflowStages.length - 1 && <span aria-hidden="true" style={{ color: labelColor, padding: '0 1px', fontSize: '9px' }}>›</span>}
-              </li>
-            );
-          })}
-        </ol>
-      </nav>
+      <ReactionWorkflowNavigator
+        stages={workflowStages}
+        activeStage={activeWorkflowStage}
+        isJapanese={isJapanese}
+        isDark={isDark}
+        textColor={textColor}
+        labelColor={labelColor}
+        borderColor={borderColor}
+        inputBg={inputBg}
+        accentColor={accentColor}
+        onSelect={focusWorkflowStage}
+      />
 
       <div data-workflow-stage="export">
         <ReactionExportSection
@@ -671,465 +650,50 @@ export function ReactionPanel() {
         </div>
       )}
 
-      {/* Reaction Structure Summary — step/arrow counts, not a mechanism classification */}
-      {reactionClassification && scheme && scheme.steps.length > 0 && (
-        <div data-workflow-stage="review" style={{
-          padding: '12px',
-          backgroundColor: isDark ? '#1a3a4a' : '#e3f2fd',
-          border: `1px solid ${isDark ? '#2a5a7a' : '#90caf9'}`,
-          borderRadius: '6px',
-          marginBottom: '12px',
-        }}>
-          <div style={{ fontSize: '12px', fontWeight: 'bold', color: isDark ? '#90caf9' : '#1976d2', marginBottom: '8px' }}>
-            Reaction Structure
-          </div>
-          <div style={{ fontSize: '13px', fontWeight: 'bold', color: textColor, marginBottom: '6px' }}>
-            {reactionClassification.type === 'multi_step' ? 'MULTI-STEP' : reactionClassification.type === 'single_step' ? 'SINGLE-STEP' : 'UNKNOWN'}
-          </div>
-          {reactionClassification.indicators.map((ind, i) => (
-            <div key={i} style={{ fontSize: '9px', color: labelColor }}>• {ind}</div>
-          ))}
-        </div>
-      )}
+      <ReactionAnalysisPanels
+        hasSteps={scheme.steps.length > 0}
+        classification={reactionClassification}
+        diagnostics={reactionDiagnostics}
+        atomMappings={atomMappings}
+        greenMetrics={greenMetrics}
+        atomLabelsVisible={atomLabelsVisible}
+        mappingLinesVisible={mappingLinesVisible}
+        onToggleAtomLabels={toggleAtomLabels}
+        onToggleMappingLines={toggleMappingLines}
+        isJapanese={isJapanese}
+        isDark={isDark}
+        textColor={textColor}
+        labelColor={labelColor}
+        borderColor={borderColor}
+        accentColor={accentColor}
+      />
 
-      {reactionDiagnostics && scheme && scheme.steps.length > 0 && (
-        <div
-          role="status"
-          aria-label="Reaction verification"
-          data-workflow-stage="validation"
-          style={{
-            padding: '12px',
-            backgroundColor: reactionDiagnostics.status === 'verified'
-              ? (isDark ? '#1a3a2a' : '#e8f5e9')
-              : (isDark ? '#3a2d1a' : '#fff8e1'),
-            border: `1px solid ${reactionDiagnostics.status === 'verified' ? (isDark ? '#2a5a4a' : '#81c784') : (isDark ? '#6a4d22' : '#ffcc80')}`,
-            borderRadius: '6px',
-            marginBottom: '12px',
-          }}
-        >
-          <div style={{ fontSize: '12px', fontWeight: 'bold', color: textColor, marginBottom: '6px' }}>
-            {isJapanese ? '反応検証' : 'Reaction Verification'}: {reactionDiagnostics.status === 'verified' ? (isJapanese ? '検証済み' : 'VERIFIED') : (isJapanese ? '未検証' : 'NOT VERIFIED')}
-          </div>
-          <div
-            data-testid="reaction-verification-scope"
-            style={{ fontSize: '10px', color: labelColor, lineHeight: 1.4, marginBottom: '6px' }}
-          >
-            {isJapanese
-              ? '注: これは入力された原子・電荷・マップ・中間体の整合性確認です。反応機構の正しさ、完全な化学量論、生成物予測は保証しません。'
-              : 'Scope: checks authored atoms, charges, maps, and intermediate continuity only. It does not prove mechanism correctness, complete stoichiometry, or product prediction.'}
-          </div>
-          {reactionDiagnostics.issues.map((issue, index) => (
-            <div key={index} style={{ fontSize: '10px', color: reactionDiagnostics.status === 'verified' ? '#4caf50' : '#d88900', marginTop: '3px' }}>
-              {reactionDiagnostics.status === 'verified' ? '✓' : '⚠'} {issue}
-            </div>
-          ))}
-          {reactionDiagnostics.mapping.unmatchedMapNumbers.length > 0 && (
-            <div style={{ fontSize: '10px', color: '#d88900', marginTop: '5px' }}>
-              {isJapanese ? '一致しないマップ番号' : 'Unmatched map numbers'}: {reactionDiagnostics.mapping.unmatchedMapNumbers.join(', ')}
-            </div>
-          )}
-          {reactionDiagnostics.continuity.boundaries.length > 0 && (
-            <div data-testid="reaction-integrity-continuity" style={{ marginTop: '6px', color: labelColor, fontSize: '10px' }}>
-              {reactionDiagnostics.continuity.boundaries.map((boundary) => (
-                <div key={`${boundary.fromStep}-${boundary.toStep}`}>
-                  {isJapanese ? 'ステップ' : 'Step'} {boundary.fromStep} → {boundary.toStep}: {boundary.matchedMoleculeCount} {isJapanese ? '件の中間体' : `authored intermediate${boundary.matchedMoleculeCount === 1 ? '' : 's'}`}
-                </div>
-              ))}
-            </div>
-          )}
-          <div data-testid="reaction-integrity-steps" style={{ marginTop: '8px', borderTop: `1px solid ${borderColor}`, paddingTop: '6px' }}>
-            {reactionDiagnostics.stepResults.map((step) => (
-              <div key={step.stepIndex} style={{ fontSize: '10px', color: labelColor, marginTop: '3px' }}>
-                Step {step.stepIndex + 1}: atoms {step.atomBalance.balanced ? '✓' : '⚠'} · charge {step.chargeBalance.balanced ? '✓' : '⚠'} · mapping {step.mapping.complete ? '✓' : '⚠'}
-                {step.mapping.mappedAtomCount > 0 ? ` (${step.mapping.mappedAtomCount} mapped)` : ''}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Atom Mapping Legend */}
-      {atomMappings && atomMappings.totalMappedAtoms > 0 && (
-        <div data-workflow-stage="mapping">
-          <div style={{
-          padding: '12px',
-          backgroundColor: isDark ? '#1e2a3a' : '#f9f9f9',
-          border: `1px solid ${borderColor}`,
-          borderRadius: '6px',
-          marginBottom: '12px',
-        }}>
-          <div style={{ fontSize: '12px', fontWeight: 'bold', color: textColor, marginBottom: '8px' }}>
-            Atom Mapping ({atomMappings.totalMappedAtoms} atoms)
-          </div>
-
-          {/* Color Legend */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px' }}>
-            {[
-              { color: '#51cf66', label: 'Persistent' },
-              { color: '#4d8dff', label: 'New' },
-              { color: '#ff6b6b', label: 'Leaving' },
-              { color: '#888888', label: 'Spectator' },
-            ].map((item) => (
-              <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px' }}>
-                <div style={{ width: '12px', height: '12px', backgroundColor: item.color, borderRadius: '2px' }} />
-                <span>{item.label}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Toggles */}
-          <div style={{ display: 'flex', gap: '4px' }}>
-            <button
-              onClick={() => toggleAtomLabels()}
-              style={{
-                flex: 1,
-                padding: '4px 6px',
-                backgroundColor: atomLabelsVisible ? accentColor : borderColor,
-                color: atomLabelsVisible ? 'white' : textColor,
-                border: 'none',
-                borderRadius: '2px',
-                cursor: 'pointer',
-                fontSize: '9px',
-              }}
-            >
-              {atomLabelsVisible ? '✓' : '○'} Labels
-            </button>
-            <button
-              onClick={() => toggleMappingLines()}
-              style={{
-                flex: 1,
-                padding: '4px 6px',
-                backgroundColor: mappingLinesVisible ? accentColor : borderColor,
-                color: mappingLinesVisible ? 'white' : textColor,
-                border: 'none',
-                borderRadius: '2px',
-                cursor: 'pointer',
-                fontSize: '9px',
-              }}
-            >
-              {mappingLinesVisible ? '✓' : '○'} Lines
-            </button>
-          </div>
-
-          {/* Atom List */}
-          <div style={{ marginTop: '8px', maxHeight: '120px', overflowY: 'auto', fontSize: '9px' }}>
-            {Array.from(atomMappings.entries).map(([id, entry]) => (
-              <div key={id} style={{ color: labelColor, marginBottom: '2px' }}>
-                <span style={{ fontWeight: 'bold' }}>{id}:</span> {entry.element}{entry.formalCharge > 0 ? '+' : entry.formalCharge < 0 ? '−' : ''}
-              </div>
-            ))}
-          </div>
-        </div>
-        </div>
-      )}
-
-      {/* Green Chemistry Metrics */}
-      {greenMetrics && scheme && scheme.steps.length > 0 && (
-        <div style={{
-          padding: '12px',
-          backgroundColor: isDark ? '#1a3a2a' : '#e8f5e9',
-          border: `1px solid ${isDark ? '#2a5a4a' : '#81c784'}`,
-          borderRadius: '6px',
-          marginBottom: '12px',
-        }}>
-          <div style={{ fontSize: '12px', fontWeight: 'bold', color: isDark ? '#81c784' : '#2e7d32', marginBottom: '8px' }}>
-            {isJapanese ? 'グリーンケミストリー指標' : 'Green Chemistry Metrics'}
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-around', fontSize: '11px' }}>
-            <div>
-              <div style={{ fontWeight: 'bold', color: textColor }}>{isJapanese ? '原子効率' : 'Atom Economy'}</div>
-              <div style={{ fontSize: '13px', color: '#4caf50', fontWeight: 'bold' }}>{greenMetrics.atomEconomy}%</div>
-            </div>
-            <div>
-              <div style={{ fontWeight: 'bold', color: textColor }}>E-Factor</div>
-              <div style={{ fontSize: '13px', color: '#ff9800', fontWeight: 'bold' }}>{greenMetrics.eFactorApprox}</div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Steps List */}
-      <div data-workflow-stage="components" style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '400px', overflow: 'auto' }}>
-        {scheme.steps.length === 0 ? (
-          <div style={{ fontSize: '11px', color: labelColor, textAlign: 'center', padding: '16px' }}>
-            {isJapanese ? 'ステップがありません。追加して始めてください。' : 'No steps. Add one to start.'}
-          </div>
-        ) : (
-          scheme.steps.map((step, idx) => (
-            <div key={step.id} style={{ border: `1px solid ${borderColor}`, borderRadius: '4px', overflow: 'hidden' }}>
-              {/* Step Header */}
-              <button
-                onClick={() => setExpandedStepId(expandedStepId === step.id ? null : step.id)}
-                style={{
-                  width: '100%',
-                  padding: '8px',
-                  backgroundColor: expandedStepId === step.id ? '#3a4a57' : inputBg,
-                  color: textColor,
-                  border: 'none',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  fontSize: '11px',
-                  fontWeight: 'bold',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <span>{isJapanese ? 'ステップ' : 'Step'} {idx + 1}</span>
-                <span>{expandedStepId === step.id ? '▼' : '▶'}</span>
-              </button>
-
-              <div style={{ display: 'flex', gap: '3px', padding: '4px 8px', backgroundColor: inputBg, borderTop: `1px solid ${borderColor}` }}>
-                <button
-                  aria-label={isJapanese ? `ステップ${idx + 1}を上へ移動` : `Move step ${idx + 1} up`}
-                  disabled={idx === 0}
-                  onClick={() => handleMoveStep(idx, -1)}
-                  style={{ padding: '2px 6px', fontSize: '9px', cursor: idx === 0 ? 'not-allowed' : 'pointer', opacity: idx === 0 ? 0.5 : 1 }}
-                >↑</button>
-                <button
-                  aria-label={isJapanese ? `ステップ${idx + 1}を下へ移動` : `Move step ${idx + 1} down`}
-                  disabled={idx === scheme.steps.length - 1}
-                  onClick={() => handleMoveStep(idx, 1)}
-                  style={{ padding: '2px 6px', fontSize: '9px', cursor: idx === scheme.steps.length - 1 ? 'not-allowed' : 'pointer', opacity: idx === scheme.steps.length - 1 ? 0.5 : 1 }}
-                >↓</button>
-                <span style={{ fontSize: '9px', color: labelColor, alignSelf: 'center' }}>{isJapanese ? '順序' : 'Order'}</span>
-              </div>
-
-              {/* Step Details */}
-              {expandedStepId === step.id && (
-                <div style={{ padding: '8px', backgroundColor: theme === 'dark' ? '#1e2530' : '#f9f9f9', borderTop: `1px solid ${borderColor}` }}>
-                  {/* Arrow Type */}
-                  <div style={{ marginBottom: '8px' }}>
-                    <label style={{ fontSize: '10px', color: labelColor, display: 'block', marginBottom: '4px' }}>
-                      {isJapanese ? '矢印の種類' : 'Arrow Type'}
-                    </label>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '4px' }}>
-                      {(['single', 'double', 'equilibrium', 'retro'] as const).map((type) => (
-                        <button
-                          key={type}
-                          onClick={() => handleArrowTypeChange(step.id, type)}
-                          style={{
-                            padding: '4px',
-                            backgroundColor: step.arrowType === type ? accentColor : borderColor,
-                            color: step.arrowType === type ? 'white' : textColor,
-                            border: 'none',
-                            borderRadius: '3px',
-                            cursor: 'pointer',
-                            fontSize: '9px',
-                          }}
-                        >
-                          {isJapanese
-                            ? ({ single: '単結合', double: '二重結合', equilibrium: '平衡', retro: '逆反応' }[type])
-                            : type}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Temperature */}
-                  <div style={{ marginBottom: '8px' }}>
-                    <label style={{ fontSize: '10px', color: labelColor, display: 'block' }}>{isJapanese ? '係数（反応物,製品）' : 'Coefficients (reactants, products)'}</label>
-                    <button type="button" onClick={() => suggestCoefficients(step)} style={{ width: '100%', padding: '4px', marginTop: '3px', border: `1px solid ${accentColor}`, borderRadius: '3px', background: 'transparent', color: accentColor, fontSize: '9px', cursor: 'pointer' }}>
-                      {isJapanese ? '係数を提案' : 'Suggest coefficients'}
-                    </button>
-                    <input
-                      data-testid={`reaction-step-${idx + 1}-temperature`}
-                      type="text"
-                      aria-label={isJapanese ? `ステップ${idx + 1}の反応物係数` : `Step ${idx + 1} reactant coefficients`}
-                      placeholder="1, 0.5"
-                      value={coefficientDrafts[`${step.id}:reactant`] ?? (step.reactantCoefficients ?? []).join(', ')}
-                      onChange={(event) => setCoefficientDrafts((drafts) => ({ ...drafts, [`${step.id}:reactant`]: event.target.value }))}
-                      onBlur={(event) => commitCoefficients(step.id, 'reactant', event.target.value)}
-                      style={{ width: '100%', padding: '4px', marginTop: '2px', border: `1px solid ${borderColor}`, borderRadius: '3px', backgroundColor: theme === 'dark' ? '#0e1530' : '#ffffff', color: textColor, fontSize: '10px', boxSizing: 'border-box' }}
-                    />
-                    <input
-                      type="text"
-                      aria-label={isJapanese ? `ステップ${idx + 1}の製品係数` : `Step ${idx + 1} product coefficients`}
-                      placeholder="1, 1.25"
-                      value={coefficientDrafts[`${step.id}:product`] ?? (step.productCoefficients ?? []).join(', ')}
-                      onChange={(event) => setCoefficientDrafts((drafts) => ({ ...drafts, [`${step.id}:product`]: event.target.value }))}
-                      onBlur={(event) => commitCoefficients(step.id, 'product', event.target.value)}
-                      style={{ width: '100%', padding: '4px', marginTop: '2px', border: `1px solid ${borderColor}`, borderRadius: '3px', backgroundColor: theme === 'dark' ? '#0e1530' : '#ffffff', color: textColor, fontSize: '10px', boxSizing: 'border-box' }}
-                    />
-                  </div>
-
-                  {/* Agents */}
-                  <div style={{ marginBottom: '8px' }}>
-                    <label style={{ fontSize: '10px', color: labelColor, display: 'block' }}>{isJapanese ? '反応剤（SMILES）' : 'Agents (SMILES)'}</label>
-                    <div style={{ display: 'flex', gap: '4px', marginTop: '2px' }}>
-                      <input
-                        data-testid={`reaction-step-${idx + 1}-agent`}
-                        type="text"
-                        aria-label={isJapanese ? `ステップ${idx + 1}の反応剤SMILES` : `Step ${idx + 1} agent SMILES`}
-                        placeholder="O, CC(=O)O"
-                        value={agentDrafts[step.id] ?? ''}
-                        onChange={(event) => setAgentDrafts((drafts) => ({ ...drafts, [step.id]: event.target.value }))}
-                        style={{ flex: 1, padding: '4px', border: `1px solid ${borderColor}`, borderRadius: '3px', backgroundColor: theme === 'dark' ? '#0e1530' : '#ffffff', color: textColor, fontSize: '10px' }}
-                      />
-                      <button data-testid={`reaction-step-${idx + 1}-add-agent`} onClick={() => void handleAddAgent(step.id)} style={{ padding: '4px 6px', fontSize: '9px' }}>{isJapanese ? '追加' : 'Add'}</button>
-                    </div>
-                    {(step.agents?.length ?? 0) > 0 && <div style={{ marginTop: '3px', fontSize: '9px', color: labelColor }}>{isJapanese ? `登録済み: ${step.agents?.length}件` : `Added: ${step.agents?.length} agent(s)`}</div>}
-                  </div>
-
-                  {/* Component identities */}
-                  <div style={{ marginBottom: '8px' }}>
-                    <label style={{ fontSize: '10px', color: labelColor, display: 'block', marginBottom: '4px' }}>
-                      {isJapanese ? 'コンポーネント識別子（カンマ区切り）' : 'Component IDs (comma-separated)'}
-                    </label>
-                    {([
-                      ['reactant', step.reactantComponentIds ?? [], step.reactants.length, isJapanese ? '反応物' : 'Reactants'],
-                      ['product', step.productComponentIds ?? [], step.products.length, isJapanese ? '生成物' : 'Products'],
-                      ['agent', step.agentComponentIds ?? [], (step.agents ?? []).length, isJapanese ? '反応剤' : 'Agents'],
-                    ] as const).map(([role, ids, expectedCount, label]) => (
-                      <input
-                        key={role}
-                        type="text"
-                        aria-label={isJapanese ? `ステップ${idx + 1}の${label}コンポーネント識別子` : `Step ${idx + 1} ${label.toLowerCase()} component IDs`}
-                        placeholder={expectedCount > 0 ? (isJapanese ? `${expectedCount}件必要` : `${expectedCount} value(s) required`) : (isJapanese ? 'なし' : 'none')}
-                        value={componentIdDrafts[`${step.id}:${role}`] ?? ids.join(', ')}
-                        onChange={(event) => setComponentIdDrafts((drafts) => ({ ...drafts, [`${step.id}:${role}`]: event.target.value }))}
-                        onBlur={(event) => commitComponentIds(step.id, role, event.target.value)}
-                        style={{ width: '100%', padding: '4px', marginTop: '2px', border: `1px solid ${borderColor}`, borderRadius: '3px', backgroundColor: theme === 'dark' ? '#0e1530' : '#ffffff', color: textColor, fontSize: '10px', boxSizing: 'border-box' }}
-                      />
-                    ))}
-                  </div>
-
-                  {/* Temperature */}
-                  <div style={{ marginBottom: '8px' }}>
-                    <label style={{ fontSize: '10px', color: labelColor }}>{isJapanese ? '温度' : 'Temperature'}</label>
-                    <input
-                      type="text"
-                      placeholder={isJapanese ? '例：RT、100°C、還流' : 'e.g., RT, 100°C, reflux'}
-                      value={step.conditions?.temperature || ''}
-                      onChange={(e) => handleUpdateConditions(step.id, { temperature: e.target.value })}
-                      style={{
-                        width: '100%',
-                        padding: '4px',
-                        marginTop: '2px',
-                        border: `1px solid ${borderColor}`,
-                        borderRadius: '3px',
-                        backgroundColor: theme === 'dark' ? '#0e1530' : '#ffffff',
-                        color: textColor,
-                        fontSize: '10px',
-                        boxSizing: 'border-box',
-                      }}
-                    />
-                  </div>
-
-                  {/* Solvent */}
-                  <div style={{ marginBottom: '8px' }}>
-                    <label style={{ fontSize: '10px', color: labelColor }}>{isJapanese ? '溶媒' : 'Solvent'}</label>
-                    <input
-                      type="text"
-                      placeholder={isJapanese ? '例：DMF、THF、H2O' : 'e.g., DMF, THF, H2O'}
-                      value={step.conditions?.solvent || ''}
-                      onChange={(e) => handleUpdateConditions(step.id, { solvent: e.target.value })}
-                      style={{
-                        width: '100%',
-                        padding: '4px',
-                        marginTop: '2px',
-                        border: `1px solid ${borderColor}`,
-                        borderRadius: '3px',
-                        backgroundColor: theme === 'dark' ? '#0e1530' : '#ffffff',
-                        color: textColor,
-                        fontSize: '10px',
-                        boxSizing: 'border-box',
-                      }}
-                    />
-                  </div>
-
-                  {/* Catalyst */}
-                  <div style={{ marginBottom: '8px' }}>
-                    <label style={{ fontSize: '10px', color: labelColor }}>{isJapanese ? '触媒' : 'Catalyst'}</label>
-                    <input
-                      type="text"
-                      placeholder={isJapanese ? '例：Pd/C、Et3N' : 'e.g., Pd/C, Et3N'}
-                      value={step.conditions?.catalyst || ''}
-                      onChange={(e) => handleUpdateConditions(step.id, { catalyst: e.target.value })}
-                      style={{
-                        width: '100%',
-                        padding: '4px',
-                        marginTop: '2px',
-                        border: `1px solid ${borderColor}`,
-                        borderRadius: '3px',
-                        backgroundColor: theme === 'dark' ? '#0e1530' : '#ffffff',
-                        color: textColor,
-                        fontSize: '10px',
-                        boxSizing: 'border-box',
-                      }}
-                    />
-                  </div>
-
-                  {/* Time */}
-                  <div style={{ marginBottom: '8px' }}>
-                    <label style={{ fontSize: '10px', color: labelColor }}>{isJapanese ? '時間' : 'Time'}</label>
-                    <input
-                      type="text"
-                      placeholder={isJapanese ? '例：2時間、一晩' : 'e.g., 2h, overnight'}
-                      value={step.conditions?.time || ''}
-                      onChange={(e) => handleUpdateConditions(step.id, { time: e.target.value })}
-                      style={{
-                        width: '100%',
-                        padding: '4px',
-                        marginTop: '2px',
-                        border: `1px solid ${borderColor}`,
-                        borderRadius: '3px',
-                        backgroundColor: theme === 'dark' ? '#0e1530' : '#ffffff',
-                        color: textColor,
-                        fontSize: '10px',
-                        boxSizing: 'border-box',
-                      }}
-                    />
-                  </div>
-
-                  {/* Yield */}
-                  <div style={{ marginBottom: '8px' }}>
-                    <label style={{ fontSize: '10px', color: labelColor }}>{isJapanese ? '収率（%）' : 'Yield (%)'}</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      placeholder={isJapanese ? '0〜100' : '0-100'}
-                      value={step.conditions?.yield || ''}
-                      onChange={(e) => handleUpdateConditions(step.id, { yield: e.target.value ? parseInt(e.target.value) : undefined })}
-                      style={{
-                        width: '100%',
-                        padding: '4px',
-                        marginTop: '2px',
-                        border: `1px solid ${borderColor}`,
-                        borderRadius: '3px',
-                        backgroundColor: theme === 'dark' ? '#0e1530' : '#ffffff',
-                        color: textColor,
-                        fontSize: '10px',
-                        boxSizing: 'border-box',
-                      }}
-                    />
-                  </div>
-
-                  {/* Remove Button */}
-                  <button
-                    onClick={() => handleRemoveStep(step.id)}
-                    style={{
-                      width: '100%',
-                      padding: '4px',
-                      backgroundColor: '#d94545',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '3px',
-                      cursor: 'pointer',
-                      fontSize: '10px',
-                      marginTop: '4px',
-                    }}
-                  >
-                    {isJapanese ? 'ステップを削除' : 'Remove Step'}
-                  </button>
-                </div>
-              )}
-            </div>
-          ))
-        )}
-      </div>
-
+      <ReactionStepEditor
+        steps={scheme.steps}
+        expandedStepId={expandedStepId}
+        onExpandedStepIdChange={setExpandedStepId}
+        isJapanese={isJapanese}
+        theme={theme}
+        borderColor={borderColor}
+        inputBg={inputBg}
+        textColor={textColor}
+        labelColor={labelColor}
+        accentColor={accentColor}
+        agentDrafts={agentDrafts}
+        coefficientDrafts={coefficientDrafts}
+        componentIdDrafts={componentIdDrafts}
+        setAgentDrafts={setAgentDrafts}
+        setCoefficientDrafts={setCoefficientDrafts}
+        setComponentIdDrafts={setComponentIdDrafts}
+        onMoveStep={handleMoveStep}
+        onArrowTypeChange={handleArrowTypeChange}
+        onSuggestCoefficients={suggestCoefficients}
+        onCommitCoefficients={commitCoefficients}
+        onAddAgent={handleAddAgent}
+        onCommitComponentIds={commitComponentIds}
+        onUpdateConditions={handleUpdateConditions}
+        onRemoveStep={handleRemoveStep}
+      />
       <ReactionExecutor
         isJapanese={isJapanese}
         theme={theme}

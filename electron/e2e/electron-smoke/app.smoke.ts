@@ -84,6 +84,21 @@ test.describe('Electron Smoke', () => {
     await electronApp.close();
   });
 
+  test('Help > ChemDraw Migration Guide opens the shared task map', async () => {
+    const electronApp = await electron.launch({ args: [PACKAGED_APP_PATH] });
+    const window = await electronApp.firstWindow();
+    await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
+
+    await electronApp.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0].webContents.send('menu:migration-guide');
+    });
+
+    const dialog = window.getByRole('dialog', { name: 'ChemDraw Migration Guide' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText('Object menu · top arrangement controls')).toBeVisible();
+    await electronApp.close();
+  });
+
   test('File > Export exposes the importable JSON session bundle', async () => {
     const electronApp = await electron.launch({
       args: [PACKAGED_APP_PATH],
@@ -159,6 +174,44 @@ test.describe('Electron Smoke', () => {
     });
     await expect(window.locator('[aria-live="polite"][role="status"]')).toContainText('Cleaned structure layout');
 
+    await electronApp.close();
+  });
+
+  test('native menus reflect the current selection and workspace profile', async () => {
+    const electronApp = await electron.launch({ args: [PACKAGED_APP_PATH] });
+    const window = await electronApp.firstWindow();
+    await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
+
+    const menuState = () => electronApp.evaluate(({ Menu }) => {
+      const menu = Menu.getApplicationMenu();
+      const item = (topLevel: string, label: string) => menu?.items.find((entry) => entry.label === topLevel)
+        ?.submenu?.items.find((entry) => entry.label === label);
+      const workspace = item('View', 'Workspace')?.submenu?.items;
+      return {
+        alignEnabled: item('Object', 'Align Horizontally')?.enabled,
+        distributeEnabled: item('Object', 'Distribute Horizontally')?.enabled,
+        undoEnabled: item('Edit', 'Undo')?.enabled,
+        familiarChecked: workspace?.find((entry) => entry.label === 'ChemDraw Familiar')?.checked,
+        compactChecked: workspace?.find((entry) => entry.label === 'Compact')?.checked,
+      };
+    });
+
+    await expect.poll(menuState).toMatchObject({
+      alignEnabled: false,
+      distributeEnabled: false,
+      undoEnabled: false,
+      familiarChecked: true,
+      compactChecked: false,
+    });
+
+    await electronApp.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0].webContents.send('menu:select-all');
+    });
+    await expect.poll(menuState).toMatchObject({ alignEnabled: true, distributeEnabled: true });
+
+    await window.getByTestId('settings-button').click();
+    await window.getByTestId('workspace-profile').selectOption('compact');
+    await expect.poll(menuState).toMatchObject({ familiarChecked: false, compactChecked: true });
     await electronApp.close();
   });
 

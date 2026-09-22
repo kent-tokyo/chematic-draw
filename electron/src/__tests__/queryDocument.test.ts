@@ -121,4 +121,19 @@ describe('query document contract', () => {
       'atoms.unknown', 'bonds.unknown', 'opaque.0', 'markush.0', 'polymers.0', 'nucleicAcids.0',
     ]));
   });
+
+  it('rejects non-array optional sections without leaking a TypeError', () => {
+    const malformed = {
+      ...queryDocumentFromMolecule(molecule),
+      opaque: { invalid: true },
+      markush: 'invalid',
+      polymers: 1,
+      nucleicAcids: null,
+    } as unknown as QueryDocument;
+    expect(() => validateQueryDocument(malformed)).not.toThrow();
+    expect(validateQueryDocument(malformed).map((error) => error.path)).toEqual(expect.arrayContaining([
+      'opaque', 'markush', 'polymers', 'nucleicAcids',
+    ]));
+    expect(parseQueryDocument(null as unknown as string)).toBeNull();
+  });
 });

@@ -7,6 +7,11 @@ test('built Playground provides the drawing workspace and browser document actio
   await expect(page.getByTestId('toolbar-summary')).toContainText('6a • 6b');
   await expect(page.getByTestId('browser-open')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Carbon atom' })).toBeVisible();
+  await page.getByTestId('migration-guide-button').click();
+  const migrationGuide = page.getByRole('dialog', { name: 'ChemDraw Migration Guide' });
+  await expect(migrationGuide).toBeVisible();
+  await expect(migrationGuide.getByText('File menu · top document controls')).toBeVisible();
+  await migrationGuide.getByText('Close', { exact: true }).click();
 
   await page.getByTestId('settings-button').click();
   await page.getByTestId('workspace-profile').selectOption('compact');

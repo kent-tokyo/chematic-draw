@@ -7,65 +7,25 @@ import { ContextMenu } from './renderer/components/menu/ContextMenu';
 import { ShortcutsModal } from './renderer/components/modals/ShortcutsModal';
 import { SettingsModal } from './renderer/components/modals/SettingsModal';
 import { UndoTimelineModal } from './renderer/components/modals/UndoTimeline';
-import { BatchProcessDialog, BatchConfig } from './renderer/components/modals/BatchProcessDialog';
-import { BatchResultSummary, useUIStore } from './renderer/store/uiStore';
-import * as batchLib from './renderer/lib/batch';
+import { BatchProcessDialog } from './renderer/components/modals/BatchProcessDialog';
+import { useUIStore } from './renderer/store/uiStore';
 import { useMoleculeStore } from './renderer/store/moleculeStore';
 import { useCanvasStore } from './renderer/store/canvasStore';
-import { MoleculeDto } from './renderer/store/types';
 import * as wasmBridge from './renderer/wasm/wasmBridge';
 import { svgToPngBase64 } from './renderer/lib/svgToPng';
 import * as clipboard from './renderer/lib/clipboard';
-import { exportLossMessage, exportLosses, formatForFilePath, MoleculeExportFormat } from './renderer/lib/exportLoss';
-import { exportCdxml } from './renderer/lib/cdxmlExport';
-import { canPreserveCdxml, captureRichCdxmlSession, cdxmlSessionLossWarnings, RichCdxmlSession, serializeCdxmlForPath } from './renderer/lib/cdxmlWorkflow';
+import { RichCdxmlSession } from './renderer/lib/cdxmlWorkflow';
 import { runAnalysisInWorker } from './renderer/lib/analysisWorkerClient';
 import { useAppInitialization } from './renderer/hooks/useAppInitialization';
-import { ENGINE_ID } from './engineMetadata';
+import { useElectronMenuCommands } from './renderer/hooks/useElectronMenuCommands';
+import { useElectronMenuCommandContext } from './renderer/hooks/useElectronMenuCommandContext';
+import { useBatchProcessing } from './renderer/hooks/useBatchProcessing';
+import { confirmLossAwareExport, useDocumentFileActions } from './renderer/hooks/useDocumentFileActions';
 import { alignSelectedAtoms, distributeSelectedAtoms, flipSelectedAtoms, rotateSelectedAtoms } from './renderer/lib/selectionTransforms';
 import { BrowserDocumentToolbar } from './renderer/components/BrowserDocumentToolbar';
+import { MigrationGuideModal } from './renderer/components/modals/MigrationGuideModal';
 import { GeneralToolbar, MainToolsPalette } from './renderer/components/WorkspaceChrome';
 import { TemplateDrawer } from './renderer/components/TemplateDrawer';
-
-async function parseMoleculeDocument(content: string, filePath: string): Promise<MoleculeDto> {
-  if (filePath.toLowerCase().endsWith('.json')) {
-    return await runAnalysisInWorker('parse-session', undefined, undefined, undefined, content) as MoleculeDto;
-  }
-  return await runAnalysisInWorker('parse', undefined, undefined, undefined, content) as MoleculeDto;
-}
-
-async function serializeMoleculeForPath(molecule: MoleculeDto, filePath: string): Promise<string> {
-  if (filePath.toLowerCase().endsWith('.json')) {
-    return await runAnalysisInWorker('serialize-session', molecule, undefined, undefined, filePath) as string;
-  }
-  switch (formatForFilePath(filePath)) {
-    case 'smiles':
-      return await runAnalysisInWorker('canonical-smiles', molecule) as string;
-    case 'sdf':
-      return await runAnalysisInWorker('sdf', molecule) as string;
-    case 'cml':
-      return await runAnalysisInWorker('cml', molecule) as string;
-    case 'mol-v2000':
-      return await runAnalysisInWorker('mol-v2000', molecule) as string;
-    case 'cdxml':
-      return exportCdxml(molecule);
-  }
-}
-
-function confirmLossAwareExport(molecule: MoleculeDto, filePath: string, extraWarnings: string[] = []): boolean {
-  const format: MoleculeExportFormat = formatForFilePath(filePath);
-  const losses = exportLosses(molecule, format);
-  if (losses.some((loss) => loss.code === 'unsupported-format')) return false;
-  if (extraWarnings.length === 0) return losses.length === 0 || window.confirm(exportLossMessage(filePath, losses));
-  const warningText = [
-    `Exporting to ${filePath} may lose document information:`,
-    ...losses.map((loss) => `• ${loss.message}`),
-    ...extraWarnings.map((warning) => `• ${warning}`),
-    '',
-    'Continue anyway?',
-  ].join('\n');
-  return window.confirm(warningText);
-}
 
 export function App() {
   const [filePath, setFilePath] = useState<string | null>(null);
@@ -132,6 +92,13 @@ export function App() {
     setMolecule(next);
     setStatus(language === 'ja' ? '選択範囲を配置しました' : 'Arranged selection.');
   }, [language, pushUndo, setMolecule, setStatus]);
+  const centerOnLoad = useCallback(() => useCanvasStore.getState().requestCenterOnLoad(), []);
+  const { openDocument, handleToolbarOpen, handleToolbarSave, handleToolbarSaveAs, handleBrowserMoleculeLoaded } = useDocumentFileActions({
+    molecule, filePath, richCdxmlSession, setMolecule, setFilePath, setRichCdxmlSession, setStatus, pushUndo, centerOnLoad,
+  });
+  const { handleBatchProcess, handleRetryBatch } = useBatchProcessing({
+    molecule, setMolecule, pushUndo, setStatus, addBatchResult, hideBatchModal: () => hideModal('batch'),
+  });
 
   // Autosave: debounced crash-recovery snapshot, written to a file main.js
   // clears on every clean quit. Its mere presence at next launch is what
@@ -222,10 +189,7 @@ export function App() {
   }, [settingsHydrated, shortcutBindings]);
 
   // Menu event handlers
-  useEffect(() => {
-    if (typeof window !== 'undefined' && (window as any).electronAPI) {
-      const api = (window as any).electronAPI;
-      api.clearMenuListeners?.();
+  useElectronMenuCommands(useCallback((api: any) => {
 
       api.onMenuNew(() => {
         clear();
@@ -234,75 +198,9 @@ export function App() {
         announce('New molecule', '新しい分子');
       });
 
-      api.onMenuOpenFile(async (data: { path: string; content: string }) => {
-        try {
-          const isCdxml = data.path.toLowerCase().endsWith('.cdxml');
-          if (isCdxml) wasmBridge.cdxmlDocumentJson(data.content);
-          const mol = await parseMoleculeDocument(data.content, data.path);
-          setMolecule(mol);
-          setFilePath(data.path);
-          setRichCdxmlSession(isCdxml
-            ? captureRichCdxmlSession(data.content, data.path, mol)
-            : null);
-          setStatus(`Opened: ${data.path}`);
-          api.recordRecentFile(data.path);
-          useCanvasStore.getState().requestCenterOnLoad();
-        } catch (err) {
-          setStatus(`Failed to open file: ${(err as Error).message}`);
-        }
-      });
-
-      api.onMenuSave(async () => {
-        if (filePath) {
-          const format = formatForFilePath(filePath);
-          const sessionBundle = filePath.toLowerCase().endsWith('.json');
-          const preserveRichCdxml = canPreserveCdxml(molecule, filePath, richCdxmlSession);
-          if (!sessionBundle && !preserveRichCdxml && !confirmLossAwareExport(molecule, filePath, format === 'cdxml' ? cdxmlSessionLossWarnings(richCdxmlSession) : [])) {
-            announce('Save cancelled', '保存をキャンセルしました');
-            return;
-          }
-          const content = !sessionBundle && format === 'cdxml'
-            ? serializeCdxmlForPath(molecule, filePath, richCdxmlSession)
-            : await serializeMoleculeForPath(molecule, filePath);
-          const result = await api.fileWrite(filePath, content);
-          if (result.success) {
-            announce('Saved', '保存しました');
-            if (format === 'cdxml') setRichCdxmlSession(captureRichCdxmlSession(content, filePath, molecule));
-          } else {
-            setStatus(`Save failed: ${result.error}`);
-          }
-        } else {
-          api.onMenuSaveAs?.();
-        }
-      });
-
-      api.onMenuSaveAs(async () => {
-        const result = await api.fileSaveDialog('untitled.mol');
-        if (!result.canceled && result.filePath) {
-          const sessionBundle = result.filePath.toLowerCase().endsWith('.json');
-          const preserveRichCdxml = canPreserveCdxml(molecule, result.filePath, richCdxmlSession);
-          if (!sessionBundle && !preserveRichCdxml && !confirmLossAwareExport(molecule, result.filePath, formatForFilePath(result.filePath) === 'cdxml' ? cdxmlSessionLossWarnings(richCdxmlSession) : [])) {
-            announce('Save cancelled', '保存をキャンセルしました');
-            return;
-          }
-          const content = !sessionBundle && formatForFilePath(result.filePath) === 'cdxml'
-            ? serializeCdxmlForPath(molecule, result.filePath, richCdxmlSession)
-            : await serializeMoleculeForPath(molecule, result.filePath);
-          const writeResult = await api.fileWrite(result.filePath, content);
-          if (writeResult.success) {
-            setFilePath(result.filePath);
-            if (formatForFilePath(result.filePath) === 'cdxml') {
-              setRichCdxmlSession(captureRichCdxmlSession(content, result.filePath, molecule));
-            } else {
-              setRichCdxmlSession(null);
-            }
-            setStatus(`Saved: ${result.filePath}`);
-            api.recordRecentFile(result.filePath);
-          } else {
-            setStatus(`Save failed: ${writeResult.error}`);
-          }
-        }
-      });
+      api.onMenuOpenFile((data: { path: string; content: string }) => { void openDocument(data); });
+      api.onMenuSave(() => { void handleToolbarSave(); });
+      api.onMenuSaveAs(() => { void handleToolbarSaveAs(); });
 
       api.onMenuExportSvg(async () => {
         const result = await api.fileSaveDialog('untitled.svg');
@@ -415,6 +313,7 @@ export function App() {
       api.onMenuBatchProcess?.(() => showModal('batch'));
       api.onMenuUndoTimeline?.(() => showModal('undo'));
       api.onMenuShortcuts?.(() => showModal('shortcuts'));
+      api.onMenuMigrationGuide?.(() => showModal('migration'));
       // main.js sends this, preload.js exposes it, but nothing subscribed —
       // same dead-wiring class as the Keyboard Shortcuts menu item earlier
       // this session. Guarded on the focused element the same way
@@ -554,11 +453,8 @@ export function App() {
         setSidebarOpen(true);
       });
 
-      return () => {
-        // Cleanup: no need to unsubscribe from ipcRenderer in this version
-      };
-    }
-  }, [molecule, filePath, richCdxmlSession, theme, zoom, sidebarOpen, mainToolsOpen, generalToolbarOpen, statusBarOpen, language, selectAll, undo, redo, pushUndo, clear, setMolecule, setSidebarOpen, setMainToolsOpen, setGeneralToolbarOpen, setStatusBarOpen, setTemplatePanelOpen, setWorkspaceProfile, resetWorkspace, setStatus, setTheme, setZoom, fitView, showModal, announce, applySelectionTransform]);
+    return undefined;
+  }, [molecule, filePath, theme, zoom, sidebarOpen, mainToolsOpen, generalToolbarOpen, statusBarOpen, language, selectAll, undo, redo, pushUndo, clear, setMolecule, setSidebarOpen, setMainToolsOpen, setGeneralToolbarOpen, setStatusBarOpen, setTemplatePanelOpen, setWorkspaceProfile, resetWorkspace, setStatus, setTheme, setZoom, fitView, showModal, announce, applySelectionTransform, openDocument, handleToolbarSave, handleToolbarSaveAs]));
 
   // Keyboard shortcuts for Phase 3-5
   useEffect(() => {
@@ -576,188 +472,24 @@ export function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showModal]);
-
-  const handleBatchProcess = async (
-    config: BatchConfig,
-    options: { signal: AbortSignal; onProgress: (completed: number, total: number) => void }
-  ) => {
-    try {
-      setStatus(`Batch processing: ${config.operation}...`);
-
-      const task: batchLib.BatchTask = {
-        operation: config.operation,
-        inputFormat: config.inputFormat,
-        outputFormat: config.outputFormat,
-        filterOptions: config.operation === 'filter' ? {
-          minMW: config.filterMinMW,
-          maxMW: config.filterMaxMW,
-          minLogP: config.filterMinLogP,
-          maxLogP: config.filterMaxLogP,
-        } : undefined,
-        smartsPattern: config.operation === 'filter' ? config.filterSmarts : undefined,
-      };
-
-      const result = await batchLib.processBatch([molecule], task, {
-        signal: options.signal,
-        onProgress: ({ completed, total }) => options.onProgress(completed, total),
-      });
-
-      const provenance = {
-        engine: ENGINE_ID,
-        inputFormat: config.inputFormat,
-        outputFormat: config.outputFormat,
-        filterOptions: config.operation === 'filter' ? {
-          minMW: config.filterMinMW,
-          maxMW: config.filterMaxMW,
-          minLogP: config.filterMinLogP,
-          maxLogP: config.filterMaxLogP,
-        } : undefined,
-        smartsPattern: config.operation === 'filter' ? config.filterSmarts : undefined,
-      };
-      addBatchResult(config.operation, result.processed, result.failed, result.skipped, result.resultHash, result.errors, provenance, {
-        cancelled: result.cancelled,
-        retry: { task, molecules: [molecule] },
-        items: result.items.map(({ index, status, warnings, error, input, output }) => ({
-          index,
-          status: status === 'succeeded' || status === 'failed' || status === 'skipped' || status === 'cancelled'
-            ? status
-            : 'cancelled',
-          warnings,
-          error,
-          inputAtomCount: input.atoms.length,
-          inputBondCount: input.bonds.length,
-          outputAtomCount: output?.atoms.length,
-          outputBondCount: output?.bonds.length,
-          properties: output?.properties && {
-            formula: output.properties.formula,
-            molecular_weight: output.properties.molecular_weight,
-            logp: output.properties.logp,
-            tpsa: output.properties.tpsa,
-          },
-        })),
-      });
-
-      if (result.cancelled) {
-        setStatus(`Batch processing cancelled: ${result.processed} processed, ${result.failed} failed, ${result.skipped} skipped`);
-        return;
-      }
-
-      if (result.molecules.length > 0) {
-        pushUndo();
-        setMolecule(result.molecules[0]);
-        setStatus(`Batch processing complete: ${result.processed} processed, ${result.failed} failed, ${result.skipped} skipped`);
-      } else {
-        setStatus('No molecules matched the filter criteria');
-      }
-
-      if (result.errors.length > 0) {
-        console.error('Batch processing errors:', result.errors);
-      }
-    } catch (err) {
-      setStatus(`Batch processing failed: ${(err as Error).message}`);
-      console.error('Batch error:', err);
-      addBatchResult(config.operation, 0, 1, 0, 'fnv1a-32:00000000', [(err as Error).message], {
-        engine: ENGINE_ID,
-        inputFormat: config.inputFormat,
-        outputFormat: config.outputFormat,
-      }, {
-        cancelled: false,
-        items: [{ index: 0, status: 'failed', warnings: [], error: (err as Error).message }],
-      });
-    }
-    hideModal('batch');
-  };
-
-  const handleRetryBatch = async (previous: BatchResultSummary) => {
-    if (!previous.retry) return;
-    setStatus(`Retrying ${previous.failed} failed batch item${previous.failed === 1 ? '' : 's'}...`);
-    try {
-      const result = await batchLib.retryFailedBatchItems(previous.retry.molecules, previous.retry.task, {
-        processed: 0, failed: previous.failed, skipped: previous.skipped, resultHash: previous.resultHash,
-        molecules: [], errors: previous.errors, items: previous.items.map((item) => ({
-          index: item.index, status: item.status, input: previous.retry!.molecules[item.index], warnings: item.warnings, error: item.error,
-        })), cancelled: previous.cancelled ?? false,
-      });
-      const task = previous.retry.task;
-      addBatchResult(task.operation, result.processed, result.failed, result.skipped, result.resultHash, result.errors, previous.provenance, {
-        cancelled: result.cancelled,
-        retry: previous.retry,
-        items: result.items.map(({ index, status, warnings, error, input, output }) => ({
-          index,
-          status: status === 'succeeded' || status === 'failed' || status === 'skipped' || status === 'cancelled' ? status : 'cancelled',
-          warnings, error, inputAtomCount: input.atoms.length, inputBondCount: input.bonds.length,
-          outputAtomCount: output?.atoms.length, outputBondCount: output?.bonds.length,
-          properties: output?.properties && { formula: output.properties.formula, molecular_weight: output.properties.molecular_weight, logp: output.properties.logp, tpsa: output.properties.tpsa },
-        })),
-      });
-      if (result.molecules.length > 0) {
-        pushUndo();
-        setMolecule(result.molecules[0]);
-      }
-      setStatus(`Batch retry complete: ${result.processed} processed, ${result.failed} failed`);
-    } catch (err) {
-      setStatus(`Batch retry failed: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  };
-
   const primaryModifier = typeof navigator !== 'undefined' && navigator.platform.toUpperCase().includes('MAC') ? 'Cmd' : 'Ctrl';
   const selectedAtomCount = molecule.atoms.filter((atom) => atom.selected).length;
+  const selectedBondCount = molecule.bonds.filter((bond) => bond.selected).length;
+  useElectronMenuCommandContext({
+    atomCount: molecule.atoms.length,
+    selectedAtomCount,
+    selectedBondCount,
+    canUndo: undoCount > 0,
+    canRedo: redoCount > 0,
+    sidebarOpen,
+    mainToolsOpen,
+    generalToolbarOpen,
+    statusBarOpen,
+    templatePanelOpen,
+    workspaceProfile,
+    activeSidebarPanel,
+  });
 
-  const handleBrowserMoleculeLoaded = (loaded: MoleculeDto, sourceName?: string) => {
-    pushUndo();
-    setMolecule(loaded);
-    setFilePath(sourceName ?? null);
-    setRichCdxmlSession(null);
-    useCanvasStore.getState().requestCenterOnLoad();
-  };
-
-  const handleToolbarOpen = async () => {
-    const api = (window as any).electronAPI;
-    if (!api?.fileOpenDialog) return;
-    const result = await api.fileOpenDialog();
-    if (result.canceled || !result.path || typeof result.content !== 'string') {
-      if (result.error) setStatus(`Failed to open file: ${result.error}`);
-      return;
-    }
-    try {
-      if (result.path.toLowerCase().endsWith('.cdxml')) wasmBridge.cdxmlDocumentJson(result.content);
-      const loaded = await parseMoleculeDocument(result.content, result.path);
-      setMolecule(loaded);
-      setFilePath(result.path);
-      setRichCdxmlSession(result.path.toLowerCase().endsWith('.cdxml') ? captureRichCdxmlSession(result.content, result.path, loaded) : null);
-      api.recordRecentFile(result.path);
-      useCanvasStore.getState().requestCenterOnLoad();
-      setStatus(`Opened: ${result.path}`);
-    } catch (error) {
-      setStatus(`Failed to open file: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  };
-
-  const handleToolbarSave = async () => {
-    const api = (window as any).electronAPI;
-    if (!api) return;
-    let destination = filePath;
-    if (!destination) {
-      const result = await api.fileSaveDialog('untitled.mol');
-      if (result.canceled || !result.filePath) return;
-      destination = result.filePath;
-    }
-    const sessionBundle = destination.toLowerCase().endsWith('.json');
-    const format = formatForFilePath(destination);
-    const preserveRichCdxml = canPreserveCdxml(molecule, destination, richCdxmlSession);
-    if (!sessionBundle && !preserveRichCdxml && !confirmLossAwareExport(molecule, destination, format === 'cdxml' ? cdxmlSessionLossWarnings(richCdxmlSession) : [])) return;
-    const content = !sessionBundle && format === 'cdxml'
-      ? serializeCdxmlForPath(molecule, destination, richCdxmlSession)
-      : await serializeMoleculeForPath(molecule, destination);
-    const result = await api.fileWrite(destination, content);
-    if (result.success) {
-      setFilePath(destination);
-      if (format === 'cdxml') setRichCdxmlSession(captureRichCdxmlSession(content, destination, molecule));
-      else setRichCdxmlSession(null);
-      api.recordRecentFile(destination);
-      setStatus(`Saved: ${destination}`);
-    } else setStatus(`Save failed: ${result.error}`);
-  };
 
   const handleCleanStructure = () => {
     if (molecule.atoms.length === 0) return;
@@ -807,6 +539,7 @@ export function App() {
       </div>
       <ContextMenu />
       <ShortcutsModal />
+      <MigrationGuideModal />
       <UndoTimelineModal />
       <SettingsModal />
       {showBatchDialog && <BatchProcessDialog onProcess={handleBatchProcess} onCancel={() => hideModal('batch')} />}
@@ -850,6 +583,7 @@ export function App() {
         onOpenSettings={() => showModal('settings')}
         onToggleLanguage={() => setLanguage(language === 'ja' ? 'en' : 'ja')}
         onOpenShortcuts={() => showModal('shortcuts')}
+        onOpenMigration={() => showModal('migration')}
       />}
 
       {/* Canvas Area with Sidebar — not mounted until WASM is actually ready,

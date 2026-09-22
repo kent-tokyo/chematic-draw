@@ -10,6 +10,7 @@ use wasm_bindgen::prelude::*;
 mod document_adapters;
 mod fingerprint;
 mod molecule_conversion;
+mod reaction;
 
 #[cfg(test)]
 use fingerprint::{
@@ -17,6 +18,9 @@ use fingerprint::{
     hex_to_bitvec, tanimoto_similarity,
 };
 use molecule_conversion::{chem_to_dto, dto_to_chem, dto_to_coords};
+use reaction::{execute_reaction, execute_reaction_many, ReactionOutcome};
+#[cfg(test)]
+use reaction::ReactionError;
 
 // ─────────────────────────────────────────────────────────────────────────────────
 // DTO Types (serialized between WASM and JS via serde_wasm_bindgen::to_value)
@@ -827,117 +831,6 @@ pub fn identify_functional_groups_wasm(mol_json: &JsValue) -> Result<JsValue, Js
 
     serde_wasm_bindgen::to_value(&names)
         .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
-}
-
-/// Why a reaction failed to apply — distinguished using chematic-rxn's own
-/// [`chematic::rxn::TransformError`] variants, not a guess:
-/// - `InvalidReaction`: the SMIRKS string itself doesn't parse
-///   (`TransformError::SmirksParse`, e.g. missing `>>` or an unparsable SMILES
-///   component).
-/// - `UnsupportedChemistry`: the SMIRKS is syntactically valid but needs a
-///   different number of reactant molecules than chematic-draw supplies
-///   (`TransformError::ReactantCountMismatch`) — chematic-draw always calls
-///   `run_reactants` with exactly one reactant molecule today, so a
-///   multi-reactant template is a real, honestly-distinguishable "not
-///   supported by this call site" case, not a parse failure.
-/// - `UnsupportedChemistry`: v1.0.19's match-enumeration resource limit is
-///   also surfaced as unsupported here; the UI has no safe partial-product
-///   representation for a bounded-out transformation.
-#[derive(Debug, Clone)]
-enum ReactionError {
-    InvalidReaction(String),
-    UnsupportedChemistry(String),
-}
-
-impl std::fmt::Display for ReactionError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::InvalidReaction(msg) | Self::UnsupportedChemistry(msg) => write!(f, "{msg}"),
-        }
-    }
-}
-
-impl From<chematic::rxn::TransformError> for ReactionError {
-    fn from(e: chematic::rxn::TransformError) -> Self {
-        match &e {
-            chematic::rxn::TransformError::SmirksParse(_) => Self::InvalidReaction(e.to_string()),
-            chematic::rxn::TransformError::ReactantCountMismatch { .. } => {
-                Self::UnsupportedChemistry(e.to_string())
-            }
-            chematic::rxn::TransformError::ResourceLimit { .. } => {
-                Self::UnsupportedChemistry(e.to_string())
-            }
-        }
-    }
-}
-
-/// Run a SMIRKS-based reaction template against a molecule.
-///
-/// `Ok(products)` — possibly empty when the SMIRKS pattern simply doesn't match
-/// this molecule, a valid "no reaction" outcome distinct from an error. `Err`
-/// only for an invalid SMIRKS or unsupported reactant-count chemistry (see
-/// [`ReactionError`]). Never fabricates a fake product by silently returning
-/// the unchanged input molecule.
-/// Pure Rust core of [`run_reactants`], kept free of the wasm/JsValue boundary
-/// so it's directly unit-testable.
-///
-/// Products get a freshly computed 2D layout ([`chem_to_dto`] with `coords: None`)
-/// rather than reusing the reactant's coordinates: a reaction can add, remove, or
-/// reorder atoms, so indexing into the reactant's coordinate array by product atom
-/// index would silently misplace atoms (new atoms piling up at the origin, or
-/// existing atoms inheriting a stranger's position) rather than erroring.
-fn execute_reaction_many(
-    chem_molecules: &[&chematic::core::Molecule],
-    smirks: &str,
-) -> Result<Vec<MoleculeDto>, ReactionError> {
-    use chematic::rxn;
-
-    let product_sets = rxn::run_reactants(smirks, chem_molecules)?;
-
-    // product_sets is Vec<Vec<Molecule>>; empty means the SMIRKS pattern found no
-    // match on this molecule — surface it as zero products, not a fabricated one.
-    let mut all_products = Vec::new();
-    for product_vec in product_sets {
-        for product in product_vec {
-            all_products.push(chem_to_dto(&product, None));
-        }
-    }
-    Ok(all_products)
-}
-
-fn execute_reaction(
-    chem_mol: &chematic::core::Molecule,
-    smirks: &str,
-) -> Result<Vec<MoleculeDto>, ReactionError> {
-    execute_reaction_many(&[chem_mol], smirks)
-}
-
-/// Tagged reaction outcome sent to JS — every domain-level result (success, no
-/// match, invalid SMIRKS, or unsupported reactant count) is a normal `Ok`
-/// value; the `#[wasm_bindgen]` `Err` channel is reserved for FFI-level
-/// failures (e.g. the input JSON not decoding), which can't happen once
-/// `execute_reaction` is reached. Serializes to `{"status": "applied", ...}`
-/// etc., matching `ReactionRunResult` on the TS side.
-#[derive(Debug, Clone, Serialize)]
-#[serde(tag = "status", rename_all = "snake_case")]
-enum ReactionOutcome {
-    Applied { products: Vec<MoleculeDto> },
-    NoMatch,
-    InvalidReaction { message: String },
-    UnsupportedChemistry { message: String },
-}
-
-impl From<Result<Vec<MoleculeDto>, ReactionError>> for ReactionOutcome {
-    fn from(result: Result<Vec<MoleculeDto>, ReactionError>) -> Self {
-        match result {
-            Ok(products) if products.is_empty() => Self::NoMatch,
-            Ok(products) => Self::Applied { products },
-            Err(ReactionError::InvalidReaction(message)) => Self::InvalidReaction { message },
-            Err(ReactionError::UnsupportedChemistry(message)) => {
-                Self::UnsupportedChemistry { message }
-            }
-        }
-    }
 }
 
 /// Execute SMIRKS-based reaction template on a molecule.

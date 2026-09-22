@@ -180,6 +180,15 @@ test.describe('ChemDraw-oriented workspace geography', () => {
     await expect(page.getByTestId('sidebar-tab-inspector')).toHaveAttribute('aria-selected', 'true');
   });
 
+  test('provides the same task-based migration guide in the browser workspace', async ({ page }) => {
+    await page.getByTestId('migration-guide-button').click();
+    const dialog = page.getByRole('dialog', { name: 'ChemDraw Migration Guide' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText('Left Drawing Tools')).toBeVisible();
+    await expect(dialog.getByText('Object menu · top arrangement controls')).toBeVisible();
+    await expect(dialog.getByText(/Unsupported ChemDraw commands/)).toBeVisible();
+  });
+
   test('restores browser workspace chrome after reload', async ({ page }) => {
     await page.getByTestId('settings-button').click();
     await page.getByTestId('workspace-profile').selectOption('compact');

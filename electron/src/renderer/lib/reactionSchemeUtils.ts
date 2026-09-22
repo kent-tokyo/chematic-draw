@@ -464,28 +464,6 @@ export function getExternalReagents(
 }
 
 /**
- * Export reaction scheme as JSON
- */
-export function exportSchemeAsJSON(scheme: ReactionSchemeContext): string {
-  return JSON.stringify(scheme, null, 2);
-}
-
-/**
- * Import reaction scheme from JSON
- */
-export function importSchemeFromJSON(json: string): ReactionSchemeContext | null {
-  try {
-    const parsed = JSON.parse(json);
-    // Basic validation
-    if (!parsed.id || !parsed.steps) return null;
-    return parsed as ReactionSchemeContext;
-  } catch (error) {
-    console.error('Failed to import scheme:', error);
-    return null;
-  }
-}
-
-/**
  * Get a human-readable summary of a reaction scheme
  */
 export function getSchemeDescription(scheme: ReactionSchemeContext): string {

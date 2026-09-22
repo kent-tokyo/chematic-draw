@@ -57,8 +57,6 @@ jobs:
         working-directory: electron
       - run: npm run build:wasm:release
         working-directory: electron
-      - run: npm run build:playground
-        working-directory: electron
       - run: npm run test:e2e:playground
         working-directory: electron
       # v5 still declares node20; this official main SHA declares node24.

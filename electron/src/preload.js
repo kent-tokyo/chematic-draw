@@ -13,7 +13,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'menu:export-mol', 'menu:export-smiles', 'menu:export-json', 'menu:select-all',
       'menu:undo', 'menu:redo', 'menu:cut', 'menu:copy', 'menu:paste',
       'menu:zoom-in', 'menu:zoom-out', 'menu:zoom-reset', 'menu:fit-view',
-      'menu:toggle-sidebar', 'menu:toggle-main-tools', 'menu:toggle-general-toolbar', 'menu:toggle-status-bar', 'menu:toggle-theme', 'menu:reset-workspace', 'menu:set-workspace-profile', 'menu:shortcuts',
+      'menu:toggle-sidebar', 'menu:toggle-main-tools', 'menu:toggle-general-toolbar', 'menu:toggle-status-bar', 'menu:toggle-theme', 'menu:reset-workspace', 'menu:set-workspace-profile', 'menu:shortcuts', 'menu:migration-guide',
       'menu:undo-timeline', 'menu:batch-process', 'menu:tool-stereoisomers',
       'menu:tool-lipinski', 'menu:tool-properties', 'menu:tool-mechanism',
       'menu:tool-database', 'menu:object-align-horizontal', 'menu:object-align-vertical',
@@ -49,6 +49,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onMenuResetWorkspace: (callback) => ipcRenderer.on('menu:reset-workspace', callback),
   onMenuSetWorkspaceProfile: (callback) => ipcRenderer.on('menu:set-workspace-profile', (_event, profile) => callback(profile)),
   onMenuShortcuts: (callback) => ipcRenderer.on('menu:shortcuts', callback),
+  onMenuMigrationGuide: (callback) => ipcRenderer.on('menu:migration-guide', callback),
   onMenuUndoTimeline: (callback) => ipcRenderer.on('menu:undo-timeline', callback),
   onMenuBatchProcess: (callback) => ipcRenderer.on('menu:batch-process', callback),
   onMenuToolStereoisomers: (callback) => ipcRenderer.on('menu:tool-stereoisomers', callback),
@@ -66,6 +67,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onMenuStructureClean: (callback) => ipcRenderer.on('menu:structure-clean', callback),
   onMenuSearchResearch: (callback) => ipcRenderer.on('menu:search-research', callback),
   onMenuShowPanel: (callback) => ipcRenderer.on('menu:show-panel', (_event, panel) => callback(panel)),
+  setMenuCommandContext: (context) => ipcRenderer.send('menu:command-context', context),
 
   // File operations (renderer → main)
   fileOpenDialog: () => ipcRenderer.invoke('file:open-dialog'),

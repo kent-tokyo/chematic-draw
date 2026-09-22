@@ -56,6 +56,22 @@ describe('reactionSchemeStore: single source of truth for reaction steps', () =>
     expect(state.reactionDiagnostics).not.toBeNull();
   });
 
+  it('rejects malformed navigation and reorder indices instead of corrupting the scheme', () => {
+    useReactionSchemeStore.getState().createScheme('Indices');
+    useReactionSchemeStore.getState().addStep(makeStep('step-1'));
+    useReactionSchemeStore.getState().addStep(makeStep('step-2'));
+    const store = useReactionSchemeStore.getState();
+
+    store.goToStep(0.5);
+    store.reorderSteps([0, 0]);
+    store.reorderSteps([2, 0]);
+
+    const state = useReactionSchemeStore.getState();
+    expect(state.scheme?.currentStepIndex).toBe(0);
+    expect(state.scheme?.steps.map((step) => step.id)).toEqual(['step-1', 'step-2']);
+    expect(state.schemeLayout?.stepBoxes).toHaveLength(2);
+  });
+
   it('reflects a second added step in classification without a separate scheme existing', () => {
     useReactionSchemeStore.getState().createScheme('', '');
     useReactionSchemeStore.getState().addStep(makeStep('step-1'));

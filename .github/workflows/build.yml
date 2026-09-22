@@ -81,7 +81,6 @@ jobs:
         working-directory: electron
         run: |
           npm run test:e2e
-          npm run build:playground
           npm run test:e2e:playground
 
       - name: Install Xvfb for tagged release

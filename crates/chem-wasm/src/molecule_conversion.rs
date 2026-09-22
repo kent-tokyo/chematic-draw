@@ -65,7 +65,7 @@ pub(super) fn dto_to_chem(dto: &MoleculeDto) -> Result<chematic::core::Molecule,
 }
 
 /// Convert chematic's molecule representation to a renderer DTO.
-pub(super) fn chem_to_dto(
+pub(crate) fn chem_to_dto(
     mol: &chematic::core::Molecule,
     coords: Option<&[(f64, f64)]>,
 ) -> MoleculeDto {

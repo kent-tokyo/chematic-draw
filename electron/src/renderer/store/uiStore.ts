@@ -29,6 +29,7 @@ interface UIStoreState extends UIState {
   showUndoModal: boolean;
   showBatchDialog: boolean;
   showSettingsModal: boolean;
+  showMigrationModal: boolean;
 
   // Batch results history
   batchResults: BatchResultSummary[];
@@ -93,6 +94,7 @@ export const useUIStore = create<UIStoreState>((set) => ({
   showUndoModal: false,
   showBatchDialog: false,
   showSettingsModal: false,
+  showMigrationModal: false,
   batchResults: [],
   shortcutBindings: { ...DEFAULT_SHORTCUT_BINDINGS },
 
@@ -176,6 +178,7 @@ export const useUIStore = create<UIStoreState>((set) => ({
     if (type === 'undo') set({ showUndoModal: true });
     if (type === 'batch') set({ showBatchDialog: true });
     if (type === 'settings') set({ showSettingsModal: true });
+    if (type === 'migration') set({ showMigrationModal: true });
   },
 
   hideModal: (type) => {
@@ -183,6 +186,7 @@ export const useUIStore = create<UIStoreState>((set) => ({
     if (type === 'undo') set({ showUndoModal: false });
     if (type === 'batch') set({ showBatchDialog: false });
     if (type === 'settings') set({ showSettingsModal: false });
+    if (type === 'migration') set({ showMigrationModal: false });
   },
 
   addBatchResult: (operation, processed, failed, skipped, resultHash, errors, provenance, details = { cancelled: false, items: [] }) => {

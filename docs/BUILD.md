@@ -238,6 +238,10 @@ Unit tests need the Node-target WASM build first (`npm run build:wasm:test`)
 # Renderer tests (real Chromium + Vite dev server, no Electron shell)
 npm run test:e2e
 
+# Built Playground workflow. This rebuilds `electron/site` first, then tests
+# the static artifact at its GitHub Pages path so source and preview cannot drift.
+npm run test:e2e:playground
+
 # Electron smoke test (the real packaged app via Playwright's _electron — run `npm run package` first)
 # Skipping that (e.g. running `npm start` beforehand instead) leaves
 # .vite/build/main.js in dev mode, so the app opens DevTools as its first
@@ -255,6 +259,7 @@ npm run test:e2e:debug
 
 **E2E test suites:**
 - `e2e/renderer/*.e2e.ts` — canvas drawing, mechanism arrows, 3D viewer, workflows, WASM init (real browser, no Electron)
+- `e2e/playground/editor.e2e.ts` — rebuilt browser artifact, document actions, migration guide, reaction and 3D flows
 - `e2e/electron-smoke/app.smoke.ts` — the only suite that touches the real Electron main process/preload bridge
 
 ### Performance Benchmarks

@@ -42,6 +42,7 @@ interface GeneralToolbarProps {
   onOpenSettings: () => void;
   onToggleLanguage: () => void;
   onOpenShortcuts: () => void;
+  onOpenMigration: () => void;
 }
 
 const translate = (language: Language, english: string, japanese: string, chinese: string) =>
@@ -216,6 +217,7 @@ export function GeneralToolbar({
   onOpenSettings,
   onToggleLanguage,
   onOpenShortcuts,
+  onOpenMigration,
 }: GeneralToolbarProps) {
   const tr = (english: string, japanese: string, chinese: string) => translate(language, english, japanese, chinese);
   const selectionDisabled = selectedAtomCount < 2;
@@ -362,6 +364,14 @@ export function GeneralToolbar({
         aria-label={tr('Show keyboard shortcuts', 'キーボードショートカットを表示', '显示键盘快捷键')}
         title={tr('Show keyboard shortcuts', 'キーボードショートカットを表示', '显示键盘快捷键')}
       >?</button>
+      <button
+        type="button"
+        className="toolbar-text-button"
+        data-testid="migration-guide-button"
+        onClick={onOpenMigration}
+        aria-label={tr('Open ChemDraw migration guide', 'ChemDraw移行ガイドを開く', '打开 ChemDraw 迁移指南')}
+        title={tr('ChemDraw migration guide', 'ChemDraw移行ガイド', 'ChemDraw 迁移指南')}
+      >{tr('Guide', 'ガイド', '指南')}</button>
       <div
         className="toolbar-summary"
         data-testid="toolbar-summary"

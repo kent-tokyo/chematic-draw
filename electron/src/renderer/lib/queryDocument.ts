@@ -21,6 +21,17 @@ export function validateQueryDocument(document: QueryDocument): QueryValidationE
   if (!Array.isArray(document.atoms) || !Array.isArray(document.bonds)) {
     return [{ code: 'invalid', path: 'atoms', message: 'Query document atoms and bonds must be arrays' }];
   }
+  const optionalCollections = [
+    ['opaque', document.opaque],
+    ['markush', document.markush],
+    ['polymers', document.polymers],
+    ['nucleicAcids', document.nucleicAcids],
+  ] as const;
+  for (const [name, value] of optionalCollections) {
+    if (value !== undefined && !Array.isArray(value)) {
+      errors.push({ code: 'invalid', path: name, message: `Query document ${name} must be an array when present` });
+    }
+  }
   const atomIds = new Set<number>();
   for (const atom of document.atoms) {
     if (!atom || typeof atom !== 'object' || !Number.isInteger(atom.id) || atomIds.has(atom.id) || !Number.isFinite(atom.x) || !Number.isFinite(atom.y)) {
@@ -42,14 +53,14 @@ export function validateQueryDocument(document: QueryDocument): QueryValidationE
     if (!BOND_ORDERS.has(bond?.constraint?.order)) errors.push({ code: 'invalid', path: `bonds.${bond?.id ?? 'unknown'}.constraint.order`, message: 'Bond query order is invalid' });
     if (bond && Number.isInteger(bond.id)) bondIds.add(bond.id);
   }
-  for (const [index, opaque] of (document.opaque ?? []).entries()) if (!opaque || typeof opaque !== 'object' || !['markush', 'polymer', 'nucleic-acid', 'smarts-token'].includes(opaque.kind) || typeof opaque.raw !== 'string' || opaque.raw.length > 10_000) errors.push({ code: 'unsupported', path: `opaque.${index}`, message: 'Opaque special-chemistry data is invalid' });
-  for (const [index, definition] of (document.markush ?? []).entries()) {
+  for (const [index, opaque] of (Array.isArray(document.opaque) ? document.opaque : []).entries()) if (!opaque || typeof opaque !== 'object' || !['markush', 'polymer', 'nucleic-acid', 'smarts-token'].includes(opaque.kind) || typeof opaque.raw !== 'string' || opaque.raw.length > 10_000) errors.push({ code: 'unsupported', path: `opaque.${index}`, message: 'Opaque special-chemistry data is invalid' });
+  for (const [index, definition] of (Array.isArray(document.markush) ? document.markush : []).entries()) {
     if (!definition || typeof definition !== 'object' || !definition.id || !definition.label || !Array.isArray(definition.attachmentAtomIds) || definition.attachmentAtomIds.length === 0 || new Set(definition.attachmentAtomIds).size !== definition.attachmentAtomIds.length || definition.attachmentAtomIds.some((id) => !Number.isInteger(id) || !atomIds.has(id)) || !Array.isArray(definition.allowedSubstituentSmarts) || definition.allowedSubstituentSmarts.length === 0 || definition.allowedSubstituentSmarts.some((pattern) => typeof pattern !== 'string' || pattern.trim().length === 0)) errors.push({ code: 'unsupported', path: `markush.${index}`, message: 'Markush definition requires unique attachment atoms and allowed SMARTS substituents' });
   }
-  for (const [index, definition] of (document.polymers ?? []).entries()) {
+  for (const [index, definition] of (Array.isArray(document.polymers) ? document.polymers : []).entries()) {
     if (!definition || typeof definition !== 'object' || !definition.id || !Array.isArray(definition.repeatUnitAtomIds) || definition.repeatUnitAtomIds.length === 0 || !Array.isArray(definition.linkageBondIds) || !Array.isArray(definition.attachmentAtomIds) || definition.repeatUnitAtomIds.some((id) => !atomIds.has(id)) || definition.linkageBondIds.some((id) => !bondIds.has(id)) || definition.attachmentAtomIds.some((id) => !atomIds.has(id))) errors.push({ code: 'unsupported', path: `polymers.${index}`, message: 'Polymer definition requires repeat-unit, linkage, and attachment references' });
   }
-  for (const [index, definition] of (document.nucleicAcids ?? []).entries()) {
+  for (const [index, definition] of (Array.isArray(document.nucleicAcids) ? document.nucleicAcids : []).entries()) {
     const residueIds = new Set<string>();
     const valid = Boolean(definition && typeof definition === 'object' && definition.id) && Array.isArray(definition?.residueIds) && Array.isArray(definition?.backboneBondIds) && Array.isArray(definition?.residues)
       && definition.residueIds.length === definition.residues.length
@@ -79,7 +90,7 @@ export function serializeQueryDocument(document: QueryDocument): string {
 
 /** Parse only validated query JSON; callers must handle null as a typed reject. */
 export function parseQueryDocument(text: string): QueryDocument | null {
-  if (text.length > MAX_QUERY_DOCUMENT_TEXT_LENGTH) return null;
+  if (typeof text !== 'string' || text.length > MAX_QUERY_DOCUMENT_TEXT_LENGTH) return null;
   try {
     const document = JSON.parse(text) as QueryDocument;
     return validateQueryDocument(document).length === 0 ? document : null;

@@ -44,6 +44,47 @@ let autosaveWriteQueue = Promise.resolve();
 let settingsWriteQueue = Promise.resolve();
 let quittingAfterAutosaveFlush = false;
 
+// The native menu is outside React, so the renderer publishes this small,
+// validated projection of its editing state. It lets menus communicate when a
+// command is applicable without granting the renderer authority to inject menu
+// labels or handlers.
+const DEFAULT_MENU_COMMAND_CONTEXT = Object.freeze({
+  atomCount: 0,
+  selectedAtomCount: 0,
+  selectedBondCount: 0,
+  canUndo: false,
+  canRedo: false,
+  sidebarOpen: true,
+  mainToolsOpen: true,
+  generalToolbarOpen: true,
+  statusBarOpen: true,
+  templatePanelOpen: false,
+  workspaceProfile: 'chemdraw',
+  activeSidebarPanel: 'inspector',
+});
+let menuCommandContext = { ...DEFAULT_MENU_COMMAND_CONTEXT };
+
+const normalizeMenuCommandContext = (candidate) => {
+  if (!candidate || typeof candidate !== 'object') return { ...DEFAULT_MENU_COMMAND_CONTEXT };
+  const nonNegativeInteger = (value) => Number.isSafeInteger(value) && value >= 0 ? value : 0;
+  const bool = (value, fallback) => typeof value === 'boolean' ? value : fallback;
+  const validPanels = new Set(['inspector', 'query', 'stereo', 'chat', 'research', 'reactions', 'batch-results', 'stereoisomers', 'lipinski', 'properties', 'mechanism', 'database', '3d', 'nmr']);
+  return {
+    atomCount: nonNegativeInteger(candidate.atomCount),
+    selectedAtomCount: nonNegativeInteger(candidate.selectedAtomCount),
+    selectedBondCount: nonNegativeInteger(candidate.selectedBondCount),
+    canUndo: bool(candidate.canUndo, false),
+    canRedo: bool(candidate.canRedo, false),
+    sidebarOpen: bool(candidate.sidebarOpen, true),
+    mainToolsOpen: bool(candidate.mainToolsOpen, true),
+    generalToolbarOpen: bool(candidate.generalToolbarOpen, true),
+    statusBarOpen: bool(candidate.statusBarOpen, true),
+    templatePanelOpen: bool(candidate.templatePanelOpen, false),
+    workspaceProfile: candidate.workspaceProfile === 'compact' ? 'compact' : 'chemdraw',
+    activeSidebarPanel: validPanels.has(candidate.activeSidebarPanel) ? candidate.activeSidebarPanel : 'inspector',
+  };
+};
+
 const isSafeMolecule = (molecule) => {
   if (!molecule || !Array.isArray(molecule.atoms) || !Array.isArray(molecule.bonds)) return false;
   if (molecule.atoms.length > MAX_AUTOSAVE_ATOMS || molecule.bonds.length > MAX_AUTOSAVE_BONDS) return false;
@@ -207,8 +248,11 @@ const createWindow = () => {
 // silently (caught by the IPC handler's try/catch) — the Recent Files
 // submenu never actually updated, in any session, ever. A full rebuild via
 // buildFromTemplate is the only way Electron supports changing it.
-const createMenu = (recentFiles = settingsStore.load().recentFiles) => {
+const createMenu = (recentFiles = settingsStore.load().recentFiles, commandContext = menuCommandContext) => {
   const isMac = process.platform === 'darwin';
+  const hasSelection = commandContext.selectedAtomCount + commandContext.selectedBondCount > 0;
+  const canArrange = commandContext.selectedAtomCount >= 2;
+  const canDistribute = commandContext.selectedAtomCount >= 3;
 
   // settings.json is user-editable on disk, not just written by
   // saveSettings() — a hand-edited or corrupted `recentFiles` (wrong type,
@@ -350,10 +394,12 @@ const createMenu = (recentFiles = settingsStore.load().recentFiles) => {
         // did before.
         {
           label: 'Undo',
+          enabled: commandContext.canUndo,
           click: () => mainWindow.webContents.send('menu:undo'),
         },
         {
           label: 'Redo',
+          enabled: commandContext.canRedo,
           click: () => mainWindow.webContents.send('menu:redo'),
         },
         {
@@ -367,6 +413,7 @@ const createMenu = (recentFiles = settingsStore.load().recentFiles) => {
         // handler, just like Copy and Paste below.
         {
           label: 'Cut',
+          enabled: hasSelection,
           click: () => mainWindow.webContents.send('menu:cut'),
         },
         // Same fix as Undo/Redo above, same reason: role: 'copy'/'paste'
@@ -383,6 +430,7 @@ const createMenu = (recentFiles = settingsStore.load().recentFiles) => {
         // useKeyboard.ts's own keydown listener.
         {
           label: 'Copy',
+          enabled: commandContext.atomCount > 0,
           click: () => mainWindow.webContents.send('menu:copy'),
         },
         {
@@ -392,6 +440,7 @@ const createMenu = (recentFiles = settingsStore.load().recentFiles) => {
         { type: 'separator' },
         {
           label: 'Select All',
+          enabled: commandContext.atomCount > 0,
           accelerator: isMac ? 'Cmd+A' : 'Ctrl+A',
           click: () => mainWindow.webContents.send('menu:select-all'),
         },
@@ -424,19 +473,27 @@ const createMenu = (recentFiles = settingsStore.load().recentFiles) => {
         { type: 'separator' },
         {
           label: 'Toggle Sidebar',
+          type: 'checkbox',
+          checked: commandContext.sidebarOpen,
           accelerator: isMac ? 'Cmd+B' : 'Ctrl+B',
           click: () => mainWindow.webContents.send('menu:toggle-sidebar'),
         },
         {
           label: 'Show/Hide Main Tools',
+          type: 'checkbox',
+          checked: commandContext.mainToolsOpen,
           click: () => mainWindow.webContents.send('menu:toggle-main-tools'),
         },
         {
           label: 'Show/Hide General Toolbar',
+          type: 'checkbox',
+          checked: commandContext.generalToolbarOpen,
           click: () => mainWindow.webContents.send('menu:toggle-general-toolbar'),
         },
         {
           label: 'Show/Hide Status Bar',
+          type: 'checkbox',
+          checked: commandContext.statusBarOpen,
           click: () => mainWindow.webContents.send('menu:toggle-status-bar'),
         },
         {
@@ -447,8 +504,8 @@ const createMenu = (recentFiles = settingsStore.load().recentFiles) => {
         {
           label: 'Workspace',
           submenu: [
-            { label: 'ChemDraw Familiar', click: () => mainWindow.webContents.send('menu:set-workspace-profile', 'chemdraw') },
-            { label: 'Compact', click: () => mainWindow.webContents.send('menu:set-workspace-profile', 'compact') },
+            { label: 'ChemDraw Familiar', type: 'radio', checked: commandContext.workspaceProfile === 'chemdraw', click: () => mainWindow.webContents.send('menu:set-workspace-profile', 'chemdraw') },
+            { label: 'Compact', type: 'radio', checked: commandContext.workspaceProfile === 'compact', click: () => mainWindow.webContents.send('menu:set-workspace-profile', 'compact') },
             { type: 'separator' },
             { label: 'Reset Workspace', click: () => mainWindow.webContents.send('menu:reset-workspace') },
           ],
@@ -466,20 +523,23 @@ const createMenu = (recentFiles = settingsStore.load().recentFiles) => {
       submenu: [
         {
           label: 'Align Horizontally',
+          enabled: canArrange,
           click: () => mainWindow.webContents.send('menu:object-align-horizontal'),
         },
         {
           label: 'Align Vertically',
+          enabled: canArrange,
           click: () => mainWindow.webContents.send('menu:object-align-vertical'),
         },
         { type: 'separator' },
-        { label: 'Distribute Horizontally', click: () => mainWindow.webContents.send('menu:object-distribute-horizontal') },
-        { label: 'Distribute Vertically', click: () => mainWindow.webContents.send('menu:object-distribute-vertical') },
+        { label: 'Distribute Horizontally', enabled: canDistribute, click: () => mainWindow.webContents.send('menu:object-distribute-horizontal') },
+        { label: 'Distribute Vertically', enabled: canDistribute, click: () => mainWindow.webContents.send('menu:object-distribute-vertical') },
         { type: 'separator' },
-        { label: 'Flip Horizontal', click: () => mainWindow.webContents.send('menu:object-flip-horizontal') },
-        { label: 'Flip Vertical', click: () => mainWindow.webContents.send('menu:object-flip-vertical') },
+        { label: 'Flip Horizontal', enabled: canArrange, click: () => mainWindow.webContents.send('menu:object-flip-horizontal') },
+        { label: 'Flip Vertical', enabled: canArrange, click: () => mainWindow.webContents.send('menu:object-flip-vertical') },
         {
           label: 'Rotate 90° Clockwise',
+          enabled: canArrange,
           click: () => mainWindow.webContents.send('menu:object-rotate'),
         },
       ],
@@ -489,6 +549,7 @@ const createMenu = (recentFiles = settingsStore.load().recentFiles) => {
       submenu: [
         {
           label: 'Clean Up Structure',
+          enabled: commandContext.atomCount > 0,
           click: () => mainWindow.webContents.send('menu:structure-clean'),
         },
         {
@@ -542,16 +603,16 @@ const createMenu = (recentFiles = settingsStore.load().recentFiles) => {
     {
       label: 'Window',
       submenu: [
-        { label: 'Inspector', click: () => mainWindow.webContents.send('menu:show-panel', 'inspector') },
-        { label: 'Query', click: () => mainWindow.webContents.send('menu:show-panel', 'query') },
-        { label: 'Stereo', click: () => mainWindow.webContents.send('menu:show-panel', 'stereo') },
-        { label: 'Templates', click: () => mainWindow.webContents.send('menu:show-panel', 'templates') },
-        { label: 'Reactions', click: () => mainWindow.webContents.send('menu:show-panel', 'reactions') },
-        { label: 'Mechanism', click: () => mainWindow.webContents.send('menu:show-panel', 'mechanism') },
+        { label: 'Inspector', type: 'radio', checked: commandContext.activeSidebarPanel === 'inspector', click: () => mainWindow.webContents.send('menu:show-panel', 'inspector') },
+        { label: 'Query', type: 'radio', checked: commandContext.activeSidebarPanel === 'query', click: () => mainWindow.webContents.send('menu:show-panel', 'query') },
+        { label: 'Stereo', type: 'radio', checked: commandContext.activeSidebarPanel === 'stereo', click: () => mainWindow.webContents.send('menu:show-panel', 'stereo') },
+        { label: 'Templates', type: 'checkbox', checked: commandContext.templatePanelOpen, click: () => mainWindow.webContents.send('menu:show-panel', 'templates') },
+        { label: 'Reactions', type: 'radio', checked: commandContext.activeSidebarPanel === 'reactions', click: () => mainWindow.webContents.send('menu:show-panel', 'reactions') },
+        { label: 'Mechanism', type: 'radio', checked: commandContext.activeSidebarPanel === 'mechanism', click: () => mainWindow.webContents.send('menu:show-panel', 'mechanism') },
         { type: 'separator' },
-        { label: '3D Viewer', click: () => mainWindow.webContents.send('menu:show-panel', '3d') },
-        { label: 'NMR Spectrum', click: () => mainWindow.webContents.send('menu:show-panel', 'nmr') },
-        { label: 'Batch Results', click: () => mainWindow.webContents.send('menu:show-panel', 'batch-results') },
+        { label: '3D Viewer', type: 'radio', checked: commandContext.activeSidebarPanel === '3d', click: () => mainWindow.webContents.send('menu:show-panel', '3d') },
+        { label: 'NMR Spectrum', type: 'radio', checked: commandContext.activeSidebarPanel === 'nmr', click: () => mainWindow.webContents.send('menu:show-panel', 'nmr') },
+        { label: 'Batch Results', type: 'radio', checked: commandContext.activeSidebarPanel === 'batch-results', click: () => mainWindow.webContents.send('menu:show-panel', 'batch-results') },
       ],
     },
 
@@ -562,6 +623,10 @@ const createMenu = (recentFiles = settingsStore.load().recentFiles) => {
         {
           label: 'Keyboard Shortcuts',
           click: () => mainWindow.webContents.send('menu:shortcuts'),
+        },
+        {
+          label: 'ChemDraw Migration Guide',
+          click: () => mainWindow.webContents.send('menu:migration-guide'),
         },
         {
           label: 'About chematic-draw',
@@ -621,6 +686,12 @@ ipcMain.handle('settings:load', async (event, key) => {
   } catch (err) {
     return { success: false, error: err.message };
   }
+});
+
+ipcMain.on('menu:command-context', (event, candidate) => {
+  if (!isTrustedRendererEvent(event)) return;
+  menuCommandContext = normalizeMenuCommandContext(candidate);
+  createMenu();
 });
 
 // Asks the user, via a native confirm dialog, whether to restore the
