@@ -92,8 +92,9 @@ polymer, or opaque query semantics.
 
 chematic-draw is an offline-first desktop editor. The core editing, parsing,
 validation, SMARTS matching, layout, and most exports run locally. PubChem
-lookup is the explicit network-dependent feature and is based on an
-InChIKey, not similarity search.
+lookup is an explicit network-dependent InChIKey lookup, not similarity
+search. An optional ChemSpider name lookup is also network-dependent and is
+available only when the Electron host has been configured by its operator.
 
 The editor does not claim to be a drop-in replacement for any named product.
 The [Known Limitations](KNOWN_LIMITATIONS.md) and [Release Readiness](RELEASE_READINESS.md)

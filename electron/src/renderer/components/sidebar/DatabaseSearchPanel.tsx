@@ -2,9 +2,19 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
 import type { MoleculeDto } from '../../store/types';
-import { searchDatabase, DatabaseResult } from '../../lib/advancedFeatures';
+import { DATABASE_PROVIDERS, type DatabaseSource, searchDatabase, type DatabaseResult } from '../../lib/advancedFeatures';
 import * as wasmBridge from '../../wasm/wasmBridge';
 import { runAnalysisInWorker } from '../../lib/analysisWorkerClient';
+import { getElectronApi, type ElectronChemSpiderStatus } from '../../electronApi';
+
+const DEFAULT_CHEMSPIDER_STATUS: ElectronChemSpiderStatus = {
+  available: false,
+  reason: DATABASE_PROVIDERS.chemspider.unavailableReason,
+};
+
+function providerReason(provider: { available: boolean; reason?: string; unavailableReason?: string }): string {
+  return provider.reason ?? provider.unavailableReason ?? 'ChemSpider is unavailable.';
+}
 
 export function DatabaseSearchPanel() {
   const theme = useUIStore((s) => s.theme);
@@ -16,7 +26,9 @@ export function DatabaseSearchPanel() {
 
   const [results, setResults] = useState<DatabaseResult[]>([]);
   const [loading, setLoading] = useState(false);
-  const [source, setSource] = useState<'pubchem' | 'chemspider'>('pubchem');
+  const [source, setSource] = useState<DatabaseSource>('pubchem');
+  const [chemSpiderStatus, setChemSpiderStatus] = useState<ElectronChemSpiderStatus>(DEFAULT_CHEMSPIDER_STATUS);
+  const [chemSpiderQuery, setChemSpiderQuery] = useState('');
   const [comparisonSmiles, setComparisonSmiles] = useState('');
   const [mcsResult, setMcsResult] = useState<wasmBridge.McsResultDto | null>(null);
   const [similarityResult, setSimilarityResult] = useState<number | null>(null);
@@ -33,6 +45,16 @@ export function DatabaseSearchPanel() {
     mcsControllerRef.current?.abort();
   }, []);
 
+  useEffect(() => {
+    const api = getElectronApi();
+    if (!api) return;
+    let active = true;
+    void api.getChemSpiderStatus().then((status) => {
+      if (active && status && typeof status.available === 'boolean') setChemSpiderStatus(status);
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
+
   const borderColor = theme === 'dark' ? '#3a4a57' : '#e0e0e0';
   const textColor = theme === 'dark' ? '#d8deea' : '#1d2430';
   const labelColor = theme === 'dark' ? '#a0a8b8' : '#555555';
@@ -40,6 +62,13 @@ export function DatabaseSearchPanel() {
   const accentColor = '#4d8dff';
 
   const handleSearch = async () => {
+    const provider = source === 'chemspider' ? chemSpiderStatus : DATABASE_PROVIDERS.pubchem;
+    if (!provider.available) {
+      setStatus(language === 'ja'
+        ? `ChemSpiderは未設定です: ${providerReason(provider)}`
+        : `ChemSpider is unavailable: ${providerReason(provider)}`);
+      return;
+    }
     const searchRun = ++searchRunRef.current;
     const moleculeAtStart = molecule;
     searchControllerRef.current?.abort();
@@ -49,7 +78,15 @@ export function DatabaseSearchPanel() {
       setLoading(true);
       setStatus(language === 'ja' ? `${source}で完全一致構造を検索中…` : `Searching ${source} for an exact structure match...`);
 
-      const searchResults = await searchDatabase(molecule, source, controller.signal);
+      const searchResults = source === 'chemspider'
+        ? await (async () => {
+          const api = getElectronApi();
+          if (!api) throw new Error(DEFAULT_CHEMSPIDER_STATUS.reason);
+          const result = await api.searchChemSpiderByName(chemSpiderQuery.trim());
+          if (!result.success) throw new Error(result.error ?? 'ChemSpider search failed.');
+          return result.results ?? [];
+        })()
+        : await searchDatabase(molecule, source, controller.signal);
       if (!mountedRef.current || searchRun !== searchRunRef.current) return;
       // A search result is only valid for the molecule and source that
       // produced it. Discard late responses after either changes.
@@ -117,10 +154,22 @@ export function DatabaseSearchPanel() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <label style={{ fontSize: '10px', color: labelColor }}>{language === 'ja' ? 'データベース' : 'Database source'}</label>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-          {(['pubchem', 'chemspider'] as const).map((src) => (
+          {(Object.keys(DATABASE_PROVIDERS) as DatabaseSource[]).map((src) => {
+            const provider = src === 'chemspider' ? chemSpiderStatus : DATABASE_PROVIDERS.pubchem;
+            const unavailable = !provider.available;
+            return (
             <button
               key={src}
+              type="button"
+              disabled={unavailable}
+              title={unavailable ? providerReason(provider) : undefined}
+              aria-label={src === 'pubchem'
+                ? 'PubChem'
+                : unavailable
+                  ? (language === 'ja' ? 'ChemSpider（未設定）' : 'ChemSpider (unavailable)')
+                  : 'ChemSpider'}
               onClick={() => {
+                if (unavailable) return;
                 searchRunRef.current += 1;
                 searchControllerRef.current?.abort();
                 setLoading(false);
@@ -128,24 +177,39 @@ export function DatabaseSearchPanel() {
               }}
               style={{
                 padding: '6px',
-                backgroundColor: source === src ? accentColor : inputBg,
-                color: source === src ? 'white' : textColor,
+                backgroundColor: source === src && !unavailable ? accentColor : inputBg,
+                color: source === src && !unavailable ? 'white' : textColor,
                 border: `1px solid ${borderColor}`,
                 borderRadius: '3px',
-                cursor: 'pointer',
+                cursor: unavailable ? 'not-allowed' : 'pointer',
                 fontSize: '10px',
-                fontWeight: source === src ? 'bold' : 'normal',
+                fontWeight: source === src && !unavailable ? 'bold' : 'normal',
+                opacity: unavailable ? 0.55 : 1,
               }}
             >
-              {src === 'pubchem' ? 'PubChem' : 'ChemSpider'}
+              {src === 'pubchem' ? 'PubChem' : unavailable
+                ? (language === 'ja' ? 'ChemSpider（未設定）' : 'ChemSpider (unavailable)')
+                : 'ChemSpider'}
             </button>
-          ))}
+            );
+          })}
         </div>
+        {source === 'chemspider' && chemSpiderStatus.available && (
+          <input
+            aria-label={language === 'ja' ? 'ChemSpider化合物名' : 'ChemSpider compound name'}
+            type="text"
+            value={chemSpiderQuery}
+            maxLength={256}
+            onChange={(event) => setChemSpiderQuery(event.target.value)}
+            placeholder={language === 'ja' ? '化合物名で検索' : 'Search by compound name'}
+            style={{ padding: '6px', backgroundColor: inputBg, color: textColor, border: `1px solid ${borderColor}`, borderRadius: '3px', fontSize: '10px' }}
+          />
+        )}
       </div>
 
       <button
         onClick={handleSearch}
-        disabled={loading || molecule.atoms.length === 0}
+        disabled={loading || (source === 'chemspider' ? !chemSpiderQuery.trim() : molecule.atoms.length === 0)}
         style={{
           padding: '8px',
           backgroundColor: accentColor,
@@ -155,7 +219,7 @@ export function DatabaseSearchPanel() {
           cursor: 'pointer',
           fontSize: '11px',
           fontWeight: 'bold',
-          opacity: loading || molecule.atoms.length === 0 ? 0.5 : 1,
+          opacity: loading || (source === 'chemspider' ? !chemSpiderQuery.trim() : molecule.atoms.length === 0) ? 0.5 : 1,
         }}
       >
         {loading ? 'Searching...' : 'Search Compounds'}
@@ -251,7 +315,7 @@ export function DatabaseSearchPanel() {
 
       {/* Info */}
       <div style={{ fontSize: '9px', color: labelColor, lineHeight: '1.4' }}>
-          {language === 'ja' ? 'PubChemまたはChemSpiderで完全一致する化合物を検索します。類似度は構造一致度として表示されます。' : 'Search PubChem or ChemSpider for exact structure matches. The similarity value reflects the identity match.'}
+          {language === 'ja' ? 'PubChemは現在の構造の完全一致を検索します。ChemSpiderは、ElectronホストでAPIキーと帰属確認を設定した場合のみ、化合物名検索を行います。外部照会は利用者の操作時にのみ実行されます。' : 'PubChem searches the current structure for an exact match. ChemSpider performs a name lookup only when the Electron host has configured an API key and attribution acknowledgement. External lookups run only after a user action.'}
       </div>
 
       {/* Offline MCS comparison */}

@@ -23,28 +23,32 @@ authoritative when a version or capability changes.
 - [Troubleshooting](TROUBLESHOOTING.md) — common setup and runtime problems
 - [CI/CD](CI_CD.md) — GitHub Actions and release artifacts
 
-## Current release
+## Release state
 
-The current tagged release is `v1.0.12` (2026-09-22). The application version
+The current tagged release is `v1.0.13` (2026-09-23). The application version
 is defined in `electron/package.json` and `crates/chem-wasm/Cargo.toml`; CI
 checks that they stay in sync.
 This release pins the upstream `chematic` engine at v1.0.19. See the root
 [`CHANGELOG.md`](../CHANGELOG.md) for the release contents and validation.
 
+Changes under a future `Unreleased` section are not a tagged or published
+release until commit, tag, workflow, and artifact evidence exist.
+
 ## Important boundaries
 
 - The app is Electron-only; the former native Rust/egui application is gone.
 - PubChem lookup is an exact InChIKey lookup, not similarity search, and needs
-  internet access. ChemSpider is present in the selector but not implemented.
+  internet access. ChemSpider is an Electron-only opt-in name lookup: the host
+  needs an RSC API key and explicit attribution acknowledgement, and keeps the
+  key out of renderer code and settings files.
 - The DB panel includes an offline MCS comparison using the current molecule and
   a second SMILES input; the search is bounded and reports its result budget.
-- The Reactions panel accepts two to eight newline-separated reactant SMILES
-  values for multi-reactant SMIRKS execution.
+- Reaction diagnostics report structural consistency, not a mechanism,
+  complete stoichiometry, or product prediction.
 - Stereoisomer enumeration is heuristic and is not a complete CIP assignment.
-- CDXML supports a bounded reader/writer subset, including presentation-only
-  pages and presentation-only groups; chemistry fragments inside groups are
-  flattened into the editable molecule. RXN V2000, XYZ, and PDB are
-  import/export capabilities limited as described in [INTEROP](INTEROP.md).
+- CDXML and RXN are bounded, loss-aware interchange paths. NMR accepts generic
+  JSON and Bruker 1D peak lists, not raw FID or prediction workflows. See
+  [INTEROP](INTEROP.md) and [Known Limitations](KNOWN_LIMITATIONS.md).
 
 ## Which document to read
 

@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { MAX_NMR_JSON_LENGTH, serializeNmrSpectrum, validateNmrSpectrum, type NmrSpectrum } from '../../../../../packages/chematic-contract/src/index';
+import { parseBrukerPeakList } from '../../lib/nmrBrukerPeakList';
 
 const EMPTY_SPECTRUM: NmrSpectrum = {
   schema: 'chematic-draw/nmr-spectrum', schema_version: 1, nucleus: '1H', peaks: [],
@@ -59,12 +60,14 @@ export function NmrSpectrumPanel() {
         reader.onerror = () => reject(reader.error ?? new Error('Could not read spectrum file'));
         reader.readAsText(file);
       });
-      setRaw(text);
       if (text.length > MAX_NMR_JSON_LENGTH) {
-        setErrors([`$: NMR JSON must be at most ${MAX_NMR_JSON_LENGTH} characters`]);
+        setErrors([`$: NMR input must be at most ${MAX_NMR_JSON_LENGTH} characters`]);
         return;
       }
-      const candidate = JSON.parse(text) as NmrSpectrum;
+      const isJson = file.name.toLowerCase().endsWith('.json');
+      const candidate = isJson
+        ? JSON.parse(text) as NmrSpectrum
+        : parseBrukerPeakList(text, file.name);
       const validationErrors = validateNmrSpectrum(candidate);
       if (validationErrors.length > 0) {
         setErrors(validationErrors.map((error) => `${error.path}: ${error.message}`));
@@ -72,6 +75,7 @@ export function NmrSpectrumPanel() {
       }
       setErrors([]);
       setSpectrum(candidate);
+      setRaw(isJson ? text : serializeNmrSpectrum(candidate));
     } catch (error) {
       setErrors([error instanceof Error ? error.message : String(error)]);
     } finally {
@@ -108,7 +112,7 @@ export function NmrSpectrumPanel() {
     <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
       <div style={{ fontSize: '13px', fontWeight: 'bold', color: textColor }}>{isJapanese ? 'NMRスペクトル' : 'NMR spectrum'}</div>
       <div style={{ fontSize: '10px', color: labelColor, lineHeight: 1.4 }}>
-        {isJapanese ? '汎用JSONの実験データのみを表示・検証します。ベンダー形式の読込、帰属、予測は行いません。' : 'Generic JSON experimental data is displayed and validated only. Vendor import, assignment, and prediction are not provided.'}
+        {isJapanese ? '汎用JSONとBruker 1D peak listを表示・検証します。自動帰属と予測は行いません。' : 'Generic JSON and Bruker 1D peak lists are displayed and validated. Automatic assignment and prediction are not provided.'}
       </div>
       <textarea
         aria-label={isJapanese ? 'NMRスペクトルJSON' : 'NMR spectrum JSON'}
@@ -123,8 +127,8 @@ export function NmrSpectrumPanel() {
       </button>
       <div style={{ display: 'flex', gap: 6 }}>
         <label style={{ flex: 1, padding: '6px', border: `1px solid ${borderColor}`, borderRadius: 4, color: textColor, fontSize: 10, textAlign: 'center', cursor: 'pointer' }}>
-          {isJapanese ? 'JSONを読み込む' : 'Load JSON'}
-          <input aria-label={isJapanese ? 'NMRスペクトルJSONファイル' : 'NMR spectrum JSON file'} type="file" accept="application/json,.json" onChange={handleFile} style={{ display: 'none' }} />
+          {isJapanese ? 'JSON / Brukerを読み込む' : 'Load JSON / Bruker'}
+          <input aria-label={isJapanese ? 'NMRスペクトルファイル' : 'NMR spectrum file'} type="file" accept="application/json,.json,.txt,.pks" onChange={handleFile} style={{ display: 'none' }} />
         </label>
         <button type="button" onClick={download} disabled={!spectrum} style={{ flex: 1, padding: '6px', border: `1px solid ${borderColor}`, borderRadius: 4, backgroundColor: 'transparent', color: textColor, cursor: spectrum ? 'pointer' : 'not-allowed' }}>
           {isJapanese ? 'JSONを保存' : 'Save JSON'}

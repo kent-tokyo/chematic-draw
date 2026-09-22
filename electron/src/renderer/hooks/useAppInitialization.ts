@@ -6,6 +6,7 @@ import type { MoleculeDto } from '../store/types';
 import * as wasmBridge from '../wasm/wasmBridge';
 import { DEFAULT_SHORTCUT_BINDINGS, validateShortcutBindings, type ShortcutBindings } from '../lib/shortcuts';
 import { runAnalysisInWorker } from '../lib/analysisWorkerClient';
+import { getElectronApi } from '../electronApi';
 
 interface UseAppInitializationOptions {
   setFilePath: Dispatch<SetStateAction<string | null>>;
@@ -32,13 +33,13 @@ export function useAppInitialization({ setFilePath }: UseAppInitializationOption
       }
       setWasmStatus('ready');
 
-      if (typeof window !== 'undefined' && (window as any).electronAPI) {
-        const api = (window as any).electronAPI;
+      const api = getElectronApi();
+      if (api) {
         try {
           const savedTheme = await api.loadSettings('theme');
-          if (savedTheme.success && savedTheme.value) setTheme(savedTheme.value);
+          if (savedTheme.success && (savedTheme.value === 'dark' || savedTheme.value === 'light')) setTheme(savedTheme.value);
           const savedLanguage = await api.loadSettings('language');
-          if (savedLanguage.success && ['en', 'ja', 'zh'].includes(savedLanguage.value)) setLanguage(savedLanguage.value);
+          if (savedLanguage.success && (savedLanguage.value === 'en' || savedLanguage.value === 'ja' || savedLanguage.value === 'zh')) setLanguage(savedLanguage.value);
           const savedSidebarWidth = await api.loadSettings('sidebarWidth');
           if (savedSidebarWidth.success && typeof savedSidebarWidth.value === 'number') {
             if (savedSidebarWidth.value === 0) useUIStore.setState({ sidebarOpen: false });
@@ -118,9 +119,10 @@ export function useAppInitialization({ setFilePath }: UseAppInitializationOption
     if (wasmStatus !== 'ready') return;
     (async () => {
       try {
-        if (typeof window !== 'undefined' && (window as any).electronAPI?.getPendingRecovery) {
+        const api = getElectronApi();
+        if (api) {
           try {
-            const snapshot = await (window as any).electronAPI.getPendingRecovery();
+            const snapshot = await api.getPendingRecovery();
             if (snapshot) {
               setMolecule(snapshot.molecule);
               setFilePath(snapshot.filePath ?? null);

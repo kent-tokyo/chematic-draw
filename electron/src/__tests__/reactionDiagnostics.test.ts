@@ -97,7 +97,7 @@ describe('reaction diagnostics', () => {
     const result = diagnoseReactionScheme(scheme('C', 'N'));
     expect(result.status).toBe('not_verified');
     expect(result.atomBalance.differences).toEqual(['Step 1: C: 1 extra on reactants', 'Step 1: N: 1 missing from reactants']);
-    expect(result.issues).toContain('Step 1: atom balance is not verified.');
+    expect(result.issues).toContain('Step 1: atom counts differ between authored reactants and products.');
   });
 
   it('reports map numbers that exist on only one side', () => {
@@ -113,13 +113,13 @@ describe('reaction diagnostics', () => {
     expect(result.status).toBe('not_verified');
   });
 
-  it('reports formal charge imbalance as not verified', () => {
+  it('reports formal charge differences between authored sides', () => {
     const charged = scheme('C', 'C');
     charged.steps[0].products[0].atoms[0].charge = -1;
     const result = diagnoseReactionScheme(charged);
     expect(result.status).toBe('not_verified');
     expect(result.chargeBalance).toEqual({ balanced: false, difference: 1 });
-    expect(result.issues).toContain('Step 1: formal charge is not balanced (1 extra charge on reactants).');
+    expect(result.issues).toContain('Step 1: formal charge differs between authored reactants and products (1 extra charge on reactants).');
   });
 
   it('uses authored stoichiometric coefficients for atom and charge balance', () => {
@@ -145,7 +145,7 @@ describe('reaction diagnostics', () => {
     fractional.steps[0].productCoefficients = [0.3];
     const result = diagnoseReactionScheme(fractional);
     expect(result.chargeBalance).toEqual({ balanced: true, difference: 0 });
-    expect(result.issues).not.toContain(expect.stringContaining('formal charge is not balanced'));
+    expect(result.issues).not.toContain(expect.stringContaining('formal charge differs'));
   });
 
   it('fully verifies a mapped multi-component balance fixture', () => {
@@ -198,7 +198,7 @@ describe('reaction diagnostics', () => {
     const result = diagnoseReactionScheme(isotopeChange);
     expect(result.status).toBe('not_verified');
     expect(result.atomBalance.differences).toEqual(['Step 1: 13C: 1 extra on reactants', 'Step 1: C: 1 missing from reactants', 'Step 1: H: 1 extra on reactants']);
-    expect(result.issues).toContain('Step 1: atom balance is not verified.');
+    expect(result.issues).toContain('Step 1: atom counts differ between authored reactants and products.');
   });
 
   it('flags a multi-step scheme when no authored intermediate continues', () => {

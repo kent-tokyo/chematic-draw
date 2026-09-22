@@ -65,8 +65,11 @@ updates. It validates the resulting molecule and is suitable for a React
 wrapper or a Worker command layer.
 
 The `@chematic/web/editor-element` entrypoint provides an explicitly opt-in
-`<chematic-molecule-editor>` custom element. Hosts own the controls and call
-`applyEdit` or the atomic, bounded `applyEdits` batch method; accepted edits
+`<chematic-molecule-editor>` custom element. Hosts can provide their own
+controls through `applyEdit` or the atomic, bounded `applyEdits` batch method,
+or use pointer editing with `interaction="draw"`. In pointer mode, `tool`
+accepts `draw`, `atom`, `bond`, or `erase`; `atom-element` selects the inserted
+or updated element and `bond-order` selects orders 1–4. Accepted edits
 emit one `molecule-change` event, while invalid or read-only edits emit
 `schematic-error`. It also exposes bounded `canUndo`/`canRedo`, `undo()`,
 `redo()`, `serialize()`, `validate()`, and `dispose()` lifecycle methods. A

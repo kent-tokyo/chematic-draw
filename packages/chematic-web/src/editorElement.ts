@@ -13,6 +13,7 @@ export interface MoleculeChangeDetail {
 
 export const DEFAULT_EDITOR_HISTORY_LIMIT = 100;
 export const MAX_EDITOR_EDIT_BATCH = 256;
+type PointerTool = 'draw' | 'atom' | 'bond' | 'erase';
 
 /**
  * An explicitly opt-in, framework-free editor surface. The host owns the
@@ -20,7 +21,7 @@ export const MAX_EDITOR_EDIT_BATCH = 256;
  * emits the resulting immutable molecule.
  */
 export class SchematicMoleculeEditorElement extends HTMLElementBase {
-  static observedAttributes = ['value', 'readonly', 'interaction', 'keyboard'];
+  static observedAttributes = ['value', 'readonly', 'interaction', 'keyboard', 'tool', 'atom-element', 'bond-order'];
   private current: Molecule = { atoms: [], bonds: [] };
   private history: Molecule[] = [this.current];
   private historyIndex = 0;
@@ -205,17 +206,48 @@ export class SchematicMoleculeEditorElement extends HTMLElementBase {
     const atom = (event.target as Element | null)?.closest?.('[data-atom-id]');
     const endAtomId = atom ? Number(atom.getAttribute('data-atom-id')) : null;
     try {
-      if (start.atomId !== null && endAtomId !== null && start.atomId !== endAtomId) {
-        const bondId = this.current.bonds.reduce((maximum, bond) => Math.max(maximum, bond.id), 0) + 1;
-        this.applyEdit({ type: 'add-bond', bond: { id: bondId, from: start.atomId, to: endAtomId, order: 1, stereo: 0 } });
+      const tool = this.pointerTool();
+      if (tool === 'erase') {
+        if (endAtomId !== null) this.applyEdit({ type: 'remove-atom', atomId: endAtomId });
+      } else if (tool === 'atom') {
+        if (endAtomId !== null) this.applyEdit({ type: 'update-atom', atomId: endAtomId, updates: { element: this.atomElement() } });
+        else if (start.atomId === null) this.addPointerAtom(point.x, point.y);
+      } else if (tool === 'bond') {
+        if (start.atomId !== null && endAtomId !== null && start.atomId !== endAtomId) this.addPointerBond(start.atomId, endAtomId);
+      } else if (start.atomId !== null && endAtomId !== null && start.atomId !== endAtomId) {
+        this.addPointerBond(start.atomId, endAtomId);
       } else if (start.atomId === null && endAtomId === null) {
-        const atomId = this.current.atoms.reduce((maximum, candidate) => Math.max(maximum, candidate.id), 0) + 1;
-        this.applyEdit({ type: 'add-atom', atom: { id: atomId, element: 'C', x: point.x, y: point.y, charge: 0, atom_map: 0 } });
+        this.addPointerAtom(point.x, point.y);
       }
     } catch {
       // applyEdit already emits the structured schematic-error event.
     }
   };
+
+  private pointerTool(): PointerTool {
+    const value = this.getAttribute('tool');
+    return value === 'atom' || value === 'bond' || value === 'erase' ? value : 'draw';
+  }
+
+  private atomElement(): string {
+    const value = this.getAttribute('atom-element')?.trim();
+    return value && /^[A-Z][a-z]?$/.test(value) ? value : 'C';
+  }
+
+  private bondOrder(): number {
+    const value = Number(this.getAttribute('bond-order') ?? '1');
+    return Number.isInteger(value) && value >= 1 && value <= 4 ? value : 1;
+  }
+
+  private addPointerAtom(x: number, y: number): void {
+    const atomId = this.current.atoms.reduce((maximum, candidate) => Math.max(maximum, candidate.id), 0) + 1;
+    this.applyEdit({ type: 'add-atom', atom: { id: atomId, element: this.atomElement(), x, y, charge: 0, atom_map: 0 } });
+  }
+
+  private addPointerBond(from: number, to: number): void {
+    const bondId = this.current.bonds.reduce((maximum, bond) => Math.max(maximum, bond.id), 0) + 1;
+    this.applyEdit({ type: 'add-bond', bond: { id: bondId, from, to, order: this.bondOrder(), stereo: 0 } });
+  }
 
   private canvasPoint(clientX: number, clientY: number): { x: number; y: number } | null {
     const svg = this.querySelector('svg');

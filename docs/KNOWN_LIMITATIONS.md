@@ -15,9 +15,9 @@ the editor.
 | Session bundles | v1 is migrated to v2; unknown future versions are rejected | Keep the original file and upgrade through a release that supports its version |
 | Local extensions | In-process registration only; third-party bundle loading is not enabled | Register trusted code in the host application; file/network adapter permissions are reserved |
 | Release authenticity | SHA256 checksums are published; binaries remain unsigned | Verify the checksum and obtain releases from the official repository |
-| External lookup | PubChem requires network access; ChemSpider is not implemented | Core editing remains offline-first; add credentials through an explicit host provider |
-| Web embedding | Electron-free `<chematic-molecule>` validates unique IDs, references, bond orders/stereo values, and bounded coordinates before read-only SVG rendering | Editing, parsing, WASM analysis, and network lookup remain host responsibilities |
-| NMR | Generic JSON file/textarea input, validation, peak plot, and JSON export are supported | Vendor-specific import, assignment, prediction, and application-level persistence are not implemented |
+| External lookup | PubChem exact lookup requires network access. ChemSpider name lookup is an Electron-host opt-in using a main-process API key, attribution acknowledgement, bounded result count, and short-lived in-memory cache | Core editing remains offline-first. Configure `CHEMSPIDER_API_KEY` and `CHEMSPIDER_ATTRIBUTION_ACCEPTED=true` only after reviewing RSC terms and attribution; keys are never saved in settings or exposed to the renderer |
+| Web embedding | Electron-free `<chematic-molecule>` validates and renders read-only SVG; the separate opt-in `<chematic-molecule-editor>` supports bounded immutable edits, pointer basics, and undo/redo | Full desktop-tool parity, chemistry parsing/analysis, provider lookup, and host UI controls remain outside the element |
+| NMR | Generic JSON plus Bruker 1D peak-list import, validation, provenance, peak plot, JSON export, and manual peak assignment/notes are supported | Raw FID/processed-spectrum import, other vendor formats, automatic assignment, prediction, and application-level persistence are not implemented |
 
 ## Compatibility policy
 

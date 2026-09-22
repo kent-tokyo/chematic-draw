@@ -6,6 +6,18 @@ export type { StereoAssignmentDto } from '../wasm/wasmBridge';
 export type { DatabaseResult, LipinskiViolation, PropertyPrediction, StereoisomerResult } from '../../../../packages/chematic-contract/src/index';
 import type { DatabaseResult, ExtendedProperties, LipinskiViolation, PropertyPrediction, StereoisomerResult } from '../../../../packages/chematic-contract/src/index';
 
+export type DatabaseSource = 'pubchem' | 'chemspider';
+
+/**
+ * A source may appear in document/result types before it is safe to call from
+ * the product. Keep the availability decision in one place so the UI never
+ * advertises an unconfigured provider as a working search destination.
+ */
+export const DATABASE_PROVIDERS: Record<DatabaseSource, { available: boolean; unavailableReason?: string }> = {
+  pubchem: { available: true },
+  chemspider: { available: false, unavailableReason: 'ChemSpider requires a configured Electron host API key and attribution acknowledgement.' },
+};
+
 // Phase 6: Stereoisomer Enumeration
 export function enumerateStereoisomers(mol: MoleculeDto): StereoisomerResult {
   // Use the pinned chematic API: enumerate_stereoisomers
@@ -107,7 +119,7 @@ export function createMechanismStep(id: string): MechanismStep {
 }
 
 // Phase 10: Database Search
-export async function searchDatabase(mol: MoleculeDto, source: 'pubchem' | 'chemspider', signal?: AbortSignal): Promise<DatabaseResult[]> {
+export async function searchDatabase(mol: MoleculeDto, source: DatabaseSource, signal?: AbortSignal): Promise<DatabaseResult[]> {
   try {
     // Get InChIKey from the molecule. Note: chematic-inchi's InChI is a pure-Rust
     // approximation, not bit-exact with the real IUPAC reference implementation
@@ -126,7 +138,7 @@ export async function searchDatabase(mol: MoleculeDto, source: 'pubchem' | 'chem
     if (source === 'pubchem') {
       return await searchPubChem(inchiKey, signal);
     } else if (source === 'chemspider') {
-      throw new Error('ChemSpider search not yet implemented');
+      throw new Error('ChemSpider lookup is available only through a configured Electron host provider.');
     }
 
     return [];

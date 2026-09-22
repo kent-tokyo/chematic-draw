@@ -72,8 +72,8 @@ export const CAPABILITY_MANIFEST: readonly CapabilityDescriptor[] = [
   { id: 'cdxml-presentation', support: 'partial', summary: 'Supported multi-page subset with validated basic graphic children and explicit loss boundary', dependency: 'chematic' },
   { id: 'publication-layout', support: 'partial', summary: 'Deterministic metrics and export gates; human visual gate remains', dependency: 'local' },
   { id: 'embedding', support: 'partial', summary: 'Electron-free contract package, read-only viewer, opt-in validated editor, and atomic single/batch Worker edit surface', dependency: 'local' },
-  { id: 'chemspider', support: 'external', summary: 'Provider boundary reserved; authenticated API integration unavailable', dependency: 'chemspider-api' },
-  { id: 'nmr', support: 'partial', summary: 'Loss-aware experimental 1D spectrum contract; assignment and prediction remain external', dependency: 'local' },
+  { id: 'chemspider', support: 'external', summary: 'Electron-only opt-in name lookup; credentials, attribution, network, and rate limits remain host-managed', dependency: 'chemspider-api' },
+  { id: 'nmr', support: 'partial', summary: 'Loss-aware experimental 1D spectrum contract with manual annotations; automatic assignment and prediction remain external', dependency: 'local' },
   { id: '3d', support: 'partial', summary: 'Deterministic coordinate generation and XYZ export snapshot boundary', dependency: 'local' },
 ] as const;
 export interface CapabilityFixtureDescriptor { capability: CapabilityDescriptor['id']; fixture: string; gate: 'preserve' | 'warn' | 'reject'; }
@@ -86,7 +86,7 @@ export const CAPABILITY_FIXTURE_MANIFEST: readonly CapabilityFixtureDescriptor[]
   { capability: 'cdxml-presentation', fixture: 'cdxml-multi-page-loss-matrix', gate: 'warn' },
   { capability: 'publication-layout', fixture: 'svg-pdf-layout-metrics', gate: 'preserve' },
   { capability: 'embedding', fixture: 'html-react-worker-contract', gate: 'preserve' },
-  { capability: 'chemspider', fixture: 'network-disabled-provider', gate: 'reject' },
+  { capability: 'chemspider', fixture: 'chemspider-opt-in-provider', gate: 'warn' },
   { capability: 'nmr', fixture: 'nmr-1h-spectrum-panel', gate: 'preserve' },
   { capability: '3d', fixture: '3d-export-snapshot', gate: 'preserve' },
 ] as const;
@@ -99,7 +99,7 @@ export interface ConformanceFixtureDescriptor {
   network: 'none' | 'external';
 }
 export type InteropDirection = 'import' | 'export' | 'embed' | 'lookup';
-export type InteropBehavior = 'preserve' | 'warn' | 'reject' | 'read-only' | 'unavailable';
+export type InteropBehavior = 'preserve' | 'warn' | 'reject' | 'read-only' | 'unavailable' | 'opt-in';
 export interface InteropBoundaryDescriptor {
   id: string;
   capability: CapabilityDescriptor['id'];
@@ -114,9 +114,9 @@ export const INTEROP_BOUNDARY_MANIFEST: readonly InteropBoundaryDescriptor[] = [
   { id: 'cdxml-import-supported-subset', capability: 'cdxml-presentation', direction: 'import', format: 'CDXML', behavior: 'warn', lossCodes: ['unsupported-page-object', 'unsupported-presentation-attribute'], alternative: 'preserve source CDXML and inspect the loss report' },
   { id: 'cdxml-export-supported-subset', capability: 'cdxml-presentation', direction: 'export', format: 'CDXML', behavior: 'warn', lossCodes: ['wildcard-atom', 'unsupported-element', 'unsupported-bond', 'unsupported-page-object'], alternative: 'export reaction/document JSON when presentation fidelity is not required' },
   { id: 'rxn-v2000-export-loss-aware', capability: 'rich-rxn', direction: 'export', format: 'RXN V2000', behavior: 'warn', lossCodes: ['agents', 'coefficients', 'multi-step'], alternative: 'reaction-document JSON v2' },
-  { id: 'nmr-generic-json', capability: 'nmr', direction: 'import', format: 'Generic NMR JSON', behavior: 'preserve', lossCodes: ['vendor-format', 'assignment', 'prediction'], alternative: 'retain raw vendor data under explicit provenance until an adapter exists' },
+  { id: 'nmr-generic-json', capability: 'nmr', direction: 'import', format: 'Generic NMR JSON', behavior: 'preserve', lossCodes: ['vendor-format', 'automatic-assignment', 'prediction'], alternative: 'retain raw vendor data under explicit provenance until an adapter exists' },
   { id: 'web-component-viewer', capability: 'embedding', direction: 'embed', format: 'HTML Web Component', behavior: 'read-only', lossCodes: ['editing', 'analysis', 'network-lookup'], alternative: 'host-controlled editor integration' },
-  { id: 'chemspider-provider', capability: 'chemspider', direction: 'lookup', format: 'ChemSpider API', behavior: 'unavailable', lossCodes: ['credentials', 'network', 'terms'], alternative: 'PubChem lookup or offline molecule operations' },
+  { id: 'chemspider-provider', capability: 'chemspider', direction: 'lookup', format: 'ChemSpider API', behavior: 'opt-in', lossCodes: ['credentials', 'network', 'terms', 'rate-limit'], alternative: 'PubChem lookup or offline molecule operations' },
 ] as const;
 /** Test-backed boundary inventory. Paths are repository-relative and kept
  * dependency-free so release tooling can verify the contract without loading
@@ -127,7 +127,7 @@ export const CONFORMANCE_FIXTURE_MANIFEST: readonly ConformanceFixtureDescriptor
   { id: 'cdxml-multi-page-loss-matrix', capability: 'cdxml-presentation', gate: 'warn', testPath: 'electron/src/__tests__/cdxmlExport.test.ts', network: 'none' },
   { id: 'svg-pdf-layout-metrics', capability: 'publication-layout', gate: 'preserve', testPath: 'electron/src/__tests__/layoutMetrics.test.ts', network: 'none' },
   { id: 'html-react-worker-contract', capability: 'embedding', gate: 'preserve', testPath: 'electron/src/__tests__/contractConformance.test.ts', network: 'none' },
-  { id: 'network-disabled-provider', capability: 'chemspider', gate: 'reject', testPath: 'electron/src/__tests__/providerBoundary.test.ts', network: 'external' },
+  { id: 'chemspider-opt-in-provider', capability: 'chemspider', gate: 'warn', testPath: 'electron/src/__tests__/chemspiderProvider.test.ts', network: 'external' },
   { id: 'polymer-two-attachment-expansion', capability: 'polymer', gate: 'preserve', testPath: 'electron/src/__tests__/specialChemistry.test.ts', network: 'none' },
   { id: 'nucleic-acid-typed-boundary', capability: 'nucleic-acid', gate: 'warn', testPath: 'electron/src/__tests__/queryDocument.test.ts', network: 'none' },
   { id: 'nmr-1h-spectrum-panel', capability: 'nmr', gate: 'preserve', testPath: 'electron/src/__tests__/nmrContract.test.ts', network: 'none' },

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { ShortcutBindings } from '../lib/shortcuts';
 import { AppLanguage, SidebarPanel, useUIStore, WorkspaceProfile } from '../store/uiStore';
+import { getElectronApi } from '../electronApi';
 
 interface WorkspacePreferences {
   settingsHydrated: boolean;
@@ -18,30 +19,26 @@ interface WorkspacePreferences {
   shortcutBindings: ShortcutBindings;
 }
 
-function electronApi() {
-  return typeof window !== 'undefined' ? (window as any).electronAPI : undefined;
-}
-
 /** Persist workspace preferences after initialization in Electron or browser hosts. */
 export function useWorkspacePreferencesPersistence(preferences: WorkspacePreferences) {
   const { settingsHydrated, theme, language, sidebarOpen, sidebarWidth, mainToolsOpen, generalToolbarOpen, statusBarOpen, templatePanelOpen, templatePanelWidth, workspaceProfile, activeSidebarPanel, shortcutBindings } = preferences;
 
   useEffect(() => {
-    const api = electronApi();
+    const api = getElectronApi();
     if (!settingsHydrated || !api) return;
     const timeout = setTimeout(() => api.saveSettings('theme', theme), 500);
     return () => clearTimeout(timeout);
   }, [settingsHydrated, theme]);
 
   useEffect(() => {
-    const api = electronApi();
+    const api = getElectronApi();
     if (!settingsHydrated || !api) return;
     const timeout = setTimeout(() => api.saveSettings('language', language), 500);
     return () => clearTimeout(timeout);
   }, [language, settingsHydrated]);
 
   useEffect(() => {
-    const api = electronApi();
+    const api = getElectronApi();
     if (!settingsHydrated) return;
     if (api) {
       const timeout = setTimeout(() => {
@@ -59,7 +56,7 @@ export function useWorkspacePreferencesPersistence(preferences: WorkspacePrefere
   }, [settingsHydrated, sidebarOpen, sidebarWidth]);
 
   useEffect(() => {
-    const api = electronApi();
+    const api = getElectronApi();
     if (!settingsHydrated) return;
     if (api) {
       const timeout = setTimeout(() => {
@@ -87,7 +84,7 @@ export function useWorkspacePreferencesPersistence(preferences: WorkspacePrefere
   }, [activeSidebarPanel, generalToolbarOpen, mainToolsOpen, settingsHydrated, statusBarOpen, templatePanelOpen, templatePanelWidth, workspaceProfile]);
 
   useEffect(() => {
-    const api = electronApi();
+    const api = getElectronApi();
     if (!settingsHydrated || !api) return;
     const timeout = setTimeout(() => api.saveSettings('shortcutBindings', shortcutBindings), 500);
     return () => clearTimeout(timeout);

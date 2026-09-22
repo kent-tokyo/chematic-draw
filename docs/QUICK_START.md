@@ -9,7 +9,7 @@ Get chematic-draw up and running in 5 minutes.
 Packaged installers (`.deb`/`.rpm` for Linux, `.zip` for macOS, a Squirrel
 `.exe` installer for Windows) are published on the
 [GitHub Releases page](https://github.com/kent-tokyo/chematic-draw/releases)
-for tagged versions. The current stable release is `v1.0.12`; builds are
+for tagged versions. The current stable release is `v1.0.13`; builds are
 unsigned (no code
 signing/notarization is configured), so macOS/Windows will show an
 unidentified-developer warning on first launch.
@@ -163,13 +163,17 @@ File-menu XYZ export — those exist elsewhere:
 4. Optionally: Rotate and export for modelling software
 ```
 
-### Compare Similar Molecules
+### Look Up or Compare Molecules
 ```
-1. Load first molecule
-2. Click "DB" tab → Search similar compounds
-3. Results show similarity scores
-4. Click result → Highlight MCS (common substructure)
+1. Load a molecule
+2. Click "DB" tab → use PubChem exact lookup (network required)
+3. For a local comparison, enter a second SMILES and run MCS
+4. In a configured desktop build, choose ChemSpider and search by name
 ```
+
+PubChem lookup uses the generated InChIKey; it is not a similarity search.
+ChemSpider is an optional Electron-host integration and is unavailable in the
+browser or Playground.
 
 ### Design Reaction Route
 ```

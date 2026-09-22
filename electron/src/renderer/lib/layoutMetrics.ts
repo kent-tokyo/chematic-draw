@@ -59,21 +59,41 @@ export function assertPublicationLayout(layout: SchemeLayout): LayoutMetrics {
 /** Deterministically rebuild the scheme geometry without mutating the input. */
 export function repairPublicationLayout(layout: SchemeLayout): SchemeLayout {
   const padding = Number.isFinite(layout.padding) && layout.padding >= 0 ? layout.padding : 20;
-  const boxes = layout.stepBoxes.map((box, index) => ({
+  const columns = Math.min(Math.max(layout.stepBoxes.length, 1), 4);
+  const rows = Math.ceil(layout.stepBoxes.length / columns);
+  const normalized = layout.stepBoxes.map((box, index) => ({
     ...box,
     stepIndex: index,
-    x: padding + index * ((Number.isFinite(box.width) && box.width >= 0 ? box.width : 300) + 50),
-    y: 0,
     width: Number.isFinite(box.width) && box.width > 0 ? box.width : 300,
     height: Number.isFinite(box.height) && box.height > 0 ? box.height : 220,
   }));
-  const maxHeight = Math.max(0, ...boxes.map((box) => box.height));
-  const canvasHeight = Math.max(400, maxHeight + padding * 2);
-  for (const box of boxes) box.y = (canvasHeight - box.height) / 2;
-  const canvasWidth = Math.max(800, (boxes.at(-1)?.x ?? padding) + (boxes.at(-1)?.width ?? 0) + padding);
+  const rowHeights = Array.from({ length: rows }, (_, row) => Math.max(...normalized.slice(row * columns, (row + 1) * columns).map((box) => box.height)));
+  const rowY = rowHeights.reduce<number[]>((positions, _height, row) => {
+    positions.push(row === 0 ? padding : positions[row - 1] + rowHeights[row - 1] + 80);
+    return positions;
+  }, []);
+  const boxes = normalized.map((box, index) => {
+    const row = Math.floor(index / columns);
+    const column = index % columns;
+    return {
+      ...box,
+      x: padding + column * (300 + 50),
+      y: rowY[row] + (rowHeights[row] - box.height) / 2,
+    };
+  });
+  const canvasHeight = Math.max(400, (rowY.at(-1) ?? padding) + (rowHeights.at(-1) ?? 0) + padding);
+  const canvasWidth = Math.max(800, columns * 300 + (columns - 1) * 50 + padding * 2);
   const arrows = boxes.slice(0, -1).map((fromBox, index) => {
     const toBox = boxes[index + 1];
-    return { fromIndex: index, toIndex: index + 1, x1: fromBox.x + fromBox.width, y1: fromBox.y + fromBox.height / 2, x2: toBox.x, y2: toBox.y + toBox.height / 2 };
+    const wrapsToNextRow = Math.floor(index / columns) !== Math.floor((index + 1) / columns);
+    return {
+      fromIndex: index,
+      toIndex: index + 1,
+      x1: wrapsToNextRow ? fromBox.x + fromBox.width / 2 : fromBox.x + fromBox.width,
+      y1: wrapsToNextRow ? fromBox.y + fromBox.height : fromBox.y + fromBox.height / 2,
+      x2: wrapsToNextRow ? toBox.x + toBox.width / 2 : toBox.x,
+      y2: wrapsToNextRow ? toBox.y : toBox.y + toBox.height / 2,
+    };
   });
   return { stepBoxes: boxes, stepArrows: arrows, canvasWidth, canvasHeight, padding };
 }

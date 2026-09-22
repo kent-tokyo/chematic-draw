@@ -40,19 +40,19 @@ export function ReactionAnalysisPanels({
       )}
 
       {diagnostics && (
-        <div role="status" aria-label="Reaction verification" data-workflow-stage="validation" style={{
+        <div role="status" aria-label="Reaction structural consistency" data-workflow-stage="validation" style={{
           padding: '12px',
           backgroundColor: diagnostics.status === 'verified' ? (isDark ? '#1a3a2a' : '#e8f5e9') : (isDark ? '#3a2d1a' : '#fff8e1'),
           border: `1px solid ${diagnostics.status === 'verified' ? (isDark ? '#2a5a4a' : '#81c784') : (isDark ? '#6a4d22' : '#ffcc80')}`,
           borderRadius: '6px', marginBottom: '12px',
         }}>
           <div style={{ fontSize: '12px', fontWeight: 'bold', color: textColor, marginBottom: '6px' }}>
-            {isJapanese ? '反応検証' : 'Reaction Verification'}: {diagnostics.status === 'verified' ? (isJapanese ? '検証済み' : 'VERIFIED') : (isJapanese ? '未検証' : 'NOT VERIFIED')}
+            {isJapanese ? '反応構造整合性' : 'Reaction Structural Consistency'}: {diagnostics.status === 'verified' ? (isJapanese ? '一致' : 'CONSISTENT') : (isJapanese ? '要確認' : 'REVIEW NEEDED')}
           </div>
           <div data-testid="reaction-verification-scope" style={{ fontSize: '10px', color: labelColor, lineHeight: 1.4, marginBottom: '6px' }}>
             {isJapanese
-              ? '注: これは入力された原子・電荷・マップ・中間体の整合性確認です。反応機構の正しさ、完全な化学量論、生成物予測は保証しません。'
-              : 'Scope: checks authored atoms, charges, maps, and intermediate continuity only. It does not prove mechanism correctness, complete stoichiometry, or product prediction.'}
+              ? '範囲: 入力された原子・電荷・マップ・中間体の構造整合性のみを確認します。反応機構の正しさ、完全な化学量論、生成物予測は保証しません。'
+              : 'Scope: checks structural consistency of authored atoms, charges, maps, and intermediate continuity only. It does not establish mechanism correctness, complete stoichiometry, or product prediction.'}
           </div>
           {diagnostics.issues.map((issue, index) => <div key={index} style={{ fontSize: '10px', color: diagnostics.status === 'verified' ? '#4caf50' : '#d88900', marginTop: '3px' }}>{diagnostics.status === 'verified' ? '✓' : '⚠'} {issue}</div>)}
           {diagnostics.mapping.unmatchedMapNumbers.length > 0 && <div style={{ fontSize: '10px', color: '#d88900', marginTop: '5px' }}>{isJapanese ? '一致しないマップ番号' : 'Unmatched map numbers'}: {diagnostics.mapping.unmatchedMapNumbers.join(', ')}</div>}

@@ -4,15 +4,14 @@ This page helps choose a tool by workflow rather than by an unsupported
 feature-score claim. chematic-draw is an open-source, offline-first desktop
 chemical structure editor for Windows, macOS, and Linux.
 
-## Baseline scorecard (2026-09-12)
+## Historical scorecard (2026-09-12)
 
-The scores below make the competitive target measurable. `chematic-draw` is
-scored from the current implementation and automated gates. Competitor scores
-are conservative workflow-fit estimates from publicly documented capabilities,
-not laboratory usability measurements; ChemDraw's current product family and
-feature tiers are documented by [Revvity Signals](https://revvitysignals.com/products/research/chemdraw).
-The target is to move every chematic-draw score above the corresponding
-competitor score, but this baseline does not claim that target is already met.
+This retained planning snapshot makes the competitive target measurable. It
+has not been remeasured for the current candidate, so it is neither a current
+benchmark nor a release claim. Competitor scores are conservative workflow-fit
+estimates from publicly documented capabilities, not laboratory usability
+measurements; ChemDraw's current product family and feature tiers are
+documented by [Revvity Signals](https://revvitysignals.com/products/research/chemdraw).
 
 | Axis (100 points) | chematic-draw | ChemDraw | Ketcher | ChemDoodle | Evidence / next gap |
 |---|---:|---:|---:|---:|---|
@@ -83,8 +82,9 @@ migrating a production corpus.
 ### Can I use it as an offline SMILES editor?
 
 Yes. Structure editing, parsing, validation, canonical SMILES, and SMARTS
-matching use the local WASM bridge. PubChem lookup is separate and requires
-network access.
+matching use the local WASM bridge. PubChem exact lookup is separate and
+requires network access. Optional ChemSpider name lookup requires both network
+access and configured Electron-host credentials.
 
 ### Will a CDXML file look exactly the same after round-trip?
 

@@ -53,6 +53,37 @@ test.describe('Electron Smoke', () => {
     );
     expect(hasElectronAPI).toBe(true);
 
+    // Provider credentials must remain in the main process. The default
+    // packaged app exposes only an unavailable status, never a key or a
+    // renderer-side network primitive.
+    const chemSpiderStatus = await window.evaluate(async () => (
+      await (window as unknown as { electronAPI: { getChemSpiderStatus: () => Promise<unknown> } }).electronAPI.getChemSpiderStatus()
+    ));
+    expect(chemSpiderStatus).toMatchObject({ available: false });
+    expect(chemSpiderStatus).not.toHaveProperty('apiKey');
+
+    await electronApp.close();
+  });
+
+  test('a configured host enables the bounded ChemSpider name-lookup UI without exposing its key', async () => {
+    const electronApp = await electron.launch({
+      args: [PACKAGED_APP_PATH],
+      env: { ...process.env, CHEMSPIDER_API_KEY: 'smoke-only-key', CHEMSPIDER_ATTRIBUTION_ACCEPTED: 'true' },
+    });
+    const window = await electronApp.firstWindow();
+    await expect(window.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
+
+    const chemSpiderStatus = await window.evaluate(async () => (
+      await (window as unknown as { electronAPI: { getChemSpiderStatus: () => Promise<unknown> } }).electronAPI.getChemSpiderStatus()
+    ));
+    expect(chemSpiderStatus).toMatchObject({ available: true });
+    expect(chemSpiderStatus).not.toHaveProperty('apiKey');
+
+    await window.getByRole('tab', { name: 'Database search' }).click();
+    const providerButton = window.getByRole('button', { name: 'ChemSpider' });
+    await expect(providerButton).toBeEnabled();
+    await providerButton.click();
+    await expect(window.getByRole('textbox', { name: 'ChemSpider compound name' })).toBeVisible();
     await electronApp.close();
   });
 

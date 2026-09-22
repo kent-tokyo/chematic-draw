@@ -261,6 +261,44 @@ describe('chematic-molecule Web Component', () => {
     expect(change).toHaveBeenCalledTimes(1);
   });
 
+  it('supports attribute-selected atom, bond, and erase tools without widening the edit API', () => {
+    const element = document.createElement('chematic-molecule-editor') as SchematicMoleculeEditorElement;
+    element.setAttribute('interaction', 'draw');
+    element.setAttribute('tool', 'atom');
+    element.setAttribute('atom-element', 'N');
+    document.body.append(element);
+    const currentSvg = () => {
+      const svg = element.querySelector('svg')!;
+      Object.defineProperty(svg, 'getBoundingClientRect', { configurable: true, value: () => ({ left: 0, top: 0, width: 120, height: 80 }) });
+      return svg;
+    };
+    const drawEvent = (type: string, clientX: number, clientY: number, target?: EventTarget) => {
+      const event = new Event(type, { bubbles: true });
+      Object.defineProperties(event, { clientX: { value: clientX }, clientY: { value: clientY } });
+      (target ?? currentSvg()).dispatchEvent(event);
+    };
+    drawEvent('pointerdown', 30, 30);
+    drawEvent('pointerup', 30, 30);
+    drawEvent('pointerdown', 90, 50);
+    drawEvent('pointerup', 90, 50);
+    expect(element.molecule.atoms.map((atom) => atom.element)).toEqual(['N', 'N']);
+
+    element.setAttribute('tool', 'bond');
+    element.setAttribute('bond-order', '2');
+    currentSvg();
+    const atomNodes = element.querySelectorAll('[data-atom-id]');
+    drawEvent('pointerdown', 30, 30, atomNodes[0]);
+    drawEvent('pointerup', 90, 50, atomNodes[1]);
+    expect(element.molecule.bonds).toEqual([expect.objectContaining({ from: 1, to: 2, order: 2 })]);
+
+    element.setAttribute('tool', 'erase');
+    currentSvg();
+    drawEvent('pointerdown', 30, 30, element.querySelector('[data-atom-id="1"]')!);
+    drawEvent('pointerup', 30, 30, element.querySelector('[data-atom-id="1"]')!);
+    expect(element.molecule).toEqual({ atoms: [expect.objectContaining({ id: 2, element: 'N' })], bonds: [] });
+    element.remove();
+  });
+
   it('keeps keyboard editing opt-in and exposes accessible history shortcuts', () => {
     const element = document.createElement('chematic-molecule-editor') as SchematicMoleculeEditorElement;
     element.molecule = { atoms: [], bonds: [] };

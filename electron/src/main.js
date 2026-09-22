@@ -6,6 +6,7 @@ import { createSettingsStore } from './lib/settingsStore';
 import { buildRecentFilesSubmenu } from './lib/recentFilesMenu';
 import { registerFileIpcHandlers } from './lib/ipcFileHandlers';
 import { registerClipboardAutosaveIpcHandlers } from './lib/ipcClipboardAutosave';
+import chemSpiderProviderModule from './lib/chemspiderProvider.cjs';
 import { svgPageSizeInches } from './lib/svgPageSize';
 import { isSafeSvgForPdf } from './lib/pdfExportContract';
 import { ENGINE_ID } from './engineMetadata';
@@ -31,6 +32,8 @@ const ALLOWED_EXTERNAL_HOSTS = new Set([
   'www.chemspider.com',
 ]);
 const settingsStore = createSettingsStore(app.getPath('userData'));
+const { createChemSpiderProvider } = chemSpiderProviderModule;
+const chemSpiderProvider = createChemSpiderProvider();
 
 // Set only when the user confirms "Restore" in checkAutosaveRecovery(),
 // consumed exactly once by the 'autosave:get-pending-recovery' IPC handler.
@@ -685,6 +688,24 @@ ipcMain.handle('settings:load', async (event, key) => {
     return { success: true, value: settings[key] };
   } catch (err) {
     return { success: false, error: err.message };
+  }
+});
+
+// ChemSpider credentials stay in the host environment. The renderer can only
+// request a status or a bounded, user-initiated name lookup; it never receives
+// the key or a general-purpose network primitive.
+ipcMain.handle('chemspider:status', async (event) => {
+  if (!isTrustedRendererEvent(event)) return { available: false, reason: 'ChemSpider request came from an untrusted renderer.' };
+  return chemSpiderProvider.status();
+});
+
+ipcMain.handle('chemspider:search-name', async (event, query) => {
+  try {
+    if (!isTrustedRendererEvent(event)) throw new Error('ChemSpider request came from an untrusted renderer.');
+    if (typeof query !== 'string' || query.length === 0 || query.length > 256) throw new Error('ChemSpider name query is invalid.');
+    return { success: true, results: await chemSpiderProvider.searchByName(query) };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 });
 

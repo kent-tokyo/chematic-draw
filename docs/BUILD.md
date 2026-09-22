@@ -1,502 +1,75 @@
-# Build Guide
+# Build and test
 
-Instructions for building chematic-draw from source.
+All application npm commands run from `electron/`; the repository root has no
+`package.json`. The active chemistry binary is Rust compiled to WASM, not a
+native desktop executable.
 
-## Table of Contents
+## Prerequisites
 
-1. [System Requirements](#system-requirements)
-2. [Development Setup](#development-setup)
-3. [Building](#building)
-4. [Running](#running)
-5. [Testing](#testing)
-6. [Packaging](#packaging)
-7. [Troubleshooting](#troubleshooting)
-
----
-
-## System Requirements
-
-### Minimum
-- **Node.js** 24 (see `.nvmrc` / `electron/package.json`'s `engines.node`)
-- **npm** 9+
-- **Rust** 1.85+ (the workspace uses Rust edition 2024)
-- **Git** 2.30+
-
-### Recommended
-- **Rust** latest stable
-- **macOS** 11+, **Windows** 10+, or **Ubuntu** 20.04+
-
-### Platform-Specific
-
-**macOS:**
-```bash
-# Install Xcode Command Line Tools
-xcode-select --install
-
-# Install Homebrew (if not installed)
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-# Install dependencies
-brew install node rust
-```
-
-**Ubuntu/Debian:**
-```bash
-# Install build essentials
-sudo apt-get install build-essential git curl
-
-# Install Node.js (via NodeSource)
-curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
-sudo apt-get install nodejs
-
-# Install Rust
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-source $HOME/.cargo/env
-```
-
-**Windows:**
-- Install Node.js from [nodejs.org](https://nodejs.org)
-- Install Rust from [rustup.rs](https://rustup.rs)
-- Install Git from [git-scm.com](https://git-scm.com)
-- Install Visual Studio Build Tools (C++ workload)
-
----
-
-## Development Setup
-
-### 1. Clone Repository
+- Node.js 24 or newer
+- current stable Rust, with `wasm32-unknown-unknown`
+- `wasm-pack`
+- Git; platform build tools required by Electron Forge
 
 ```bash
 git clone https://github.com/kent-tokyo/chematic-draw.git
-cd chematic-draw
-```
-
-### 2. Install Dependencies
-
-There is no root `package.json` — the Electron app (and every `npm` script
-in this guide) lives under `electron/`.
-
-```bash
-cd electron
-
-# Install Node.js packages
+cd chematic-draw/electron
 npm install
-
-# Install Rust toolchain for WASM
 rustup target add wasm32-unknown-unknown
-
-# Install wasm-pack (required — the build scripts below shell out to it)
-cargo install wasm-pack
+cargo install wasm-pack # once
 ```
 
-### 3. Verify Installation
+## Daily development
 
 ```bash
-# Check versions
-node --version      # Should be 24
-npm --version       # Should be 9+
-rustc --version     # Should be 1.85+
-cargo --version
-wasm-pack --version
+npm run build:wasm # rebuild after crates/chem-wasm changes
+npm start          # Vite + Electron with reload
 ```
 
-For the native differential oracle covering ECFP4 and MCS, run the Rust crate
-tests without network access:
+`npm run build:wasm` writes the browser module to
+`electron/src/renderer/wasm/pkg/`. Do not substitute a raw `wasm-pack build`:
+its output directory is easy to place somewhere the application never loads.
+
+## Verification
 
 ```bash
-cargo test -p chem-wasm --offline
-```
-
-The oracle compares independently derived native `chematic` results with the
-bridge's pure Rust core; it does not add a separate native desktop product.
-
----
-
-## Building
-
-### Build WASM Module
-
-The WASM module is the Rust chemistry backend (`crates/chem-wasm`) compiled
-to WebAssembly. Always build it through the npm scripts below, not a raw
-`wasm-pack build` — `wasm-pack`'s `--out-dir` resolves relative to the crate
-path argument, not your current directory, so a bare `wasm-pack build
---target web` run from inside `crates/chem-wasm` silently writes to
-`crates/chem-wasm/pkg/`, which the app never loads from.
-
-Run from `electron/`:
-
-```bash
-# Development build (web target — what the running app loads)
-npm run build:wasm
-
-# Production build (optimized)
-npm run build:wasm:release
-
-# Node target (needed for Jest, which runs WASM directly in Node)
-npm run build:wasm:test
-```
-
-**Build output:**
-- `electron/src/renderer/wasm/pkg/` — web target (`build:wasm`/`build:wasm:release`)
-- `electron/src/renderer/wasm/pkg-node/` — Node target (`build:wasm:test`)
-- Each contains `chem_wasm.js` (JS wrapper), `chem_wasm_bg.wasm` (binary), `chem_wasm.d.ts` (types)
-
-### Build the Electron App
-
-There's no separate "compile the app" step distinct from packaging — Vite
-bundling (main process, preload, renderer) happens automatically as part of
-`package`/`make`/`start`, driven by `electron/vite.main.config.mjs`,
-`vite.preload.config.mjs`, and `vite.renderer.config.mjs`.
-
-```bash
-# From electron/
-npm run package   # Unpacked app, for local inspection — out/<platform>/
-npm run make      # Full distributable installers — out/make/
-```
-
-### Complete Build (Development)
-
-```bash
-cd electron
-npm install
-npm run build:wasm
 npm run typecheck
-npm start
-```
-
----
-
-## Running
-
-### Development Mode
-
-**Start Electron with hot reloading:**
-
-```bash
-cd electron
-npm start
-```
-
-This launches:
-- Main process (Electron)
-- Renderer process (React)
-- HMR (Hot Module Replacement) dev server
-- Auto-reloads on file changes
-
-**What you'll see:**
-- New window opens with chematic-draw UI
-- DevTools available (press F12)
-- File changes auto-reload instantly
-
-### Production Build
-
-**Package as distributable:**
-
-```bash
-cd electron
-npm run make
-```
-
-Creates platform-specific installers in `electron/out/make/`:
-- `*.deb`, `*.rpm` (Linux)
-- `*.zip` (macOS)
-- Squirrel installer (Windows)
-
-(Not `.dmg`/`.AppImage` — see `electron/forge.config.js`'s `makers` list.)
-
----
-
-## Testing
-
-All commands below run from `electron/`.
-
-### Unit Tests
-
-```bash
-# Run all tests
-npm test
-
-# Run tests in watch mode (re-run on file changes)
-npm run test:watch
-
-# Generate coverage report
-npm run test:coverage
-
-# Coverage output in: coverage/
-```
-
-Unit tests need the Node-target WASM build first (`npm run build:wasm:test`)
-— they call the real compiled WASM binary, not a mock.
-
-**Test suites (`src/__tests__/`):** `wasmBridge.test.ts`, `wasmContract.test.ts`,
-`parseAnyContract.test.ts`, `wasmInit.test.ts`, `layoutDeterminism.test.ts`,
-`reactionSchemeStore.test.ts`, `integration.test.ts`, `Viewer3DPanel.test.tsx`.
-
-### E2E Tests (Playwright)
-
-```bash
-# Renderer tests (real Chromium + Vite dev server, no Electron shell)
-npm run test:e2e
-
-# Built Playground workflow. This rebuilds `electron/site` first, then tests
-# the static artifact at its GitHub Pages path so source and preview cannot drift.
-npm run test:e2e:playground
-
-# Electron smoke test (the real packaged app via Playwright's _electron — run `npm run package` first)
-# Skipping that (e.g. running `npm start` beforehand instead) leaves
-# .vite/build/main.js in dev mode, so the app opens DevTools as its first
-# window and this test fails with `toHaveTitle('chematic-draw')` received
-# `"DevTools"` — re-run `npm run package` if you see that.
-npm run test:e2e:electron
-
-# Both
-npm run test:e2e:all
-
-# Run with UI browser / step-through debug mode
-npm run test:e2e:ui
-npm run test:e2e:debug
-```
-
-**E2E test suites:**
-- `e2e/renderer/*.e2e.ts` — canvas drawing, mechanism arrows, 3D viewer, workflows, WASM init (real browser, no Electron)
-- `e2e/playground/editor.e2e.ts` — rebuilt browser artifact, document actions, migration guide, reaction and 3D flows
-- `e2e/electron-smoke/app.smoke.ts` — the only suite that touches the real Electron main process/preload bridge
-
-### Performance Benchmarks
-
-```bash
-npm run test:perf
-```
-
-Runs the real Node-target WASM binary against a fixed molecule corpus
-(parse, canonical SMILES, fingerprint, similarity, MCS, layout, validation,
-3D) and reports median/p90/max timings.
-
-### Linting / Type Checking
-
-```bash
-# ESLint (typescript-eslint recommended + react-hooks recommended)
 npm run lint
-
-# Real TypeScript type check
-npm run typecheck
+npm test
+npm run test:e2e                 # renderer-only Chromium suite
+npm run build:playground
+npm run test:e2e:playground      # built Pages artifact
+npm run package
+npm run test:e2e:electron        # packaged app; run package first
+npm run verify:candidate         # local release-candidate gate
+npm run verify:ci                # candidate gate plus CI-oriented checks
 ```
 
-`eslint.config.mjs` deliberately turns `@typescript-eslint/no-explicit-any`
-off (this codebase uses `any` at WASM/DTO boundaries throughout — a full
-pass to eliminate it is a separate, larger decision) and downgrades
-`react-hooks/set-state-in-effect` to a warning (several panels correctly
-call `setState({status:'loading'})` synchronously at the top of an effect
-before an async WASM call, on purpose — see `ResearchPanel.tsx`/
-`Viewer3DPanel.tsx`). In the current v1.0.12 checkout, `npm run lint` completes with
-zero errors and no warnings.
+Use focused Jest paths while iterating. Rebuild the WASM web target after Rust
+changes and package again before Electron smoke tests; otherwise the smoke
+suite can launch a stale or development bundle.
 
----
+## Outputs and boundaries
 
-## Code Organization
+| Output | Command | Purpose |
+|---|---|---|
+| WASM web module | `npm run build:wasm` | renderer and Playground chemistry |
+| WASM Node module | `npm run build:wasm:test` | direct Node/WASM tests |
+| Playground | `npm run build:playground` | static site under `electron/site` |
+| packaged desktop app | `npm run package` | Electron Forge package, unsigned locally |
 
-```
-chematic-draw/
-├── crates/
-│   └── chem-wasm/               # Rust WASM module (the electron app's only chemistry dependency)
-│       ├── Cargo.toml
-│       └── src/
-│           ├── lib.rs            # public WASM API and shared DTOs
-│           ├── molecule_conversion.rs
-│           ├── fingerprint.rs
-│           └── document_adapters.rs
-├── electron/
-│   ├── src/
-│   │   ├── main.js             # Electron main process
-│   │   ├── preload.js          # IPC security context
-│   │   ├── renderer.tsx        # React app entry
-│   │   ├── renderer/
-│   │   │   ├── components/     # React components
-│   │   │   ├── hooks/          # Custom hooks
-│   │   │   ├── store/          # Zustand stores
-│   │   │   ├── wasm/           # WASM bridge + built pkg/pkg-node output
-│   │   │   └── lib/            # Utilities
-│   │   └── __tests__/          # Unit tests
-│   ├── e2e/                    # E2E tests (renderer/ + electron-smoke/)
-│   ├── jest.config.js
-│   ├── playwright.config.ts
-│   ├── package.json
-│   ├── forge.config.js
-│   └── vite.main.config.mjs / vite.preload.config.mjs / vite.renderer.config.mjs
-├── docs/                        # Documentation
-└── internal_docs/ROADMAP.md     # Gitignored working roadmap, not published
-```
+The package command is not a signed release. Signing, notarization, hosted CI,
+and publication require external credentials and evidence; see
+[Release Readiness](RELEASE_READINESS.md).
 
----
+## Common failures
 
-## Development Workflow
+- **`wasm-pack` missing:** install it with `cargo install wasm-pack`.
+- **WASM import missing:** rerun `npm run build:wasm` (or `build:wasm:test` for
+  Node-oriented tests).
+- **Electron smoke opens DevTools or fails its title check:** rerun
+  `npm run package` before the smoke command.
+- **Package cannot download Electron:** restore network access, then rerun the
+  same package command; do not replace the downloaded binary manually.
 
-### Typical Development Cycle
-
-1. **Start dev server:**
-   ```bash
-   cd electron
-   npm start
-   ```
-
-2. **Edit TypeScript/React files**
-   - Changes auto-reload in running app
-   - React DevTools available
-
-3. **Modify the WASM module:**
-   ```bash
-   npm run build:wasm
-   # Refresh Electron app manually (Ctrl+R) — WASM changes aren't hot-reloaded
-   ```
-
-4. **Run tests:**
-   ```bash
-   npm test          # Unit tests
-   npm run test:e2e  # E2E tests
-   ```
-
-5. **Commit changes:**
-   ```bash
-   git add .
-   git commit -m "Feature: Description"
-   git push
-   ```
-
-### Hot Reload
-
-- **React code:** Automatic (HMR enabled)
-- **WASM module:** Manual rebuild required (`npm run build:wasm`)
-- **Main process:** Restart required (use `npm start` again)
-
-### Debugging
-
-**JavaScript/React:**
-- Press `F12` in running app
-- DevTools opens with console, debugger, profiler
-- Set breakpoints and inspect state
-
-**Rust WASM:**
-- Build with `npm run build:wasm` (not `:release` — keeps debug info)
-- Browser DevTools shows WASM code
-- Use `console.log()` for debugging
-
-**Electron Main Process:**
-- Start with: `npm start`
-- DevTools not available by default for the main process
-- Add debugging via VS Code Debugger
-
----
-
-## Build Configuration
-
-### Vite Configuration
-
-**Files:** `electron/vite.main.config.mjs`, `vite.preload.config.mjs`, `vite.renderer.config.mjs`
-
-Three separate configs (main process, preload, renderer), wired together by
-`electron/forge.config.js`'s Vite plugin. Renderer dev server runs on port
-5173.
-
-### Jest Configuration
-
-**File:** `electron/jest.config.js`
-
-Key settings:
-- TypeScript support (ts-jest)
-- jsdom test environment
-- `src/test-setup.ts` — global setup, including the WASM module mock for
-  the Performance CI job's node-target-only builds
-
-### Playwright Configuration
-
-**File:** `electron/playwright.config.ts`
-
-Two projects: `renderer-e2e` (Chromium against the Vite dev server) and
-`electron-smoke` (the real packaged Electron app via `_electron.launch()`).
-
----
-
-## Troubleshooting
-
-### "wasm-pack command not found"
-
-**Solution 1: Install via cargo**
-```bash
-cargo install wasm-pack
-```
-
-**Solution 2: Run without a global install**
-```bash
-npx wasm-pack --version   # confirms it's reachable via npx
-npm run build:wasm        # the actual build script (see above)
-```
-
-### "Cannot find module './pkg'" (or `./pkg-node`)
-
-This means WASM wasn't built for the target the code path needs.
-
-```bash
-cd electron
-npm run build:wasm        # for the running app (web target)
-npm run build:wasm:test   # for Jest (Node target)
-```
-
-### "Electron fails to start"
-
-**Check:**
-1. Node version: `node --version` (should be 24)
-2. Dependencies: `cd electron && npm install` (run again)
-3. WASM built: `ls electron/src/renderer/wasm/pkg/`
-
-**Debug:**
-```bash
-cd electron
-npm start 2>&1 | tee debug.log
-# Review debug.log for error details
-```
-
-### "Tests timeout or fail"
-
-**Playwright E2E:**
-- Increase timeout in `playwright.config.ts`
-- Check browser compatibility: `npx playwright install`
-- Run in debug mode: `npm run test:e2e:debug`
-
-**Jest:**
-- Check global setup in `src/test-setup.ts`
-- Confirm `npm run build:wasm:test` has been run (unit tests call the real WASM binary)
-- Increase timeout: `jest.setTimeout(10000)` in test file
-
-### "WASM module not loading"
-
-**Check in browser console:**
-```javascript
-// electron/src/renderer/wasm/wasmBridge.ts imports the built package directly:
-import * as wasmModule from './pkg';
-// If this throws, the web-target build is missing or stale — rebuild
-// with `npm run build:wasm`.
-```
-
-**Common causes:**
-- WASM not built (`npm run build:wasm` never run, or run for the wrong target)
-- Stale build after a Rust source change (rebuild needed — not hot-reloaded)
-
-### "Performance issues during development"
-
-**Solutions:**
-- Use the release build: `npm run build:wasm:release`
-- Profile with: `npm run test:perf` (performance benchmarks)
-- Check DevTools Performance tab
-
----
-
-## Related guides
-
-- [CI/CD and release artifacts](./CI_CD.md) — workflows, tags, checksums, and signing
-- [Troubleshooting](./TROUBLESHOOTING.md) — setup and runtime failures
-- [API Reference](./API.md) — WASM bridge and contract surface
-- [Architecture](./ARCHITECTURE.md) — application layers and data flow
-
-For a clean local reproduction, run `scripts/verify-clean-env.sh` from the
-repository root. Performance profiling belongs in `npm run test:perf` and the
-browser DevTools; the CI/CD guide is the source of truth for hosted execution.
+For runtime and platform diagnostics, see [Troubleshooting](TROUBLESHOOTING.md).

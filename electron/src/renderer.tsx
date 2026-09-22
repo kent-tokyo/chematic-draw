@@ -12,16 +12,16 @@ import { useUIStore } from './renderer/store/uiStore';
 import { useMoleculeStore } from './renderer/store/moleculeStore';
 import { useCanvasStore } from './renderer/store/canvasStore';
 import * as wasmBridge from './renderer/wasm/wasmBridge';
-import { svgToPngBase64 } from './renderer/lib/svgToPng';
 import * as clipboard from './renderer/lib/clipboard';
 import { RichCdxmlSession } from './renderer/lib/cdxmlWorkflow';
-import { runAnalysisInWorker } from './renderer/lib/analysisWorkerClient';
 import { useAppInitialization } from './renderer/hooks/useAppInitialization';
 import { useElectronMenuCommands } from './renderer/hooks/useElectronMenuCommands';
 import { useElectronMenuCommandContext } from './renderer/hooks/useElectronMenuCommandContext';
 import { useWorkspacePreferencesPersistence } from './renderer/hooks/useWorkspacePreferencesPersistence';
 import { useBatchProcessing } from './renderer/hooks/useBatchProcessing';
-import { confirmLossAwareExport, useDocumentFileActions } from './renderer/hooks/useDocumentFileActions';
+import { useDocumentFileActions } from './renderer/hooks/useDocumentFileActions';
+import { useDocumentExportActions } from './renderer/hooks/useDocumentExportActions';
+import { getElectronApi } from './renderer/electronApi';
 import { alignSelectedAtoms, distributeSelectedAtoms, flipSelectedAtoms, rotateSelectedAtoms } from './renderer/lib/selectionTransforms';
 import { BrowserDocumentToolbar } from './renderer/components/BrowserDocumentToolbar';
 import { MigrationGuideModal } from './renderer/components/modals/MigrationGuideModal';
@@ -76,7 +76,7 @@ export function App() {
   const showBatchDialog = useUIStore((s) => s.showBatchDialog);
   const addBatchResult = useUIStore((s) => s.addBatchResult);
   const shortcutBindings = useUIStore((s) => s.shortcutBindings);
-  const isBrowserHost = typeof window !== 'undefined' && Boolean((window as any).__CHEMATIC_PLAYGROUND__) && !(window as any).electronAPI;
+  const isBrowserHost = typeof window !== 'undefined' && Boolean(window.__CHEMATIC_PLAYGROUND__) && !getElectronApi();
   const applySelectionTransform = useCallback((kind: 'horizontal' | 'vertical' | 'rotate' | 'distribute-horizontal' | 'distribute-vertical' | 'flip-horizontal' | 'flip-vertical') => {
     const current = useMoleculeStore.getState().molecule;
     const minimum = kind.startsWith('distribute') ? 3 : 2;
@@ -99,6 +99,9 @@ export function App() {
   const { handleBatchProcess, handleRetryBatch } = useBatchProcessing({
     molecule, setMolecule, pushUndo, setStatus, addBatchResult, hideBatchModal: () => hideModal('batch'),
   });
+  const { exportSvg, exportPng, exportPdf, exportMol, exportSmiles, exportSession } = useDocumentExportActions({
+    molecule, filePath, setStatus, onExportCancelled: () => announce('Export cancelled', '書き出しをキャンセルしました'),
+  });
   useWorkspacePreferencesPersistence({
     settingsHydrated, theme, language, sidebarOpen, sidebarWidth, mainToolsOpen, generalToolbarOpen,
     statusBarOpen, templatePanelOpen, templatePanelWidth, workspaceProfile, activeSidebarPanel, shortcutBindings,
@@ -109,8 +112,8 @@ export function App() {
   // signals the app didn't exit cleanly — not a "there are unsaved
   // changes" flag, since this app has no dirty-tracking to base one on.
   useEffect(() => {
-    if (typeof window === 'undefined' || !(window as any).electronAPI?.autosaveWrite) return;
-    const api = (window as any).electronAPI;
+    const api = getElectronApi();
+    if (!api) return;
     const timeout = setTimeout(() => {
       api.autosaveWrite(molecule, filePath);
     }, 2000);
@@ -119,7 +122,7 @@ export function App() {
 
 
   // Menu event handlers
-  useElectronMenuCommands(useCallback((api: any) => {
+  useElectronMenuCommands(useCallback((api) => {
 
       api.onMenuNew(() => {
         clear();
@@ -132,97 +135,12 @@ export function App() {
       api.onMenuSave(() => { void handleToolbarSave(); });
       api.onMenuSaveAs(() => { void handleToolbarSaveAs(); });
 
-      api.onMenuExportSvg(async () => {
-        const result = await api.fileSaveDialog('untitled.svg');
-        if (!result.canceled && result.filePath) {
-          const content = await runAnalysisInWorker('svg', molecule) as string;
-          const writeResult = await api.fileWrite(result.filePath, content);
-          if (writeResult.success) {
-            setStatus(`Exported: ${result.filePath}`);
-          } else {
-            setStatus(`Export failed: ${writeResult.error}`);
-          }
-        }
-      });
-
-      api.onMenuExportPng(async () => {
-        const result = await api.fileSaveDialog('untitled.png');
-        if (!result.canceled && result.filePath) {
-          try {
-            const svg = await runAnalysisInWorker('svg', molecule) as string;
-            const base64 = await svgToPngBase64(svg);
-            const writeResult = await api.fileWriteBinary(result.filePath, base64);
-            if (writeResult.success) {
-              setStatus(`Exported: ${result.filePath}`);
-            } else {
-              setStatus(`Export failed: ${writeResult.error}`);
-            }
-          } catch (err) {
-            setStatus(`Export failed: ${(err as Error).message}`);
-          }
-        }
-      });
-
-      api.onMenuExportPdf?.(async () => {
-        const result = await api.fileSaveDialog('untitled.pdf');
-        if (!result.canceled && result.filePath) {
-          try {
-            const svg = await runAnalysisInWorker('svg', molecule) as string;
-            const writeResult = await api.exportPdf(result.filePath, svg);
-            if (writeResult.success) {
-              setStatus(`Exported: ${result.filePath}`);
-            } else {
-              setStatus(`Export failed: ${writeResult.error}`);
-            }
-          } catch (err) {
-            setStatus(`Export failed: ${(err as Error).message}`);
-          }
-        }
-      });
-
-      api.onMenuExportMol(async () => {
-        const result = await api.fileSaveDialog('untitled.mol');
-        if (!result.canceled && result.filePath) {
-          if (!confirmLossAwareExport(molecule, result.filePath)) {
-            announce('Export cancelled', '書き出しをキャンセルしました');
-            return;
-          }
-          const content = await runAnalysisInWorker('mol-v2000', molecule) as string;
-          const writeResult = await api.fileWrite(result.filePath, content);
-          if (writeResult.success) {
-            setStatus(`Exported: ${result.filePath}`);
-          } else {
-            setStatus(`Export failed: ${writeResult.error}`);
-          }
-        }
-      });
-
-      api.onMenuExportSmiles(async () => {
-        const result = await api.fileSaveDialog('untitled.smi');
-        if (!result.canceled && result.filePath) {
-          if (!confirmLossAwareExport(molecule, result.filePath)) {
-            announce('Export cancelled', '書き出しをキャンセルしました');
-            return;
-          }
-          const content = await runAnalysisInWorker('canonical-smiles', molecule) as string;
-          const writeResult = await api.fileWrite(result.filePath, content);
-          if (writeResult.success) {
-            setStatus(`Exported: ${result.filePath}`);
-          } else {
-            setStatus(`Export failed: ${writeResult.error}`);
-          }
-        }
-      });
-
-      api.onMenuExportJson?.(async () => {
-        const result = await api.fileSaveDialog('untitled.schematic.json');
-        if (!result.canceled && result.filePath) {
-          const content = await runAnalysisInWorker('serialize-session', molecule, undefined, undefined, filePath) as string;
-          const writeResult = await api.fileWrite(result.filePath, content);
-          if (writeResult.success) setStatus(`Exported session bundle: ${result.filePath}`);
-          else setStatus(`Export failed: ${writeResult.error}`);
-        }
-      });
+      api.onMenuExportSvg(() => { void exportSvg(); });
+      api.onMenuExportPng(() => { void exportPng(); });
+      api.onMenuExportPdf?.(() => { void exportPdf(); });
+      api.onMenuExportMol(() => { void exportMol(); });
+      api.onMenuExportSmiles(() => { void exportSmiles(); });
+      api.onMenuExportJson?.(() => { void exportSession(); });
 
       api.onMenuZoomIn(() => setZoom(zoom * 1.2));
       api.onMenuZoomOut(() => setZoom(zoom / 1.2));
@@ -384,7 +302,7 @@ export function App() {
       });
 
     return undefined;
-  }, [molecule, filePath, theme, zoom, sidebarOpen, mainToolsOpen, generalToolbarOpen, statusBarOpen, language, selectAll, undo, redo, pushUndo, clear, setMolecule, setSidebarOpen, setMainToolsOpen, setGeneralToolbarOpen, setStatusBarOpen, setTemplatePanelOpen, setWorkspaceProfile, resetWorkspace, setStatus, setTheme, setZoom, fitView, showModal, announce, applySelectionTransform, openDocument, handleToolbarSave, handleToolbarSaveAs]));
+  }, [molecule, theme, zoom, sidebarOpen, mainToolsOpen, generalToolbarOpen, statusBarOpen, language, selectAll, undo, redo, pushUndo, clear, setMolecule, setSidebarOpen, setMainToolsOpen, setGeneralToolbarOpen, setStatusBarOpen, setTemplatePanelOpen, setWorkspaceProfile, resetWorkspace, setStatus, setTheme, setZoom, fitView, showModal, announce, applySelectionTransform, openDocument, handleToolbarSave, handleToolbarSaveAs, exportSvg, exportPng, exportPdf, exportMol, exportSmiles, exportSession]));
 
   // Keyboard shortcuts for Phase 3-5
   useEffect(() => {

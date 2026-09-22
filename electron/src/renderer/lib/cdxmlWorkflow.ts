@@ -16,13 +16,22 @@ const SUPPORTED_CDXML_TAGS = new Set(['CDXML', 'page', 'fragment', 'n', 'b', 't'
 export function cdxmlSessionLossWarnings(session: RichCdxmlSession | null): string[] {
   if (!session) return [];
   const warnings: string[] = [];
-  const tags = new Set<string>();
-  for (const match of session.source.matchAll(/<\/?\s*([A-Za-z][A-Za-z0-9]*)\b/g)) {
+  const pageStarts = [...session.source.matchAll(/<page\b([^>]*)>/gi)].map((match, index) => ({
+    index: match.index ?? 0,
+    id: xmlAttr(match[1] ?? '', 'id') || String(index + 1),
+  }));
+  const unsupportedPaths = new Set<string>();
+  for (const match of session.source.matchAll(/<([A-Za-z][A-Za-z0-9_.:-]*)\b([^>]*)>/g)) {
     const tag = match[1];
-    if (tag && !SUPPORTED_CDXML_TAGS.has(tag)) tags.add(tag);
+    const opening = match[0];
+    const isContainerGraphic = tag === 'graphic' && !/\/\s*>$/.test(opening);
+    if (!tag || (SUPPORTED_CDXML_TAGS.has(tag) && !isContainerGraphic)) continue;
+    const page = [...pageStarts].reverse().find((candidate) => candidate.index < (match.index ?? 0));
+    const id = xmlAttr(match[2] ?? '', 'id');
+    const object = `${tag}${id ? `[id="${id.slice(0, 256)}"]` : ''}`;
+    unsupportedPaths.add(`${page ? `page[id="${page.id.slice(0, 256)}"]` : 'document'} / ${object}`);
   }
-  if (/<graphic\b[^>]*>([\s\S]*?)<\/graphic\s*>/i.test(session.source)) tags.add('graphic');
-  if (tags.size) warnings.push(`Unsupported CDXML presentation objects will be dropped: ${[...tags].sort().join(', ')}`);
+  for (const path of [...unsupportedPaths].sort()) warnings.push(`The edited molecule-only CDXML fallback will drop unsupported object at ${path}.`);
   const pageCount = [...session.source.matchAll(/<page\b/g)].length;
   if (pageCount > 1) warnings.push('The edited molecule-only CDXML fallback cannot retain multiple page boundaries.');
   if (/<(?:t|arrow)\b/.test(session.source)) warnings.push('The edited molecule-only CDXML fallback cannot retain page text and reaction annotations.');

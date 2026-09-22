@@ -232,7 +232,7 @@ export function diagnoseReactionScheme(scheme: ReactionSchemeContext): ReactionD
   if (!scheme || scheme.steps.length === 0) {
     return {
       status: 'not_verified',
-      issues: ['No reaction steps are available for verification.'],
+      issues: ['No reaction steps are available for structural consistency checks.'],
       stepResults: [],
       atomBalance: { balanced: false, differences: [] },
       chargeBalance: { balanced: false, difference: 0 },
@@ -257,8 +257,8 @@ export function diagnoseReactionScheme(scheme: ReactionSchemeContext): ReactionD
     if (step.reactants.length === 0 || step.products.length === 0) {
       allBalanced = false;
       allMapped = false;
-      issues.push(`Step ${index + 1}: atom balance is not verified.`);
-      issues.push(`Step ${index + 1}: reactants and products are required for mapping verification.`);
+      issues.push(`Step ${index + 1}: authored reactants and products are required to assess atom balance.`);
+      issues.push(`Step ${index + 1}: authored reactants and products are required to assess atom mapping.`);
       stepResults.push({
         stepIndex: index,
         status: 'not_verified',
@@ -273,12 +273,12 @@ export function diagnoseReactionScheme(scheme: ReactionSchemeContext): ReactionD
     if (!balance.balanced) {
       allBalanced = false;
       balance.differences.forEach((difference) => allDifferences.push(`Step ${index + 1}: ${difference}`));
-      issues.push(`Step ${index + 1}: atom balance is not verified.`);
+      issues.push(`Step ${index + 1}: atom counts differ between authored reactants and products.`);
     }
     totalChargeDifference += balance.chargeDifference;
     if (balance.chargeDifference !== 0) {
       allChargesBalanced = false;
-      issues.push(`Step ${index + 1}: formal charge is not balanced (${balance.chargeDifference > 0 ? `${balance.chargeDifference} extra charge on reactants` : `${Math.abs(balance.chargeDifference)} extra charge on products`}).`);
+      issues.push(`Step ${index + 1}: formal charge differs between authored reactants and products (${balance.chargeDifference > 0 ? `${balance.chargeDifference} extra charge on reactants` : `${Math.abs(balance.chargeDifference)} extra charge on products`}).`);
     }
     const mapping = mappingForStep(step);
     if (!mapping.complete) {
@@ -307,12 +307,12 @@ export function diagnoseReactionScheme(scheme: ReactionSchemeContext): ReactionD
     continuityBoundaries.push({ fromStep: index + 1, toStep: index + 2, matchedMoleculeCount });
     if (!hasIntermediate) {
       continuityIssues.push(`Step ${index + 1} → Step ${index + 2}: no authored product matches a subsequent reactant.`);
-      issues.push(`Step ${index + 1} → Step ${index + 2}: reaction-step continuity is not verified.`);
+      issues.push(`Step ${index + 1} → Step ${index + 2}: no authored intermediate continues into the next step.`);
     }
   }
 
   const continuityValid = continuityIssues.length === 0;
-  if (allMapped && allBalanced && allChargesBalanced && continuityValid) issues.push('Atom balance, formal charge, mapping, and step continuity verified from authored atoms.');
+  if (allMapped && allBalanced && allChargesBalanced && continuityValid) issues.push('Authored atoms, formal charges, maps, and step continuity are structurally consistent.');
   return {
     status: allMapped && allBalanced && allChargesBalanced && continuityValid ? 'verified' : 'not_verified',
     issues,

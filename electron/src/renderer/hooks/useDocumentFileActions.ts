@@ -5,6 +5,7 @@ import { exportCdxml } from '../lib/cdxmlExport';
 import { canPreserveCdxml, captureRichCdxmlSession, cdxmlSessionLossWarnings, RichCdxmlSession, serializeCdxmlForPath } from '../lib/cdxmlWorkflow';
 import { exportLossMessage, exportLosses, formatForFilePath, MoleculeExportFormat } from '../lib/exportLoss';
 import { runAnalysisInWorker } from '../lib/analysisWorkerClient';
+import { getElectronApi } from '../electronApi';
 
 interface UseDocumentFileActionsOptions {
   molecule: MoleculeDto;
@@ -62,7 +63,7 @@ export function useDocumentFileActions({ molecule, filePath, richCdxmlSession, s
       setMolecule(loaded);
       setFilePath(path);
       setRichCdxmlSession(isCdxml ? captureRichCdxmlSession(content, path, loaded) : null);
-      (window as any).electronAPI?.recordRecentFile?.(path);
+      void getElectronApi()?.recordRecentFile(path);
       centerOnLoad();
       setStatus(`Opened: ${path}`);
     } catch (error) {
@@ -71,7 +72,7 @@ export function useDocumentFileActions({ molecule, filePath, richCdxmlSession, s
   }, [centerOnLoad, setFilePath, setMolecule, setRichCdxmlSession, setStatus]);
 
   const handleToolbarOpen = useCallback(async () => {
-    const result = await (window as any).electronAPI?.fileOpenDialog?.();
+    const result = await getElectronApi()?.fileOpenDialog();
     if (!result) return;
     if (result.canceled || !result.path || typeof result.content !== 'string') {
       if (result.error) setStatus(`Failed to open file: ${result.error}`);
@@ -81,8 +82,8 @@ export function useDocumentFileActions({ molecule, filePath, richCdxmlSession, s
   }, [openDocument, setStatus]);
 
   const writeDocument = useCallback(async (destination: string) => {
-    const api = (window as any).electronAPI;
-    if (!api?.fileWrite) return false;
+    const api = getElectronApi();
+    if (!api) return false;
     const sessionBundle = destination.toLowerCase().endsWith('.json');
     const format = formatForFilePath(destination);
     const preserveRichCdxml = canPreserveCdxml(molecule, destination, richCdxmlSession);
@@ -95,13 +96,13 @@ export function useDocumentFileActions({ molecule, filePath, richCdxmlSession, s
     }
     setFilePath(destination);
     setRichCdxmlSession(format === 'cdxml' ? captureRichCdxmlSession(content, destination, molecule) : null);
-    api.recordRecentFile?.(destination);
+    void api.recordRecentFile(destination);
     setStatus(`Saved: ${destination}`);
     return true;
   }, [molecule, richCdxmlSession, setFilePath, setRichCdxmlSession, setStatus]);
 
   const handleToolbarSaveAs = useCallback(async () => {
-    const result = await (window as any).electronAPI?.fileSaveDialog?.('untitled.mol');
+    const result = await getElectronApi()?.fileSaveDialog('untitled.mol');
     if (!result?.canceled && result?.filePath) await writeDocument(result.filePath);
   }, [writeDocument]);
 

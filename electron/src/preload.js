@@ -1,7 +1,10 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
+/** @typedef {import('./renderer/electronApi').ElectronApi} ElectronApi */
+
 // Expose controlled IPC methods to renderer process
-contextBridge.exposeInMainWorld('electronAPI', {
+/** @type {ElectronApi} */
+const electronApi = {
   // Menu events (main → renderer)
   // renderer.tsx re-registers these handlers when its stateful closures
   // change. Clear the previous subscriptions first so stale molecule
@@ -85,7 +88,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   loadSettings: (key) => ipcRenderer.invoke('settings:load', key),
   recordRecentFile: (filePath) => ipcRenderer.invoke('recent-file:add', filePath),
 
+  // External provider operations (credentials stay in the main process).
+  getChemSpiderStatus: () => ipcRenderer.invoke('chemspider:status'),
+  searchChemSpiderByName: (query) => ipcRenderer.invoke('chemspider:search-name', query),
+
   // Autosave / crash recovery (renderer → main)
   autosaveWrite: (molecule, filePath) => ipcRenderer.invoke('autosave:write', molecule, filePath),
   getPendingRecovery: () => ipcRenderer.invoke('autosave:get-pending-recovery'),
-});
+};
+
+contextBridge.exposeInMainWorld('electronAPI', electronApi);

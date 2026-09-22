@@ -15,6 +15,8 @@ const BOX_WIDTH = 300;
 const BOX_HEIGHT = 220;        // base height
 const SPACING_HORIZONTAL = 50; // between boxes
 const SPACING_VERTICAL = 20;   // padding
+const ROW_SPACING = 80;        // room for a wrapped sequence arrow
+const MAX_STEPS_PER_ROW = 4;
 const MIN_CANVAS_WIDTH = 800;
 const MIN_CANVAS_HEIGHT = 400;
 
@@ -48,21 +50,31 @@ export function calculateSchemeLayout(scheme: ReactionSchemeContext): SchemeLayo
 
   // Calculate box heights
   const boxHeights = scheme.steps.map((step) => calculateBoxHeight(step));
-  const maxBoxHeight = Math.max(...boxHeights);
 
-  // Calculate canvas dimensions
-  const totalWidth =
-    numSteps * BOX_WIDTH + (numSteps - 1) * SPACING_HORIZONTAL + 2 * SPACING_VERTICAL;
+  // Keep a publication page legible for long synthesis routes. A deterministic
+  // four-column flow has enough room for conditions and makes a 20-step scheme
+  // practical to fit on a page without changing authored order.
+  const columns = Math.min(numSteps, MAX_STEPS_PER_ROW);
+  const rowCount = Math.ceil(numSteps / columns);
+  const rowHeights = Array.from({ length: rowCount }, (_, row) => Math.max(
+    ...boxHeights.slice(row * columns, Math.min((row + 1) * columns, numSteps)),
+  ));
+  const rowY = rowHeights.reduce<number[]>((positions, height, row) => {
+    positions.push(row === 0 ? SPACING_VERTICAL : positions[row - 1] + rowHeights[row - 1] + ROW_SPACING);
+    return positions;
+  }, []);
+  const totalWidth = columns * BOX_WIDTH + (columns - 1) * SPACING_HORIZONTAL + 2 * SPACING_VERTICAL;
   const canvasWidth = Math.max(totalWidth, MIN_CANVAS_WIDTH);
-  const canvasHeight = Math.max(maxBoxHeight + 2 * SPACING_VERTICAL, MIN_CANVAS_HEIGHT);
+  const canvasHeight = Math.max(
+    rowY.at(-1)! + rowHeights.at(-1)! + SPACING_VERTICAL,
+    MIN_CANVAS_HEIGHT,
+  );
 
-  // Calculate step box positions
-  const centerY = canvasHeight / 2;
-  const startX = SPACING_VERTICAL;
-
-  const stepBoxes: StepBox[] = scheme.steps.map((step, index) => {
-    const x = startX + index * (BOX_WIDTH + SPACING_HORIZONTAL);
-    const y = centerY - maxBoxHeight / 2;
+  const stepBoxes: StepBox[] = scheme.steps.map((_step, index) => {
+    const row = Math.floor(index / columns);
+    const column = index % columns;
+    const x = SPACING_VERTICAL + column * (BOX_WIDTH + SPACING_HORIZONTAL);
+    const y = rowY[row] + (rowHeights[row] - boxHeights[index]) / 2;
 
     return {
       stepIndex: index,
@@ -81,11 +93,13 @@ export function calculateSchemeLayout(scheme: ReactionSchemeContext): SchemeLayo
     const fromBox = stepBoxes[i];
     const toBox = stepBoxes[i + 1];
 
-    // Arrow starts at right edge of current box, ends at left edge of next box
-    const x1 = fromBox.x + fromBox.width;
-    const y1 = fromBox.y + fromBox.height / 2;
-    const x2 = toBox.x;
-    const y2 = toBox.y + toBox.height / 2;
+    const wrapsToNextRow = Math.floor(i / columns) !== Math.floor((i + 1) / columns);
+    // A wrapped edge exits below the last box and enters above the first box
+    // on the next row, avoiding a fabricated left-to-right continuation.
+    const x1 = wrapsToNextRow ? fromBox.x + fromBox.width / 2 : fromBox.x + fromBox.width;
+    const y1 = wrapsToNextRow ? fromBox.y + fromBox.height : fromBox.y + fromBox.height / 2;
+    const x2 = wrapsToNextRow ? toBox.x + toBox.width / 2 : toBox.x;
+    const y2 = wrapsToNextRow ? toBox.y : toBox.y + toBox.height / 2;
 
     stepArrows.push({
       fromIndex: i,

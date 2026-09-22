@@ -50,7 +50,7 @@ describe('Electron-free contract package', () => {
       expect(['preserve', 'warn', 'reject']).toContain(fixture.gate);
       expect(fs.existsSync(path.join(__dirname, '../../../', fixture.testPath))).toBe(true);
     }
-    expect(fixtures.find((fixture) => fixture.id === 'network-disabled-provider')).toMatchObject({ gate: 'reject', network: 'external' });
+    expect(fixtures.find((fixture) => fixture.id === 'chemspider-opt-in-provider')).toMatchObject({ gate: 'warn', network: 'external' });
     expect(fixtures.filter((fixture) => fixture.network === 'none')).toHaveLength(9);
     expect(fixtures.map((fixture) => fixture.capability)).toEqual(expect.arrayContaining([
       'markush', 'polymer', 'nucleic-acid', 'rich-rxn', 'cdxml-presentation',
@@ -65,7 +65,7 @@ describe('Electron-free contract package', () => {
       expect.objectContaining({ id: 'rxn-v2000-export-loss-aware', direction: 'export', behavior: 'warn', format: 'RXN V2000', alternative: 'reaction-document JSON v2' }),
       expect.objectContaining({ id: 'nmr-generic-json', direction: 'import', behavior: 'preserve', format: 'Generic NMR JSON' }),
       expect.objectContaining({ id: 'web-component-viewer', direction: 'embed', behavior: 'read-only' }),
-      expect.objectContaining({ id: 'chemspider-provider', direction: 'lookup', behavior: 'unavailable' }),
+      expect.objectContaining({ id: 'chemspider-provider', direction: 'lookup', behavior: 'opt-in' }),
     ]));
     for (const boundary of INTEROP_BOUNDARY_MANIFEST) {
       expect(CAPABILITY_MANIFEST.some((capability) => capability.id === boundary.capability)).toBe(true);

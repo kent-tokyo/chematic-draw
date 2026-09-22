@@ -13,6 +13,21 @@ describe('publication layout metrics', () => {
     expect(measureSchemeLayout(layout)).toMatchObject({ boxOverlaps: 0, arrowCrossings: 0, clippedBoxes: 0, arrowOverflow: 0, textOverlaps: 0, textOverflow: 0, invalidGeometry: 0 });
   });
 
+  it('wraps long reaction routes into a deterministic publication flow', () => {
+    const longRoute: ReactionSchemeContext = {
+      ...scheme,
+      steps: Array.from({ length: 20 }, (_, index) => ({ id: `step-${index + 1}`, reactants: [], products: [], arrows: [], mechanismType: 'sn2' as const })),
+    };
+    const layout = calculateSchemeLayout(longRoute);
+    expect(layout.stepBoxes).toHaveLength(20);
+    expect(layout.canvasWidth).toBeLessThanOrEqual(1_400);
+    expect(layout.stepBoxes[4].y).toBeGreaterThan(layout.stepBoxes[0].y);
+    expect(layout.stepArrows[3]).toMatchObject({ fromIndex: 3, toIndex: 4 });
+    expect(layout.stepArrows[3].y1).toBeLessThan(layout.stepArrows[4].y1);
+    expect(measureSchemeLayout(layout)).toMatchObject({ boxOverlaps: 0, arrowCrossings: 0, clippedBoxes: 0, arrowOverflow: 0, invalidGeometry: 0 });
+    expect(calculateSchemeLayout(longRoute)).toEqual(layout);
+  });
+
   it('detects clipping rather than hiding it in a derived label', () => {
     const layout = calculateSchemeLayout(scheme);
     layout.stepBoxes[0].x = -1;

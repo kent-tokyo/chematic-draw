@@ -23,6 +23,10 @@ survive unchanged; the *chemical structure* is).
 | JSON reaction document | ✅ (version 2; v1 migration) | ✅ (version 2) | ✅ | Versioned reaction-scheme envelope preserves agents and aligned stoichiometric coefficients; unknown future schemas are rejected. |
 | SVG | ❌ | ✅ (`to_svg`) | N/A | Export-only, as expected — SVG is a rendering target, not a chemical interchange format. |
 
+## External provider boundary
+
+PubChem performs an explicit structure lookup from the editor. ChemSpider is a separate Electron-only, opt-in name lookup: the desktop host reads `CHEMSPIDER_API_KEY` and `CHEMSPIDER_ATTRIBUTION_ACCEPTED=true` from its environment, sends the key only in main-process requests, and never persists or exposes it to the renderer. It follows RSC's asynchronous filter → results → record-details flow, limits a query to ten records, and retains results only in a five-minute in-memory cache. Browser and Playground builds keep ChemSpider unavailable. Live availability still depends on an approved RSC account, terms/attribution review, network access, and the provider's current rate limits.
+
 ## Query and special-chemistry boundary
 
 The editor now has a versioned query document model for editable element lists,
@@ -95,6 +99,6 @@ item rather than an invented warning.
 
 ## See Also
 
-- [API Reference](./API.md) — full WASM function signatures
+- [API Reference](./API.md) — operation groups and source pointers
 - `electron/src/__tests__/parseAnyContract.test.ts` — round-trip regression
   tests backing the "Round-trip verified" column above

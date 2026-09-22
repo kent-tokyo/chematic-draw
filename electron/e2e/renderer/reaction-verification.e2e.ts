@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { waitForAppReady } from './helpers';
 
-test.describe('Reaction verification', () => {
+test.describe('Reaction structural consistency', () => {
   test('shows a guided reaction workflow and lets the host jump to export', async ({ page }) => {
     await page.goto('/');
     await waitForAppReady(page);
@@ -18,15 +18,15 @@ test.describe('Reaction verification', () => {
     await expect(workflow.getByRole('button', { name: '6. Export' })).toHaveAttribute('aria-current', 'step');
   });
 
-  test('shows an explicit not-verified state for an empty authored step', async ({ page }) => {
+  test('shows an explicit review-needed state for an empty authored step', async ({ page }) => {
     await page.goto('/');
     await waitForAppReady(page);
     await page.getByTestId('sidebar-tab-reactions').click();
     await page.getByRole('button', { name: '+ Add Reaction Step' }).click();
 
-    const verification = page.getByRole('status', { name: 'Reaction verification' });
-    await expect(verification).toContainText('NOT VERIFIED');
-    await expect(verification).toContainText('atom balance is not verified');
+    const verification = page.getByRole('status', { name: 'Reaction structural consistency' });
+    await expect(verification).toContainText('REVIEW NEEDED');
+    await expect(verification).toContainText('authored reactants and products are required to assess atom balance');
     await expect(page.getByTestId('reaction-integrity-steps')).toContainText('Step 1: atoms ⚠ · charge ⚠ · mapping ⚠');
     await expect(page.getByTestId('reaction-verification-scope')).toContainText('mechanism correctness');
   });
@@ -94,13 +94,13 @@ test.describe('Reaction verification', () => {
     await expect(page.locator('text=Enter between 2 and 8 reactant SMILES lines.')).toBeVisible();
   });
 
-  test('shows disconnected multi-step continuity as not verified', async ({ page }) => {
+  test('shows disconnected multi-step continuity as needing review', async ({ page }) => {
     await page.goto('/');
     await waitForAppReady(page);
     await page.getByTestId('sidebar-tab-reactions').click();
     await page.getByRole('button', { name: '+ Add Reaction Step' }).click();
     await page.getByRole('button', { name: '+ Add Reaction Step' }).click();
-    await expect(page.getByRole('status', { name: 'Reaction verification' })).toContainText('reaction-step continuity is not verified');
+    await expect(page.getByRole('status', { name: 'Reaction structural consistency' })).toContainText('no authored intermediate continues into the next step');
     await expect(page.getByTestId('reaction-integrity-continuity')).toContainText('Step 1 → 2: 0 authored intermediates');
   });
 

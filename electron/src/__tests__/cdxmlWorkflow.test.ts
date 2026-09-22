@@ -126,10 +126,17 @@ describe('rich CDXML workflow preservation', () => {
     const source = '<CDXML><page id="p1" Width="612"><t id="title" p="0 0"><s font="Arial">Title</s></t><graphic id="g1"></graphic><fragment id="1"><n id="1" p="0 0" Element="6"/></fragment></page><page id="p2"><fragment id="2"><n id="2" p="0 0" Element="8"/></fragment></page></CDXML>';
     const session = captureRichCdxmlSession(source, '/tmp/source.cdxml', molecule());
     expect(cdxmlSessionLossWarnings(session)).toEqual([
-      'Unsupported CDXML presentation objects will be dropped: graphic',
+      'The edited molecule-only CDXML fallback will drop unsupported object at page[id="p1"] / graphic[id="g1"].',
       'The edited molecule-only CDXML fallback cannot retain multiple page boundaries.',
       'The edited molecule-only CDXML fallback cannot retain page text and reaction annotations.',
     ]);
+  });
+
+  it('identifies the affected page and object when an unsupported vendor object forces fallback', () => {
+    const source = '<CDXML><page id="one"><fragment id="1"><n id="1" p="0 0" Element="6"/></fragment></page><page id="two"><spectrum id="vendor-nmr"/></page></CDXML>';
+    expect(cdxmlSessionLossWarnings(captureRichCdxmlSession(source, '/tmp/source.cdxml', molecule()))).toContain(
+      'The edited molecule-only CDXML fallback will drop unsupported object at page[id="two"] / spectrum[id="vendor-nmr"].',
+    );
   });
 
   it('does not classify supported styled text runs as presentation loss', () => {

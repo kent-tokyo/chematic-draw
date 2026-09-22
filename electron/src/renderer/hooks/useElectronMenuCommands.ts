@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
+import { getElectronApi, type ElectronApi } from '../electronApi';
 
-type ElectronMenuApi = Record<string, unknown>;
-type CommandRegistrar = (api: ElectronMenuApi) => void | (() => void);
+type CommandRegistrar = (api: ElectronApi) => void | (() => void);
 
 /**
  * Own the Electron-only subscription lifecycle. App code supplies command
@@ -10,9 +10,9 @@ type CommandRegistrar = (api: ElectronMenuApi) => void | (() => void);
  */
 export function useElectronMenuCommands(register: CommandRegistrar) {
   useEffect(() => {
-    const api = typeof window !== 'undefined' ? (window as any).electronAPI as ElectronMenuApi | undefined : undefined;
+    const api = getElectronApi();
     if (!api) return;
-    (api.clearMenuListeners as (() => void) | undefined)?.();
+    api.clearMenuListeners();
     return register(api);
   }, [register]);
 }

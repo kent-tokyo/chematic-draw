@@ -18,6 +18,7 @@ import { ReactionExecutor } from './ReactionExecutor';
 import { ReactionAnalysisPanels } from './ReactionAnalysisPanels';
 import { ReactionStepEditor } from './ReactionStepEditor';
 import { ReactionWorkflowNavigator, ReactionWorkflowStage, ReactionWorkflowStageState } from './ReactionWorkflowNavigator';
+import { getElectronApi } from '../../electronApi';
 
 export function ReactionPanel() {
   const theme = useUIStore((s) => s.theme);
@@ -380,7 +381,7 @@ export function ReactionPanel() {
   };
 
   const handleExportPDF = async () => {
-    const api = (window as typeof window & { electronAPI?: { fileSaveDialog: (defaultPath: string) => Promise<{ canceled: boolean; filePath?: string }>; exportPdf: (filePath: string, svg: string) => Promise<{ success: boolean; error?: string }> } }).electronAPI;
+    const api = getElectronApi();
     if (!api) {
       setStatus(isJapanese ? 'PDF出力はElectronアプリで利用できます' : 'PDF export is available in the Electron app');
       return;
