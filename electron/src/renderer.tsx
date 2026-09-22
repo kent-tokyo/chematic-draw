@@ -19,6 +19,7 @@ import { runAnalysisInWorker } from './renderer/lib/analysisWorkerClient';
 import { useAppInitialization } from './renderer/hooks/useAppInitialization';
 import { useElectronMenuCommands } from './renderer/hooks/useElectronMenuCommands';
 import { useElectronMenuCommandContext } from './renderer/hooks/useElectronMenuCommandContext';
+import { useWorkspacePreferencesPersistence } from './renderer/hooks/useWorkspacePreferencesPersistence';
 import { useBatchProcessing } from './renderer/hooks/useBatchProcessing';
 import { confirmLossAwareExport, useDocumentFileActions } from './renderer/hooks/useDocumentFileActions';
 import { alignSelectedAtoms, distributeSelectedAtoms, flipSelectedAtoms, rotateSelectedAtoms } from './renderer/lib/selectionTransforms';
@@ -76,7 +77,6 @@ export function App() {
   const addBatchResult = useUIStore((s) => s.addBatchResult);
   const shortcutBindings = useUIStore((s) => s.shortcutBindings);
   const isBrowserHost = typeof window !== 'undefined' && Boolean((window as any).__CHEMATIC_PLAYGROUND__) && !(window as any).electronAPI;
-  const usesBrowserStorage = typeof window !== 'undefined' && !(window as any).electronAPI;
   const applySelectionTransform = useCallback((kind: 'horizontal' | 'vertical' | 'rotate' | 'distribute-horizontal' | 'distribute-vertical' | 'flip-horizontal' | 'flip-vertical') => {
     const current = useMoleculeStore.getState().molecule;
     const minimum = kind.startsWith('distribute') ? 3 : 2;
@@ -99,6 +99,10 @@ export function App() {
   const { handleBatchProcess, handleRetryBatch } = useBatchProcessing({
     molecule, setMolecule, pushUndo, setStatus, addBatchResult, hideBatchModal: () => hideModal('batch'),
   });
+  useWorkspacePreferencesPersistence({
+    settingsHydrated, theme, language, sidebarOpen, sidebarWidth, mainToolsOpen, generalToolbarOpen,
+    statusBarOpen, templatePanelOpen, templatePanelWidth, workspaceProfile, activeSidebarPanel, shortcutBindings,
+  });
 
   // Autosave: debounced crash-recovery snapshot, written to a file main.js
   // clears on every clean quit. Its mere presence at next launch is what
@@ -113,80 +117,6 @@ export function App() {
     return () => clearTimeout(timeout);
   }, [molecule, filePath]);
 
-  // Auto-save settings
-  useEffect(() => {
-    if (settingsHydrated && typeof window !== 'undefined' && (window as any).electronAPI) {
-      const api = (window as any).electronAPI;
-      const timeout = setTimeout(() => {
-        api.saveSettings('theme', theme);
-      }, 500);
-      return () => clearTimeout(timeout);
-    }
-  }, [settingsHydrated, theme]);
-
-  useEffect(() => {
-    if (settingsHydrated && typeof window !== 'undefined' && (window as any).electronAPI) {
-      const timeout = setTimeout(() => {
-        (window as any).electronAPI.saveSettings('language', language);
-      }, 500);
-      return () => clearTimeout(timeout);
-    }
-  }, [language, settingsHydrated]);
-
-  useEffect(() => {
-    if (settingsHydrated && typeof window !== 'undefined' && (window as any).electronAPI) {
-      const api = (window as any).electronAPI;
-      const timeout = setTimeout(() => {
-        const sidebarState = useUIStore.getState();
-        api.saveSettings('sidebarWidth', sidebarState.sidebarOpen ? sidebarState.sidebarWidth : 0);
-      }, 500);
-      return () => clearTimeout(timeout);
-    }
-    if (settingsHydrated && typeof window !== 'undefined' && usesBrowserStorage) {
-      try {
-        window.localStorage.setItem('chematic-draw/sidebar-open-v1', String(sidebarOpen));
-        window.localStorage.setItem('chematic-draw/sidebar-width-v1', String(sidebarWidth));
-      } catch {
-        // Browser storage is optional; the current session remains usable.
-      }
-    }
-  }, [settingsHydrated, sidebarOpen, sidebarWidth, usesBrowserStorage]);
-
-  useEffect(() => {
-    if (settingsHydrated && typeof window !== 'undefined' && (window as any).electronAPI) {
-      const timeout = setTimeout(() => {
-        const api = (window as any).electronAPI;
-        api.saveSettings('mainToolsOpen', mainToolsOpen);
-        api.saveSettings('generalToolbarOpen', generalToolbarOpen);
-        api.saveSettings('statusBarOpen', statusBarOpen);
-        api.saveSettings('templatePanelOpen', templatePanelOpen);
-        api.saveSettings('templatePanelWidth', templatePanelWidth);
-        api.saveSettings('workspaceProfile', workspaceProfile);
-        api.saveSettings('activeSidebarPanel', activeSidebarPanel);
-      }, 500);
-      return () => clearTimeout(timeout);
-    }
-    if (settingsHydrated && typeof window !== 'undefined' && usesBrowserStorage) {
-      try {
-        window.localStorage.setItem('chematic-draw/main-tools-open-v1', String(mainToolsOpen));
-        window.localStorage.setItem('chematic-draw/general-toolbar-open-v1', String(generalToolbarOpen));
-        window.localStorage.setItem('chematic-draw/status-bar-open-v1', String(statusBarOpen));
-        window.localStorage.setItem('chematic-draw/template-panel-open-v1', String(templatePanelOpen));
-        window.localStorage.setItem('chematic-draw/template-panel-width-v1', String(templatePanelWidth));
-        window.localStorage.setItem('chematic-draw/workspace-profile-v1', workspaceProfile);
-        window.localStorage.setItem('chematic-draw/active-sidebar-panel-v1', activeSidebarPanel);
-      } catch {
-        // Browser storage is optional; the current session remains usable.
-      }
-    }
-  }, [activeSidebarPanel, generalToolbarOpen, mainToolsOpen, settingsHydrated, statusBarOpen, templatePanelOpen, templatePanelWidth, usesBrowserStorage, workspaceProfile]);
-
-  useEffect(() => {
-    if (settingsHydrated && typeof window !== 'undefined' && (window as any).electronAPI) {
-      const timeout = setTimeout(() => (window as any).electronAPI.saveSettings('shortcutBindings', shortcutBindings), 500);
-      return () => clearTimeout(timeout);
-    }
-  }, [settingsHydrated, shortcutBindings]);
 
   // Menu event handlers
   useElectronMenuCommands(useCallback((api: any) => {
