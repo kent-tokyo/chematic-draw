@@ -3,7 +3,33 @@
 Notable changes to chematic-draw. Dates use ISO 8601 format. See the git log
 for the full development history.
 
-## [Unreleased]
+## [1.0.12] - 2026-09-22
+
+### Added
+
+- Completed the ChemDraw-familiar UI0–UI6 workspace: real wedge/dash bonds,
+  five- and six-membered rings, aromatic rings, custom atom labels, reaction
+  arrows, text, brackets, and one-step undo for drawing annotations.
+- Added a resizable left Templates drawer whose click and drag actions merge
+  into the current document, plus distinct right-side Properties, Query, and
+  Stereo panels.
+- Added real Electron New/Open/Save toolbar actions, Clean Up and zoom controls,
+  Object distribute/flip commands, and a canonical command-placement inventory.
+
+### Changed
+
+- Reorganized native menus around File, Edit, View, Object, Structure, Search,
+  Window, and Help while omitting unsupported lookalike commands.
+- Persisted Main Tools, General Toolbar, Status Bar, Templates, sidebar widths,
+  active panel, and familiar/compact workspace choice in validated desktop and
+  browser settings.
+
+### Validation
+
+- Typecheck, ESLint, candidate verification, and coverage pass locally.
+- Jest: 55 suites passed; 465 tests passed, 6 skipped.
+- Renderer E2E: 114/114; built Playground E2E: 1/1; packaged Electron smoke:
+  28/28; Rust `chem-wasm`: 30/30.
 
 ## [1.0.11] - 2026-09-22
 
@@ -484,6 +510,7 @@ for the full development history.
 [1.0.9]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v1.0.9
 [1.0.10]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v1.0.10
 [1.0.11]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v1.0.11
+[1.0.12]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v1.0.12
 [1.0.8]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v1.0.8
 [0.9.3]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.9.3
 [0.9.1]: https://github.com/kent-tokyo/chematic-draw/releases/tag/v0.9.1

@@ -21,7 +21,8 @@
 ## 功能
 
 - 支持鼠标和键盘操作的二维分子画布
-- 分子模板、Inspector、撤销/重做、自动保存和崩溃恢复
+- 接近 ChemDraw 的菜单布局、左侧绘图工具和模板、右侧 Properties/Query/Stereo、
+  紧凑模式、撤销/重做、布局持久化、自动保存和崩溃恢复
 - 分子属性、Lipinski 检查、立体异构体枚举和 SMARTS 搜索
 - ECFP4 指纹、带元数据的 Tanimoto/Dice 相似度以及有界 MCS 搜索
 - 支持旋转、缩放和 XYZ 导出的三维查看器
@@ -73,7 +74,7 @@ npm start
 
 应用通过 WebAssembly 使用 Rust 化学信息学库
 [`chematic`](https://crates.io/crates/chematic)。化学层不使用 C/C++ FFI；
-Electron 和 Chromium 仍属于独立的原生依赖。`chematic-draw` 1.0.11
+Electron 和 Chromium 仍属于独立的原生依赖。`chematic-draw` 1.0.12
 固定使用 `chematic` v1.0.19。
 Rust/WASM 桥接层的公共 API 位于 `crates/chem-wasm/src/lib.rs`；分子转换、指纹处理以及
 RXN/CDXML adapter 已按功能拆分到独立模块。当前验证结果请参阅

@@ -24,6 +24,11 @@ export function exportLosses(molecule: MoleculeDto, format: MoleculeExportFormat
   const wildcardCount = molecule.atoms.filter((atom) => atom.wildcard === true).length;
   const isotopeCount = molecule.atoms.filter((atom) => atom.isotope !== undefined).length;
   const molFormats: MoleculeExportFormat[] = ['mol-v2000', 'rxn-v2000', 'sdf', 'cml', 'cdxml'];
+  const drawingCount = (molecule.drawing?.texts.length ?? 0) + (molecule.drawing?.arrows.length ?? 0) + (molecule.drawing?.brackets.length ?? 0);
+
+  if (drawingCount > 0) {
+    losses.push({ code: 'drawing', message: `${drawingCount} drawing annotation${drawingCount === 1 ? '' : 's'} can only be preserved in a session bundle.` });
+  }
 
   if (format === 'cdxml' && molecule.atoms.some((atom) => atom.wildcard === true)) {
     losses.push({

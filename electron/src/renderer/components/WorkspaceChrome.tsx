@@ -7,6 +7,7 @@ interface MainToolsPaletteProps {
   activeTool: string;
   language: Language;
   onSelectTool: (tool: Tool) => void;
+  onOpenTemplates: () => void;
 }
 
 interface GeneralToolbarProps {
@@ -22,6 +23,13 @@ interface GeneralToolbarProps {
   zoom: number;
   primaryModifier: string;
   documentActions?: React.ReactNode;
+  onNew?: () => void;
+  onOpen?: () => void;
+  onSave?: () => void;
+  onClean: () => void;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onZoomReset: () => void;
   onUndo: () => void;
   onRedo: () => void;
   onAlignHorizontal: () => void;
@@ -61,8 +69,24 @@ const mainTools = (language: Language) => [
     key: '4', ariaLabel: translate(language, 'Aromatic bond', '芳香族結合', '芳香键'),
   },
   {
+    group: 'bonds', tool: Tool.Bond_Wedge, glyph: '◀', label: translate(language, 'Wedge', '実線くさび', '实楔键'),
+    key: '', ariaLabel: translate(language, 'Solid wedge bond', '実線くさび結合', '实楔键'),
+  },
+  {
+    group: 'bonds', tool: Tool.Bond_Dash, glyph: '◁', label: translate(language, 'Dash', '破線くさび', '虚楔键'),
+    key: '', ariaLabel: translate(language, 'Hashed wedge bond', '破線くさび結合', '虚楔键'),
+  },
+  {
+    group: 'rings', tool: Tool.Ring_5, glyph: '⬠', label: translate(language, '5-ring', '五員環', '五元环'),
+    key: '5', ariaLabel: translate(language, 'Five-membered ring', '五員環', '五元环'),
+  },
+  {
     group: 'rings', tool: Tool.Ring_6, glyph: '⬡', label: translate(language, '6-ring', '六員環', '六元环'),
     key: '6', ariaLabel: translate(language, 'Six-membered ring', '六員環', '六元环'),
+  },
+  {
+    group: 'rings', tool: Tool.Ring_Aromatic, glyph: '⌬', label: translate(language, 'Aromatic ring', '芳香環', '芳香环'),
+    key: '', ariaLabel: translate(language, 'Aromatic six-membered ring', '芳香族六員環', '芳香六元环'),
   },
   {
     group: 'atoms', tool: Tool.Atom_C, glyph: 'C', label: 'C', key: 'C',
@@ -85,12 +109,24 @@ const mainTools = (language: Language) => [
     ariaLabel: translate(language, 'Phosphorus atom', 'リン原子', '磷原子'),
   },
   {
-    group: 'erase', tool: Tool.Eraser, glyph: '⌫', label: '✕',
-    key: 'DEL', ariaLabel: translate(language, 'Eraser', '消しゴム', '橡皮擦'),
+    group: 'atoms', tool: Tool.Atom_Label, glyph: 'A', label: translate(language, 'Element', '元素', '元素'), key: '',
+    ariaLabel: translate(language, 'Other element label', 'その他の元素ラベル', '其他元素标签'),
+  },
+  {
+    group: 'annotations', tool: Tool.Reaction_Arrow, glyph: '→', label: translate(language, 'Arrow', '反応矢印', '反应箭头'), key: '',
+    ariaLabel: translate(language, 'Reaction arrow', '反応矢印', '反应箭头'),
+  },
+  {
+    group: 'annotations', tool: Tool.Text, glyph: 'T', label: translate(language, 'Text', 'テキスト', '文本'), key: '',
+    ariaLabel: translate(language, 'Text annotation', 'テキスト注釈', '文本注释'),
+  },
+  {
+    group: 'annotations', tool: Tool.Bracket, glyph: '[ ]', label: translate(language, 'Bracket', '括弧', '括号'), key: '',
+    ariaLabel: translate(language, 'Bracket', '括弧', '括号'),
   },
 ];
 
-export function MainToolsPalette({ activeTool, language, onSelectTool }: MainToolsPaletteProps) {
+export function MainToolsPalette({ activeTool, language, onSelectTool, onOpenTemplates }: MainToolsPaletteProps) {
   const tools = mainTools(language);
 
   return (
@@ -119,9 +155,31 @@ export function MainToolsPalette({ activeTool, language, onSelectTool }: MainToo
             >
               {item.glyph}
             </button>
+            {item.tool === Tool.Ring_Aromatic && (
+              <>
+                <span className="main-tools-separator" aria-hidden="true" />
+                <button
+                  type="button"
+                  className="main-tool-button"
+                  data-testid="templates-tool"
+                  onClick={onOpenTemplates}
+                  aria-label={translate(language, 'Templates', 'テンプレート', '模板')}
+                  title={translate(language, 'Open Templates panel', 'テンプレートパネルを開く', '打开模板面板')}
+                >▦</button>
+              </>
+            )}
           </React.Fragment>
         );
       })}
+      <span className="main-tools-separator" aria-hidden="true" />
+      <button
+        type="button"
+        className="main-tool-button"
+        onClick={() => onSelectTool(Tool.Eraser)}
+        aria-label={translate(language, 'Eraser', '消しゴム', '橡皮擦')}
+        aria-pressed={activeTool === Tool.Eraser}
+        title={`${translate(language, 'Eraser', '消しゴム', '橡皮擦')} [DEL]`}
+      >⌫</button>
     </div>
   );
 }
@@ -139,6 +197,13 @@ export function GeneralToolbar({
   zoom,
   primaryModifier,
   documentActions,
+  onNew,
+  onOpen,
+  onSave,
+  onClean,
+  onZoomIn,
+  onZoomOut,
+  onZoomReset,
   onUndo,
   onRedo,
   onAlignHorizontal,
@@ -168,6 +233,13 @@ export function GeneralToolbar({
       </div>
 
       {documentActions}
+      {!documentActions && onNew && onOpen && onSave && (
+        <div className="toolbar-cluster" role="group" aria-label={tr('Document', '文書', '文档')}>
+          <button type="button" className="toolbar-icon-button" onClick={onNew} aria-label={tr('New document', '新規文書', '新建文档')} title={`${tr('New', '新規', '新建')} [${primaryModifier}+N]`}>＋</button>
+          <button type="button" className="toolbar-icon-button" onClick={onOpen} aria-label={tr('Open document', '文書を開く', '打开文档')} title={`${tr('Open', '開く', '打开')} [${primaryModifier}+O]`}>⌁</button>
+          <button type="button" className="toolbar-icon-button" onClick={onSave} aria-label={tr('Save document', '文書を保存', '保存文档')} title={`${tr('Save', '保存', '保存')} [${primaryModifier}+S]`}>▣</button>
+        </div>
+      )}
 
       <span className="toolbar-separator" aria-hidden="true" />
       <div className="toolbar-cluster" role="group" aria-label={tr('History', '履歴', '历史')}>
@@ -193,6 +265,7 @@ export function GeneralToolbar({
 
       <span className="toolbar-separator" aria-hidden="true" />
       <div className="toolbar-cluster" role="group" aria-label={tr('Object arrangement', 'オブジェクト配置', '对象排列')}>
+        <button type="button" className="toolbar-icon-button" data-testid="clean-structure-button" onClick={onClean} disabled={atomCount === 0} aria-label={tr('Clean Up Structure', '構造を整形', '整理结构')} title={tr('Clean Up Structure', '構造を整形', '整理结构')}>◇</button>
         <button
           type="button"
           className="toolbar-icon-button"
@@ -253,6 +326,11 @@ export function GeneralToolbar({
         aria-label={tr('Fit structure to canvas', '構造をキャンバスに収める', '将结构适配到画布')}
         title={tr('Fit structure to canvas', '構造をキャンバスに収める', '将结构适配到画布')}
       >{tr('Fit', '全体表示', '适配')}</button>
+      <div className="toolbar-cluster" role="group" aria-label={tr('Zoom', 'ズーム', '缩放')}>
+        <button type="button" className="toolbar-icon-button" onClick={onZoomOut} aria-label={tr('Zoom out', '縮小', '缩小')}>−</button>
+        <button type="button" className="toolbar-icon-button" onClick={onZoomReset} aria-label={tr('Reset zoom', 'ズームをリセット', '重置缩放')}>{Math.round(zoom * 100)}%</button>
+        <button type="button" className="toolbar-icon-button" onClick={onZoomIn} aria-label={tr('Zoom in', '拡大', '放大')}>＋</button>
+      </div>
       <button
         type="button"
         className="toolbar-icon-button"

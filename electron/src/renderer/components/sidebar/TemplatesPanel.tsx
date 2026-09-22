@@ -3,6 +3,8 @@ import { useUIStore } from '../../store/uiStore';
 import { useMoleculeStore } from '../../store/moleculeStore';
 import { runAnalysisInWorker } from '../../lib/analysisWorkerClient';
 import type { MoleculeDto } from '../../store/types';
+import { useCanvasStore } from '../../store/canvasStore';
+import { mergeTemplateIntoMolecule } from '../../lib/templateMerge';
 
 const TEMPLATES = [
   // Aromatic rings
@@ -76,8 +78,15 @@ export function TemplatesPanel() {
   const handleInsertTemplate = async (smiles: string, name: string) => {
     try {
       const mol = await runAnalysisInWorker('parse', undefined, undefined, undefined, smiles) as MoleculeDto;
+      const current = useMoleculeStore.getState().molecule;
+      const { canvasSize, screenToWorld } = useCanvasStore.getState();
+      const center = screenToWorld(canvasSize.width / 2, canvasSize.height / 2);
+      const centroid = {
+        x: mol.atoms.reduce((sum, atom) => sum + atom.x, 0) / (mol.atoms.length || 1),
+        y: mol.atoms.reduce((sum, atom) => sum + atom.y, 0) / (mol.atoms.length || 1),
+      };
       pushUndo();
-      setMolecule(mol);
+      setMolecule(mergeTemplateIntoMolecule(current, mol, center.x - centroid.x, center.y - centroid.y));
       setStatus(`Inserted ${name}`);
     } catch {
       setStatus(`Failed to insert ${name}`);

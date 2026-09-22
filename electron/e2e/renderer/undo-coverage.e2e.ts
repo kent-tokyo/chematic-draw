@@ -90,23 +90,18 @@ test.describe('Undo coverage for previously un-pushed mutations', () => {
   });
 
   test('inserting a template via a sidebar click is undoable', async ({ page }) => {
-    // TemplatesPanel.tsx's click-to-insert handler (distinct from the
-    // canvas drag-and-drop path, which already had pushUndo()) replaced
-    // the whole molecule via setMolecule() with no pushUndo() at all.
-    // This test only pins down that the replace is now undoable — whether
-    // a sidebar click should merge into the existing molecule instead of
-    // replacing it (matching the drag path's behavior) is a separate,
-    // deliberately un-decided product question, not fixed here.
+    // Click insertion and drag insertion both merge into the document and
+    // create one undo checkpoint.
     const canvas = page.getByTestId('molecule-canvas');
 
-    await page.getByTestId('sidebar-tab-templates').click();
+    await page.getByTestId('templates-tool').click();
     await page.getByRole('button', { name: 'Benzene', exact: true }).click();
-    await expect(canvas).toHaveAttribute('aria-label', /6 atoms, 6 bonds/);
+    await expect(canvas).toHaveAttribute('aria-label', /12 atoms, 12 bonds/);
 
     await page.getByRole('button', { name: 'Methyl', exact: true }).click();
-    await expect(canvas).toHaveAttribute('aria-label', /1 atom, 0 bonds/);
+    await expect(canvas).toHaveAttribute('aria-label', /13 atoms, 12 bonds/);
 
     await page.keyboard.press('Control+z');
-    await expect(canvas).toHaveAttribute('aria-label', /6 atoms, 6 bonds/);
+    await expect(canvas).toHaveAttribute('aria-label', /12 atoms, 12 bonds/);
   });
 });

@@ -517,23 +517,12 @@ function QueryEditorSection({
   </div>;
 }
 
-function AdvancedQuerySection(props: React.ComponentProps<typeof QueryEditorSection> & { smarts?: React.ReactNode }) {
-  return (
-    <details style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <summary style={{ cursor: 'pointer', color: props.textColor, fontSize: '12px', fontWeight: 600, padding: '4px 0' }}>
-        {props.language === 'ja' ? '高度なクエリ機能' : 'Advanced query tools'}
-      </summary>
-      {props.smarts}
-      <QueryEditorSection {...props} />
-    </details>
-  );
-}
-
-export function InspectorPanel() {
+export function InspectorPanel({ mode = 'properties' }: { mode?: 'properties' | 'query' | 'stereo' }) {
   const theme = useUIStore((s) => s.theme);
   const language = useUIStore((s) => s.language);
   const selectedAtomIdForInspector = useUIStore((s) => s.selectedAtomIdForInspector);
   const selectedBondIdForInspector = useUIStore((s) => s.selectedBondIdForInspector);
+  const setActiveSidebarPanel = useUIStore((s) => s.setActiveSidebarPanel);
   const molecule = useMoleculeStore((s) => s.molecule);
   const setMolecule = useMoleculeStore((s) => s.setMolecule);
   // Derived live, every render, from molecule.atoms + the tracked id — never
@@ -627,7 +616,10 @@ export function InspectorPanel() {
     const availableIds = new Set(moleculeStore.molecule.atoms.map((atom) => atom.id));
     const matchingIds = smartsMatches.filter((id) => availableIds.has(id));
     matchingIds.forEach((id) => moleculeStore.selectAtom(id, true));
-    if (matchingIds.length > 0) useUIStore.getState().setSelectedAtomIdForInspector(matchingIds[0]);
+    if (matchingIds.length > 0) {
+      useUIStore.getState().setSelectedAtomIdForInspector(matchingIds[0]);
+      useUIStore.getState().setActiveSidebarPanel('inspector');
+    }
   };
 
   // Identify functional groups
@@ -667,21 +659,54 @@ export function InspectorPanel() {
     }
   };
 
+  if (mode === 'query') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ color: textColor, fontSize: '12px', fontWeight: 600 }}>{language === 'ja' ? '高度なクエリ機能' : 'Advanced query tools'}</div>
+        <SmartsSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} theme={theme} language={language} smartsPattern={smartsPattern} setSmartsPattern={setSmartsPattern} smartsMatches={smartsMatches} smartsStatus={smartsStatus} handleSmartsSearch={handleSmartsSearch} selectSmartsMatches={selectSmartsMatches} />
+        <QueryEditorSection molecule={molecule} theme={theme} language={language} textColor={textColor} bgColor={bgColor} labelColor={labelColor} pushUndo={pushUndo} setMolecule={setMolecule} />
+      </div>
+    );
+  }
+
+  if (mode === 'stereo') {
+    if (!selectedBond) {
+      return <div style={{ color: labelColor, fontSize: '12px', textAlign: 'center', padding: '20px 0' }}>{language === 'ja' ? '結合を選択して立体表現を設定' : 'Select a bond to set its stereo representation'}</div>;
+    }
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <strong style={{ color: textColor, fontSize: '12px' }}>{language === 'ja' ? `結合 ${selectedBond.id} の立体化学` : `Bond ${selectedBond.id} stereochemistry`}</strong>
+        {[
+          { label: language === 'ja' ? 'なし' : 'None', value: BOND_STEREO.None },
+          { label: language === 'ja' ? '実線くさび' : 'Solid wedge', value: BOND_STEREO.WedgeUp },
+          { label: language === 'ja' ? '破線くさび' : 'Hashed wedge', value: BOND_STEREO.WedgeDown },
+        ].map((option) => <button key={option.value} type="button" onClick={() => handleBondUpdate('stereo', option.value)} aria-pressed={(selectedBond.stereo ?? 0) === option.value}>{option.label}</button>)}
+      </div>
+    );
+  }
+
+  const queryLink = (
+    <button type="button" onClick={() => setActiveSidebarPanel('query')} style={{ width: '100%' }}>
+      {language === 'ja' ? '高度なクエリ機能' : 'Advanced query tools'}
+    </button>
+  );
+
   if (!selectedAtom && !selectedBond) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {queryLink}
         <div style={{ color: labelColor, fontSize: '12px', textAlign: 'center', padding: '20px 0' }}>
           {language === 'ja' ? '原子または結合を選択して検査' : 'Select an atom or bond to inspect'}
         </div>
         <FunctionalGroupsSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} language={language} functionalGroups={visibleFunctionalGroups} />
         <ValidationSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} language={language} validationErrors={visibleValidation.errors} validationWarnings={visibleValidation.warnings} />
-        <AdvancedQuerySection molecule={molecule} theme={theme} language={language} textColor={textColor} bgColor={bgColor} labelColor={labelColor} pushUndo={pushUndo} setMolecule={setMolecule} smarts={<SmartsSection bgColor={bgColor} labelColor={labelColor} textColor={textColor} theme={theme} language={language} smartsPattern={smartsPattern} setSmartsPattern={setSmartsPattern} smartsMatches={smartsMatches} smartsStatus={smartsStatus} handleSmartsSearch={handleSmartsSearch} selectSmartsMatches={selectSmartsMatches} />} />
       </div>
     );
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      {queryLink}
       {selectedAtom && (
         <>
           <div>
@@ -854,8 +879,6 @@ export function InspectorPanel() {
           </div>
         </>
       )}
-
-      <AdvancedQuerySection molecule={molecule} theme={theme} language={language} textColor={textColor} bgColor={bgColor} labelColor={labelColor} pushUndo={pushUndo} setMolecule={setMolecule} />
 
     </div>
   );

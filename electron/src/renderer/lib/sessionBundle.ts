@@ -31,6 +31,7 @@ function stableMoleculeJson(molecule: MoleculeDto): string {
       isotope: atom.isotope ?? null, wildcard: atom.wildcard ?? false, x: atom.x, y: atom.y,
     })),
     bonds: molecule.bonds.map((bond) => ({ from: bond.from, id: bond.id, order: bond.order, stereo: bond.stereo, to: bond.to })),
+    ...(molecule.drawing === undefined ? {} : { drawing: molecule.drawing }),
   });
 }
 

@@ -64,6 +64,17 @@ export function validateMoleculeDocument(molecule: MoleculeDto): string[] {
     }
     if (![1, 2, 3, 4].includes(bond.order) || !VALID_BOND_STEREO.has(bond.stereo)) errors.push(`Bond ${bond.id} has unsupported order or stereo`);
   }
+  if (molecule.drawing !== undefined) {
+    const drawing = molecule.drawing;
+    const finite = (...values: number[]) => values.every(Number.isFinite);
+    if (!drawing || !Array.isArray(drawing.texts) || !Array.isArray(drawing.arrows) || !Array.isArray(drawing.brackets)) errors.push('Drawing layer must contain text, arrow, and bracket arrays');
+    else {
+      if (drawing.texts.length + drawing.arrows.length + drawing.brackets.length > 10_000) errors.push('Drawing layer exceeds the 10,000 item limit');
+      if (drawing.texts.some((item) => !item || typeof item.id !== 'string' || typeof item.text !== 'string' || item.text.length > 2_048 || !finite(item.x, item.y))) errors.push('Drawing layer contains invalid text');
+      if (drawing.arrows.some((item) => !item || typeof item.id !== 'string' || !['forward', 'equilibrium', 'retro'].includes(item.kind) || !finite(item.x1, item.y1, item.x2, item.y2))) errors.push('Drawing layer contains an invalid arrow');
+      if (drawing.brackets.some((item) => !item || typeof item.id !== 'string' || !finite(item.x1, item.y1, item.x2, item.y2))) errors.push('Drawing layer contains an invalid bracket');
+    }
+  }
   return errors;
 }
 

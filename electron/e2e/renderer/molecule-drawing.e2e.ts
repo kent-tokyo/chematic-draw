@@ -32,8 +32,8 @@ test.describe('Molecule Drawing', () => {
     await inspectorTab.focus();
     await inspectorTab.press('ArrowRight');
 
-    await expect(page.getByTestId('sidebar-tab-templates')).toHaveAttribute('aria-selected', 'true');
-    await expect(page.getByTestId('sidebar-tab-templates')).toBeFocused();
+    await expect(page.getByTestId('sidebar-tab-query')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByTestId('sidebar-tab-query')).toBeFocused();
   });
 
   test('supports Home and End navigation across sidebar tabs', async ({ page }) => {
@@ -52,7 +52,7 @@ test.describe('Molecule Drawing', () => {
     const tablist = page.getByRole('tablist', { name: 'Sidebar panels' });
     await expect(tablist).toHaveAttribute('aria-orientation', 'horizontal');
     const tabs = page.getByRole('tab');
-    await expect(tabs).toHaveCount(13);
+    await expect(tabs).toHaveCount(14);
     expect(await tabs.evaluateAll((elements) => elements.filter((element) => element.getAttribute('tabindex') === '0').length)).toBe(1);
     await expect(page.getByTestId('sidebar-tab-inspector')).toHaveAttribute('tabindex', '0');
   });
@@ -314,7 +314,8 @@ test.describe('Molecule Drawing', () => {
   test('should display all sidebar tabs', async ({ page }) => {
     const tabIds = [
       'inspector',
-      'templates',
+      'query',
+      'stereo',
       'reactions',
       'batch-results',
       'stereoisomers',

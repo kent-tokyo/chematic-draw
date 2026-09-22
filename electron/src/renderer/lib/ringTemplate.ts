@@ -12,7 +12,8 @@ export function insertCarbonRing(
   centerX: number,
   centerY: number,
   sides = 6,
-  bondLength = DEFAULT_RING_BOND_LENGTH
+  bondLength = DEFAULT_RING_BOND_LENGTH,
+  aromatic = false
 ): MoleculeDto {
   if (!Number.isInteger(sides) || sides < 3 || sides > 12) {
     throw new Error('Ring size must be an integer between 3 and 12.');
@@ -39,11 +40,12 @@ export function insertCarbonRing(
     id: firstBondId + index,
     from: atom.id,
     to: atoms[(index + 1) % atoms.length].id,
-    order: 1,
+    order: aromatic ? 4 : 1,
     stereo: 0,
   }));
 
   return {
+    ...molecule,
     atoms: [...molecule.atoms, ...atoms],
     bonds: [...molecule.bonds, ...bonds],
   };

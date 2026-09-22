@@ -9,6 +9,7 @@ import { calculateArrowPath, distanceToCurve } from '../lib/arrowGeometry';
 import { getStepBoxAtPosition } from '../lib/schemeLayout';
 import { useReactionSchemeStore } from '../store/reactionSchemeStore';
 import { insertCarbonRing } from '../lib/ringTemplate';
+import { ATOMIC_NUMBERS_BY_ELEMENT } from '../lib/chemicalElements';
 
 const DRAG_THRESHOLD = 4;
 const BOND_LENGTH = 60;
@@ -37,7 +38,7 @@ export interface CanvasInteractionHandlers {
 
 export function useCanvasInteraction(): CanvasInteractionHandlers {
   const dragStateRef = useRef<{
-    type: 'none' | 'atom-drag' | 'bond-drag' | 'pan' | 'selection';
+    type: 'none' | 'atom-drag' | 'bond-drag' | 'drawing-drag' | 'pan' | 'selection';
     startX: number;
     startY: number;
     atomId?: number;
@@ -45,6 +46,7 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
     bondFrom?: number;
     pushedUndo?: boolean;
     additive?: boolean;
+    drawingKind?: 'arrow' | 'bracket';
   }>({ type: 'none', startX: 0, startY: 0 });
   const [selectionRect, setSelectionRect] = useState<{ left: number; top: number; right: number; bottom: number } | null>(null);
 
@@ -72,6 +74,10 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
   const addBond = useMoleculeStore((s) => s.addBond);
   const removeBond = useMoleculeStore((s) => s.removeBond);
   const removeAtom = useMoleculeStore((s) => s.removeAtom);
+  const addDrawingText = useMoleculeStore((s) => s.addDrawingText);
+  const addDrawingArrow = useMoleculeStore((s) => s.addDrawingArrow);
+  const addDrawingBracket = useMoleculeStore((s) => s.addDrawingBracket);
+  const removeDrawingItem = useMoleculeStore((s) => s.removeDrawingItem);
   const selectAtom = useMoleculeStore((s) => s.selectAtom);
   const selectBond = useMoleculeStore((s) => s.selectBond);
   const selectRegion = useMoleculeStore((s) => s.selectRegion);
@@ -208,7 +214,11 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
       } else if (activeTool === Tool.Eraser) {
         const atomId = hitTestAtom(molecule, screenX, screenY, canvasState);
         const bondId = hitTestBond(molecule, screenX, screenY, canvasState);
-        if (atomId !== null) {
+        const drawingId = hitTestDrawing(molecule, screenX, screenY, canvasState);
+        if (drawingId !== null) {
+          pushUndo();
+          removeDrawingItem(drawingId);
+        } else if (atomId !== null) {
           pushUndo();
           removeAtom(atomId);
         } else if (bondId !== null) {
@@ -219,18 +229,51 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
         activeTool === Tool.Bond_Single ||
         activeTool === Tool.Bond_Double ||
         activeTool === Tool.Bond_Triple ||
-        activeTool === Tool.Bond_Aromatic
+        activeTool === Tool.Bond_Aromatic ||
+        activeTool === Tool.Bond_Wedge ||
+        activeTool === Tool.Bond_Dash
       ) {
         const atomId = hitTestAtom(molecule, screenX, screenY, canvasState);
         if (atomId !== null) {
           dragStateRef.current = { type: 'bond-drag', startX: screenX, startY: screenY, bondFrom: atomId };
           pushUndo();
         }
-      } else if (activeTool === Tool.Ring_6) {
+      } else if (activeTool === Tool.Ring_5 || activeTool === Tool.Ring_6 || activeTool === Tool.Ring_Aromatic) {
         const worldPos = screenToWorld(screenX, screenY);
         pushUndo();
-        setMolecule(insertCarbonRing(molecule, worldPos.x, worldPos.y));
-        setStatus('Inserted six-membered ring.');
+        const sides = activeTool === Tool.Ring_5 ? 5 : 6;
+        setMolecule(insertCarbonRing(molecule, worldPos.x, worldPos.y, sides, BOND_LENGTH, activeTool === Tool.Ring_Aromatic));
+        setStatus(`Inserted ${sides}-membered ${activeTool === Tool.Ring_Aromatic ? 'aromatic ' : ''}ring.`);
+      } else if (activeTool === Tool.Atom_Label) {
+        const value = window.prompt('Element symbol', 'Cl')?.trim();
+        if (!value) return;
+        const element = value[0].toUpperCase() + value.slice(1).toLowerCase();
+        if (!(element in ATOMIC_NUMBERS_BY_ELEMENT)) {
+          setStatus(`Unknown element: ${value}`);
+          return;
+        }
+        const atomId = hitTestAtom(molecule, screenX, screenY, canvasState);
+        pushUndo();
+        if (atomId !== null) updateAtom(atomId, { element });
+        else {
+          const worldPos = screenToWorld(screenX, screenY);
+          addAtom(element, worldPos.x, worldPos.y);
+        }
+        setStatus(`Set element to ${element}.`);
+      } else if (activeTool === Tool.Text) {
+        const text = window.prompt('Text')?.trim();
+        if (!text) return;
+        const worldPos = screenToWorld(screenX, screenY);
+        pushUndo();
+        addDrawingText({ x: worldPos.x, y: worldPos.y, text });
+        setStatus('Inserted text annotation.');
+      } else if (activeTool === Tool.Reaction_Arrow || activeTool === Tool.Bracket) {
+        dragStateRef.current = {
+          type: 'drawing-drag',
+          startX: screenX,
+          startY: screenY,
+          drawingKind: activeTool === Tool.Reaction_Arrow ? 'arrow' : 'bracket',
+        };
       } else if (activeTool.startsWith('atom_')) {
         const element = activeTool === Tool.Atom_C ? 'C' : activeTool.split('_')[1].toUpperCase();
         const atomId = hitTestAtom(molecule, screenX, screenY, canvasState);
@@ -246,7 +289,7 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
         }
       }
     },
-    [molecule, activeTool, activeSidebarPanel, arrowSelectionMode, pendingSourceAtomId, mechanismArrows, selectAtom, selectBond, deselectAll, removeAtom, removeBond, updateAtom, addAtom, setMolecule, pushUndo, setStatus, scheme, schemeLayout, setSelectedStepIndex, goToStep, setViewMode, setSelectedAtomIdForInspector, setSelectedBondIdForInspector, showInspector]
+    [molecule, activeTool, activeSidebarPanel, arrowSelectionMode, pendingSourceAtomId, mechanismArrows, selectAtom, selectBond, deselectAll, removeAtom, removeBond, removeDrawingItem, updateAtom, addAtom, addDrawingText, setMolecule, pushUndo, setStatus, scheme, schemeLayout, setSelectedStepIndex, goToStep, setViewMode, setSelectedAtomIdForInspector, setSelectedBondIdForInspector, showInspector]
   );
 
   const onMouseMove = useCallback(
@@ -341,11 +384,27 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
         const targetAtomId = hitTestAtom(molecule, screenX, screenY, canvasState);
         if (targetAtomId !== null && targetAtomId !== dragStateRef.current.bondFrom) {
           // Add bond
-          const order =
-            activeTool === Tool.Bond_Single ? 1 : activeTool === Tool.Bond_Double ? 2 : activeTool === Tool.Bond_Triple ? 3 : 4;
-          addBond(dragStateRef.current.bondFrom, targetAtomId, order, 0);
+          const order = activeTool === Tool.Bond_Double ? 2 : activeTool === Tool.Bond_Triple ? 3 : activeTool === Tool.Bond_Aromatic ? 4 : 1;
+          const stereo = activeTool === Tool.Bond_Wedge ? 1 : activeTool === Tool.Bond_Dash ? 2 : 0;
+          addBond(dragStateRef.current.bondFrom, targetAtomId, order, stereo);
         }
         setBondDrag(null);
+      }
+
+      if (dragStateRef.current.type === 'drawing-drag') {
+        const distance = Math.hypot(screenX - dragStateRef.current.startX, screenY - dragStateRef.current.startY);
+        if (distance >= DRAG_THRESHOLD) {
+          const from = useCanvasStore.getState().screenToWorld(dragStateRef.current.startX, dragStateRef.current.startY);
+          const to = useCanvasStore.getState().screenToWorld(screenX, screenY);
+          pushUndo();
+          if (dragStateRef.current.drawingKind === 'arrow') {
+            addDrawingArrow({ x1: from.x, y1: from.y, x2: to.x, y2: to.y, kind: 'forward' });
+            setStatus('Inserted reaction arrow.');
+          } else {
+            addDrawingBracket({ x1: from.x, y1: from.y, x2: to.x, y2: to.y });
+            setStatus('Inserted bracket.');
+          }
+        }
       }
 
       if (dragStateRef.current.type === 'selection') {
@@ -362,7 +421,7 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
 
       dragStateRef.current = { type: 'none', startX: 0, startY: 0 };
     },
-    [molecule, activeTool, addBond, setBondDrag, selectRegion, setStatus]
+    [molecule, activeTool, addBond, addDrawingArrow, addDrawingBracket, pushUndo, setBondDrag, selectRegion, setStatus]
   );
 
   // Keyboard-driven editing (accessibility Phase B2): a mouse click has no
@@ -543,6 +602,29 @@ export function useCanvasInteraction(): CanvasInteractionHandlers {
     onFocus,
     selectionRect,
   };
+}
+
+function hitTestDrawing(
+  molecule: MoleculeDto,
+  x: number,
+  y: number,
+  state: { offset: { x: number; y: number }; zoom: number }
+): string | null {
+  const drawing = molecule.drawing;
+  if (!drawing) return null;
+  const screen = (wx: number, wy: number) => ({ x: wx * state.zoom + state.offset.x, y: wy * state.zoom + state.offset.y });
+  for (const item of drawing.texts) {
+    const p = screen(item.x, item.y);
+    if (Math.hypot(x - p.x, y - p.y) < 18) return item.id;
+  }
+  for (const item of [...drawing.arrows, ...drawing.brackets]) {
+    const a = screen(item.x1, item.y1);
+    const b = screen(item.x2, item.y2);
+    const length2 = (b.x - a.x) ** 2 + (b.y - a.y) ** 2;
+    const t = length2 === 0 ? 0 : Math.max(0, Math.min(1, ((x - a.x) * (b.x - a.x) + (y - a.y) * (b.y - a.y)) / length2));
+    if (Math.hypot(x - (a.x + t * (b.x - a.x)), y - (a.y + t * (b.y - a.y))) < 10) return item.id;
+  }
+  return null;
 }
 
 // Helper function to find which arrow is clicked

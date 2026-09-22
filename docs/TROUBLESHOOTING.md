@@ -599,7 +599,7 @@ When reporting a bug, include:
 
 ```markdown
 **OS:** macOS 13.5
-**Version:** chematic-draw 1.0.11
+**Version:** chematic-draw 1.0.12
 **Runtime:** Electron (pinned version in `electron/package.json`)
 
 **Steps to Reproduce:**

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { MoleculeDto, AtomDto, BondDto, PropertiesDto } from './types';
+import type { DrawingArrow, DrawingBracket, DrawingText } from '../../../../packages/chematic-contract/src/index';
 
 interface MoleculeStore {
   // Current molecule
@@ -28,6 +29,10 @@ interface MoleculeStore {
   addBond: (from: number, to: number, order: number, stereo: number) => void;
   updateBond: (id: number, updates: Partial<BondDto>) => void;
   removeBond: (id: number) => void;
+  addDrawingText: (item: Omit<DrawingText, 'id'>) => void;
+  addDrawingArrow: (item: Omit<DrawingArrow, 'id'>) => void;
+  addDrawingBracket: (item: Omit<DrawingBracket, 'id'>) => void;
+  removeDrawingItem: (id: string) => void;
 
   // Selection
   selectAtom: (id: number, additive: boolean) => void;
@@ -46,6 +51,9 @@ const emptyMolecule: MoleculeDto = {
 };
 
 const UNDO_LIMIT = 64;
+
+const nextDrawingId = (kind: string) => `${kind}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+const drawingOrEmpty = (molecule: MoleculeDto) => molecule.drawing ?? { texts: [], arrows: [], brackets: [] };
 
 export const useMoleculeStore = create<MoleculeStore>((set, get) => ({
   molecule: emptyMolecule,
@@ -144,6 +152,7 @@ export const useMoleculeStore = create<MoleculeStore>((set, get) => ({
   removeAtom: (id) => {
     set((state) => ({
       molecule: {
+        ...state.molecule,
         atoms: state.molecule.atoms.filter((a) => a.id !== id),
         bonds: state.molecule.bonds.filter(
           (b) => b.from !== id && b.to !== id
@@ -189,6 +198,30 @@ export const useMoleculeStore = create<MoleculeStore>((set, get) => ({
       },
     }));
   },
+
+  addDrawingText: (item) => set((state) => {
+    const drawing = drawingOrEmpty(state.molecule);
+    return { molecule: { ...state.molecule, drawing: { ...drawing, texts: [...drawing.texts, { ...item, id: nextDrawingId('text') }] } } };
+  }),
+
+  addDrawingArrow: (item) => set((state) => {
+    const drawing = drawingOrEmpty(state.molecule);
+    return { molecule: { ...state.molecule, drawing: { ...drawing, arrows: [...drawing.arrows, { ...item, id: nextDrawingId('arrow') }] } } };
+  }),
+
+  addDrawingBracket: (item) => set((state) => {
+    const drawing = drawingOrEmpty(state.molecule);
+    return { molecule: { ...state.molecule, drawing: { ...drawing, brackets: [...drawing.brackets, { ...item, id: nextDrawingId('bracket') }] } } };
+  }),
+
+  removeDrawingItem: (id) => set((state) => {
+    const drawing = drawingOrEmpty(state.molecule);
+    return { molecule: { ...state.molecule, drawing: {
+      texts: drawing.texts.filter((item) => item.id !== id),
+      arrows: drawing.arrows.filter((item) => item.id !== id),
+      brackets: drawing.brackets.filter((item) => item.id !== id),
+    } } };
+  }),
 
   selectAtom: (id, additive) => {
     set((state) => {

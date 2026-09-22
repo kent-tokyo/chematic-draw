@@ -10,6 +10,11 @@ const molecule: MoleculeDto = {
 };
 
 describe('export loss analysis', () => {
+  it('warns when drawing annotations cannot be preserved', () => {
+    const annotated: MoleculeDto = { ...molecule, drawing: { texts: [{ id: 't1', x: 1, y: 2, text: 'heat' }], arrows: [], brackets: [] } };
+    expect(exportLosses(annotated, 'smiles')).toContainEqual({ code: 'drawing', message: '1 drawing annotation can only be preserved in a session bundle.' });
+  });
+
   it('maps file extensions to the format actually written', () => {
     expect(formatForFilePath('/tmp/sample.smi')).toBe('smiles');
     expect(formatForFilePath('/tmp/sample.CML')).toBe('cml');

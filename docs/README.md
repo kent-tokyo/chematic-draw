@@ -25,7 +25,7 @@ authoritative when a version or capability changes.
 
 ## Current release
 
-The current tagged release is `v1.0.11` (2026-09-22). The application version
+The current tagged release is `v1.0.12` (2026-09-22). The application version
 is defined in `electron/package.json` and `crates/chem-wasm/Cargo.toml`; CI
 checks that they stay in sync.
 This release pins the upstream `chematic` engine at v1.0.19. See the root

@@ -57,12 +57,21 @@ const isSafeMolecule = (molecule) => {
     atomIds.add(atom.id);
   }
   const bondIds = new Set();
-  return molecule.bonds.every((bond) => bond && Number.isInteger(bond.id)
+  const bondsSafe = molecule.bonds.every((bond) => bond && Number.isInteger(bond.id)
     && !bondIds.has(bond.id)
     && Number.isInteger(bond.from) && atomIds.has(bond.from)
     && Number.isInteger(bond.to) && atomIds.has(bond.to)
     && [1, 2, 3, 4].includes(bond.order) && [0, 1, 2].includes(bond.stereo)
     && bondIds.add(bond.id));
+  if (!bondsSafe) return false;
+  if (molecule.drawing === undefined) return true;
+  const drawing = molecule.drawing;
+  if (!drawing || !Array.isArray(drawing.texts) || !Array.isArray(drawing.arrows) || !Array.isArray(drawing.brackets)) return false;
+  if (drawing.texts.length + drawing.arrows.length + drawing.brackets.length > 10_000) return false;
+  const finite = (...values) => values.every(Number.isFinite);
+  return drawing.texts.every((item) => item && typeof item.id === 'string' && typeof item.text === 'string' && item.text.length <= 2_048 && finite(item.x, item.y))
+    && drawing.arrows.every((item) => item && typeof item.id === 'string' && ['forward', 'equilibrium', 'retro'].includes(item.kind) && finite(item.x1, item.y1, item.x2, item.y2))
+    && drawing.brackets.every((item) => item && typeof item.id === 'string' && finite(item.x1, item.y1, item.x2, item.y2));
 };
 
 const isSafeAutosaveSnapshot = (snapshot) => snapshot && typeof snapshot === 'object'
@@ -102,6 +111,7 @@ registerFileIpcHandlers({
   isTrustedRendererEvent,
   isValidFilePath,
   isValidBase64,
+  readImportText,
   writeFileAtomically,
   svgPageSizeInches,
   isSafeSvgForPdf,
@@ -293,6 +303,11 @@ const createMenu = (recentFiles = settingsStore.load().recentFiles) => {
             },
           ],
         },
+        {
+          label: 'Print...',
+          accelerator: isMac ? 'Cmd+P' : 'Ctrl+P',
+          click: () => mainWindow.webContents.print({ printBackground: true }),
+        },
         { type: 'separator' },
         {
           label: 'Batch Process...',
@@ -402,6 +417,10 @@ const createMenu = (recentFiles = settingsStore.load().recentFiles) => {
           accelerator: isMac ? 'Cmd+0' : 'Ctrl+0',
           click: () => mainWindow.webContents.send('menu:zoom-reset'),
         },
+        {
+          label: 'Fit to Window',
+          click: () => mainWindow.webContents.send('menu:fit-view'),
+        },
         { type: 'separator' },
         {
           label: 'Toggle Sidebar',
@@ -413,13 +432,26 @@ const createMenu = (recentFiles = settingsStore.load().recentFiles) => {
           click: () => mainWindow.webContents.send('menu:toggle-main-tools'),
         },
         {
+          label: 'Show/Hide General Toolbar',
+          click: () => mainWindow.webContents.send('menu:toggle-general-toolbar'),
+        },
+        {
+          label: 'Show/Hide Status Bar',
+          click: () => mainWindow.webContents.send('menu:toggle-status-bar'),
+        },
+        {
           label: 'Toggle Theme',
           accelerator: isMac ? 'Cmd+Shift+L' : 'Ctrl+Shift+L',
           click: () => mainWindow.webContents.send('menu:toggle-theme'),
         },
         {
-          label: 'Reset Workspace',
-          click: () => mainWindow.webContents.send('menu:reset-workspace'),
+          label: 'Workspace',
+          submenu: [
+            { label: 'ChemDraw Familiar', click: () => mainWindow.webContents.send('menu:set-workspace-profile', 'chemdraw') },
+            { label: 'Compact', click: () => mainWindow.webContents.send('menu:set-workspace-profile', 'compact') },
+            { type: 'separator' },
+            { label: 'Reset Workspace', click: () => mainWindow.webContents.send('menu:reset-workspace') },
+          ],
         },
         { type: 'separator' },
         { role: 'toggleDevTools', accelerator: isMac ? 'Cmd+Alt+I' : 'Ctrl+Shift+I' },
@@ -440,6 +472,12 @@ const createMenu = (recentFiles = settingsStore.load().recentFiles) => {
           label: 'Align Vertically',
           click: () => mainWindow.webContents.send('menu:object-align-vertical'),
         },
+        { type: 'separator' },
+        { label: 'Distribute Horizontally', click: () => mainWindow.webContents.send('menu:object-distribute-horizontal') },
+        { label: 'Distribute Vertically', click: () => mainWindow.webContents.send('menu:object-distribute-vertical') },
+        { type: 'separator' },
+        { label: 'Flip Horizontal', click: () => mainWindow.webContents.send('menu:object-flip-horizontal') },
+        { label: 'Flip Vertical', click: () => mainWindow.webContents.send('menu:object-flip-vertical') },
         {
           label: 'Rotate 90° Clockwise',
           click: () => mainWindow.webContents.send('menu:object-rotate'),
@@ -452,6 +490,18 @@ const createMenu = (recentFiles = settingsStore.load().recentFiles) => {
         {
           label: 'Clean Up Structure',
           click: () => mainWindow.webContents.send('menu:structure-clean'),
+        },
+        {
+          label: 'Check Structure',
+          click: () => mainWindow.webContents.send('menu:show-panel', 'inspector'),
+        },
+        {
+          label: 'Selection Properties',
+          click: () => mainWindow.webContents.send('menu:show-panel', 'inspector'),
+        },
+        {
+          label: 'Bond Stereo',
+          click: () => mainWindow.webContents.send('menu:show-panel', 'stereo'),
         },
         { type: 'separator' },
         {
@@ -480,6 +530,10 @@ const createMenu = (recentFiles = settingsStore.load().recentFiles) => {
           click: () => mainWindow.webContents.send('menu:tool-database'),
         },
         {
+          label: 'SMARTS Query...',
+          click: () => mainWindow.webContents.send('menu:show-panel', 'query'),
+        },
+        {
           label: 'Identifiers and MCS...',
           click: () => mainWindow.webContents.send('menu:search-research'),
         },
@@ -489,6 +543,8 @@ const createMenu = (recentFiles = settingsStore.load().recentFiles) => {
       label: 'Window',
       submenu: [
         { label: 'Inspector', click: () => mainWindow.webContents.send('menu:show-panel', 'inspector') },
+        { label: 'Query', click: () => mainWindow.webContents.send('menu:show-panel', 'query') },
+        { label: 'Stereo', click: () => mainWindow.webContents.send('menu:show-panel', 'stereo') },
         { label: 'Templates', click: () => mainWindow.webContents.send('menu:show-panel', 'templates') },
         { label: 'Reactions', click: () => mainWindow.webContents.send('menu:show-panel', 'reactions') },
         { label: 'Mechanism', click: () => mainWindow.webContents.send('menu:show-panel', 'mechanism') },

@@ -108,19 +108,20 @@ throughout.)
 The real component tree is flatter than a typical "App → MenuBar →
 MainWindow" nesting — `electron/src/renderer.tsx`'s single `App()` function
 renders everything directly. The **native OS menu bar** (File/Edit/View/
-Tools, with New/Open/Save/Export/Zoom/etc.) is a separate thing entirely: it
+Object/Structure/Search/Window/Help) is a separate thing entirely: it
 lives in `electron/src/main.js` (Electron's `Menu.buildFromTemplate`, main
 process) and talks to the React tree only via IPC events that `App()`
 subscribes to — it is not a React component.
 
 ```
 App (renderer.tsx)
-├── Toolbar (inline in App — tool buttons, theme toggle, status)
+├── GeneralToolbar — document/history/arrange/view commands
+├── MainToolsPalette — drawing-tool selection
+├── TemplateDrawer — resizable left template library
 ├── MoleculeCanvas
 │   └── 2D structure editor (CanvasRenderer.ts does the actual drawing)
 ├── Sidebar
-│   ├── InspectorPanel — atom/bond properties
-│   ├── TemplatesPanel — molecule templates
+│   ├── InspectorPanel — Properties, Query, and Stereo modes
 │   ├── ReactionPanel — SMIRKS-template reaction execution + scheme steps
 │   ├── BatchResultPanel — batch operation results
 │   ├── StereoisomerPanel — chirality enumeration
@@ -140,9 +141,9 @@ App (renderer.tsx)
 └── BatchProcessDialog — batch operation configuration (conditionally rendered)
 ```
 
-Sidebar tabs, in the real order (`Sidebar.tsx`): Inspector, Templates,
-Reactions, Batch, Stereo, Lipinski, Props, Mech, 3D, NMR, DB, Research, Chat
-(13 tabs).
+Sidebar tabs, in the real order (`Sidebar.tsx`): Properties, Query, Stereo,
+Reactions, Batch, Stereoisomers, Lipinski, Props, Mech, 3D, NMR, DB, Research,
+Chat (14 tabs). Templates is a separate left drawer, not a right-side tab.
 
 ### Component Responsibilities
 
@@ -156,7 +157,7 @@ Reactions, Batch, Stereo, Lipinski, Props, Mech, 3D, NMR, DB, Research, Chat
 | **ReactionPanel** | Reaction step builder | reactionSchemeStore (single source of truth — see State Management) |
 | **MechanismPanel** | Electron-pushing arrows | mechanismStore (+ mirrors into reactionSchemeStore when a scheme exists) |
 | **ContextMenu** | Right-click menu | uiStore |
-| **TemplatesPanel** | Molecule library | Local state |
+| **TemplateDrawer / TemplatesPanel** | Resizable left molecule library and click/drag insertion | uiStore visibility/width + local search state |
 | **BatchProcessDialog** / **BatchResultPanel** | Bulk operations | uiStore (`batchResults` array) — there is no separate `batchStore` |
 | **DatabaseSearchPanel** | Compound search | Local state — there is no separate `databaseStore` |
 
@@ -522,7 +523,7 @@ WebWorker anywhere in this codebase; see System Overview above.)
 
 ### Validated local extensions
 
-`renderer/lib/documentCommands.ts` is the v1.0.11 integration boundary. Local
+`renderer/lib/documentCommands.ts` is the v1.0.12 integration boundary. Local
 extensions register a manifest, validated document commands, or read-only
 analysis providers. Commands require `document:write` and their output is
 checked before application; providers require `analysis:read` and cannot

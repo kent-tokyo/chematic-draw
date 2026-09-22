@@ -34,3 +34,28 @@ export function rotateSelectedAtoms(molecule: MoleculeDto, degrees: 90 | -90 = 9
     }),
   };
 }
+
+export function distributeSelectedAtoms(molecule: MoleculeDto, axis: Axis): MoleculeDto {
+  const atoms = selectedAtoms(molecule);
+  if (atoms.length < 3) return molecule;
+  const key = axis === 'horizontal' ? 'x' : 'y';
+  const sorted = [...atoms].sort((a, b) => a[key] - b[key]);
+  const start = sorted[0][key];
+  const step = (sorted[sorted.length - 1][key] - start) / (sorted.length - 1);
+  const positions = new Map(sorted.map((atom, index) => [atom.id, start + step * index]));
+  return {
+    ...molecule,
+    atoms: molecule.atoms.map((atom) => atom.selected ? { ...atom, [key]: positions.get(atom.id)! } : atom),
+  };
+}
+
+export function flipSelectedAtoms(molecule: MoleculeDto, axis: Axis): MoleculeDto {
+  const atoms = selectedAtoms(molecule);
+  if (atoms.length < 2) return molecule;
+  const key = axis === 'horizontal' ? 'x' : 'y';
+  const center = atoms.reduce((sum, atom) => sum + atom[key], 0) / atoms.length;
+  return {
+    ...molecule,
+    atoms: molecule.atoms.map((atom) => atom.selected ? { ...atom, [key]: center * 2 - atom[key] } : atom),
+  };
+}

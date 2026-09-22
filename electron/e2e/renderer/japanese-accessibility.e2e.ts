@@ -15,7 +15,7 @@ test.describe('Japanese UI accessibility contracts', () => {
     await languageSelect.selectOption('zh');
     await expect(page.getByTestId('language-select')).toHaveValue('zh');
     await expect(page.getByRole('toolbar', { name: '绘图工具' })).toBeVisible();
-    await expect(page.getByTestId('sidebar-tab-inspector')).toHaveAccessibleName('检查器');
+    await expect(page.getByTestId('sidebar-tab-inspector')).toHaveAccessibleName('所选对象属性');
     await expect(page.getByRole('dialog', { name: '设置' })).toContainText('界面语言');
   });
 

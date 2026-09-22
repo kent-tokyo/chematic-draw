@@ -47,7 +47,7 @@ test.describe('Complete Workflows', () => {
   });
 
   test('should access all major features from sidebar', async ({ page }) => {
-    const featureTabIds = ['templates', 'reactions', 'stereoisomers', 'properties', '3d', 'nmr', 'database'];
+    const featureTabIds = ['query', 'stereo', 'reactions', 'stereoisomers', 'properties', '3d', 'nmr', 'database'];
 
     for (const tabId of featureTabIds) {
       const button = page.getByTestId(`sidebar-tab-${tabId}`);

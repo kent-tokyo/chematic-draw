@@ -27,8 +27,27 @@ export function registerFileIpcHandlers({
   isSafeSvgForPdf,
   maxTextBytes,
   maxBinaryBytes,
+  readImportText,
   getMainWindow,
 }: FileIpcDependencies) {
+  ipcMain.handle('file:open-dialog', async (event) => {
+    if (!isTrustedRendererEvent(event)) return { canceled: true };
+    const { canceled, filePaths } = await dialog.showOpenDialog(getMainWindow(), {
+      filters: [
+        { name: 'Molecule and session files', extensions: ['mol', 'smi', 'sdf', 'cml', 'cdxml', 'json'] },
+        { name: 'All Files', extensions: ['*'] },
+      ],
+      properties: ['openFile'],
+    });
+    if (canceled || filePaths.length === 0) return { canceled: true };
+    try {
+      const filePath = filePaths[0];
+      return { canceled: false, path: filePath, content: readImportText(filePath) };
+    } catch (error) {
+      return { canceled: true, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
   ipcMain.handle('file:save-dialog', async (event, defaultPath) => {
     if (!isTrustedRendererEvent(event)) return { canceled: true };
     if (defaultPath !== undefined && defaultPath !== null && !isValidFilePath(defaultPath)) return { canceled: true };

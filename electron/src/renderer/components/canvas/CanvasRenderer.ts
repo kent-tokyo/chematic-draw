@@ -178,6 +178,61 @@ export class CanvasRenderer {
         hover: isHover,
       });
     }
+
+    this.drawDocumentGraphics(molecule, state, options.theme);
+  }
+
+  private drawDocumentGraphics(
+    molecule: MoleculeDto,
+    state: Pick<CanvasState, 'offset' | 'zoom'>,
+    theme: 'dark' | 'light'
+  ) {
+    const drawing = molecule.drawing;
+    if (!drawing) return;
+    const color = COLORS[theme].bond;
+    const point = (x: number, y: number) => ({ x: x * state.zoom + state.offset.x, y: y * state.zoom + state.offset.y });
+    this.ctx.save();
+    this.ctx.strokeStyle = color;
+    this.ctx.fillStyle = color;
+    this.ctx.lineWidth = 2;
+    this.ctx.font = `${Math.max(11, 14 * state.zoom)}px sans-serif`;
+
+    for (const item of drawing.texts) {
+      const p = point(item.x, item.y);
+      this.ctx.fillText(item.text, p.x, p.y);
+    }
+
+    for (const item of drawing.arrows) {
+      const from = point(item.x1, item.y1);
+      const to = point(item.x2, item.y2);
+      const angle = Math.atan2(to.y - from.y, to.x - from.x);
+      const head = 10;
+      this.ctx.beginPath();
+      this.ctx.moveTo(from.x, from.y);
+      this.ctx.lineTo(to.x, to.y);
+      this.ctx.moveTo(to.x, to.y);
+      this.ctx.lineTo(to.x - head * Math.cos(angle - Math.PI / 6), to.y - head * Math.sin(angle - Math.PI / 6));
+      this.ctx.moveTo(to.x, to.y);
+      this.ctx.lineTo(to.x - head * Math.cos(angle + Math.PI / 6), to.y - head * Math.sin(angle + Math.PI / 6));
+      this.ctx.stroke();
+    }
+
+    for (const item of drawing.brackets) {
+      const a = point(item.x1, item.y1);
+      const b = point(item.x2, item.y2);
+      const cap = 9;
+      this.ctx.beginPath();
+      this.ctx.moveTo(a.x + cap, a.y);
+      this.ctx.lineTo(a.x, a.y);
+      this.ctx.lineTo(a.x, b.y);
+      this.ctx.lineTo(a.x + cap, b.y);
+      this.ctx.moveTo(b.x - cap, a.y);
+      this.ctx.lineTo(b.x, a.y);
+      this.ctx.lineTo(b.x, b.y);
+      this.ctx.lineTo(b.x - cap, b.y);
+      this.ctx.stroke();
+    }
+    this.ctx.restore();
   }
 
   private drawBond(from: AtomDto, to: AtomDto, bond: BondDto, state: Pick<CanvasState, 'offset' | 'zoom'>) {

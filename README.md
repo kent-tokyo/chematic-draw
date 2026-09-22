@@ -30,7 +30,9 @@ or build it from source below.
 ## Features
 
 - Canvas-based 2D molecule editor with mouse and keyboard interaction
-- Molecule templates, inspector, undo/redo, autosave, and crash recovery
+- ChemDraw-familiar menus and workspace with left drawing tools/templates,
+  right Properties/Query/Stereo, compact mode, undo/redo, persisted layout,
+  autosave, and crash recovery
 - Properties, Lipinski checks, stereoisomer enumeration, and SMARTS search
 - ECFP4 fingerprints with metadata, Tanimoto/Dice similarity, and bounded MCS
 - 3D viewer with rotation, zoom, and XYZ export
@@ -112,7 +114,7 @@ See [`docs/BUILD.md`](docs/BUILD.md) for development and testing commands, or
 The app uses the [`chematic`](https://crates.io/crates/chematic) Rust
 cheminformatics library through WebAssembly. The chemistry layer has no
 C/C++ FFI; Electron and Chromium remain separate native dependencies.
-The current release line is chematic-draw 1.0.11 and pins `chematic` v1.0.19.
+The current release line is chematic-draw 1.0.12 and pins `chematic` v1.0.19.
 The Rust/WASM bridge keeps its public API in `crates/chem-wasm/src/lib.rs` and
 places molecule conversion, fingerprinting, and RXN/CDXML adapters in focused
 modules. See [`CHANGELOG.md`](CHANGELOG.md) for the current validation results.

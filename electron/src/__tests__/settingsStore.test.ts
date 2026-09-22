@@ -20,7 +20,13 @@ describe('settings store', () => {
     expect(store.isSafeValue('workspaceProfile', 'classic')).toBe(false);
     expect(store.isSafeValue('mainToolsOpen', true)).toBe(true);
     expect(store.isSafeValue('mainToolsOpen', 'true')).toBe(false);
+    expect(store.isSafeValue('generalToolbarOpen', true)).toBe(true);
+    expect(store.isSafeValue('statusBarOpen', false)).toBe(true);
+    expect(store.isSafeValue('templatePanelOpen', true)).toBe(true);
+    expect(store.isSafeValue('templatePanelWidth', 260)).toBe(true);
+    expect(store.isSafeValue('templatePanelWidth', 900)).toBe(false);
     expect(store.isSafeValue('activeSidebarPanel', 'reactions')).toBe(true);
+    expect(store.isSafeValue('activeSidebarPanel', 'query')).toBe(true);
     expect(store.isSafeValue('activeSidebarPanel', 'unknown')).toBe(false);
     store.save({ theme: 'dark', recentFiles: ['/tmp/example.mol'] });
     expect(store.load()).toEqual({ theme: 'dark', recentFiles: ['/tmp/example.mol'] });

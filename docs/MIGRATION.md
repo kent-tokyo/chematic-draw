@@ -40,18 +40,20 @@ available for the supported one-step boundary only.
 
 Choose **Settings → Workspace → ChemDraw familiar** to use the migration
 layout. **Reset Workspace** restores this profile, the left Main Tools palette,
-the right Inspector, and the default panel width. The Compact profile keeps the
-same command ownership with smaller controls.
+the optional left Templates drawer, the right Properties panel, and default
+panel widths. The Compact profile keeps the same command ownership with smaller
+controls.
 
 | Familiar location | Chematic Draw location | Available behavior |
 |---|---|---|
-| Main Tools palette | Left vertical palette | Select, single/double/triple/aromatic bonds, six-membered carbon ring, C/N/O/S/P atoms, eraser |
-| General toolbar | Top toolbar | Undo/redo, alignment, rotation, fit, theme, workspace settings, shortcut help; browser document actions appear here in Playground |
-| Object menu | Native desktop menu | Horizontal/vertical alignment and 90-degree rotation for the current selection |
-| Structure menu | Native desktop menu | Clean Up Structure, stereoisomers, Lipinski checks, property prediction, and reaction mechanism |
-| Search menu | Native desktop menu | Database search plus identifiers and maximum-common-substructure tools |
-| Window menu | Native desktop menu | Inspector, Templates, Reactions, Mechanism, 3D, NMR, and Batch Results panels |
-| Properties/context tools | Right Inspector | Selecting or right-clicking an atom or bond reopens Inspector with its live editable values |
+| Main Tools palette | Left vertical palette | Select; single/double/triple/aromatic/wedge/dash bonds; five/six/aromatic rings; Templates; common/custom atoms; arrow, text, bracket; eraser |
+| General toolbar | Top toolbar | Real New/Open/Save, undo/redo, Clean Up, alignment, rotation, fit/zoom, theme, workspace settings, and shortcut help |
+| Templates | Resizable left drawer | Click inserts at the view center; drag inserts at the drop point; both merge and are undoable |
+| Object menu | Native desktop menu | Horizontal/vertical alignment, distribution, flip, and 90-degree rotation for the current selection |
+| Structure menu | Native desktop menu | Clean/check, selection properties, bond stereo, stereoisomers, Lipinski checks, property prediction, and reaction mechanism |
+| Search menu | Native desktop menu | Database search, SMARTS Query, identifiers, and maximum-common-substructure tools |
+| Window menu | Native desktop menu | Properties, Query, Stereo, Templates, Reactions, Mechanism, 3D, NMR, and Batch Results |
+| Properties/context tools | Right-side primary panels | Selecting or right-clicking an atom or bond reopens Properties; Query and Stereo have separate primary tabs |
 
 Frequently reused drawing keys intentionally stay close to the familiar
 single-key workflow:
@@ -66,9 +68,9 @@ single-key workflow:
 | `Cmd/Ctrl+Z`, `Cmd/Ctrl+Shift+Z` | Undo and redo |
 | `Cmd/Ctrl+K` | Find a panel or feature |
 
-The application does not display inactive Text, Curves, Colors, or Add-ins
-lookalikes. Text, bracket, advanced arrow, and presentation behavior remains
-limited by the supported molecule, reaction, and CDXML contracts documented in
+The application does not display inactive Curves, Colors, Group, or Add-ins
+lookalikes. Text, bracket, reaction-arrow, and presentation behavior remains
+bounded by the session, reaction, and CDXML contracts documented in
 [Format Interoperability](INTEROP.md).
 
 ## From ChemDoodle or ChemSketch

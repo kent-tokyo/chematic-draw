@@ -38,12 +38,21 @@ test.describe('ChemDraw-oriented workspace geography', () => {
       'Double bond',
       'Triple bond',
       'Aromatic bond',
+      'Solid wedge bond',
+      'Hashed wedge bond',
+      'Five-membered ring',
       'Six-membered ring',
+      'Aromatic six-membered ring',
+      'Templates',
       'Carbon atom',
       'Nitrogen atom',
       'Oxygen atom',
       'Sulfur atom',
       'Phosphorus atom',
+      'Other element label',
+      'Reaction arrow',
+      'Text annotation',
+      'Bracket',
       'Eraser',
     ]);
   });
@@ -53,7 +62,7 @@ test.describe('ChemDraw-oriented workspace geography', () => {
     const box = await canvas.boundingBox();
     if (!box) throw new Error('canvas not visible');
 
-    await page.getByRole('button', { name: 'Six-membered ring' }).click();
+    await page.getByRole('button', { name: 'Six-membered ring', exact: true }).click();
     await canvas.click({ position: { x: box.width * 0.18, y: box.height * 0.22 } });
     await expect(canvas).toHaveAttribute('aria-label', /12 atoms, 12 bonds/);
 
@@ -76,7 +85,7 @@ test.describe('ChemDraw-oriented workspace geography', () => {
     await canvas.click({ position: second });
     await page.getByRole('button', { name: 'Single bond' }).click();
     await canvas.dragTo(canvas, { sourcePosition: first, targetPosition: second });
-    await page.getByTestId('sidebar-tab-templates').click();
+    await page.getByTestId('sidebar-tab-query').click();
     await page.getByRole('button', { name: 'Select tool' }).click();
     await canvas.click({ position: first });
 
@@ -84,10 +93,74 @@ test.describe('ChemDraw-oriented workspace geography', () => {
     await expect(page.getByTestId('sidebar-panel-inspector')).toBeVisible();
     await expect(page.getByText('C ▼')).toBeVisible();
 
-    await page.getByTestId('sidebar-tab-templates').click();
+    await page.getByTestId('sidebar-tab-query').click();
     await canvas.click({ position: midpoint });
     await expect(page.getByTestId('sidebar-tab-inspector')).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByRole('combobox', { name: 'Bond order' })).toHaveValue('1');
+  });
+
+  test('opens Templates on the left and click-inserts without replacing the document', async ({ page }) => {
+    const canvas = page.getByTestId('molecule-canvas');
+    await expect(canvas).toHaveAttribute('aria-label', /6 atoms, 6 bonds/);
+    await page.getByTestId('templates-tool').click();
+    const drawer = page.getByTestId('template-drawer');
+    await expect(drawer).toBeVisible();
+    const [drawerBox, canvasBox] = await Promise.all([drawer.boundingBox(), page.getByTestId('molecule-canvas-shell').boundingBox()]);
+    if (!drawerBox || !canvasBox) throw new Error('template drawer or canvas not visible');
+    expect(drawerBox.x + drawerBox.width).toBeLessThanOrEqual(canvasBox.x + 1);
+    await drawer.getByRole('button', { name: 'Benzene' }).click();
+    await expect(canvas).toHaveAttribute('aria-label', /12 atoms, 12 bonds/);
+    await page.getByTestId('undo-button').click();
+    await expect(canvas).toHaveAttribute('aria-label', /6 atoms, 6 bonds/);
+  });
+
+  test('new bond, ring, label, and annotation tools create undoable document edits', async ({ page }) => {
+    const canvas = page.getByTestId('molecule-canvas');
+    await page.keyboard.press('Control+A');
+    await page.keyboard.press('Delete');
+    const first = { x: 170, y: 170 };
+    const second = { x: 290, y: 170 };
+    await page.getByRole('button', { name: 'Carbon atom' }).click();
+    await canvas.click({ position: first });
+    await canvas.click({ position: second });
+
+    await page.getByRole('button', { name: 'Solid wedge bond' }).click();
+    await canvas.dragTo(canvas, { sourcePosition: first, targetPosition: second });
+    await expect(canvas).toHaveAttribute('aria-label', /2 atoms, 1 bond/);
+    await page.getByTestId('undo-button').click();
+    await expect(canvas).toHaveAttribute('aria-label', /2 atoms, 0 bonds/);
+
+    await page.getByRole('button', { name: 'Hashed wedge bond' }).click();
+    await canvas.dragTo(canvas, { sourcePosition: first, targetPosition: second });
+    await expect(canvas).toHaveAttribute('aria-label', /2 atoms, 1 bond/);
+    await page.getByTestId('undo-button').click();
+
+    await page.getByRole('button', { name: 'Five-membered ring' }).click();
+    await canvas.click({ position: { x: 430, y: 230 } });
+    await expect(canvas).toHaveAttribute('aria-label', /7 atoms, 5 bonds/);
+    await page.getByTestId('undo-button').click();
+
+    page.once('dialog', (dialog) => void dialog.accept('Cl'));
+    await page.getByRole('button', { name: 'Other element label' }).click();
+    await canvas.click({ position: { x: 430, y: 300 } });
+    await expect(canvas).toHaveAttribute('aria-label', /3 atoms, 0 bonds/);
+    await page.getByTestId('undo-button').click();
+
+    await page.getByRole('button', { name: 'Reaction arrow' }).click();
+    await canvas.dragTo(canvas, { sourcePosition: { x: 380, y: 360 }, targetPosition: { x: 520, y: 360 } });
+    await expect(page.getByRole('status')).toContainText('Inserted reaction arrow');
+    await page.getByTestId('undo-button').click();
+
+    page.once('dialog', (dialog) => void dialog.accept('heat'));
+    await page.getByRole('button', { name: 'Text annotation' }).click();
+    await canvas.click({ position: { x: 430, y: 400 } });
+    await expect(page.getByRole('status')).toContainText('Inserted text annotation');
+    await page.getByTestId('undo-button').click();
+
+    await page.getByRole('button', { name: 'Bracket' }).click();
+    await canvas.dragTo(canvas, { sourcePosition: { x: 360, y: 430 }, targetPosition: { x: 540, y: 500 } });
+    await expect(page.getByRole('status')).toContainText('Inserted bracket');
+    await page.getByTestId('undo-button').click();
   });
 
   test('offers ChemDraw familiar and compact profiles plus Reset Workspace', async ({ page }) => {
@@ -105,6 +178,22 @@ test.describe('ChemDraw-oriented workspace geography', () => {
     await expect(page.getByTestId('main-tools-palette')).toBeVisible();
     await expect(page.getByTestId('sidebar')).toBeVisible();
     await expect(page.getByTestId('sidebar-tab-inspector')).toHaveAttribute('aria-selected', 'true');
+  });
+
+  test('restores browser workspace chrome after reload', async ({ page }) => {
+    await page.getByTestId('settings-button').click();
+    await page.getByTestId('workspace-profile').selectOption('compact');
+    await page.getByRole('dialog', { name: 'Settings' }).getByText('Close', { exact: true }).click();
+    await page.getByRole('button', { name: 'Close sidebar' }).click();
+    await page.getByTestId('templates-tool').click();
+    await expect(page.getByTestId('template-drawer')).toBeVisible();
+    await page.waitForTimeout(650);
+
+    await page.reload();
+    await waitForAppReady(page);
+    await expect(page.getByTestId('app-root')).toHaveAttribute('data-workspace-profile', 'compact');
+    await expect(page.getByTestId('sidebar')).toHaveCount(0);
+    await expect(page.getByTestId('template-drawer')).toBeVisible();
   });
 
   test('keeps the drawing workspace usable at migration target widths', async ({ page }) => {

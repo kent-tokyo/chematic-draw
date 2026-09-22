@@ -25,6 +25,22 @@ describe('session bundle', () => {
     expect(parsed.source.file_path).toBeNull();
   });
 
+  it('round-trips and hashes drawing annotations', () => {
+    const annotated: MoleculeDto = {
+      ...molecule,
+      drawing: {
+        texts: [{ id: 'text-1', x: 2, y: 3, text: 'heat' }],
+        arrows: [{ id: 'arrow-1', x1: 0, y1: 0, x2: 20, y2: 0, kind: 'forward' }],
+        brackets: [{ id: 'bracket-1', x1: -1, y1: -2, x2: 21, y2: 5 }],
+      },
+    };
+    const serialized = serializeSessionBundle(annotated, null);
+    expect(parseSessionBundle(serialized).document.molecule).toEqual(annotated);
+    const tampered = JSON.parse(serialized);
+    tampered.document.molecule.drawing.texts[0].text = 'cold';
+    expect(() => parseSessionBundle(JSON.stringify(tampered))).toThrow(/hash/);
+  });
+
   it('rejects malformed or unrelated JSON', () => {
     expect(() => parseSessionBundle('{"hello":"world"}')).toThrow('Unsupported');
     expect(() => parseSessionBundle('{not json')).toThrow('valid JSON');

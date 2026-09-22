@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-const ALLOWED_SETTINGS_KEYS = new Set(['theme', 'language', 'sidebarWidth', 'mainToolsOpen', 'workspaceProfile', 'activeSidebarPanel', 'shortcutBindings']);
-const SIDEBAR_PANELS = new Set(['inspector', 'templates', 'chat', 'research', 'reactions', 'batch-results', 'stereoisomers', 'lipinski', 'properties', 'mechanism', 'database', '3d', 'nmr']);
+const ALLOWED_SETTINGS_KEYS = new Set(['theme', 'language', 'sidebarWidth', 'mainToolsOpen', 'generalToolbarOpen', 'statusBarOpen', 'templatePanelOpen', 'templatePanelWidth', 'workspaceProfile', 'activeSidebarPanel', 'shortcutBindings']);
+const SIDEBAR_PANELS = new Set(['inspector', 'query', 'stereo', 'chat', 'research', 'reactions', 'batch-results', 'stereoisomers', 'lipinski', 'properties', 'mechanism', 'database', '3d', 'nmr']);
 const SHORTCUT_SETTING_KEYS = new Set([
   'copy', 'cut', 'paste', 'duplicate', 'cleanLayout', 'export', 'undo', 'redo', 'zoomIn', 'zoomOut',
   'zoomReset', 'focusMode', 'showShortcuts', 'selectAll', 'delete',
@@ -20,7 +20,8 @@ export function createSettingsStore(userDataPath: string) {
     if (key === 'language') return value === 'en' || value === 'ja' || value === 'zh';
     if (key === 'sidebarWidth') return typeof value === 'number' && Number.isFinite(value)
       && (value === 0 || (value >= 180 && value <= 480));
-    if (key === 'mainToolsOpen') return typeof value === 'boolean';
+    if (key === 'mainToolsOpen' || key === 'generalToolbarOpen' || key === 'statusBarOpen' || key === 'templatePanelOpen') return typeof value === 'boolean';
+    if (key === 'templatePanelWidth') return typeof value === 'number' && Number.isFinite(value) && value >= 190 && value <= 480;
     if (key === 'workspaceProfile') return value === 'chemdraw' || value === 'compact';
     if (key === 'activeSidebarPanel') return typeof value === 'string' && SIDEBAR_PANELS.has(value);
     if (key !== 'shortcutBindings' || !value || typeof value !== 'object' || Array.isArray(value)) return false;

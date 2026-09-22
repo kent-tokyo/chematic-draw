@@ -37,6 +37,7 @@ export function mergeTemplateIntoMolecule(baseMol: MoleculeDto, templateMol: Mol
   }));
 
   return {
+    ...baseMol,
     atoms: [...baseMol.atoms, ...newAtoms],
     bonds: [...baseMol.bonds, ...finalBonds],
   };

@@ -9,7 +9,7 @@ Get chematic-draw up and running in 5 minutes.
 Packaged installers (`.deb`/`.rpm` for Linux, `.zip` for macOS, a Squirrel
 `.exe` installer for Windows) are published on the
 [GitHub Releases page](https://github.com/kent-tokyo/chematic-draw/releases)
-for tagged versions. The current stable release is `v1.0.11`; builds are
+for tagged versions. The current stable release is `v1.0.12`; builds are
 unsigned (no code
 signing/notarization is configured), so macOS/Windows will show an
 unidentified-developer warning on first launch.
@@ -49,9 +49,9 @@ Requires Node.js 24+ and a Rust toolchain with `wasm-pack` — see
 ## First Launch
 
 1. **App window opens** — you'll see:
-   - Canvas area (left) for drawing molecules, with an atom/bond toolbar above it
-   - Sidebar (right) with tabs: Inspector, Templates, Reactions, Batch, Stereo, Lipinski, Props, Mech, 3D, DB, Research, Chat
-   - Menu bar (top) with File, Edit, View, Tools, Help
+   - Main Tools palette (left), editable canvas (center), and optional Templates drawer (left of the canvas)
+   - Sidebar (right) with Properties, Query, Stereo, Reactions, Batch, analysis, 3D, NMR, database, and research panels
+   - Menu bar (top) with File, Edit, View, Object, Structure, Search, Window, Help
 2. A sample molecule (benzene) loads automatically on startup.
 3. **Canvas Ready** — you can now start drawing
 
@@ -76,9 +76,9 @@ parser auto-detects the format. Example SMILES to try in a `.smi` file:
    - Naphthalene: `c1ccc2ccccc2c1`
 
 ### Method 3: Templates
-1. **Click Templates Tab** (right sidebar)
+1. **Click Templates** in the left Main Tools palette
 2. **Browse molecule library**
-3. **Click molecule** to load it
+3. **Click a molecule** to insert it at the view center, or drag it to a precise canvas position
 
 ## Explore Features
 

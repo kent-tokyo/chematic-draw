@@ -40,9 +40,13 @@ interface UIStoreState extends UIState {
   setSidebarOpen: (open: boolean) => void;
   setSidebarWidth: (width: number) => void;
   setMainToolsOpen: (open: boolean) => void;
+  setGeneralToolbarOpen: (open: boolean) => void;
+  setStatusBarOpen: (open: boolean) => void;
+  setTemplatePanelOpen: (open: boolean) => void;
+  setTemplatePanelWidth: (width: number) => void;
   setWorkspaceProfile: (profile: WorkspaceProfile) => void;
   resetWorkspace: () => void;
-  setActiveSidebarPanel: (panel: 'inspector' | 'templates' | 'chat' | 'research' | 'reactions' | 'batch-results' | 'stereoisomers' | 'lipinski' | 'properties' | 'mechanism' | 'database' | '3d' | 'nmr') => void;
+  setActiveSidebarPanel: (panel: SidebarPanel) => void;
   setSelectedAtomIdForInspector: (id: number | null) => void;
   setSelectedBondIdForInspector: (id: number | null) => void;
   setFocusMode: (enabled: boolean) => void;
@@ -73,6 +77,10 @@ export const useUIStore = create<UIStoreState>((set) => ({
   sidebarOpen: true,
   sidebarWidth: 300,
   mainToolsOpen: true,
+  generalToolbarOpen: true,
+  statusBarOpen: true,
+  templatePanelOpen: false,
+  templatePanelWidth: 260,
   workspaceProfile: 'chemdraw',
   focusMode: false,
   statusMessage: '',
@@ -96,10 +104,22 @@ export const useUIStore = create<UIStoreState>((set) => ({
 
   setMainToolsOpen: (open) => set({ mainToolsOpen: open }),
 
+  setGeneralToolbarOpen: (open) => set({ generalToolbarOpen: open }),
+
+  setStatusBarOpen: (open) => set({ statusBarOpen: open }),
+
+  setTemplatePanelOpen: (open) => set({ templatePanelOpen: open }),
+
+  setTemplatePanelWidth: (width) => set({ templatePanelWidth: Math.max(190, Math.min(480, width)) }),
+
   setWorkspaceProfile: (workspaceProfile) => set((state) => ({
     workspaceProfile,
     sidebarWidth: workspaceProfile === 'compact' ? Math.min(state.sidebarWidth, 240) : Math.max(state.sidebarWidth, 300),
     mainToolsOpen: true,
+    generalToolbarOpen: true,
+    statusBarOpen: true,
+    templatePanelOpen: false,
+    templatePanelWidth: 260,
   })),
 
   resetWorkspace: () => set({
@@ -107,6 +127,10 @@ export const useUIStore = create<UIStoreState>((set) => ({
     mainToolsOpen: true,
     sidebarOpen: true,
     sidebarWidth: 300,
+    generalToolbarOpen: true,
+    statusBarOpen: true,
+    templatePanelOpen: false,
+    templatePanelWidth: 260,
     activeSidebarPanel: 'inspector',
     focusMode: false,
   }),

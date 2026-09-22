@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { Icon, IconName } from '../common/Icon';
 import { InspectorPanel } from './InspectorPanel';
-import { TemplatesPanel } from './TemplatesPanel';
 import { ResearchPanel } from './ResearchPanel';
 import { ChatPanel } from './ChatPanel';
 import { ReactionPanel } from './ReactionPanel';
@@ -22,10 +21,27 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
   const activeSidebarPanel = useUIStore((s) => s.activeSidebarPanel);
   const setActiveSidebarPanel = useUIStore((s) => s.setActiveSidebarPanel);
   const setSidebarOpen = useUIStore((s) => s.setSidebarOpen);
+  const setSidebarWidth = useUIStore((s) => s.setSidebarWidth);
   const theme = useUIStore((s) => s.theme);
   const language = useUIStore((s) => s.language);
   const batchResults = useUIStore((s) => s.batchResults);
   const [panelQuery, setPanelQuery] = useState('');
+  const resizing = useRef(false);
+
+  useEffect(() => {
+    const move = (event: MouseEvent) => {
+      if (!resizing.current) return;
+      const sidebar = document.querySelector<HTMLElement>('[data-testid="sidebar"]');
+      if (sidebar) setSidebarWidth(sidebar.getBoundingClientRect().right - event.clientX);
+    };
+    const up = () => { resizing.current = false; };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    return () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+    };
+  }, [setSidebarWidth]);
 
   if (!sidebarOpen) return null;
 
@@ -38,8 +54,9 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
   }
 
   const tabs: SidebarTab[] = [
-    { id: 'inspector', shortLabel: language === 'ja' ? '検査' : language === 'zh' ? '检查' : 'Inspector', accessibleLabel: language === 'ja' ? 'インスペクター' : language === 'zh' ? '检查器' : 'Inspector', icon: 'search' },
-    { id: 'templates', shortLabel: language === 'ja' ? 'テンプレート' : language === 'zh' ? '模板' : 'Templates', accessibleLabel: language === 'ja' ? 'テンプレート' : language === 'zh' ? '模板' : 'Templates', icon: 'templates' },
+    { id: 'inspector', shortLabel: language === 'ja' ? '属性' : language === 'zh' ? '属性' : 'Properties', accessibleLabel: language === 'ja' ? '選択項目の属性' : language === 'zh' ? '所选对象属性' : 'Selection properties', icon: 'search' },
+    { id: 'query', shortLabel: language === 'ja' ? 'クエリ' : language === 'zh' ? '查询' : 'Query', accessibleLabel: language === 'ja' ? 'クエリ編集' : language === 'zh' ? '查询编辑' : 'Query editor', icon: 'search' },
+    { id: 'stereo', shortLabel: language === 'ja' ? '立体' : language === 'zh' ? '立体' : 'Stereo', accessibleLabel: language === 'ja' ? '選択項目の立体化学' : language === 'zh' ? '所选对象立体化学' : 'Selection stereochemistry', icon: 'stereoisomers' },
     { id: 'reactions', shortLabel: language === 'ja' ? '反応' : language === 'zh' ? '反应' : 'Reactions', accessibleLabel: language === 'ja' ? '反応' : language === 'zh' ? '反应' : 'Reactions', icon: 'reactions' },
     { id: 'batch-results', shortLabel: language === 'ja' ? '一括' : 'Batch', accessibleLabel: language === 'ja' ? '一括処理結果' : 'Batch results', icon: 'batch', badge: batchResults.length > 0 ? batchResults.length : undefined },
     { id: 'stereoisomers', shortLabel: language === 'ja' ? '立体' : 'Stereo', accessibleLabel: language === 'ja' ? '立体化学' : 'Stereochemistry', icon: 'stereoisomers' },
@@ -56,7 +73,7 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
   const matchesTab = (tab: SidebarTab) => !normalizedQuery
     || `${tab.shortLabel} ${tab.accessibleLabel}`.toLocaleLowerCase().includes(normalizedQuery);
   const tabGroups = [
-    { label: language === 'ja' ? '編集' : language === 'zh' ? '编辑' : 'Edit', ids: ['inspector', 'templates', 'reactions'] },
+    { label: language === 'ja' ? '編集' : language === 'zh' ? '编辑' : 'Edit', ids: ['inspector', 'query', 'stereo', 'reactions'] },
     { label: language === 'ja' ? '解析' : language === 'zh' ? '分析' : 'Analyze', ids: ['batch-results', 'stereoisomers', 'lipinski', 'properties', 'mechanism', '3d', 'nmr'] },
     { label: language === 'ja' ? '連携' : language === 'zh' ? '连接' : 'Connect', ids: ['database', 'research', 'chat'] },
   ];
@@ -87,15 +104,17 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
       className="sidebar-root"
       data-testid="sidebar"
       style={{
+        position: 'relative',
         width: `${sidebarWidth}px`,
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
         backgroundColor: bgColor,
-        borderRight: `1px solid ${borderColor}`,
+        borderLeft: `1px solid ${borderColor}`,
         overflow: 'hidden',
       }}
     >
+      <div className="sidebar-resizer" role="separator" aria-orientation="vertical" aria-label={language === 'ja' ? 'サイドバー幅を変更' : 'Resize sidebar'} onMouseDown={() => { resizing.current = true; }} />
       {/* Tab Bar */}
       <div style={{ background: bgColor, borderBottom: `1px solid ${borderColor}` }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 10px 7px', color: textColor, fontSize: '11px' }}>
@@ -218,7 +237,8 @@ export function Sidebar({ onRetryBatch }: { onRetryBatch?: (result: BatchResultS
         style={{ flex: 1, overflow: 'auto', padding: '12px' }}
       >
         {activeSidebarPanel === 'inspector' && <InspectorPanel />}
-        {activeSidebarPanel === 'templates' && <TemplatesPanel />}
+        {activeSidebarPanel === 'query' && <InspectorPanel mode="query" />}
+        {activeSidebarPanel === 'stereo' && <InspectorPanel mode="stereo" />}
         {activeSidebarPanel === 'reactions' && <ReactionPanel />}
         {activeSidebarPanel === 'batch-results' && <BatchResultPanel results={batchResults} onRetry={onRetryBatch} />}
         {activeSidebarPanel === 'stereoisomers' && <StereoisomerPanel />}

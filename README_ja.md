@@ -25,7 +25,9 @@ Windows・macOS・Linuxで動作する、オープンソースのオフライン
 ## 機能
 
 - マウスとキーボードで操作できるキャンバス型2D分子エディタ
-- テンプレート、インスペクター、Undo/Redo、自動保存、クラッシュリカバリ
+- ChemDrawに近いメニュー配置、左側の描画ツール・テンプレート、右側の
+  Properties・Query・Stereo、コンパクト表示、Undo/Redo、配置の保存、
+  自動保存、クラッシュリカバリ
 - 物性表示、Lipinski判定、立体異性体列挙、SMARTS検索
 - ECFP4フィンガープリント、metadata付き類似度（Tanimoto/Dice）、MCS検索
 - 回転・ズーム・XYZ出力に対応した3Dビューア
@@ -78,7 +80,7 @@ npm start
 [`chematic`](https://crates.io/crates/chematic) Rustケモインフォマティクス
 ライブラリをWebAssembly経由で利用しています。化学処理層にC/C++ FFIは
 ありません（Electron/Chromium本体のネイティブ依存関係は別です）。現在の開発系列では
-`chematic-draw` 1.0.11では`chematic` v1.0.19を使用しています。
+`chematic-draw` 1.0.12では`chematic` v1.0.19を使用しています。
 Rust/WASMブリッジの公開APIは`crates/chem-wasm/src/lib.rs`に置き、分子変換、
 フィンガープリント、RXN/CDXML adapterは機能別moduleに分離しています。現在の検証結果は
 [`CHANGELOG.md`](CHANGELOG.md)を参照してください。

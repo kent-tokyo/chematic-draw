@@ -11,11 +11,11 @@ test('built Playground provides the drawing workspace and browser document actio
   await page.getByTestId('settings-button').click();
   await page.getByTestId('workspace-profile').selectOption('compact');
   await page.getByRole('dialog', { name: 'Settings' }).getByText('Close', { exact: true }).click();
-  await page.getByTestId('sidebar-tab-templates').click();
+  await page.getByTestId('templates-tool').click();
   await page.reload();
   await expect(page.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
   await expect(page.getByTestId('app-root')).toHaveAttribute('data-workspace-profile', 'compact');
-  await expect(page.getByTestId('sidebar-tab-templates')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByTestId('template-drawer')).toBeVisible();
   await page.getByTestId('settings-button').click();
   await page.getByTestId('reset-workspace').click();
   await expect(page.getByTestId('app-root')).toHaveAttribute('data-workspace-profile', 'chemdraw');

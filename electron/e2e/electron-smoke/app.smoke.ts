@@ -122,15 +122,15 @@ test.describe('Electron Smoke', () => {
       };
     });
     expect(menuState.topLevel).toEqual(['File', 'Edit', 'View', 'Object', 'Structure', 'Search', 'Window', 'Help']);
-    expect(menuState.object).toEqual(['Align Horizontally', 'Align Vertically', 'Rotate 90° Clockwise']);
+    expect(menuState.object).toEqual(['Align Horizontally', 'Align Vertically', 'Distribute Horizontally', 'Distribute Vertically', 'Flip Horizontal', 'Flip Vertical', 'Rotate 90° Clockwise']);
     expect(menuState.structure).toContain('Clean Up Structure');
-    expect(menuState.search).toEqual(['Database Search...', 'Identifiers and MCS...']);
+    expect(menuState.search).toEqual(['Database Search...', 'SMARTS Query...', 'Identifiers and MCS...']);
     expect(menuState.window).toContain('Templates');
 
     await electronApp.evaluate(({ BrowserWindow }) => {
       BrowserWindow.getAllWindows()[0].webContents.send('menu:show-panel', 'templates');
     });
-    await expect(window.getByTestId('sidebar-tab-templates')).toHaveAttribute('aria-selected', 'true');
+    await expect(window.getByTestId('template-drawer')).toBeVisible();
 
     await electronApp.evaluate(({ BrowserWindow }) => {
       BrowserWindow.getAllWindows()[0].webContents.send('menu:search-research');
@@ -152,7 +152,7 @@ test.describe('Electron Smoke', () => {
       target.send('menu:select-all');
       target.send('menu:object-align-horizontal');
     });
-    await expect(window.locator('[aria-live="polite"][role="status"]')).toContainText('Aligned selection horizontal');
+    await expect(window.locator('[aria-live="polite"][role="status"]')).toContainText('Arranged selection');
 
     await electronApp.evaluate(({ BrowserWindow }) => {
       BrowserWindow.getAllWindows()[0].webContents.send('menu:structure-clean');
@@ -708,7 +708,7 @@ test.describe('Electron Smoke', () => {
     fs.rmSync(userDataDir, { recursive: true, force: true });
   });
 
-  test('workspace profile and Main Tools visibility persist and Reset Workspace restores both', async () => {
+  test('workspace chrome visibility and profile persist and Reset Workspace restores them', async () => {
     const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chematic-workspace-test-'));
     const settingsPath = path.join(userDataDir, 'settings.json');
     const launch = () => electron.launch({ args: [`--user-data-dir=${userDataDir}`, PACKAGED_APP_PATH] });
@@ -722,15 +722,20 @@ test.describe('Electron Smoke', () => {
     await firstApp.evaluate(({ BrowserWindow }) => {
       const target = BrowserWindow.getAllWindows()[0].webContents;
       target.send('menu:toggle-main-tools');
+      target.send('menu:toggle-general-toolbar');
+      target.send('menu:toggle-status-bar');
       target.send('menu:show-panel', 'templates');
     });
     await expect(firstWindow.getByTestId('main-tools-palette')).toHaveCount(0);
+    await expect(firstWindow.getByTestId('general-toolbar')).toHaveCount(0);
+    await expect(firstWindow.locator('.app-status-bar')).toHaveCount(0);
+    await expect(firstWindow.getByTestId('template-drawer')).toBeVisible();
 
     await expect.poll(() => {
       if (!fs.existsSync(settingsPath)) return null;
       const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
-      return { profile: settings.workspaceProfile, tools: settings.mainToolsOpen, panel: settings.activeSidebarPanel };
-    }).toEqual({ profile: 'compact', tools: false, panel: 'templates' });
+      return { profile: settings.workspaceProfile, tools: settings.mainToolsOpen, toolbar: settings.generalToolbarOpen, status: settings.statusBarOpen, templates: settings.templatePanelOpen };
+    }).toEqual({ profile: 'compact', tools: false, toolbar: false, status: false, templates: true });
     await firstApp.close();
 
     const secondApp = await launch();
@@ -738,13 +743,18 @@ test.describe('Electron Smoke', () => {
     await expect(secondWindow.getByTestId('app-root')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
     await expect(secondWindow.getByTestId('app-root')).toHaveAttribute('data-workspace-profile', 'compact');
     await expect(secondWindow.getByTestId('main-tools-palette')).toHaveCount(0);
-    await expect(secondWindow.getByTestId('sidebar-tab-templates')).toHaveAttribute('aria-selected', 'true');
+    await expect(secondWindow.getByTestId('general-toolbar')).toHaveCount(0);
+    await expect(secondWindow.locator('.app-status-bar')).toHaveCount(0);
+    await expect(secondWindow.getByTestId('template-drawer')).toBeVisible();
 
     await secondApp.evaluate(({ BrowserWindow }) => {
       BrowserWindow.getAllWindows()[0].webContents.send('menu:reset-workspace');
     });
     await expect(secondWindow.getByTestId('app-root')).toHaveAttribute('data-workspace-profile', 'chemdraw');
     await expect(secondWindow.getByTestId('main-tools-palette')).toBeVisible();
+    await expect(secondWindow.getByTestId('general-toolbar')).toBeVisible();
+    await expect(secondWindow.locator('.app-status-bar')).toBeVisible();
+    await expect(secondWindow.getByTestId('template-drawer')).toHaveCount(0);
     await expect(secondWindow.getByTestId('sidebar-tab-inspector')).toHaveAttribute('aria-selected', 'true');
 
     await secondApp.close();

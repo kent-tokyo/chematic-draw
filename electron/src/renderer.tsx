@@ -22,9 +22,10 @@ import { canPreserveCdxml, captureRichCdxmlSession, cdxmlSessionLossWarnings, Ri
 import { runAnalysisInWorker } from './renderer/lib/analysisWorkerClient';
 import { useAppInitialization } from './renderer/hooks/useAppInitialization';
 import { ENGINE_ID } from './engineMetadata';
-import { alignSelectedAtoms, rotateSelectedAtoms } from './renderer/lib/selectionTransforms';
+import { alignSelectedAtoms, distributeSelectedAtoms, flipSelectedAtoms, rotateSelectedAtoms } from './renderer/lib/selectionTransforms';
 import { BrowserDocumentToolbar } from './renderer/components/BrowserDocumentToolbar';
 import { GeneralToolbar, MainToolsPalette } from './renderer/components/WorkspaceChrome';
+import { TemplateDrawer } from './renderer/components/TemplateDrawer';
 
 async function parseMoleculeDocument(content: string, filePath: string): Promise<MoleculeDto> {
   if (filePath.toLowerCase().endsWith('.json')) {
@@ -34,6 +35,9 @@ async function parseMoleculeDocument(content: string, filePath: string): Promise
 }
 
 async function serializeMoleculeForPath(molecule: MoleculeDto, filePath: string): Promise<string> {
+  if (filePath.toLowerCase().endsWith('.json')) {
+    return await runAnalysisInWorker('serialize-session', molecule, undefined, undefined, filePath) as string;
+  }
   switch (formatForFilePath(filePath)) {
     case 'smiles':
       return await runAnalysisInWorker('canonical-smiles', molecule) as string;
@@ -76,7 +80,15 @@ export function App() {
   const setSidebarOpen = useUIStore((s) => s.setSidebarOpen);
   const mainToolsOpen = useUIStore((s) => s.mainToolsOpen);
   const setMainToolsOpen = useUIStore((s) => s.setMainToolsOpen);
+  const generalToolbarOpen = useUIStore((s) => s.generalToolbarOpen);
+  const setGeneralToolbarOpen = useUIStore((s) => s.setGeneralToolbarOpen);
+  const statusBarOpen = useUIStore((s) => s.statusBarOpen);
+  const setStatusBarOpen = useUIStore((s) => s.setStatusBarOpen);
+  const templatePanelOpen = useUIStore((s) => s.templatePanelOpen);
+  const templatePanelWidth = useUIStore((s) => s.templatePanelWidth);
+  const setTemplatePanelOpen = useUIStore((s) => s.setTemplatePanelOpen);
   const workspaceProfile = useUIStore((s) => s.workspaceProfile);
+  const setWorkspaceProfile = useUIStore((s) => s.setWorkspaceProfile);
   const activeSidebarPanel = useUIStore((s) => s.activeSidebarPanel);
   const resetWorkspace = useUIStore((s) => s.resetWorkspace);
   const activeTool = useCanvasStore((s) => s.activeTool);
@@ -104,17 +116,21 @@ export function App() {
   const addBatchResult = useUIStore((s) => s.addBatchResult);
   const shortcutBindings = useUIStore((s) => s.shortcutBindings);
   const isBrowserHost = typeof window !== 'undefined' && Boolean((window as any).__CHEMATIC_PLAYGROUND__) && !(window as any).electronAPI;
-  const applySelectionTransform = useCallback((kind: 'horizontal' | 'vertical' | 'rotate') => {
+  const usesBrowserStorage = typeof window !== 'undefined' && !(window as any).electronAPI;
+  const applySelectionTransform = useCallback((kind: 'horizontal' | 'vertical' | 'rotate' | 'distribute-horizontal' | 'distribute-vertical' | 'flip-horizontal' | 'flip-vertical') => {
     const current = useMoleculeStore.getState().molecule;
-    if (current.atoms.filter((atom) => atom.selected).length < 2) {
-      setStatus(language === 'ja' ? '2個以上の原子を選択してください' : 'Select at least two atoms.');
+    const minimum = kind.startsWith('distribute') ? 3 : 2;
+    if (current.atoms.filter((atom) => atom.selected).length < minimum) {
+      setStatus(language === 'ja' ? `${minimum}個以上の原子を選択してください` : `Select at least ${minimum} atoms.`);
       return;
     }
     pushUndo();
-    setMolecule(kind === 'rotate' ? rotateSelectedAtoms(current) : alignSelectedAtoms(current, kind));
-    setStatus(language === 'ja'
-      ? kind === 'rotate' ? '選択範囲を90度回転しました' : `選択範囲を${kind === 'horizontal' ? '横' : '縦'}方向に整列しました`
-      : kind === 'rotate' ? 'Rotated selection 90 degrees.' : `Aligned selection ${kind}.`);
+    const next = kind === 'rotate' ? rotateSelectedAtoms(current)
+      : kind.startsWith('distribute-') ? distributeSelectedAtoms(current, kind.endsWith('horizontal') ? 'horizontal' : 'vertical')
+      : kind.startsWith('flip-') ? flipSelectedAtoms(current, kind.endsWith('horizontal') ? 'horizontal' : 'vertical')
+      : alignSelectedAtoms(current, kind === 'horizontal' ? 'horizontal' : 'vertical');
+    setMolecule(next);
+    setStatus(language === 'ja' ? '選択範囲を配置しました' : 'Arranged selection.');
   }, [language, pushUndo, setMolecule, setStatus]);
 
   // Autosave: debounced crash-recovery snapshot, written to a file main.js
@@ -159,28 +175,44 @@ export function App() {
       }, 500);
       return () => clearTimeout(timeout);
     }
-  }, [settingsHydrated, sidebarOpen, sidebarWidth]);
+    if (settingsHydrated && typeof window !== 'undefined' && usesBrowserStorage) {
+      try {
+        window.localStorage.setItem('chematic-draw/sidebar-open-v1', String(sidebarOpen));
+        window.localStorage.setItem('chematic-draw/sidebar-width-v1', String(sidebarWidth));
+      } catch {
+        // Browser storage is optional; the current session remains usable.
+      }
+    }
+  }, [settingsHydrated, sidebarOpen, sidebarWidth, usesBrowserStorage]);
 
   useEffect(() => {
     if (settingsHydrated && typeof window !== 'undefined' && (window as any).electronAPI) {
       const timeout = setTimeout(() => {
         const api = (window as any).electronAPI;
         api.saveSettings('mainToolsOpen', mainToolsOpen);
+        api.saveSettings('generalToolbarOpen', generalToolbarOpen);
+        api.saveSettings('statusBarOpen', statusBarOpen);
+        api.saveSettings('templatePanelOpen', templatePanelOpen);
+        api.saveSettings('templatePanelWidth', templatePanelWidth);
         api.saveSettings('workspaceProfile', workspaceProfile);
         api.saveSettings('activeSidebarPanel', activeSidebarPanel);
       }, 500);
       return () => clearTimeout(timeout);
     }
-    if (settingsHydrated && typeof window !== 'undefined' && isBrowserHost) {
+    if (settingsHydrated && typeof window !== 'undefined' && usesBrowserStorage) {
       try {
         window.localStorage.setItem('chematic-draw/main-tools-open-v1', String(mainToolsOpen));
+        window.localStorage.setItem('chematic-draw/general-toolbar-open-v1', String(generalToolbarOpen));
+        window.localStorage.setItem('chematic-draw/status-bar-open-v1', String(statusBarOpen));
+        window.localStorage.setItem('chematic-draw/template-panel-open-v1', String(templatePanelOpen));
+        window.localStorage.setItem('chematic-draw/template-panel-width-v1', String(templatePanelWidth));
         window.localStorage.setItem('chematic-draw/workspace-profile-v1', workspaceProfile);
         window.localStorage.setItem('chematic-draw/active-sidebar-panel-v1', activeSidebarPanel);
       } catch {
         // Browser storage is optional; the current session remains usable.
       }
     }
-  }, [activeSidebarPanel, isBrowserHost, mainToolsOpen, settingsHydrated, workspaceProfile]);
+  }, [activeSidebarPanel, generalToolbarOpen, mainToolsOpen, settingsHydrated, statusBarOpen, templatePanelOpen, templatePanelWidth, usesBrowserStorage, workspaceProfile]);
 
   useEffect(() => {
     if (settingsHydrated && typeof window !== 'undefined' && (window as any).electronAPI) {
@@ -223,12 +255,13 @@ export function App() {
       api.onMenuSave(async () => {
         if (filePath) {
           const format = formatForFilePath(filePath);
+          const sessionBundle = filePath.toLowerCase().endsWith('.json');
           const preserveRichCdxml = canPreserveCdxml(molecule, filePath, richCdxmlSession);
-          if (!preserveRichCdxml && !confirmLossAwareExport(molecule, filePath, format === 'cdxml' ? cdxmlSessionLossWarnings(richCdxmlSession) : [])) {
+          if (!sessionBundle && !preserveRichCdxml && !confirmLossAwareExport(molecule, filePath, format === 'cdxml' ? cdxmlSessionLossWarnings(richCdxmlSession) : [])) {
             announce('Save cancelled', '保存をキャンセルしました');
             return;
           }
-          const content = format === 'cdxml'
+          const content = !sessionBundle && format === 'cdxml'
             ? serializeCdxmlForPath(molecule, filePath, richCdxmlSession)
             : await serializeMoleculeForPath(molecule, filePath);
           const result = await api.fileWrite(filePath, content);
@@ -246,12 +279,13 @@ export function App() {
       api.onMenuSaveAs(async () => {
         const result = await api.fileSaveDialog('untitled.mol');
         if (!result.canceled && result.filePath) {
+          const sessionBundle = result.filePath.toLowerCase().endsWith('.json');
           const preserveRichCdxml = canPreserveCdxml(molecule, result.filePath, richCdxmlSession);
-          if (!preserveRichCdxml && !confirmLossAwareExport(molecule, result.filePath, formatForFilePath(result.filePath) === 'cdxml' ? cdxmlSessionLossWarnings(richCdxmlSession) : [])) {
+          if (!sessionBundle && !preserveRichCdxml && !confirmLossAwareExport(molecule, result.filePath, formatForFilePath(result.filePath) === 'cdxml' ? cdxmlSessionLossWarnings(richCdxmlSession) : [])) {
             announce('Save cancelled', '保存をキャンセルしました');
             return;
           }
-          const content = formatForFilePath(result.filePath) === 'cdxml'
+          const content = !sessionBundle && formatForFilePath(result.filePath) === 'cdxml'
             ? serializeCdxmlForPath(molecule, result.filePath, richCdxmlSession)
             : await serializeMoleculeForPath(molecule, result.filePath);
           const writeResult = await api.fileWrite(result.filePath, content);
@@ -365,12 +399,18 @@ export function App() {
       api.onMenuZoomIn(() => setZoom(zoom * 1.2));
       api.onMenuZoomOut(() => setZoom(zoom / 1.2));
       api.onMenuZoomReset(() => setZoom(1));
+      api.onMenuFitView?.(() => fitView(useMoleculeStore.getState().molecule));
       api.onMenuToggleSidebar(() => setSidebarOpen(!sidebarOpen));
       api.onMenuToggleMainTools?.(() => setMainToolsOpen(!mainToolsOpen));
+      api.onMenuToggleGeneralToolbar?.(() => setGeneralToolbarOpen(!generalToolbarOpen));
+      api.onMenuToggleStatusBar?.(() => setStatusBarOpen(!statusBarOpen));
       api.onMenuToggleTheme(() => setTheme(theme === 'dark' ? 'light' : 'dark'));
       api.onMenuResetWorkspace?.(() => {
         resetWorkspace();
         setStatus(language === 'ja' ? 'ワークスペースを初期配置に戻しました' : 'Reset workspace layout.');
+      });
+      api.onMenuSetWorkspaceProfile?.((profile: string) => {
+        if (profile === 'chemdraw' || profile === 'compact') setWorkspaceProfile(profile);
       });
       api.onMenuBatchProcess?.(() => showModal('batch'));
       api.onMenuUndoTimeline?.(() => showModal('undo'));
@@ -467,10 +507,14 @@ export function App() {
       api.onMenuObjectAlignHorizontal?.(() => applySelectionTransform('horizontal'));
       api.onMenuObjectAlignVertical?.(() => applySelectionTransform('vertical'));
       api.onMenuObjectRotate?.(() => applySelectionTransform('rotate'));
+      api.onMenuObjectDistributeHorizontal?.(() => applySelectionTransform('distribute-horizontal'));
+      api.onMenuObjectDistributeVertical?.(() => applySelectionTransform('distribute-vertical'));
+      api.onMenuObjectFlipHorizontal?.(() => applySelectionTransform('flip-horizontal'));
+      api.onMenuObjectFlipVertical?.(() => applySelectionTransform('flip-vertical'));
       api.onMenuStructureClean?.(() => {
         const current = useMoleculeStore.getState().molecule;
         pushUndo();
-        setMolecule(wasmBridge.cleanLayout(current));
+        setMolecule({ ...wasmBridge.cleanLayout(current), drawing: current.drawing });
         setStatus(language === 'ja' ? '構造を整形しました' : 'Cleaned structure layout.');
       });
 
@@ -500,9 +544,13 @@ export function App() {
         setSidebarOpen(true);
       });
       api.onMenuShowPanel?.((panel: string) => {
-        const allowed = new Set(['inspector', 'templates', 'reactions', 'mechanism', '3d', 'nmr', 'batch-results']);
+        if (panel === 'templates') {
+          setTemplatePanelOpen(true);
+          return;
+        }
+        const allowed = new Set(['inspector', 'query', 'stereo', 'reactions', 'mechanism', '3d', 'nmr', 'batch-results']);
         if (!allowed.has(panel)) return;
-        useUIStore.getState().setActiveSidebarPanel(panel as 'inspector' | 'templates' | 'reactions' | 'mechanism' | '3d' | 'nmr' | 'batch-results');
+        useUIStore.getState().setActiveSidebarPanel(panel as 'inspector' | 'query' | 'stereo' | 'reactions' | 'mechanism' | '3d' | 'nmr' | 'batch-results');
         setSidebarOpen(true);
       });
 
@@ -510,7 +558,7 @@ export function App() {
         // Cleanup: no need to unsubscribe from ipcRenderer in this version
       };
     }
-  }, [molecule, filePath, richCdxmlSession, theme, zoom, sidebarOpen, mainToolsOpen, language, selectAll, undo, redo, pushUndo, clear, setMolecule, setSidebarOpen, setMainToolsOpen, resetWorkspace, setStatus, setTheme, setZoom, showModal, announce, applySelectionTransform]);
+  }, [molecule, filePath, richCdxmlSession, theme, zoom, sidebarOpen, mainToolsOpen, generalToolbarOpen, statusBarOpen, language, selectAll, undo, redo, pushUndo, clear, setMolecule, setSidebarOpen, setMainToolsOpen, setGeneralToolbarOpen, setStatusBarOpen, setTemplatePanelOpen, setWorkspaceProfile, resetWorkspace, setStatus, setTheme, setZoom, fitView, showModal, announce, applySelectionTransform]);
 
   // Keyboard shortcuts for Phase 3-5
   useEffect(() => {
@@ -663,6 +711,61 @@ export function App() {
     useCanvasStore.getState().requestCenterOnLoad();
   };
 
+  const handleToolbarOpen = async () => {
+    const api = (window as any).electronAPI;
+    if (!api?.fileOpenDialog) return;
+    const result = await api.fileOpenDialog();
+    if (result.canceled || !result.path || typeof result.content !== 'string') {
+      if (result.error) setStatus(`Failed to open file: ${result.error}`);
+      return;
+    }
+    try {
+      if (result.path.toLowerCase().endsWith('.cdxml')) wasmBridge.cdxmlDocumentJson(result.content);
+      const loaded = await parseMoleculeDocument(result.content, result.path);
+      setMolecule(loaded);
+      setFilePath(result.path);
+      setRichCdxmlSession(result.path.toLowerCase().endsWith('.cdxml') ? captureRichCdxmlSession(result.content, result.path, loaded) : null);
+      api.recordRecentFile(result.path);
+      useCanvasStore.getState().requestCenterOnLoad();
+      setStatus(`Opened: ${result.path}`);
+    } catch (error) {
+      setStatus(`Failed to open file: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const handleToolbarSave = async () => {
+    const api = (window as any).electronAPI;
+    if (!api) return;
+    let destination = filePath;
+    if (!destination) {
+      const result = await api.fileSaveDialog('untitled.mol');
+      if (result.canceled || !result.filePath) return;
+      destination = result.filePath;
+    }
+    const sessionBundle = destination.toLowerCase().endsWith('.json');
+    const format = formatForFilePath(destination);
+    const preserveRichCdxml = canPreserveCdxml(molecule, destination, richCdxmlSession);
+    if (!sessionBundle && !preserveRichCdxml && !confirmLossAwareExport(molecule, destination, format === 'cdxml' ? cdxmlSessionLossWarnings(richCdxmlSession) : [])) return;
+    const content = !sessionBundle && format === 'cdxml'
+      ? serializeCdxmlForPath(molecule, destination, richCdxmlSession)
+      : await serializeMoleculeForPath(molecule, destination);
+    const result = await api.fileWrite(destination, content);
+    if (result.success) {
+      setFilePath(destination);
+      if (format === 'cdxml') setRichCdxmlSession(captureRichCdxmlSession(content, destination, molecule));
+      else setRichCdxmlSession(null);
+      api.recordRecentFile(destination);
+      setStatus(`Saved: ${destination}`);
+    } else setStatus(`Save failed: ${result.error}`);
+  };
+
+  const handleCleanStructure = () => {
+    if (molecule.atoms.length === 0) return;
+    pushUndo();
+    setMolecule({ ...wasmBridge.cleanLayout(molecule), drawing: molecule.drawing });
+    announce('Cleaned structure layout.', '構造を整形しました');
+  };
+
   return (
     <div
       data-testid="app-root"
@@ -707,7 +810,7 @@ export function App() {
       <UndoTimelineModal />
       <SettingsModal />
       {showBatchDialog && <BatchProcessDialog onProcess={handleBatchProcess} onCancel={() => hideModal('batch')} />}
-      <GeneralToolbar
+      {generalToolbarOpen && <GeneralToolbar
         language={language}
         theme={theme}
         sidebarOpen={sidebarOpen}
@@ -728,6 +831,13 @@ export function App() {
             onStatus={setStatus}
           />
         ) : undefined}
+        onNew={!isBrowserHost ? () => { clear(); setFilePath(null); setRichCdxmlSession(null); announce('New molecule', '新しい分子'); } : undefined}
+        onOpen={!isBrowserHost ? () => { void handleToolbarOpen(); } : undefined}
+        onSave={!isBrowserHost ? () => { void handleToolbarSave(); } : undefined}
+        onClean={handleCleanStructure}
+        onZoomIn={() => setZoom(zoom * 1.2)}
+        onZoomOut={() => setZoom(zoom / 1.2)}
+        onZoomReset={() => setZoom(1)}
         onUndo={() => { if (undo()) announce('Undid last edit', '直前の編集を元に戻しました'); }}
         onRedo={() => { if (redo()) announce('Redid last edit', '編集をやり直しました'); }}
         onAlignHorizontal={() => applySelectionTransform('horizontal')}
@@ -740,7 +850,7 @@ export function App() {
         onOpenSettings={() => showModal('settings')}
         onToggleLanguage={() => setLanguage(language === 'ja' ? 'en' : 'ja')}
         onOpenShortcuts={() => showModal('shortcuts')}
-      />
+      />}
 
       {/* Canvas Area with Sidebar — not mounted until WASM is actually ready,
           so no individual panel needs to guess whether it's safe to call
@@ -748,7 +858,8 @@ export function App() {
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {wasmStatus === 'ready' && (
           <>
-            {mainToolsOpen && <MainToolsPalette activeTool={activeTool} language={language} onSelectTool={setTool} />}
+            {mainToolsOpen && <MainToolsPalette activeTool={activeTool} language={language} onSelectTool={setTool} onOpenTemplates={() => setTemplatePanelOpen(true)} />}
+            <TemplateDrawer />
             <MoleculeCanvas />
             <Sidebar onRetryBatch={handleRetryBatch} />
           </>
@@ -801,7 +912,7 @@ export function App() {
       </div>
 
       {/* Status Bar */}
-      <div
+      {statusBarOpen && <div
         className="app-status-bar"
         role="group"
         aria-label={language === 'ja' ? '描画ステータスとショートカット' : 'Drawing status and shortcuts'}
@@ -823,7 +934,7 @@ export function App() {
         <span style={{ marginLeft: 'auto' }}>
           {primaryModifier}+Z: {language === 'ja' ? '元に戻す' : 'Undo'} • {primaryModifier}+Shift+Z: {language === 'ja' ? 'やり直す' : 'Redo'} • +/−: {language === 'ja' ? 'ズーム' : 'Zoom'} • Del: {language === 'ja' ? '削除' : 'Delete'}
         </span>
-      </div>
+      </div>}
     </div>
   );
 }

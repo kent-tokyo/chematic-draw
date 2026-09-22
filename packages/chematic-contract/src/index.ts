@@ -2,14 +2,18 @@
 export interface MoleculeAtom { id: number; element: string; x: number; y: number; charge: number; atom_map: number; isotope?: number; hydrogen_count?: number; wildcard?: boolean; display_label?: string | null; selected?: boolean; }
 export const BOND_STEREO = { None: 0, WedgeUp: 1, WedgeDown: 2 } as const;
 export interface MoleculeBond { id: number; from: number; to: number; order: number; stereo: number; selected?: boolean; }
-export interface Molecule { atoms: MoleculeAtom[]; bonds: MoleculeBond[]; }
-export type ToolName = 'select' | 'atom_c' | 'atom_n' | 'atom_o' | 'atom_s' | 'atom_p' | 'bond_single' | 'bond_double' | 'bond_triple' | 'bond_aromatic' | 'ring_6' | 'eraser';
+export interface DrawingText { id: string; x: number; y: number; text: string; }
+export interface DrawingArrow { id: string; x1: number; y1: number; x2: number; y2: number; kind: 'forward' | 'equilibrium' | 'retro'; }
+export interface DrawingBracket { id: string; x1: number; y1: number; x2: number; y2: number; }
+export interface MoleculeDrawing { texts: DrawingText[]; arrows: DrawingArrow[]; brackets: DrawingBracket[]; }
+export interface Molecule { atoms: MoleculeAtom[]; bonds: MoleculeBond[]; drawing?: MoleculeDrawing; }
+export type ToolName = 'select' | 'atom_c' | 'atom_n' | 'atom_o' | 'atom_s' | 'atom_p' | 'atom_label' | 'bond_single' | 'bond_double' | 'bond_triple' | 'bond_aromatic' | 'bond_wedge' | 'bond_dash' | 'ring_5' | 'ring_6' | 'ring_aromatic' | 'reaction_arrow' | 'text' | 'bracket' | 'eraser';
 export interface CanvasState { offset: { x: number; y: number }; zoom: number; activeTool: ToolName; hoverAtomId: number | null; hoverBondId: number | null; selectedAtomIds: Set<number>; selectedBondIds: Set<number>; }
 export type AppLanguage = 'en' | 'ja' | 'zh';
 export type WorkspaceProfile = 'chemdraw' | 'compact';
-export interface UIState { theme: 'dark' | 'light'; language: AppLanguage; sidebarOpen: boolean; sidebarWidth: number; mainToolsOpen: boolean; workspaceProfile: WorkspaceProfile; focusMode: boolean; }
+export interface UIState { theme: 'dark' | 'light'; language: AppLanguage; sidebarOpen: boolean; sidebarWidth: number; mainToolsOpen: boolean; generalToolbarOpen: boolean; statusBarOpen: boolean; templatePanelOpen: boolean; templatePanelWidth: number; workspaceProfile: WorkspaceProfile; focusMode: boolean; }
 export type UIAction = 'copy' | 'cut' | 'paste' | 'duplicate' | 'cleanLayout' | 'export' | 'undo' | 'redo' | 'zoomIn' | 'zoomOut' | 'zoomReset' | 'focusMode' | 'showShortcuts' | 'selectAll' | 'delete';
-export type SidebarPanel = 'inspector' | 'templates' | 'chat' | 'research' | 'reactions' | 'batch-results' | 'stereoisomers' | 'lipinski' | 'properties' | 'mechanism' | 'database' | '3d' | 'nmr';
+export type SidebarPanel = 'inspector' | 'query' | 'stereo' | 'chat' | 'research' | 'reactions' | 'batch-results' | 'stereoisomers' | 'lipinski' | 'properties' | 'mechanism' | 'database' | '3d' | 'nmr';
 export interface ContextMenuState { visible: boolean; x: number; y: number; atomId?: number; bondId?: number; }
 export type ModalType = 'shortcuts' | 'export' | 'undo' | 'batch' | 'settings';
 export interface MechanismState { arrows: MechanismArrow[]; selectedArrowId: string | null; arrowSelectionMode: 'idle' | 'awaitingSink'; pendingSourceAtomId: number | null; pendingSinkAtomId: number | null; hoverArrowId: string | null; }
@@ -190,7 +194,7 @@ export interface LayoutTextBox { id: string; x: number; y: number; width: number
 export interface SchemeLayout { stepBoxes: StepBox[]; stepArrows: StepArrow[]; textBoxes?: LayoutTextBox[]; canvasWidth: number; canvasHeight: number; padding: number; }
 export interface LayoutMetrics { boxOverlaps: number; arrowCrossings: number; clippedBoxes: number; arrowOverflow: number; textOverlaps: number; textOverflow: number; invalidGeometry: number; deterministicKey: string; }
 export type MoleculeExportFormat = 'smiles' | 'mol-v2000' | 'rxn-v2000' | 'sdf' | 'cml' | 'cdxml';
-export interface ExportLoss { code: 'wildcard' | 'isotope' | 'unsupported-format'; message: string; }
+export interface ExportLoss { code: 'wildcard' | 'isotope' | 'drawing' | 'unsupported-format'; message: string; }
 export interface QueryAtomConstraint { elements?: string[]; wildcard?: boolean; charge?: number; isotope?: number; aromatic?: boolean; valence?: number; hydrogens?: number; ring?: boolean; }
 export interface QueryAtom { id: number; x: number; y: number; constraint: QueryAtomConstraint; }
 export type QueryBondOrder = 'single' | 'double' | 'triple' | 'aromatic' | 'any' | 'single-or-aromatic' | 'single-or-double';
@@ -325,5 +329,14 @@ export function validateMolecule(molecule: Molecule): string[] {
   }
   const bondIds = new Set<number>();
   for (const bond of molecule.bonds) if (!bond || typeof bond !== 'object' || !Number.isInteger(bond.id) || bondIds.has(bond.id) || !ids.has(bond.from) || !ids.has(bond.to) || bond.from === bond.to || ![1, 2, 3, 4].includes(bond.order) || ![0, 1, 2].includes(bond.stereo)) return [`Invalid bond: ${bond?.id ?? 'unknown'}`]; else bondIds.add(bond.id);
+  if (molecule.drawing !== undefined) {
+    const drawing = molecule.drawing;
+    if (!drawing || !Array.isArray(drawing.texts) || !Array.isArray(drawing.arrows) || !Array.isArray(drawing.brackets)) return ['Invalid drawing layer'];
+    const finite = (...values: number[]) => values.every(Number.isFinite);
+    if (drawing.texts.length + drawing.arrows.length + drawing.brackets.length > 10_000) return ['Drawing layer exceeds the 10,000 item limit'];
+    if (drawing.texts.some((item) => !item || typeof item.id !== 'string' || typeof item.text !== 'string' || item.text.length > 2_048 || !finite(item.x, item.y))) return ['Invalid drawing text'];
+    if (drawing.arrows.some((item) => !item || typeof item.id !== 'string' || !['forward', 'equilibrium', 'retro'].includes(item.kind) || !finite(item.x1, item.y1, item.x2, item.y2))) return ['Invalid drawing arrow'];
+    if (drawing.brackets.some((item) => !item || typeof item.id !== 'string' || !finite(item.x1, item.y1, item.x2, item.y2))) return ['Invalid drawing bracket'];
+  }
   return [];
 }

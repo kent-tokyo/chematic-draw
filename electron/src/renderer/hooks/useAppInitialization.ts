@@ -51,6 +51,16 @@ export function useAppInitialization({ setFilePath }: UseAppInitializationOption
           if (savedMainToolsOpen.success && typeof savedMainToolsOpen.value === 'boolean') {
             useUIStore.getState().setMainToolsOpen(savedMainToolsOpen.value);
           }
+          for (const [key, setter] of [
+            ['generalToolbarOpen', useUIStore.getState().setGeneralToolbarOpen],
+            ['statusBarOpen', useUIStore.getState().setStatusBarOpen],
+            ['templatePanelOpen', useUIStore.getState().setTemplatePanelOpen],
+          ] as const) {
+            const saved = await api.loadSettings(key);
+            if (saved.success && typeof saved.value === 'boolean') setter(saved.value);
+          }
+          const savedTemplateWidth = await api.loadSettings('templatePanelWidth');
+          if (savedTemplateWidth.success && typeof savedTemplateWidth.value === 'number') useUIStore.getState().setTemplatePanelWidth(savedTemplateWidth.value);
           const savedWorkspaceProfile = await api.loadSettings('workspaceProfile');
           if (savedWorkspaceProfile.success && (savedWorkspaceProfile.value === 'chemdraw' || savedWorkspaceProfile.value === 'compact')) {
             useUIStore.setState({ workspaceProfile: savedWorkspaceProfile.value });
@@ -79,8 +89,20 @@ export function useAppInitialization({ setFilePath }: UseAppInitializationOption
           if (savedMainTools === 'true' || savedMainTools === 'false') {
             useUIStore.getState().setMainToolsOpen(savedMainTools === 'true');
           }
+          const savedSidebarOpen = window.localStorage.getItem('chematic-draw/sidebar-open-v1');
+          if (savedSidebarOpen === 'true' || savedSidebarOpen === 'false') useUIStore.getState().setSidebarOpen(savedSidebarOpen === 'true');
+          const savedSidebarWidth = Number(window.localStorage.getItem('chematic-draw/sidebar-width-v1'));
+          if (Number.isFinite(savedSidebarWidth) && savedSidebarWidth > 0) useUIStore.getState().setSidebarWidth(savedSidebarWidth);
+          const savedGeneralToolbar = window.localStorage.getItem('chematic-draw/general-toolbar-open-v1');
+          if (savedGeneralToolbar === 'true' || savedGeneralToolbar === 'false') useUIStore.getState().setGeneralToolbarOpen(savedGeneralToolbar === 'true');
+          const savedStatusBar = window.localStorage.getItem('chematic-draw/status-bar-open-v1');
+          if (savedStatusBar === 'true' || savedStatusBar === 'false') useUIStore.getState().setStatusBarOpen(savedStatusBar === 'true');
+          const savedTemplates = window.localStorage.getItem('chematic-draw/template-panel-open-v1');
+          if (savedTemplates === 'true' || savedTemplates === 'false') useUIStore.getState().setTemplatePanelOpen(savedTemplates === 'true');
+          const savedTemplateWidth = Number(window.localStorage.getItem('chematic-draw/template-panel-width-v1'));
+          if (Number.isFinite(savedTemplateWidth) && savedTemplateWidth > 0) useUIStore.getState().setTemplatePanelWidth(savedTemplateWidth);
           const savedPanel = window.localStorage.getItem('chematic-draw/active-sidebar-panel-v1');
-          const allowedPanels = new Set(['inspector', 'templates', 'chat', 'research', 'reactions', 'batch-results', 'stereoisomers', 'lipinski', 'properties', 'mechanism', 'database', '3d', 'nmr']);
+          const allowedPanels = new Set(['inspector', 'query', 'stereo', 'chat', 'research', 'reactions', 'batch-results', 'stereoisomers', 'lipinski', 'properties', 'mechanism', 'database', '3d', 'nmr']);
           if (savedPanel && allowedPanels.has(savedPanel)) useUIStore.getState().setActiveSidebarPanel(savedPanel as SidebarPanel);
         } catch {
           // Storage can be unavailable in private/embedded browser contexts;

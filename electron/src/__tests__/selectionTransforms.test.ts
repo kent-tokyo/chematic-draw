@@ -1,4 +1,4 @@
-import { alignSelectedAtoms, rotateSelectedAtoms } from '../renderer/lib/selectionTransforms';
+import { alignSelectedAtoms, distributeSelectedAtoms, flipSelectedAtoms, rotateSelectedAtoms } from '../renderer/lib/selectionTransforms';
 
 const molecule = {
   atoms: [
@@ -23,5 +23,16 @@ describe('selection transforms', () => {
   it('does not transform a singleton selection', () => {
     const single = { ...molecule, atoms: molecule.atoms.map((atom) => ({ ...atom, selected: atom.id === 1 })) };
     expect(rotateSelectedAtoms(single)).toBe(single);
+  });
+
+  it('distributes three selected atoms at equal intervals', () => {
+    const threeSelected = { ...molecule, atoms: molecule.atoms.map((atom) => ({ ...atom, selected: true })) };
+    const result = distributeSelectedAtoms(threeSelected, 'horizontal');
+    expect(result.atoms.map((atom) => atom.x)).toEqual([0, 25, 50]);
+  });
+
+  it('flips selected atoms without moving unselected atoms', () => {
+    const result = flipSelectedAtoms(molecule, 'horizontal');
+    expect(result.atoms.map((atom) => atom.x)).toEqual([20, 0, 50]);
   });
 });
