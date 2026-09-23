@@ -43,17 +43,18 @@ Ketcher・ChemSketchからの移行を支援しつつ、形式・組版の対応
 - 生成したInChIKeyによるPubChem検索と、Electron限定の任意ChemSpider名検索
 - 日英中UI、ダークモード
 
-## ChemDrawとの比較（概要）
+## ChemDrawワークフローの移行
 
-| ワークフロー | chematic-draw | ChemDraw |
+| ChemDrawでの用途 | chematic-drawでの対応 | 移行時の判断 |
 |---|---|---|
-| 2D構造式・反応スキーム | ローカルのデスクトップ編集、ステップ作成と診断 | 対応 |
-| 構造データの交換 | SMILES、MOL、SDF、CML、対応CDXMLサブセット | ネイティブCDXML文書ワークフロー |
-| レイアウト・出版出力 | 決定的レイアウト、SVG・PNG・PDF出力 | 高度なテンプレート、自動レイアウト、出版組版 |
-| CDXML表示の再現性 | loss-awareな対応サブセット | ネイティブのpresentation semantics |
-| ソース・ライセンス | オープンソース（MIT） | 商用ソフトウェア |
+| 日常的な2D構造式・反応スキーム作図 | **対応** | ローカル編集、55テンプレート、ステップ作成、構造的一貫性の診断を利用できます。 |
+| SMILES・MOL・SDF・CMLでの構造交換 | **対応** | 通常の構造データ交換には、これらの形式を推奨します。 |
+| 基本構造・ページ情報を含むCDXML文書 | **部分対応** | 対応CDXMLサブセットを使い、移行前に代表的な文書群で確認してください。 |
+| 高度なテンプレート・自動レイアウト・厳密な出版組版 | **部分対応** | 決定的レイアウトとSVG・PNG・PDF出力は使えますが、ChemDrawのpresentation semanticsは完全再現しません。 |
+| ソース固有のpresentation detailを含む最終編集 | **ChemDrawを併用** | 未対応CDXML presentation attributeに依存する文書は、元アプリを最終編集・確認に残してください。 |
 
-これは機能の点数比較ではなく、用途判断のための概要です。本番の文書を移行する前に、
+chematic-drawはオープンソース（MIT）、ChemDrawは商用ソフトウェアです。これは機能の
+点数比較ではなく、用途判断のための概要です。本番の文書を移行する前に、
 [移行ガイド](docs/MIGRATION.md)、[形式互換表](docs/INTEROP.md)、
 [詳細比較](docs/COMPARISON.md)を確認してください。
 

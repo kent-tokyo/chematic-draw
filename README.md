@@ -50,17 +50,18 @@ or build it from source below.
 - PubChem lookup by generated InChIKey; optional Electron-only ChemSpider name lookup
 - English, Japanese, and Simplified Chinese UI, with dark mode
 
-## At a glance: chematic-draw and ChemDraw
+## Moving a ChemDraw workflow
 
-| Workflow | chematic-draw | ChemDraw |
+| ChemDraw workflow | chematic-draw status | Migration decision |
 |---|---|---|
-| 2D structures and reaction schemes | Local desktop editor with authored steps and diagnostics | Supported |
-| Structure exchange | SMILES, MOL, SDF, CML, and a supported CDXML subset | Native CDXML document workflow |
-| Layout and publication output | Deterministic layout plus SVG, PNG, and PDF export | Advanced templates, automatic layout, and publication semantics |
-| CDXML presentation fidelity | Loss-aware supported subset | Native presentation semantics |
-| Source and licensing | Open source (MIT) | Commercial software |
+| Everyday 2D structure drawing and reaction schemes | **Supported** | Local editing, 55 templates, authored steps, and structural-consistency diagnostics are available. |
+| Exchange through SMILES, MOL, SDF, or CML | **Supported** | These are the recommended interchange formats for ordinary structures. |
+| CDXML documents with basic structure and page data | **Partially supported** | Use the documented CDXML subset; test a representative corpus before migrating. |
+| Advanced templates, automatic layout, and exact publication composition | **Partially supported** | Deterministic layout and SVG/PNG/PDF export are available, but ChemDraw presentation semantics are not fully reproduced. |
+| Final authoring of source-specific presentation details | **Keep ChemDraw in the loop** | Retain the source application when a document depends on unsupported CDXML presentation attributes. |
 
-This is a workflow guide, not a feature score. See the [migration guide](docs/MIGRATION.md),
+chematic-draw is open source (MIT); ChemDraw is commercial software. This is a
+workflow guide, not a feature score. See the [migration guide](docs/MIGRATION.md),
 [format matrix](docs/INTEROP.md), and [detailed comparison](docs/COMPARISON.md)
 before moving a production document corpus.
 

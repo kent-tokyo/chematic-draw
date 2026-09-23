@@ -38,17 +38,18 @@ ChemDoodle、Ketcher 和 ChemSketch 迁移，并明确说明格式和排版的�
 - 通过生成的 InChIKey 查询 PubChem，以及仅限 Electron 的可选 ChemSpider 名称查询
 - 英文、日文和简体中文界面、深色模式
 
-## 与 ChemDraw 的概览比较
+## 迁移 ChemDraw 工作流
 
-| 工作流 | chematic-draw | ChemDraw |
+| ChemDraw 工作流 | chematic-draw 状态 | 迁移判断 |
 |---|---|---|
-| 二维结构式和反应方案 | 本地桌面编辑器，支持已编写步骤和诊断 | 支持 |
-| 结构数据交换 | SMILES、MOL、SDF、CML 和受支持的 CDXML 子集 | 原生 CDXML 文档工作流 |
-| 布局和出版输出 | 确定性布局以及 SVG、PNG、PDF 导出 | 高级模板、自动布局和出版排版 |
-| CDXML 表现还原 | 具备损失提示的受支持子集 | 原生表现语义 |
-| 源码和许可 | 开源（MIT） | 商业软件 |
+| 日常二维结构式和反应方案绘制 | **支持** | 可使用本地编辑、55 个模板、步骤编写和结构一致性诊断。 |
+| 通过 SMILES、MOL、SDF 或 CML 交换结构 | **支持** | 这些是普通结构数据交换的推荐格式。 |
+| 包含基本结构和页面数据的 CDXML 文档 | **部分支持** | 请使用已文档化的 CDXML 子集，并在迁移前测试代表性文档集。 |
+| 高级模板、自动布局和精确出版排版 | **部分支持** | 提供确定性布局和 SVG/PNG/PDF 导出，但不完整复现 ChemDraw 的表现语义。 |
+| 包含源应用特有表现细节的最终编辑 | **保留 ChemDraw** | 若文档依赖未支持的 CDXML 表现属性，请保留源应用进行最终编辑和检查。 |
 
-这不是功能评分，而是帮助选择工作流的概览。迁移生产文档集前，请查看
+chematic-draw 是开源软件（MIT），ChemDraw 是商业软件。这不是功能评分，而是帮助
+选择工作流的概览。迁移生产文档集前，请查看
 [迁移指南](docs/MIGRATION.md)、[格式互操作矩阵](docs/INTEROP.md)和
 [详细比较](docs/COMPARISON.md)。
 
