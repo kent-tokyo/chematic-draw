@@ -13,8 +13,9 @@ reports, teaching materials, and research notes. The desktop application is
 built with Electron and React; chemistry operations run in the Rust/WASM bridge
 at [`crates/chem-wasm`](crates/chem-wasm).
 
-The project is experimental and is not yet a drop-in replacement for ChemDraw,
-ChemDoodle, Ketcher, or ChemSketch.
+chematic-draw is a mature, production-oriented editor for its documented
+workflows. It supports practical migration from ChemDraw, ChemDoodle, Ketcher,
+and ChemSketch while keeping format and presentation boundaries explicit.
 
 ## Who it is for
 
@@ -48,6 +49,20 @@ or build it from source below.
 - SVG, PNG, and PDF drawing export
 - PubChem lookup by generated InChIKey; optional Electron-only ChemSpider name lookup
 - English, Japanese, and Simplified Chinese UI, with dark mode
+
+## At a glance: chematic-draw and ChemDraw
+
+| Workflow | chematic-draw | ChemDraw |
+|---|---|---|
+| 2D structures and reaction schemes | Local desktop editor with authored steps and diagnostics | Supported |
+| Structure exchange | SMILES, MOL, SDF, CML, and a supported CDXML subset | Native CDXML document workflow |
+| Layout and publication output | Deterministic layout plus SVG, PNG, and PDF export | Advanced templates, automatic layout, and publication semantics |
+| CDXML presentation fidelity | Loss-aware supported subset | Native presentation semantics |
+| Source and licensing | Open source (MIT) | Commercial software |
+
+This is a workflow guide, not a feature score. See the [migration guide](docs/MIGRATION.md),
+[format matrix](docs/INTEROP.md), and [detailed comparison](docs/COMPARISON.md)
+before moving a production document corpus.
 
 The main workflow is local-first: editing, parsing, properties, SMARTS matching,
 NMR display, and exports do not require an internet connection. PubChem is an

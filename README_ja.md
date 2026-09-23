@@ -10,8 +10,8 @@ Windows・macOS・Linuxで動作する、オープンソースのオフライン
 デスクトップアプリは Electron と React、化学処理は
 [`crates/chem-wasm`](crates/chem-wasm) の Rust/WASM ブリッジで構成されています。
 
-実験的なプロジェクトであり、ChemDraw・ChemDoodle・Ketcher・ChemSketchの
-ドロップイン置き換えではありません。
+対応ワークフローで実用的に使える成熟したプロダクトです。ChemDraw・ChemDoodle・
+Ketcher・ChemSketchからの移行を支援しつつ、形式・組版の対応範囲は明示しています。
 
 ## 対象ユーザー
 
@@ -42,6 +42,20 @@ Windows・macOS・Linuxで動作する、オープンソースのオフライン
 - SVG、PNG、PDFへの描画出力
 - 生成したInChIKeyによるPubChem検索と、Electron限定の任意ChemSpider名検索
 - 日英中UI、ダークモード
+
+## ChemDrawとの比較（概要）
+
+| ワークフロー | chematic-draw | ChemDraw |
+|---|---|---|
+| 2D構造式・反応スキーム | ローカルのデスクトップ編集、ステップ作成と診断 | 対応 |
+| 構造データの交換 | SMILES、MOL、SDF、CML、対応CDXMLサブセット | ネイティブCDXML文書ワークフロー |
+| レイアウト・出版出力 | 決定的レイアウト、SVG・PNG・PDF出力 | 高度なテンプレート、自動レイアウト、出版組版 |
+| CDXML表示の再現性 | loss-awareな対応サブセット | ネイティブのpresentation semantics |
+| ソース・ライセンス | オープンソース（MIT） | 商用ソフトウェア |
+
+これは機能の点数比較ではなく、用途判断のための概要です。本番の文書を移行する前に、
+[移行ガイド](docs/MIGRATION.md)、[形式互換表](docs/INTEROP.md)、
+[詳細比較](docs/COMPARISON.md)を確認してください。
 
 分子編集、SMILES解析、物性計算、SMARTS検索、NMR表示、主要な出力はローカルで動作します。
 PubChemは明示操作によるネットワーク検索です。ChemSpiderはRSC APIキーと帰属確認を

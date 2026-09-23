@@ -14,8 +14,8 @@ people who are evaluating or migrating a chemical structure editor.
   SMILES editor, SMARTS search, reaction scheme editor.
 - **Secondary intent:** ChemDraw alternative, ChemDoodle alternative, Ketcher
   migration, ChemSketch migration, CDXML/MOL/SDF interoperability.
-- **Truth boundary:** The product is experimental and is not a drop-in
-  replacement for commercial or browser editors.
+- **Truth boundary:** The product is production-oriented for its documented
+  workflows; migration claims must keep format and presentation limits clear.
 
 ## Recommended page map
 

@@ -9,8 +9,8 @@
 清晰的结构图。桌面应用使用 Electron 和 React 构建，化学操作由
 [`crates/chem-wasm`](crates/chem-wasm) 中的 Rust/WASM 桥接层执行。
 
-本项目仍处于实验阶段，并不是 ChemDraw、ChemDoodle、Ketcher 或 ChemSketch
-的直接替代品。
+对于已文档化的工作流，这是一个成熟、面向生产使用的编辑器。它支持从 ChemDraw、
+ChemDoodle、Ketcher 和 ChemSketch 迁移，并明确说明格式和排版的支持边界。
 
 ## 适用人群
 
@@ -37,6 +37,20 @@
 - 支持 SVG、PNG 和 PDF 图形导出
 - 通过生成的 InChIKey 查询 PubChem，以及仅限 Electron 的可选 ChemSpider 名称查询
 - 英文、日文和简体中文界面、深色模式
+
+## 与 ChemDraw 的概览比较
+
+| 工作流 | chematic-draw | ChemDraw |
+|---|---|---|
+| 二维结构式和反应方案 | 本地桌面编辑器，支持已编写步骤和诊断 | 支持 |
+| 结构数据交换 | SMILES、MOL、SDF、CML 和受支持的 CDXML 子集 | 原生 CDXML 文档工作流 |
+| 布局和出版输出 | 确定性布局以及 SVG、PNG、PDF 导出 | 高级模板、自动布局和出版排版 |
+| CDXML 表现还原 | 具备损失提示的受支持子集 | 原生表现语义 |
+| 源码和许可 | 开源（MIT） | 商业软件 |
+
+这不是功能评分，而是帮助选择工作流的概览。迁移生产文档集前，请查看
+[迁移指南](docs/MIGRATION.md)、[格式互操作矩阵](docs/INTEROP.md)和
+[详细比较](docs/COMPARISON.md)。
 
 分子编辑、SMILES 解析、属性计算、SMARTS 搜索、NMR 显示和主要导出功能均可在本地运行；
 PubChem 是显式触发的网络查询。ChemSpider 仅在 Electron 宿主配置 RSC API 密钥和归属确认时启用，且不会写入设置文件。
