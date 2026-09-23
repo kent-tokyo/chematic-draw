@@ -1,6 +1,7 @@
 # chematic-draw
 
 [![CI](https://github.com/kent-tokyo/chematic-draw/actions/workflows/test.yml/badge.svg)](https://github.com/kent-tokyo/chematic-draw/actions/workflows/test.yml)
+[![Release](https://img.shields.io/github/v/release/kent-tokyo/chematic-draw?display_name=tag&sort=semver)](https://github.com/kent-tokyo/chematic-draw/releases/latest)
 [![Docs](https://img.shields.io/badge/docs-documentation-2563eb)](docs/README.md)
 
 Windows・macOS・Linuxで動作する、オープンソースのオフラインファースト
