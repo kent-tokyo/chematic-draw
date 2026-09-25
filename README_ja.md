@@ -97,7 +97,8 @@ npm start
 [`chematic`](https://crates.io/crates/chematic) Rustケモインフォマティクス
 ライブラリをWebAssembly経由で利用しています。化学処理層にC/C++ FFIは
 ありません（Electron/Chromium本体のネイティブ依存関係は別です）。現在の開発系列では
-`chematic-draw` 1.0.13では`chematic` v1.0.19を使用しています。
+公開済みの`chematic-draw` 1.0.13は`chematic` v1.0.19を使用し、現在の`main`ブランチは
+v1.0.26を使用しています。
 Rust/WASMブリッジの公開APIは`crates/chem-wasm/src/lib.rs`に置き、分子変換、
 フィンガープリント、RXN/CDXML adapterは機能別moduleに分離しています。現在の検証結果は
 [`CHANGELOG.md`](CHANGELOG.md)を参照してください。

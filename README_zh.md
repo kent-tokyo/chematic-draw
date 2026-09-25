@@ -90,8 +90,8 @@ npm start
 
 应用通过 WebAssembly 使用 Rust 化学信息学库
 [`chematic`](https://crates.io/crates/chematic)。化学层不使用 C/C++ FFI；
-Electron 和 Chromium 仍属于独立的原生依赖。`chematic-draw` 1.0.13
-固定使用 `chematic` v1.0.19。
+Electron 和 Chromium 仍属于独立的原生依赖。已发布的 `chematic-draw` 1.0.13
+固定使用 `chematic` v1.0.19；当前 `main` 分支固定使用 v1.0.26。
 Rust/WASM 桥接层的公共 API 位于 `crates/chem-wasm/src/lib.rs`；分子转换、指纹处理以及
 RXN/CDXML adapter 已按功能拆分到独立模块。当前验证结果请参阅
 [`CHANGELOG.md`](CHANGELOG.md)。

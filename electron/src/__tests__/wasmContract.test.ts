@@ -308,7 +308,7 @@ describe('WASM contract (real binary, not mocked)', () => {
     expect(wasm.tanimoto_similarity(fp, fp)).toBe(1.0);
   });
 
-  it('exposes the v1.0.19 Ertl sulfur/phosphorus TPSA table through WASM', () => {
+  it('exposes the v1.0.26 Ertl sulfur/phosphorus TPSA table through WASM', () => {
     const phosphineSulfide = wasm.parse_any('P(=S)(C)(C)C');
     expect(wasm.get_properties(phosphineSulfide).tpsa).toBeCloseTo(41.90, 10);
   });
@@ -333,7 +333,7 @@ describe('WASM contract (real binary, not mocked)', () => {
     expect(inverted.bonds.find((bond: any) => bond.from === 0 && bond.to === 1)).toMatchObject({ stereo: 2 });
   });
 
-  it('exposes chematic v1.0.19 semantic validation, selection, and expansion', () => {
+  it('exposes chematic v1.0.26 semantic validation, selection, and expansion', () => {
     const model = {
       schema: 'chematic.semantic.v1',
       atom_ids: ['a', 'b'],

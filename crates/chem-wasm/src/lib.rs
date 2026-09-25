@@ -164,7 +164,7 @@ fn semantic_to_js<T: Serialize>(value: &T, label: &str) -> Result<JsValue, JsVal
         .map_err(|e| JsValue::from_str(&format!("{label}: {e}")))
 }
 
-/// Validate the upstream-backed typed Markush/polymer semantic model from chematic v1.0.19.
+/// Validate the upstream-backed typed Markush/polymer semantic model from chematic v1.0.26.
 ///
 /// The model remains separate from `MoleculeDto`; no semantic construct is
 /// flattened into an ordinary molecule by this function.

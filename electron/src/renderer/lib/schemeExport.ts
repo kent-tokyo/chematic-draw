@@ -27,7 +27,7 @@ interface ReactionDocumentExport {
   provenance: {
     source_format: 'reaction-document-json';
     operation: 'export-reaction-document';
-    engine: 'chematic 1.0.19';
+    engine: 'chematic 1.0.26';
     result_hash: string;
   };
 }

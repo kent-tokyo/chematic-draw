@@ -15,7 +15,7 @@ describe('session bundle', () => {
     expect(first).toEqual(createSessionBundle(molecule, '/tmp/example.mol'));
     expect(first.schema).toBe(SESSION_BUNDLE_SCHEMA);
     expect(first.schema_version).toBe(SESSION_BUNDLE_VERSION);
-    expect(first.app.engine).toBe('chematic 1.0.19');
+    expect(first.app.engine).toBe('chematic 1.0.26');
     expect(first.provenance.structure_hash).toMatch(/^fnv1a-32:[0-9a-f]{8}$/);
   });
 
@@ -78,14 +78,14 @@ describe('session bundle', () => {
   it('normalizes legacy engine metadata during v1 migration', () => {
     const legacy = { schema: SESSION_BUNDLE_SCHEMA, schema_version: 1, app: { name: 'chematic-draw', engine: 'chematic 0.20.1' }, molecule };
     const migrated = parseSessionBundle(JSON.stringify(legacy));
-    expect(migrated.app).toEqual({ name: 'chematic-draw', engine: 'chematic 1.0.19' });
+    expect(migrated.app).toEqual({ name: 'chematic-draw', engine: 'chematic 1.0.26' });
   });
 
-  it('opens a v2 bundle from the previous engine and normalizes its metadata', () => {
+  it.each(['chematic 1.0.12', 'chematic 1.0.19', 'chematic 1.0.25'])('opens a v2 bundle from %s and normalizes its metadata', (legacyEngine) => {
     const legacy = JSON.parse(serializeSessionBundle(molecule, null));
-    legacy.app.engine = 'chematic 1.0.12';
+    legacy.app.engine = legacyEngine;
     const migrated = parseSessionBundle(JSON.stringify(legacy));
-    expect(migrated.app).toEqual({ name: 'chematic-draw', engine: 'chematic 1.0.19' });
+    expect(migrated.app).toEqual({ name: 'chematic-draw', engine: 'chematic 1.0.26' });
   });
 
   it('rejects a tampered molecule rather than trusting the stored hash', () => {

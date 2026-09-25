@@ -3,6 +3,10 @@
 Notable user-visible changes. Dates use ISO 8601. The complete historical
 record remains available through the Git log and release tags.
 
+## Unreleased
+
+- Updated the Rust/WASM chemistry engine dependency to `chematic` v1.0.26.
+
 ## 1.0.13 — 2026-09-23
 
 - Split renderer responsibilities behind typed Electron APIs without changing

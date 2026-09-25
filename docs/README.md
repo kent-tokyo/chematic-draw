@@ -28,8 +28,9 @@ authoritative when a version or capability changes.
 The current tagged release is `v1.0.13` (2026-09-23). The application version
 is defined in `electron/package.json` and `crates/chem-wasm/Cargo.toml`; CI
 checks that they stay in sync.
-This release pins the upstream `chematic` engine at v1.0.19. See the root
-[`CHANGELOG.md`](../CHANGELOG.md) for the release contents and validation.
+The published `v1.0.13` release pins the upstream `chematic` engine at
+v1.0.19; the current `main` branch pins v1.0.26. See the root
+[`CHANGELOG.md`](../CHANGELOG.md) for release contents and validation.
 
 Changes under a future `Unreleased` section are not a tagged or published
 release until commit, tag, workflow, and artifact evidence exist.

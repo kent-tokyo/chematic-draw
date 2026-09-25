@@ -504,7 +504,7 @@ test.describe('Electron Smoke', () => {
     await window.getByTestId('sidebar-tab-batch-results').click();
     await expect(window.getByText('Last Operation: properties')).toBeVisible();
     await expect(window.getByLabel('Batch result hash')).toContainText('fnv1a-32:');
-    await expect(window.getByLabel('Batch provenance')).toContainText('Engine: chematic 1.0.19');
+    await expect(window.getByLabel('Batch provenance')).toContainText('Engine: chematic 1.0.26');
     await expect(window.getByLabel('Batch properties for item 1')).toContainText('Formula: C6H6');
     await expect(window.getByLabel('Batch properties for item 1')).toContainText('MW: 78.11');
     await expect(window.getByLabel('Batch structure comparison for item 1')).toContainText('6 atoms / 6 bonds → 6 atoms / 6 bonds');

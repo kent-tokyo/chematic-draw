@@ -132,7 +132,8 @@ See [`docs/BUILD.md`](docs/BUILD.md) for development and testing commands, or
 The app uses the [`chematic`](https://crates.io/crates/chematic) Rust
 cheminformatics library through WebAssembly. The chemistry layer has no
 C/C++ FFI; Electron and Chromium remain separate native dependencies.
-The current release line is chematic-draw 1.0.13 and pins `chematic` v1.0.19.
+The published 1.0.13 release pins `chematic` v1.0.19; the current `main`
+branch pins v1.0.26.
 The Rust/WASM bridge keeps its public API in `crates/chem-wasm/src/lib.rs` and
 places molecule conversion, fingerprinting, and RXN/CDXML adapters in focused
 modules. See [`CHANGELOG.md`](CHANGELOG.md) for the current validation results.
