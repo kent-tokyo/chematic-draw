@@ -3,9 +3,11 @@
 Notable user-visible changes. Dates use ISO 8601. The complete historical
 record remains available through the Git log and release tags.
 
-## Unreleased
+## 1.0.14 — 2026-10-03
 
-- Updated the Rust/WASM chemistry engine dependency to `chematic` v1.0.26.
+- Updated the Rust/WASM chemistry engine dependency to `chematic` v1.0.31.
+- Reorganized the README and getting-started documentation around concise task
+  guides, with detailed format and API boundaries kept in their dedicated pages.
 
 ## 1.0.13 — 2026-09-23
 

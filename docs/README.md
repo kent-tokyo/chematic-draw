@@ -1,80 +1,55 @@
 # Documentation
 
-This directory documents the current application and its public contract. The
-source code plus the Electron, Rust, and contract-package manifests remain
-authoritative when a version or capability changes.
+Start with the document that matches your task. The source, manifests, tests,
+and published release artifacts remain authoritative when documentation and
+implementation differ.
 
-## Guides
+## Choose a guide
 
-- [Chinese README](../README_zh.md) — 简体中文项目介绍和快速开始
-- [Japanese README](../README_ja.md) — 日本語のプロジェクト紹介と開始手順
-- [Migration Guide](MIGRATION.md) — move workflows from other structure editors
-- [Comparison](COMPARISON.md) — workflow-based chemical editor comparison
-- [Search and Discoverability](DISCOVERABILITY.md) — canonical content and metadata plan
-- [Quick Start](QUICK_START.md) — install a release or start from source
-- [Build Guide](BUILD.md) — toolchain, WASM build, tests, and packaging
-- [User Tutorial](TUTORIAL.md) — common editor workflows
-- [API Reference](API.md) — the Rust/WASM bridge contract
-- [Web Component](../packages/chematic-web/README.md) — Electron-free HTML embedding boundary
-- [Known Limitations](KNOWN_LIMITATIONS.md) — release-scoped support and risk matrix
-- [Format Interoperability](INTEROP.md) — supported formats and known loss
-- [Release Readiness](RELEASE_READINESS.md) — evidence matrix for release gates
-- [Architecture](ARCHITECTURE.md) — application structure and data flow
-- [Troubleshooting](TROUBLESHOOTING.md) — common setup and runtime problems
-- [CI/CD](CI_CD.md) — GitHub Actions and release artifacts
+| Need | Read |
+|---|---|
+| Install, draw, save, or export | [Quick Start](QUICK_START.md) and [User Tutorial](TUTORIAL.md) |
+| Move from ChemDraw, ChemDoodle, Ketcher, or ChemSketch | [Migration](MIGRATION.md) |
+| Check format support and loss behavior | [Format Interoperability](INTEROP.md) and [Known Limitations](KNOWN_LIMITATIONS.md) |
+| Build, test, package, or contribute | [Build](BUILD.md), [CI/CD](CI_CD.md), and [Contributing](../CONTRIBUTING.md) |
+| Understand the bridge or public packages | [API](API.md), [Architecture](ARCHITECTURE.md), [`@chematic/contract`](../packages/chematic-contract/README.md), and [`@chematic/web`](../packages/chematic-web/README.md) |
+| Evaluate a release boundary or a competing workflow | [Release Readiness](RELEASE_READINESS.md) and [Comparison](COMPARISON.md) |
+| Diagnose a problem or report it safely | [Troubleshooting](TROUBLESHOOTING.md) and [Security](../SECURITY.md) |
 
-## Release state
+[Japanese README](../README_ja.md) and [Chinese README](../README_zh.md) provide
+short project introductions. [Discoverability](DISCOVERABILITY.md) is a
+maintainer reference for public copy and metadata.
 
-The current tagged release is `v1.0.13` (2026-09-23). The application version
+## Current release and development line
+
+The current tagged release is `v1.0.14` (2026-10-03). The application version
 is defined in `electron/package.json` and `crates/chem-wasm/Cargo.toml`; CI
-checks that they stay in sync.
-The published `v1.0.13` release pins the upstream `chematic` engine at
-v1.0.19; the current `main` branch pins v1.0.26. See the root
-[`CHANGELOG.md`](../CHANGELOG.md) for release contents and validation.
+checks that they match. That release pins `chematic` v1.0.19. Current `main`
+pins v1.0.31. Items in [Unreleased](../CHANGELOG.md) are not published until
+the commit, tag, workflow, and release artifacts have been verified.
 
-Changes under a future `Unreleased` section are not a tagged or published
-release until commit, tag, workflow, and artifact evidence exist.
+## Boundaries to read before relying on an output
 
-## Important boundaries
-
-- The app is Electron-only; the former native Rust/egui application is gone.
-- PubChem lookup is an exact InChIKey lookup, not similarity search, and needs
-  internet access. ChemSpider is an Electron-only opt-in name lookup: the host
-  needs an RSC API key and explicit attribution acknowledgement, and keeps the
-  key out of renderer code and settings files.
-- The DB panel includes an offline MCS comparison using the current molecule and
-  a second SMILES input; the search is bounded and reports its result budget.
-- Reaction diagnostics report structural consistency, not a mechanism,
-  complete stoichiometry, or product prediction.
-- Stereoisomer enumeration is heuristic and is not a complete CIP assignment.
-- CDXML and RXN are bounded, loss-aware interchange paths. NMR accepts generic
-  JSON and Bruker 1D peak lists, not raw FID or prediction workflows. See
-  [INTEROP](INTEROP.md) and [Known Limitations](KNOWN_LIMITATIONS.md).
-
-## Which document to read
-
-- Installing or running the app: [Quick Start](QUICK_START.md)
-- Developing, testing, or packaging: [Build Guide](BUILD.md)
-- User workflows: [User Tutorial](TUTORIAL.md)
-- Format support and loss behavior: [Format Interoperability](INTEROP.md)
-- Public WASM and contract APIs: [API Reference](API.md)
-- Release evidence and known gaps: [Release Readiness](RELEASE_READINESS.md)
-- Problems during setup or use: [Troubleshooting](TROUBLESHOOTING.md)
-
-The longer Architecture, CI/CD, Migration, Comparison, and Discoverability
-documents are supporting references; they should not duplicate the current
-support matrix in `INTEROP.md` or `KNOWN_LIMITATIONS.md`.
+- CDXML and RXN are loss-aware interchange paths, not complete source-format
+  presentation models.
+- Reaction diagnostics report structural consistency, not a proven mechanism,
+  full stoichiometry, or product prediction.
+- PubChem is a networked exact InChIKey lookup. ChemSpider is desktop-only and
+  opt-in. The rest of the core editing workflow is local-first.
+- NMR accepts generic JSON and Bruker 1D peak lists; raw FID, prediction, and
+  automatic assignment are outside the documented workflow.
 
 ## Development commands
 
-Run these from `electron/`:
+Run application commands from `electron/`:
 
 ```bash
-npm run lint
 npm run typecheck
+npm run lint
 npm test
 npm run test:e2e
 npm run package
 ```
 
-See [CONTRIBUTING.md](../CONTRIBUTING.md) before opening a pull request.
+Use `npm run verify:candidate` for the local release-candidate gate. Rebuild
+WASM after Rust changes and package again before packaged Electron smoke tests.

@@ -1,8 +1,9 @@
 # User tutorial
 
-This is the shortest path through the supported desktop workflow. The app is
-experimental; review [Known Limitations](KNOWN_LIMITATIONS.md) before using an
-output as publication or interchange evidence.
+This is the shortest path through the supported desktop workflow. The editor
+is production-oriented for the workflows documented here; review
+[Known Limitations](KNOWN_LIMITATIONS.md) before using an output as publication
+or interchange evidence.
 
 ## Draw or import
 
@@ -49,8 +50,8 @@ stoichiometry, or product prediction.
 
 | Key | Action |
 |---|---|
-| `Ctrl/Cmd+N`, `O`, `S` | New, open, save |
-| `Ctrl/Cmd+Z`, `Shift+Z` | Undo, redo |
+| `Ctrl/Cmd+N`, `Ctrl/Cmd+O`, `Ctrl/Cmd+S` | New, open, save |
+| `Ctrl/Cmd+Z`, `Ctrl/Cmd+Shift+Z` | Undo, redo |
 | `C`, `N`, `O`, `S`, `P` | Atom tools |
 | `1`, `2`, `3`, `4` | Single, double, triple, aromatic bond |
 | `Delete` / `Backspace` | Delete selection |

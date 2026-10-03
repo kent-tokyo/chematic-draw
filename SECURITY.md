@@ -2,14 +2,14 @@
 
 ## Supported Versions
 
-The current stable release is `v1.0.13`.
+The current stable release is `v1.0.14`.
 Security fixes are made against `main`
 and included in the next tagged pre-release; older pre-releases do not
 receive backports.
 
 | Version | Supported |
 |---|---|
-| `v1.0.13` | :white_check_mark: |
+| `v1.0.14` | :white_check_mark: |
 | `v1.0.12` | :x: |
 | `v1.0.11` | :x: |
 | `v1.0.10` | :x: |

@@ -7,114 +7,49 @@
 [![Docs](https://img.shields.io/badge/docs-documentation-2563eb)](docs/README.md)
 
 An open-source, offline-first chemical structure editor for Windows, macOS,
-and Linux. Draw molecules and reaction schemes with a mouse or keyboard,
-check chemical properties locally, and export clean structure diagrams for
-reports, teaching materials, and research notes. The desktop application is
-built with Electron and React; chemistry operations run in the Rust/WASM bridge
-at [`crates/chem-wasm`](crates/chem-wasm).
+and Linux. Draw molecules and reaction schemes, inspect local chemistry data,
+and export figures or structure files without an account or required cloud
+service. The desktop app uses Electron and React; chemistry runs locally in
+the Rust/WASM bridge at [`crates/chem-wasm`](crates/chem-wasm).
 
-chematic-draw is a mature, production-oriented editor for its documented
-workflows. It supports practical migration from ChemDraw, ChemDoodle, Ketcher,
-and ChemSketch while keeping format and presentation boundaries explicit.
+chematic-draw is production-oriented for its documented workflows. It is a
+practical option for students, researchers, teachers, and developers who need
+everyday structure drawing, exchange, or review while keeping format and
+presentation limits explicit.
 
-## Who it is for
+Try the browser-only [Playground](https://kent-tokyo.github.io/chematic-draw/playground/),
+or download the desktop app from [GitHub Releases](https://github.com/kent-tokyo/chematic-draw/releases).
 
-chematic-draw is for students, researchers, teachers, and developers who want
-a simple chemical structure drawing app without an account or a mandatory
-cloud service. It is useful for drawing a molecule for a lab report, preparing
-a lecture slide, checking a SMILES string, sketching a reaction mechanism, or
-converting a structure between common chemistry file formats.
+## What you can do
 
-For a quick browser trial, open the [Chematic Draw Playground](https://kent-tokyo.github.io/chematic-draw/playground/).
-For local work, install the desktop app from the [release downloads](https://github.com/kent-tokyo/chematic-draw/releases)
-or build it from source below.
-
-## Features
-
-- Canvas-based 2D molecule editor with mouse and keyboard interaction
-- ChemDraw-familiar menus and workspace with left drawing tools/templates,
-  right Properties/Query/Stereo, compact mode, undo/redo, persisted layout,
-  autosave, and crash recovery
-- Properties, Lipinski checks, stereoisomer enumeration, and SMARTS search
-- ECFP4 fingerprints with metadata, Tanimoto/Dice similarity, and bounded MCS
-- 3D viewer with rotation, zoom, and XYZ export
-- Loss-aware NMR panel: generic JSON and Bruker 1D peak-list import, manual annotations, and JSON export
-- Authored reaction schemes and mechanism arrows with structural-consistency diagnostics (not mechanism or product prediction)
-- Multi-reactant SMIRKS execution for two to eight reactants
-- Typed query documents for SMARTS constraints, Markush, polymer, and nucleic-acid metadata
-- Batch processing with per-item results, filtering, progress, cancellation,
-  and failed-item retry
-- SMILES, MOL V2000/V3000, SDF, CML, and supported-subset CDXML import/export
-- Loss-aware CDXML page/group preservation and rich-source patching when safe
-- SVG, PNG, and PDF drawing export
-- PubChem lookup by generated InChIKey; optional Electron-only ChemSpider name lookup
-- English, Japanese, and Simplified Chinese UI, with dark mode
+- Draw and edit 2D structures with mouse, keyboard, templates, undo/redo,
+  autosave, recovery, and ChemDraw-familiar or compact workspaces.
+- Inspect properties, Lipinski rules, stereoisomers, SMARTS matches, ECFP4
+  similarity, bounded MCS results, local 3D structures, and supported NMR data.
+- Author reaction schemes, mechanism arrows, coefficients, and conditions;
+  review structural-consistency diagnostics and run bounded multi-reactant
+  SMIRKS transformations.
+- Exchange SMILES, MOL V2000/V3000, SDF, CML, supported-subset CDXML, RXN,
+  reaction JSON, SVG, PNG, PDF, and session bundles with explicit loss warnings.
+- Use English, Japanese, or Simplified Chinese UI with dark mode. PubChem is
+  an explicit network lookup; ChemSpider is an opt-in desktop-host integration.
 
 ## Moving a ChemDraw workflow
 
-| ChemDraw workflow | chematic-draw status | Migration decision |
+| Workflow | chematic-draw | Recommendation |
 |---|---|---|
-| Everyday 2D structure drawing and reaction schemes | **Supported** | Local editing, 55 templates, authored steps, and structural-consistency diagnostics are available. |
-| Exchange through SMILES, MOL, SDF, or CML | **Supported** | These are the recommended interchange formats for ordinary structures. |
-| CDXML documents with basic structure and page data | **Partially supported** | Use the documented CDXML subset; test a representative corpus before migrating. |
-| Advanced templates, automatic layout, and exact publication composition | **Partially supported** | Deterministic layout and SVG/PNG/PDF export are available, but ChemDraw presentation semantics are not fully reproduced. |
-| Final authoring of source-specific presentation details | **Keep ChemDraw in the loop** | Retain the source application when a document depends on unsupported CDXML presentation attributes. |
+| Everyday 2D drawing and reaction schemes | Supported | Edit locally with templates, steps, and diagnostics. |
+| SMILES, MOL, SDF, or CML exchange | Supported | Recommended for ordinary structure exchange. |
+| Basic CDXML structure and page data | Supported subset | Test representative files before a migration. |
+| Advanced templates, automatic layout, or exact publication composition | Partial | Use deterministic layout and SVG/PNG/PDF, but retain the source tool for final presentation review. |
 
-chematic-draw is open source (MIT); ChemDraw is commercial software. This is a
-workflow guide, not a feature score. See the [migration guide](docs/MIGRATION.md),
-[format matrix](docs/INTEROP.md), and [detailed comparison](docs/COMPARISON.md)
-before moving a production document corpus.
-
-The main workflow is local-first: editing, parsing, properties, SMARTS matching,
-NMR display, and exports do not require an internet connection. PubChem is an
-explicit network lookup. ChemSpider is disabled unless the Electron host has
-an RSC API key and attribution acknowledgement; neither is stored in settings.
-
-The repository also contains a private, Electron-free `@chematic/web` package
-for validated read-only molecule embedding, a host-controlled molecule editor,
-and a Worker protocol for rendering, serialization, summaries, and bounded
-immutable edits.
-
-Try the browser-only [Chematic Draw Playground](https://kent-tokyo.github.io/chematic-draw/playground/) to
-edit a molecule, inspect its 2D structure, and export SMILES or SVG without
-installing the desktop app.
-
-## Common tasks
-
-- **Draw a chemical structure:** use the canvas, 55 categorized templates, element tools, and
-  keyboard shortcuts, then inspect formula, molecular weight, and Lipinski
-  properties.
-- **Prepare a reaction scheme:** add steps, conditions, stoichiometric
-  coefficients, agents, component identities, and mechanism arrows. The app
-  reports mapping, balance, and continuity diagnostics from authored data.
-- **Export for documents:** use SVG, PNG, or PDF for figures, or SMILES, MOL,
-  SDF, CML, and the supported CDXML subset for data exchange.
-- **Work offline:** use the desktop editor and local Rust/WASM chemistry
-  engine without uploading structures. See the [interoperability matrix](docs/INTEROP.md)
-  before moving a production corpus.
-
-Known limitations and the maintained documentation index are in
-[`docs/README.md`](docs/README.md). Chemistry format details are in
-[`docs/INTEROP.md`](docs/INTEROP.md).
-
-The Electron-free public data contract and local `@chematic/web` embedding
-package live in
-[`packages/chematic-contract`](packages/chematic-contract/README.md); it is a
-contract boundary. The web package is currently private and has not been
-published to a registry.
-
-If you are moving from another structure editor, see the
-[`migration guide`](docs/MIGRATION.md) and the workflow-based
-[`comparison`](docs/COMPARISON.md).
-
-## Screenshot
+This is a workflow guide, not a feature score. Read the [migration guide](docs/MIGRATION.md),
+[format matrix](docs/INTEROP.md), and [known limitations](docs/KNOWN_LIMITATIONS.md)
+before moving a production corpus.
 
 ![chematic-draw application](docs/images/chematic-draw-app.jpeg)
 
-The screenshot shows the canvas, Inspector, validation status, and SMARTS
-search in the desktop application.
-
-## Getting started
+## Start developing
 
 ```bash
 git clone https://github.com/kent-tokyo/chematic-draw.git
@@ -124,21 +59,17 @@ npm run build:wasm
 npm start
 ```
 
-See [`docs/BUILD.md`](docs/BUILD.md) for development and testing commands, or
-[`docs/QUICK_START.md`](docs/QUICK_START.md) for installing a release.
+Node.js 24+, Rust, the `wasm32-unknown-unknown` target, and `wasm-pack` are
+required. See [Quick Start](docs/QUICK_START.md) to install a release and
+[Build](docs/BUILD.md) for development, testing, and packaging.
 
-## Chemistry engine
+## Documentation and current development line
 
-The app uses the [`chematic`](https://crates.io/crates/chematic) Rust
-cheminformatics library through WebAssembly. The chemistry layer has no
-C/C++ FFI; Electron and Chromium remain separate native dependencies.
-The published 1.0.13 release pins `chematic` v1.0.19; the current `main`
-branch pins v1.0.26.
-The Rust/WASM bridge keeps its public API in `crates/chem-wasm/src/lib.rs` and
-places molecule conversion, fingerprinting, and RXN/CDXML adapters in focused
-modules. See [`CHANGELOG.md`](CHANGELOG.md) for the current validation results.
+The [documentation index](docs/README.md) is the starting point for user,
+format, API, and release-boundary documentation. The public data contract and
+Electron-free embedding package are documented in
+[`packages/chematic-contract`](packages/chematic-contract/README.md) and
+[`packages/chematic-web`](packages/chematic-web/README.md).
 
-## Contributing, security, and license
-
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`SECURITY.md`](SECURITY.md).
-The project is licensed under MIT; see [`electron/package.json`](electron/package.json).
+The published `v1.0.14` release uses `chematic` v1.0.31. The app is MIT-licensed; see [Contributing](CONTRIBUTING.md)
+and [Security](SECURITY.md) for project policy.

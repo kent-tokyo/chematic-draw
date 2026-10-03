@@ -1,6 +1,6 @@
 # Release readiness
 
-This is the evidence matrix for the `1.0.13` release. “Ready” means a local,
+This is the evidence matrix for the `1.0.14` release. “Ready” means a local,
 reproducible gate exists; it never by itself proves a GitHub release, signed
 artifact, or deployed site.
 
