@@ -1,104 +1,63 @@
 # Format Interoperability
 
-What chematic-draw can actually read and write today, verified against the
-real WASM bridge (`crates/chem-wasm/src/lib.rs` and its focused adapter modules) rather than assumed from
-format names. "Round-trip" below means: parse format X, then write format X
-again, and get back an equivalent molecule — not necessarily byte-identical
-text (coordinates, atom ordering, and formatting are not guaranteed to
-survive unchanged; the *chemical structure* is).
+This is the supported read/write boundary, verified against the WASM bridge and
+its focused adapter tests. “Round-trip” means an equivalent chemical graph,
+not byte-identical text: formatting, atom order, and some coordinates may
+change.
 
 | Format | Read | Write | Round-trip verified | Notes |
 |---|---|---|---|---|
-| SMILES | ✅ | ✅ (`toSmiles`, `toCanonicalSmiles`) | ✅ | Canonical form is stable and deterministic. |
-| MOL V2000 | ✅ | ✅ | ✅ | |
-| MOL V3000 | ✅ | ✅ | ✅ | Needed for >999 atoms/bonds (V2000's fixed-width count fields overflow). |
-| SDF | ✅ | ✅ | ✅ | Multi-record files: only the first record is read by `parseMolecule`/`parseAny`. |
+| SMILES | ✅ | ✅ (`toSmiles`, `toCanonicalSmiles`) | ✅ | Canonical form is deterministic. |
+| MOL V2000 | ✅ | ✅ | ✅ | Use V3000 for more than 999 atoms/bonds. |
+| MOL V3000 | ✅ | ✅ | ✅ | |
+| SDF | ✅ | ✅ | ✅ | `parseMolecule` and `parseAny` read the first record only. |
 | CML | ✅ | ✅ | ✅ | |
-| CDXML | ✅ (supported subset) | ✅ (supported subset; multi-page parser/writer) | ✅ (single-fragment corpus) | Parser/writer round-trips page IDs/dimensions, titles, text, font/layout attributes, arrows, simple graphics and validated basic/path-like graphic children, child order, page/graphic transform matrices, fragment IDs, elements, coordinates, bonds, charge, isotope, labels, and stereo hints. Presentation-only pages and opaque presentation groups are accepted; chemistry fragments inside groups are flattened. Advanced upstream presentation attributes remain outside the matrix. |
-| RXN (reaction file) | ✅ (V2000, one step) | ✅ (V2000, one step) | ✅ | V2000 is a lossy interchange; agents, stoichiometric coefficients, and multi-step schemes are preserved by reaction-document JSON v2 instead. |
-| InChI | ❌ | ✅ (`molToInchi`, one-way) | N/A | InChI is intentionally one-directional here: `molToInchi` produces an InChI string from a molecule, and `inchiToInchiKey` hashes an InChI string to its InChIKey — there is no `inchiToMol`. This matches upstream chemistry-informatics convention (InChI is an identifier/hash format, not meant to be a lossless structure-interchange format), so this is not treated as a gap to close, just a direction that doesn't exist. |
-| XYZ | ✅ (`parseXyz`, coordinates only) | ❌ | N/A | Import only, for 3D viewer input. No bond/connectivity information in the format itself. |
-| PDB | ✅ (`parsePdb`, coordinates only) | ❌ | N/A | Same as XYZ — coordinate import only. |
-| JSON session bundle | ✅ (chematic bundle) | ✅ | ✅ | Local review bundle containing the molecule, source path, engine metadata, and deterministic structure fingerprint. It is not a general-purpose chemical interchange format. |
-| JSON reaction document | ✅ (version 2; v1 migration) | ✅ (version 2) | ✅ | Versioned reaction-scheme envelope preserves agents and aligned stoichiometric coefficients; unknown future schemas are rejected. |
-| SVG | ❌ | ✅ (`to_svg`) | N/A | Export-only, as expected — SVG is a rendering target, not a chemical interchange format. |
+| CDXML | ✅ supported subset | ✅ supported subset | ✅ single-fragment corpus | Pages, text, arrows, basic graphics, documented transforms, and molecule data are covered. Advanced presentation semantics are not. |
+| RXN | ✅ V2000, one step | ✅ V2000, one step | ✅ | Use reaction JSON v2 for agents, coefficients, or multiple steps. |
+| InChI | ❌ | ✅ one-way | N/A | `molToInchi` and `inchiToInchiKey`; there is no `inchiToMol`. |
+| XYZ / PDB | ✅ coordinates only | ❌ | N/A | Import for the 3D viewer; neither supplies molecular connectivity here. |
+| JSON session bundle | ✅ | ✅ | ✅ | Local review bundle, not general chemical interchange. |
+| JSON reaction document | ✅ v2; v1 migration | ✅ v2 | ✅ | Unknown future schemas are rejected. |
+| SVG | ❌ | ✅ (`to_svg`) | N/A | Rendering target, not chemical interchange. |
 
-## External provider boundary
+## External providers
 
-PubChem performs an explicit structure lookup from the editor. ChemSpider is a separate Electron-only, opt-in name lookup: the desktop host reads `CHEMSPIDER_API_KEY` and `CHEMSPIDER_ATTRIBUTION_ACCEPTED=true` from its environment, sends the key only in main-process requests, and never persists or exposes it to the renderer. It follows RSC's asynchronous filter → results → record-details flow, limits a query to ten records, and retains results only in a five-minute in-memory cache. Browser and Playground builds keep ChemSpider unavailable. Live availability still depends on an approved RSC account, terms/attribution review, network access, and the provider's current rate limits.
+PubChem is an explicit structure lookup. ChemSpider is a separate Electron-only,
+opt-in name lookup: the host reads `CHEMSPIDER_API_KEY` and
+`CHEMSPIDER_ATTRIBUTION_ACCEPTED=true`, keeps the key in the main process, and
+never persists or exposes it to the renderer. Browser and Playground builds do
+not provide ChemSpider. Live availability depends on an approved RSC account,
+terms, network access, and current provider limits.
 
-## Query and special-chemistry boundary
+## Query and reaction boundary
 
-The editor now has a versioned query document model for editable element lists,
-wildcards, charge/isotope, aromaticity, valence, hydrogen, ring, and query-bond
-orders. A deterministic SMARTS writer covers connected linear queries. Markush
-and R-group definitions are retained as typed query data and can be selected
-and expanded through the semantic WASM contract with source mappings; polymer
-and opaque SMARTS constructs remain typed data and are rejected by
-concrete-molecule export. They are not silently converted to carbon or
-wildcard atoms. The renderer provides query JSON
-editing and delegates SMARTS validation/search to the pinned WASM engine.
-Query documents are also transferred to a dedicated browser worker, which
-initializes the same WASM binary and performs SMARTS matching off the renderer
-thread.
+The versioned query document supports editable element lists, wildcards,
+charge/isotope, aromaticity, valence, hydrogen, ring, and query-bond orders.
+The SMARTS writer covers connected linear queries. Markush, R-groups, and
+polymers remain typed data; unsupported constructs are rejected by
+concrete-molecule export, not converted to carbon or a wildcard.
 
-The current implementation supports RXN V2000 import/export for
-one-step authored reactant/product schemes through the existing MOL conversion
-boundary. Agents, stoichiometric coefficients, and multi-step schemes are
-preserved in reaction-document JSON v2 rather than guessed into RXN V2000.
-Wildcard and isotope loss is checked before
-RXN export and requires explicit confirmation; multi-step RXN export is blocked
-with an explicit status because RXN V2000 cannot preserve the step boundaries.
-RXN import is bounded to 10,000,000 characters and 256 molecule blocks before
-delegating each block to the molecule parser.
+RXN V2000 import/export covers one authored reactant/product step. Keep
+agents, coefficients, and multi-step schemes in reaction-document JSON v2.
+Known RXN loss needs explicit confirmation, and multi-step RXN export is
+blocked rather than flattening step boundaries.
 
-## Known lossy conversions (automatically confirmed before save/export)
+## Known lossy conversions
 
-The renderer checks the target format before molecule saves and explicit MOL /
-SMILES exports. If a known loss is detected, it explains the affected fields
-and asks the user to continue. Known cases where a round-trip through this
-app's own supported formats is *not* lossless are:
+Before a molecule save or explicit MOL/SMILES export, the renderer explains a
+known loss and asks whether to continue. Important non-lossless cases are:
 
-- **CDXML advanced attributes**: the supported writer subset round-trips;
-  advanced ChemDraw attributes remain outside the current matrix and are not
-  synthesized by the writer.
-- **3D coordinates through a 2D-only format** (MOL V2000/V3000, SDF, and CML
-  all *can* carry a Z coordinate; SMILES and CDXML cannot): converting a
-  molecule with `generate3dCoords` output to SMILES, then back, drops the
-  3D conformer entirely — only 2D layout coordinates are ever written to
-  SMILES (SMILES has no coordinate concept at all).
-- **R-group/wildcard atoms** (`wildcard: true` in `AtomDto`): a `[*]`
-  wildcard round-trips correctly through SMILES (verified in
-  `parseAnyContract.test.ts`), but **silently degrades to a plain carbon
-  atom** when written to and re-parsed from MOL V2000, MOL V3000, SDF, or
-  CML — confirmed empirically (`parse_any('[*]CC')` → write → re-parse:
-  `wildcard` is `false` and `element` is `"C"` on all four, with no error
-  or warning). The supported CDXML writer emits carbon and is covered by the
-  explicit loss warning; advanced query objects remain outside the writer
-  subset.
-- **Depiction labels** (`display_label` in `AtomDto`, e.g. condensed "CH3"
-  notation) are cosmetic and derived fresh on every `chem_to_dto` call —
-  they are never written to or read from any file format, so there is
-  nothing to lose here by definition, but a user might reasonably (and
-  incorrectly) expect a saved file to "remember" how a structure was
-  condensed for display.
-- **Isotope labels** (`isotope: number` in `AtomDto`, e.g. `13` for ¹³C): a
-  `[13CH4]`-style isotope round-trips correctly through canonical SMILES and
-  CML (verified in `parseAnyContract.test.ts`), but **silently drops to
-  natural abundance** (`isotope` comes back `undefined`) when written to and
-  re-parsed from MOL V2000 or SDF — confirmed empirically. This is
-  chematic-mol's own V2000/SDF writer not encoding the mass-difference
-  field, not something this bridge's `chem_to_dto`/`dto_to_chem` can fix.
-  Pinned as skipped regression tests in `wasmContract.test.ts`.
+- **CDXML:** advanced presentation attributes are not synthesized.
+- **3D conformers:** exporting through SMILES drops them; the session model
+  does not retain the viewer conformer to infer a warning later.
+- **Wildcards:** `[*]` round-trips through SMILES but degrades to carbon in
+  MOL, SDF, CML, and supported CDXML output.
+- **Isotopes:** canonical SMILES and CML preserve them; MOL V2000 and SDF do
+  not currently preserve the mass-difference field.
+- **Depiction labels:** display labels are regenerated cosmetics, not file
+  data, and therefore are never serialized.
 
-CDXML export is available for the supported subset and uses the same loss
-confirmation boundary for wildcard atoms. 3D-coordinate loss is not inferred
-from `MoleculeDto`, because the current document model does not retain a 3D
-conformer after the viewer operation; this remains an explicit future model
-item rather than an invented warning.
+## See also
 
-## See Also
-
-- [API Reference](./API.md) — operation groups and source pointers
-- `electron/src/__tests__/parseAnyContract.test.ts` — round-trip regression
-  tests backing the "Round-trip verified" column above
+- [API Reference](API.md) — operation groups and source pointers
+- `electron/src/__tests__/parseAnyContract.test.ts` — round-trip regressions

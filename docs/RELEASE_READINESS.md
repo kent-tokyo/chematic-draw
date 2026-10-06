@@ -1,8 +1,8 @@
 # Release readiness
 
-This is the evidence matrix for the `1.0.14` release. “Ready” means a local,
-reproducible gate exists; it never by itself proves a GitHub release, signed
-artifact, or deployed site.
+This is the evidence matrix for the current development line. “Ready” means a
+local, reproducible gate exists; it does not by itself prove a GitHub release,
+signed artifact, or deployed site.
 
 | Priority | Area | State | Evidence / boundary |
 |---|---|---|---|

@@ -27,8 +27,7 @@ npm start          # Vite + Electron with reload
 ```
 
 `npm run build:wasm` writes the browser module to
-`electron/src/renderer/wasm/pkg/`. Do not substitute a raw `wasm-pack build`:
-its output directory is easy to place somewhere the application never loads.
+`electron/src/renderer/wasm/pkg/`; use it instead of a raw `wasm-pack build`.
 
 ## Verification
 
@@ -45,9 +44,9 @@ npm run verify:candidate         # local release-candidate gate
 npm run verify:ci                # candidate gate plus CI-oriented checks
 ```
 
-Use focused Jest paths while iterating. Rebuild the WASM web target after Rust
-changes and package again before Electron smoke tests; otherwise the smoke
-suite can launch a stale or development bundle.
+Use focused Jest paths while iterating. Rebuild WASM after Rust changes and
+package again before Electron smoke tests so the suite does not use a stale
+bundle.
 
 ## Outputs and boundaries
 

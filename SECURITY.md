@@ -2,23 +2,14 @@
 
 ## Supported Versions
 
-The current stable release is `v1.0.14`.
-Security fixes are made against `main`
-and included in the next tagged pre-release; older pre-releases do not
-receive backports.
+Security fixes are made against the current stable release and `main`; older
+releases do not receive backports.
 
 | Version | Supported |
 |---|---|
 | `v1.0.14` | :white_check_mark: |
-| `v1.0.12` | :x: |
-| `v1.0.11` | :x: |
-| `v1.0.10` | :x: |
-| `v1.0.7` | :x: |
-| `v0.9.3` | :x: |
-| `v0.9.2` | :x: |
-| `v0.9.1` | :x: |
 | `main` / latest pre-release | :white_check_mark: |
-| Older pre-releases | :x: |
+| All earlier releases | :x: |
 
 ## Reporting a Vulnerability
 

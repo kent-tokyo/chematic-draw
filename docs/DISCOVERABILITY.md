@@ -1,9 +1,8 @@
 # Search and discoverability plan
 
-This project does not currently ship a public marketing website. The README,
-desktop entry HTML, and browser playground therefore act as the canonical,
-crawlable product entry points. This plan keeps search content useful for
-people who are evaluating or migrating a chemical structure editor.
+The README, desktop entry HTML, and browser Playground are the public entry
+points. Keep them useful to people evaluating or migrating a structure editor;
+this is a maintainer reference, not public product copy.
 
 ## Canonical positioning
 
@@ -30,58 +29,34 @@ people who are evaluating or migrating a chemical structure editor.
 | Use SMARTS/query features | `docs/API.md` and `docs/INTEROP.md` | Supported query contract and rejection behavior |
 | Assess release safety | `docs/RELEASE_READINESS.md` and `SECURITY.md` | Evidence, signing, and external dependencies |
 
-## Metadata for the current entry points
-
-The repository now implements the user-facing positioning in the README files:
-they lead with molecule/reaction drawing, local property checks, document
-export, target users, and the browser trial. The wording remains deliberately
-bounded by the support matrix and known limitations.
-
-The desktop entrypoint uses:
+## Entry-point metadata
 
 ```text
 Title: chematic-draw — Open-source chemical structure editor
 Description: Open-source offline-first chemical structure editor for Windows, macOS, and Linux. Draw molecules and reaction schemes, inspect properties, and export SVG, PNG, PDF, SMILES, MOL, and SDF.
 ```
 
-## Metadata for the browser playground
-
-The repository now contains a browser-only playground entrypoint. When it is
-deployed under GitHub Pages, use `https://kent-tokyo.github.io/chematic-draw/playground/` as its canonical URL and
-keep its page title and description focused on browser-based molecule editing.
+For the browser Playground, use
+`https://kent-tokyo.github.io/chematic-draw/playground/` as the canonical URL
+and focus the metadata on browser-based molecule editing:
 
 ```text
 Title: Chematic Draw Playground — Edit chemical structures in your browser
 Description: Try an open-source chemical structure editor online. Edit SMILES, preview molecules, and export SVG without uploading data.
 ```
 
-## Metadata when a website is added
-
-Use one unique title and description per page. Suggested homepage values:
-
-```text
-Title: chematic-draw — Open-source offline chemical structure editor
-Description: Draw, validate, search, and export chemical structures locally on Windows, macOS, and Linux with Rust/WASM chemistry operations.
-```
-
-Suggested migration-page values:
-
-```text
-Title: Migrate from ChemDraw, ChemDoodle, Ketcher, or ChemSketch | chematic-draw
-Description: Move molecule and reaction workflows to chematic-draw with a format-first guide for SMILES, MOL, SDF, CDXML, RXN, and reaction JSON.
-```
-
-The future site should add canonical URLs, Open Graph previews, descriptive
-alt text, `SoftwareApplication` structured data, and a sitemap. Structured
-data must describe the actual downloadable application and release state; it
-must not claim ratings, capabilities, or reviews that are not evidenced.
-
 ## Content quality rules
 
 - Lead with the user's task and the supported format, not a competitor's name.
 - Use competitor names only in factual migration/comparison context.
-- Link every capability claim to a guide, matrix, test, or limitation.
+- Link capability claims to a guide, matrix, test, or limitation.
 - Keep version and release dates synchronized with the manifests and CHANGELOG.
 - State network, signing, platform, and format limitations near the relevant
   promise.
-- Prefer one useful page per intent over keyword-heavy duplicate pages.
+- Use one useful page per intent instead of keyword-heavy duplicates.
+
+If a public website is added, give each page a unique title and description,
+then add canonical URLs, Open Graph previews, descriptive alt text,
+`SoftwareApplication` structured data, and a sitemap. Structured data must
+describe the actual release and must not invent ratings, capabilities, or
+reviews.

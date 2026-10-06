@@ -71,5 +71,5 @@ Electron-free embedding package are documented in
 [`packages/chematic-contract`](packages/chematic-contract/README.md) and
 [`packages/chematic-web`](packages/chematic-web/README.md).
 
-The published `v1.0.14` release uses `chematic` v1.0.31. The app is MIT-licensed; see [Contributing](CONTRIBUTING.md)
+The published `v1.0.14` release uses `chematic` v1.0.31; the current `main` uses v1.0.36. The app is MIT-licensed; see [Contributing](CONTRIBUTING.md)
 and [Security](SECURITY.md) for project policy.

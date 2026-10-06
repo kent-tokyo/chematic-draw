@@ -14,12 +14,10 @@ requests.
 </script>
 ```
 
-The `<chematic-molecule>` viewer remains deliberately read-only: it validates
-the full public molecule contract, including unique IDs, references, bond
-orders, and stereo values, then renders an accessible SVG surface. Editing is
-available only through the separate, explicitly opt-in
-`<chematic-molecule-editor>` entrypoint described below; parsing and chemistry
-analysis remain explicit host responsibilities.
+`<chematic-molecule>` is deliberately read-only. It validates IDs, references,
+bond orders, and stereo values, then renders accessible SVG. Parsing and
+chemistry analysis remain host responsibilities. For bounded edits, opt in to
+the separate `<chematic-molecule-editor>` entrypoint.
 
 The `@chematic/web/worker` entrypoint exposes the same validation, rendering,
 serialization, and immutable validated edits without DOM or Electron globals:
@@ -41,49 +39,25 @@ const editedBatch = handleMoleculeWorkerRequest({
 });
 ```
 
-`edit-batch` applies at most 256 validated edits as one worker request. A
-failed edit rejects the whole request and never mutates the input molecule.
-The `summarize` operation returns deterministic formula, atom/bond counts,
-formal charge, connected-component count, and an approximate molecular weight
-when all elements are in the dependency-free weight table.
+`edit-batch` applies at most 256 validated edits atomically. `summarize`
+returns formula, atom/bond counts, formal charge, connected components, and an
+approximate molecular weight when all elements are in its local table.
 
-Use `@chematic/web/worker-entry` as the module URL for a dedicated browser
-Worker. It installs the request-ID protocol handler and replies with the
-validated render/serialize result; it has no DOM or Electron dependency.
+`@chematic/web/worker-entry` installs the browser Worker request-ID handler;
+`worker-client` supplies IDs, timeouts, abort handling, error propagation, and
+idempotent disposal. `@chematic/web/react` is a runtime-free props adapter.
+`@chematic/web/editor` provides immutable, validated atom/bond edits for a
+wrapper or Worker command layer.
 
-Use `@chematic/web/worker-client` when the host owns a browser Worker. The
-client adds request IDs, timeout and abort rejection, worker-error propagation,
-and idempotent disposal; it does not create a Worker or select a WASM binary.
+`@chematic/web/editor-element` provides the opt-in
+`<chematic-molecule-editor>`. Hosts can call `applyEdit` or atomic bounded
+`applyEdits`, or enable pointer drawing with `interaction="draw"`. Its `tool`
+is `draw`, `atom`, `bond`, or `erase`; `atom-element` and `bond-order` select
+the mutation. Accepted edits emit one bubbling, composed `molecule-change`;
+invalid or read-only edits emit `schematic-error`.
 
-The `@chematic/web/react` entrypoint is a React-compatible, runtime-free props
-adapter. A wrapper can pass its result to `<chematic-molecule>` without
-coupling this package to a particular React version.
-
-The `@chematic/web/editor` entrypoint provides immutable, headless atom/bond
-edits, including element/charge/isotope/coordinate and bond order/stereo
-updates. It validates the resulting molecule and is suitable for a React
-wrapper or a Worker command layer.
-
-The `@chematic/web/editor-element` entrypoint provides an explicitly opt-in
-`<chematic-molecule-editor>` custom element. Hosts can provide their own
-controls through `applyEdit` or the atomic, bounded `applyEdits` batch method,
-or use pointer editing with `interaction="draw"`. In pointer mode, `tool`
-accepts `draw`, `atom`, `bond`, or `erase`; `atom-element` selects the inserted
-or updated element and `bond-order` selects orders 1–4. Accepted edits
-emit one `molecule-change` event, while invalid or read-only edits emit
-`schematic-error`. It also exposes bounded `canUndo`/`canRedo`, `undo()`,
-`redo()`, `serialize()`, `validate()`, and `dispose()` lifecycle methods. A
-failed batch leaves the molecule and history unchanged. The original
-`<chematic-molecule>` element stays read-only. This surface does not parse
-chemistry, infer reactions, or load Electron/network dependencies.
-
-Pointer drawing is opt-in with `interaction="draw"`: an empty-space click adds
-a carbon atom and dragging between two atoms adds a single bond. The default
-interaction is inert, and invalid edits still emit `schematic-error`.
-
-Keyboard history is opt-in with `keyboard="edit"`. The element becomes
-focusable and supports Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, and Ctrl/Cmd+Y for the
-validated bounded history. Read-only mode disables these mutations.
-
-Editor changes and errors bubble and are composed, so an embedding host can
-observe them from a wrapper element or across a shadow-DOM boundary.
+The element exposes bounded history (`canUndo`, `canRedo`, `undo`, `redo`),
+`serialize`, `validate`, and `dispose`. Pointer drawing and keyboard history
+(`keyboard="edit"`) are opt-in. A failed batch leaves the molecule and history
+unchanged. This surface neither parses chemistry nor loads Electron or network
+dependencies.

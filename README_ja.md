@@ -61,6 +61,6 @@ Node.js 24+、Rust、`wasm32-unknown-unknown` target、`wasm-pack`が必要で�
 [`packages/chematic-contract`](packages/chematic-contract/README.md)と
 [`packages/chematic-web`](packages/chematic-web/README.md)にあります。
 
-公開済みの`v1.0.14`は`chematic` v1.0.31を使用します。
+公開済みの`v1.0.14`は`chematic` v1.0.31を使用し、現在の`main`はv1.0.36を使用します。
 MITライセンスです。開発方針は[Contributing](CONTRIBUTING.md)、脆弱性報告は
 [Security](SECURITY.md)を参照してください。
