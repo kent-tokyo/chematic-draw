@@ -25,7 +25,7 @@ maintainer reference for public copy and metadata.
 The current tagged release is `v1.0.14` (2026-10-03). Its app version is
 defined in `electron/package.json` and `crates/chem-wasm/Cargo.toml`, which CI
 checks for agreement. That release pins `chematic` v1.0.31; current `main`
-pins v1.0.36. [Unreleased](../CHANGELOG.md) items are not published until the
+pins v1.0.38. [Unreleased](../CHANGELOG.md) items are not published until the
 commit, tag, workflow, and release artifacts have been verified.
 
 ## Boundaries to read before relying on an output

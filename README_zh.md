@@ -58,6 +58,6 @@ npm start
 Electron 的嵌入包分别见 [`packages/chematic-contract`](packages/chematic-contract/README.md)
 和 [`packages/chematic-web`](packages/chematic-web/README.md)。
 
-已发布的 `v1.0.14` 使用 `chematic` v1.0.31；当前 `main` 使用 v1.0.36。
+已发布的 `v1.0.14` 使用 `chematic` v1.0.31；当前 `main` 使用 v1.0.38。
 项目采用 MIT 许可证。贡献请看[Contributing](CONTRIBUTING.md)，安全报告请看
 [Security](SECURITY.md)。

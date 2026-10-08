@@ -5,7 +5,7 @@ record remains available through the Git log and release tags.
 
 ## Unreleased
 
-- Updated the Rust/WASM chemistry engine dependency to `chematic` v1.0.36.
+- Updated the Rust/WASM chemistry engine dependency to `chematic` v1.0.38.
 - Consolidated the migration, interoperability, comparison, and embedding
   documentation around current support boundaries.
 
